@@ -599,6 +599,9 @@ const dfetch = async (p, tries = 2) => {
 // בארכיון של 2020 הצילומים יומיים והתאריך מדויק; ב-2017 הם במרחק שבועיים,
 // ואז יום מדויק הוא המצאה — במקרה כזה נכתב החודש בלבד. (בקשת המשתמש.)
 function evDate(v) {
+  // נתוני משרד התחבורה (חופש מידע): התאריך נגזר מהנסיעה האחרונה של המסלול הקודם — מוצג בדיוק של חודש, או כטווח
+  if (v.ap === "r") return { txt: fmtM(v.sd) === fmtM(v.d) ? fmtM(v.d) : fmtM(v.sd) + "–" + fmtM(v.d), exact: false, tip: "בין " + fmtD(v.sd) + " ל-" + fmtD(v.d) + " — לפי נתוני משרד התחבורה (חופש מידע)" };
+  if (v.ap === "m") return { txt: fmtM(v.d), exact: false, tip: (v.sd ? "בערך ב-" + fmtD(v.d) + ", יום אחרי הנסיעה האחרונה במסלול הקודם (" + fmtD(v.sd) + ")" : "בערך ב-" + fmtD(v.d)) + " — לפי נתוני משרד התחבורה (חופש מידע)" };
   const sd = v.sd || (/(\d{4}-\d{2}-\d{2}) ל-(\d{4}-\d{2}-\d{2})/.exec(v.note || "") || [])[1];
   if (!sd || sd === v.d) return { txt: fmtD(v.d), exact: true };
   const g = gapDays(sd, v.d);
@@ -894,7 +897,7 @@ const dedupCount = (arr) => {
   (arr || []).forEach((x) => { const k = typeof x === "string" ? x : x[0] + "|" + x[1]; const e = m.get(k); if (e) e.n += 1; else m.set(k, { x, n: 1 }); });
   return [...m.values()];
 };
-function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly }) {
+function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly, nowNames }) {
   // בצילומי אתרי המידע לנוסעים לתחנות אין מיקום ([קוד, שם, null, null]) — מפה עם נקודות null
   // קרסה (L.latLngBounds של רשימה ריקה / circleMarker([null,null])) והורידה את כל הדף
   const finite = (s) => Number.isFinite(s[2]) && Number.isFinite(s[3]);
@@ -1012,6 +1015,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
       (PD[s[4]] ? `<br><span class="pst">⛔ ${PD[s[4]]}</span>` : "") +
       // הרציף של הווריאנט בתחנה הזו היום (platforms.json) — רק במסופים עם רציפים
       (plats && plats[String(s[0])] ? `<br><span class="pst">🛤️ רציף ${esc(String(plats[String(s[0])]))}</span>` : "") +
+      // שם מנתוני משרד התחבורה (חופש מידע) — השם של היום, לא של התקופה
+      (nowNames && nowNames.has(String(s[0])) ? `<br><span class="pcode">שם עדכני — שם התחנה כפי שהוא רשום היום; השם בתקופה הזו לא ידוע</span>` : "") +
       `<br><span class="pcode">${String(s[0]).startsWith('website:')?'מזהה פנימי במקור':'מק״ט תחנה'} ${esc(s[0])}</span>`;
     (curStops || []).forEach((s) => {
       // הגרסה הקודמת עשויה להיות שינוי תדירות בלי רצף תחנות, ואז אין מול מה
@@ -2904,7 +2909,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       if (!isAdd) { const f = remFix(i)[name]; if (f) return withPlat(`${name} (${f[0]})`, f[0]); }
       return name;
     });
-    return dedupCount(strs).map(({ x, n: c }) => x + (c > 1 ? ` ×${c}` : "")).join(", ");
+    // שם מנתוני משרד התחבורה (חופש מידע) — השם של היום (שלמה 18.11)
+    const now = new Set([...((vs[i] && vs[i].foiNames) || []), ...((vs[i - 1] && vs[i - 1].foiNames) || [])].map(String));
+    const strs2 = now.size ? strs.map((x) => { const m = /\((\d+)\)/.exec(x); return m && now.has(m[1]) ? x + " · שם עדכני" : x; }) : strs;
+    return dedupCount(strs2).map(({ x, n: c }) => x + (c > 1 ? ` ×${c}` : "")).join(", ");
   };
   // תחנה שירדה ותחנה שנוספה עם אותו שם ורק רציף שונה — זה מעבר רציף,
   // לא "תחנה חדשה": מזווגים אותן ומציגים שורת מעבר אחת ברורה
@@ -3278,6 +3286,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           stops12={onlyCur ? null : stops12} shape12={onlyCur ? null : shape12}
           sg={onlyCur || cmpOn || m12only ? null : (v.sg || null)}
           plats={m12only ? null : rdPlat}
+          nowNames={(gv.foiNames || (pgv && pgv.foiNames)) ? new Set([...(gv.foiNames || []), ...((pgv && pgv.foiNames) || [])].map(String)) : null}
           remPins={onlyCur || cmpOn || m12only ? null : remPinsOf(v, vi, gv).pins} />
         {/* תחנה שירדה ואין לה מיקום באף מקור — נאמרת במפורש, לא נעלמת */}
         {!cmpOn && !onlyCur && !m12only && (() => {
@@ -3311,8 +3320,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           : plannedV
           ? <div className="mut">ℹ️ {gv.shp ? "השרטוט המלא של המסלול שתוכנן, כפי שפורסם בפיד" : "המסלול שתוכנן מצויר כקו ישר בין התחנות — לתוכנית הזו לא נשמר שרטוט"}.</div>
           : approx
-          ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
+          ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
+        {((gv.foiNames || []).length > 0 || ((pgv && pgv.foiNames) || []).length > 0) && <div className="mut">ℹ️ <TipTag cls="mut" tip="שם התחנה כפי שהוא רשום היום — השם בתקופה הזו לא ידוע">שם עדכני</TipTag> — שם התחנה כפי שהוא רשום היום; השם בתקופה הזו לא ידוע{(gv.foiNames || []).length ? ` (${gv.foiNames.length} תחנות בגרסה הזו)` : ""}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
@@ -3543,6 +3553,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              {x.foiD && <div className="evnote">לפי נתוני משרד התחבורה (חופש מידע) השינוי נכנס בערך ב-{fmtD(x.foiD)}.</div>}
               <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
@@ -3911,6 +3922,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              {x.foiD && <div className="evnote">לפי נתוני משרד התחבורה (חופש מידע) השינוי נכנס בערך ב-{fmtD(x.foiD)}.</div>}
               <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
@@ -4583,7 +4595,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                       <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                       <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                     </>}
-                    {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
+                    {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note && withNote ? <span className="lnote">{noteFix(c.note)}</span> : null}
                   </a>
@@ -4747,7 +4759,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
                 <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
                 <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                 <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
-                {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
+                {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
               </a>
@@ -5215,7 +5227,7 @@ function StopsTab({ sel, selN, idx, openLine }) {
                   <span className="meta">
                     {one && c.t ? c.t + " · " : ""}{c.b12 ? <span title="השוואה בין רישום התחנות של 2012 לרישום הראשון שיש לנו, ממרץ 2017 — המועד המדויק לא ידוע">בין 2012 ל-2017</span> : fmtD(c.d)}
                     {/* אירועי 2015–2017 מצילומי אופן באס (src=ob): בין צילומים רחוקים היום המדויק לא ידוע */}
-                    {c.sd && gapDays(c.sd, c.d) > 3 ? <> <TipTag cls="approxd" tip={"השתנה בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag></> : null}
+                    {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <> <TipTag cls="approxd" tip={"השתנה בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag></> : null}
                     {/* בלי המיקום הקודם השורה יצאה "הוזזה מ׳ · (, ) ← (…)" —
                         חצים ריקים משני הצדדים. כשהוא חסר מוצג היעד בלבד. */}
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
@@ -5671,6 +5683,7 @@ const SRC_LABEL = {
   websiteArchive: "מקור: אתר מידע לנוסעים שנשמר ב־Internet Archive. כיסוי חלקי; צילום אינו הודעת שינוי.",
   miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
   obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
+  "mot-foi": "מקור: משרד התחבורה (חופש מידע) — קובץ \"מסלול לפי שנים\" 2013–2017. התאריכים משוערים.",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   ob: "מקור: ארכיון הסדנא לידע ציבורי (Open Bus) — צילומים יומיים, 01.2022–07.2026",
@@ -5744,6 +5757,12 @@ const SOURCES = [
         "https://github.com/hasadna/OpenTrainCommunity/tree/8dd9ba7b3ebed022469723df6974b27bf2c5577d/data"
       ]
     ]
+  },
+  {
+    t: "משרד התחבורה (חופש מידע)",
+    d: "12.2013 – 2017",
+    b: "קובץ \"מסלול לפי שנים\" שמשרד התחבורה מסר בתשובה לבקשת חופש מידע: רצף התחנות של כל גרסת מסלול בכל מק\"ט, מספר הנסיעות שלה בכל שנה ויום הנסיעה האחרון שלה. ממנו נלקחה ההיסטוריה שלפני התיעוד הרשמי של כל קו (בעיקר 2014–2015), וקווים שהסתיימו לפני 2015. התאריכים משוערים: שינוי מסומן ביום שאחרי הנסיעה האחרונה במסלול הקודם. אין בקובץ שרטוט מסלול, מספר קו או מפעיל, ושמות התחנות בו הם השמות המאוחרים — לכן שם התחנה נלקח מהתיעוד של התקופה כשיש כזה.",
+    links: [["הקבצים המקוריים", "https://github.com/Transit-Freak/kav-bochan/releases/tag/data-foi-routes-2013-2017"], ["סיכום הייבוא", "data/foi-import.json"]],
   },
   {
     "t": "הארכיון הישן של אוטובוס פתוח",
@@ -6629,7 +6648,7 @@ function App() {
       </details>
       <footer>
         במסגרת <a href="../" target="_blank" rel="noopener">הקו הבוחן</a> · מקורות הנתונים: 
-        היסטוריה: אתרי המידע לנוסעים ב־Internet Archive (2003–2015), מרחב ו־Internet Archive (2012), מגיעים ו־OpenStreetMap (2012), רכבת פתוחה (2013–2014), אוטובוס פתוח והסדנא לידע ציבורי (2015–2018, 2022–2026), TransitFeeds/OpenMobilityData (2017–2022). פירוט וקישורים בסעיף המקורות שמעל.
+        היסטוריה: אתרי המידע לנוסעים ב־Internet Archive (2003–2015), מרחב ו־Internet Archive (2012), מגיעים ו־OpenStreetMap (2012), רכבת פתוחה (2013–2014), משרד התחבורה — חופש מידע (2013–2017), אוטובוס פתוח והסדנא לידע ציבורי (2015–2018, 2022–2026), TransitFeeds/OpenMobilityData (2017–2022). פירוט וקישורים בסעיף המקורות שמעל.
       </footer>
     </div>
     </LiteCtx.Provider>
