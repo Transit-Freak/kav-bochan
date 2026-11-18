@@ -833,10 +833,10 @@
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, hol: idx.hol || [] });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, hol: idx.hol || [] });
     pastTense(base, pages);
     drawKinds(pages);
-    ttUi(pages); zmUi(pages);
+    ttUi(pages); zmUi(pages); rcUi(pages);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -908,6 +908,16 @@
     var v = edits.zm || (nk.some(function (p) { return p.kind === 'new'; }) ? 'yes' : 'no');
     $('zmgrp').querySelectorAll('[data-zm]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-zm') === v ? 'true' : 'false'); });
   }
+  /* צבעי המסלול במפת השינוי — רק כשיש במצגת שינוי מסלול (לא קו חדש / מבוטל / לו"ז) */
+  function rcUi(pages) {
+    $('rcgrp').hidden = !pages.some(function (p) { return !p.kind; });
+    var v = edits.rc === 'all' ? 'all' : 'chg';
+    $('rcgrp').querySelectorAll('[data-rc]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-rc') === v ? 'true' : 'false'); });
+  }
+  $('rcgrp').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-rc]'); if (!b) return;
+    edits.rc = b.getAttribute('data-rc'); saveEdits(); keepScroll(function () { render(curPages); });
+  });
   $('zmgrp').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-zm]'); if (!b) return;
     edits.zm = b.getAttribute('data-zm'); saveEdits(); keepScroll(function () { render(curPages); });
