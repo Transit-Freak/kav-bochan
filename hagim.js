@@ -23,6 +23,7 @@
 (function () {
   "use strict";
   var DAY = 864e5;
+  var SRC = (document.currentScript && document.currentScript.src) || "hagim.js";
   var q = /[?&]hag=([^&#]+)/.exec(location.search);
   var preview = q ? decodeURIComponent(q[1]) : "";
 
@@ -142,7 +143,7 @@
   var lulav = W + line + "<path d='M22 66 C 40 10, 70 6, 78 40 C 84 62, 108 74, 120 62' fill='none' stroke='#65a30d' stroke-width='12' stroke-linecap='round'/><path d='M40 30 l-10 -8 M52 18 l-8 -12 M66 20 l2 -14' stroke='#4d7c0f' stroke-width='5' stroke-linecap='round'/>" + dots + E;
   var sufg = S + "<ellipse cx='60' cy='72' rx='40' ry='28' fill='#3f1d0b'/><ellipse cx='60' cy='66' rx='40' ry='26' fill='#6b3410'/><ellipse cx='60' cy='66' rx='14' ry='9' fill='#1c0a02'/><ellipse cx='46' cy='58' rx='8' ry='4' fill='#111' opacity='.8'/><path d='M40 40 q4 -10 0 -18 M60 34 q4 -10 0 -18 M80 40 q4 -10 0 -18' stroke='#94a3b8' stroke-width='3' fill='none' stroke-linecap='round' opacity='.8'/>" + E;
   var jug = S + "<defs><linearGradient id='hgjg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fef3c7'/><stop offset='.5' stop-color='#f59e0b'/><stop offset='1' stop-color='#92400e'/></linearGradient></defs><path d='M44 30 h32 v10 q22 10 22 34 q0 34 -38 34 q-38 0 -38 -34 q0 -24 22 -34 Z' fill='url(#hgjg)' stroke='#78350f' stroke-width='3'/><rect x='40' y='18' width='40' height='14' rx='4' fill='#b45309' stroke='#78350f' stroke-width='3'/><path d='M96 56 q16 8 4 26' stroke='#78350f' stroke-width='7' fill='none' stroke-linecap='round'/><path d='M46 44 q-8 12 -6 24' stroke='#fff7ed' stroke-width='4' fill='none' stroke-linecap='round' opacity='.7'/><text x='10' y='112' font-size='22'>🕯️</text>" + E;
-  var dreidel = W + line + "<polyline points='18,64 44,30 70,64 96,30 122,64' fill='none' stroke='#ef8a17' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' opacity='.55'/><g transform='rotate(22 92 40)'><rect x='76' y='14' width='32' height='32' rx='4' fill='#2563eb' stroke='#0f172a' stroke-width='3'/><path d='M76 46 L108 46 L92 66 Z' fill='#1d4ed8' stroke='#0f172a' stroke-width='3'/><rect x='89' y='2' width='6' height='14' fill='#0f172a'/><text x='92' y='38' text-anchor='middle' font-size='20' font-weight='900' fill='#fff'>נ</text></g>" + dots + E;
+  var dreidel = W + line + "<polyline points='18,64 44,30 70,64 96,30 122,64' fill='none' stroke='#ef8a17' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' opacity='.55'/><g class='hag-dreidel' transform='rotate(22 92 40)'><rect x='76' y='14' width='32' height='32' rx='4' fill='#2563eb' stroke='#0f172a' stroke-width='3'/><path d='M76 46 L108 46 L92 66 Z' fill='#1d4ed8' stroke='#0f172a' stroke-width='3'/><rect x='89' y='2' width='6' height='14' fill='#0f172a'/><text x='92' y='38' text-anchor='middle' font-size='20' font-weight='900' fill='#fff'>נ</text></g>" + dots + E;
   function menorah() {   // כל תשעת הנרות דולקים (שלמה 07.09)
     var s = "<svg viewBox='0 0 160 110' class='hag-svg wide'><path d='M20 70 Q80 110 140 70' stroke='#fbbf24' stroke-width='7' fill='none'/><line x1='80' y1='40' x2='80' y2='104' stroke='#fbbf24' stroke-width='7'/><rect x='60' y='100' width='40' height='8' rx='3' fill='#fbbf24'/>";
     [20, 35, 50, 65, 95, 110, 125, 140].forEach(function (x) { s += "<line x1='" + x + "' y1='70' x2='" + x + "' y2='44' stroke='#fbbf24' stroke-width='7'/><rect x='" + (x - 4) + "' y='24' width='8' height='22' rx='2' fill='#fff'/><ellipse class='hag-flame' cx='" + x + "' cy='17' rx='5' ry='9' fill='#fb923c'/><ellipse cx='" + x + "' cy='19' rx='2.5' ry='5' fill='#fde68a'/>"; });
@@ -309,7 +310,7 @@
         leaf(118, -10, 30, 8, "#22c55e") + leaf(74, -6, -20, 7, "#16a34a") +
         blossoms([[134, -22, 7], [104, -18, 7], [94, -30, 6], [56, -26, 6], [66, -10, 6], [36, -6, 7], [14, -8, 6], [16, 12, 6], [-8, 6, 7]]) },
     purim: { vb: [-22, -34, 164, 164], iris: ["#e9d5ff", "#a855f7", "#6b21a8"], line: "#9333ea",
-      fg: "<g transform='rotate(18 104 -6)'><path d='M82 6 L80 -18 L92 -6 L104 -26 L116 -6 L128 -18 L126 6 Z' fill='url(#hgfGold)' stroke='#92400e' stroke-width='2' stroke-linejoin='round'/><rect x='81' y='2' width='46' height='7' rx='2' fill='#f59e0b' stroke='#92400e' stroke-width='1.5'/><circle cx='104' cy='-6' r='3.5' fill='#ef4444'/><circle cx='92' cy='4' r='2' fill='#2563eb'/><circle cx='116' cy='4' r='2' fill='#16a34a'/></g>" +
+      fg: "<g class='hag-hat' transform='rotate(18 104 -6)'><path d='M82 6 L80 -18 L92 -6 L104 -26 L116 -6 L128 -18 L126 6 Z' fill='url(#hgfGold)' stroke='#92400e' stroke-width='2' stroke-linejoin='round'/><rect x='81' y='2' width='46' height='7' rx='2' fill='#f59e0b' stroke='#92400e' stroke-width='1.5'/><circle cx='104' cy='-6' r='3.5' fill='#ef4444'/><circle cx='92' cy='4' r='2' fill='#2563eb'/><circle cx='116' cy='4' r='2' fill='#16a34a'/></g>" +
         "<g><rect x='-14' y='-10' width='7' height='4' rx='1' fill='#ef4444' transform='rotate(30 -10 -8)'/><rect x='10' y='-22' width='7' height='4' rx='1' fill='#22c55e' transform='rotate(-25 13 -20)'/><rect x='40' y='-16' width='7' height='4' rx='1' fill='#3b82f6' transform='rotate(50 43 -14)'/><rect x='58' y='-26' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-10 61 -24)'/>" +
         "<circle cx='26' cy='-8' r='3' fill='#ec4899'/><circle cx='-18' cy='20' r='3' fill='#f97316'/><circle cx='138' cy='40' r='3' fill='#22c55e'/><rect x='130' y='70' width='7' height='4' rx='1' fill='#a855f7' transform='rotate(40 133 72)'/><circle cx='-16' cy='96' r='3' fill='#3b82f6'/><rect x='-20' y='60' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-30 -17 62)'/></g>" +
         "<path d='M-6 30 q-10 -8 -2 -16 q8 -8 -4 -18' stroke='#ec4899' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M128 96 q10 6 4 16 q-6 10 6 16' stroke='#f59e0b' stroke-width='2.5' fill='none' stroke-linecap='round'/>" },
@@ -372,6 +373,35 @@
       (ln ? ".kbh .stage .eye{box-shadow:0 26px 60px -18px color-mix(in srgb," + ln + " 55%,transparent),0 0 0 1px color-mix(in srgb," + ln + " 22%,transparent),0 0 0 12px color-mix(in srgb," + ir[0] + " 35%,transparent),0 0 70px 10px color-mix(in srgb," + ir[1] + " 30%,transparent)}" +
         ".kbh .stage .eye path[stroke='#0ea5e9']{stroke:" + ln + "}.kbh .stage .eye path[stroke='#38bdf8']{stroke:" + (F.dash || ln) + "}" : "");
     document.head.appendChild(el("style", null, st));
+    startPlay(stage);
+  }
+
+  // ---------- העין משחקת עם סמלי החג (דף הבית) ----------
+  // מדי פעם, כשהעין הגדולה מסתכלת על סמל של החג, היא משחקת איתו לפי סוג הסמל (hagim-play.js, נטען רק בדף הבית):
+  //   eat — אוכל: פה קטן נפתח מתחת לעין, הסמל עף פנימה והעין לועסת בחיוך · read — מגילה/ספר: נפתחת מול העין והאישון קורא
+  //   light — חנוכייה/נרות: הנרות נדלקים אחד אחרי השני · spin — סביבון: מסתובב ונופל על אות · wear — כתר/מסכה: העין חובשת לרגע
+  // חג חדש = שורה כאן (מפתח הכלי כמו ב-ART → סוג המשחק). סוגים לעתיד (עוד לא ממומשים ב-hagim-play.js):
+  //   blow (שופר — גלי קול בלי קול), sip (כוס יין — לגימה וסומק), wave (דגל), boom (זיקוקים).
+  // לא בימים עצובים (וגם לא בתענית אסתר שלפני פורים), ולא כשביקשו "בלי תנועה". בדיקה: ‎?hag=purim&eyeplay=read‎ (או all).
+  var PLAY = {
+    hanukkah: { pach: "eat", speed: "eat", skip: "eat", time: "light", bug: "spin" },
+    purim:    { fares: "eat", time: "read", ratzif: "wear" }
+  };
+  function startPlay(stage) {
+    var P = PLAY[active.id], F = FEYE[active.id];
+    if (!P || H.quiet || alsoQuiet || noMotion || !stage) return;
+    if (!window.__hagPlay) {
+      var map = {};
+      Object.keys(DK).forEach(function (k) { if (P[DK[k]]) map[k] = P[DK[k]]; });
+      window.__hagPlay = { id: active.id, play: map, line: (F && F.line) || "#0ea5e9",
+        // הרקע של ריבוע העין (עם קישוט החג) — לעפעף התחתון של העין המחייכת, כדי שיתמזג ברקע
+        bg: F && F.bg ? ("<defs>" + FDEFS.replace(/^<defs>|<\/defs>$/g, "") + "</defs>" + F.bg).replace(/hgf(?=[A-Z])/g, "hgfP_") : "" };
+    }
+    if (window.HagPlay) { window.HagPlay.attach(stage); return; }
+    if (document.getElementById("hag-play-js")) return;
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118") });
+    s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
+    document.head.appendChild(s);
   }
 
   // ---------- CSS ----------
