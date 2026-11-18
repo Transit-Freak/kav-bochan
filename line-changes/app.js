@@ -252,6 +252,7 @@
     if (c.kind === 'new') return '<span class="tag new">' + (soon ? 'קו חדש מ-' : 'קו חדש מ-') + LC.dm(s) + '</span>';
     if (c.kind === 'ended') return '<span class="tag end">' + (soon ? 'נוסע עד ' + LC.dm(c.last || LC.addDays(s, -1)) : 'בוטל ב-' + LC.dm(s)) + '</span>';
     if (c.kind === 'timetable') return '<span class="tag tt">' + (soon ? 'לו״ז חדש מ-' : 'לו״ז השתנה ב-') + LC.dm(s) + '</span>';
+    if (c.var) return '<span class="tag ' + (soon ? 'soon' : 'was') + '">' + (c.var === 'end' ? (soon ? 'חלופה מתבטלת מ-' : 'חלופה בוטלה ב-') : 'חלופה חדשה מ-') + LC.dm(s) + '</span>';
     return '<span class="tag ' + (soon ? 'soon' : 'was') + '">' + (soon ? 'משתנה מ-' : 'השתנה ב-') + LC.dm(s) + '</span>';
   }
   function badge(l) {
@@ -567,7 +568,7 @@
     var html = up.map(function (c) {
       var t = c.tot || {}, sm = (c.dev || 0) < 1000 && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3;
       return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: c.kind ? null : sm,
-        kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind });
+        kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind, basis: c.basis });
     }).join('');
     // שינוי מהארכיון שכבר יש לו רישום מלא (גם לפי התאריך של כיוון אחד) — פעם אחת
     var pastEv = clusterPast(recentPast(l)).filter(function (g) {
@@ -606,6 +607,12 @@
   }
   var KIND_LBL = { 'new': ['הקו מתחיל לנסוע', 'הקו התחיל לנסוע'], ended: ['הנסיעה האחרונה', 'הנסיעה האחרונה'], timetable: ['לוח זמנים חדש מ', 'לוח זמנים חדש מ'] };
   var KIND_META = { 'new': 'מפה של המסלול, התחנות ומתי הקו נוסע', ended: 'מפה של המסלול, ואילו קווים עוצרים באותן תחנות', timetable: 'הלוח הישן והחדש — כללי או מפורט' };
+  /* על מה מבוססת ההשוואה (חלופה שהוחלפה / בוטלה / חדשה) — שורה קטנה בכרטיס */
+  function basisLine(b) {
+    if (!b || !b.length) return '';
+    return '<span class="basis" style="display:block;font-size:12px;color:var(--sub);margin-top:4px;line-height:1.35">' + E(b[0]) +
+      (b.length > 1 ? ' (ועוד ' + (b.length - 1) + ')' : '') + '</span>';
+  }
   function card(c) {
     if (c.kind && KIND_LBL[c.kind]) {
       var d = c.kind === 'ended' ? (c.last || LC.addDays(c.date, -1)) : c.date;
@@ -625,7 +632,7 @@
       (c.past ? '' : '<span class="l">' + E(LC.rel(idx.gen, c.date)) + '</span>') + '</span>' +
       '<span class="what"><span class="chips">' + chips + '</span>' +
       '<span class="size">' + (c.size == null ? '' : c.size ? 'שינוי קטן — עמוד אחד' : 'שינוי גדול — מצגת מלאה') + '</span><span class="meta">' + (kinds ? E(kinds) + ' · ' : '') +
-      (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span></span>' +
+      (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span>' + basisLine(c.basis) + '</span>' +
       '<span class="pick-arrow" aria-hidden="true">←</span></button>';
   }
   $('cards').addEventListener('click', function (ev) {
