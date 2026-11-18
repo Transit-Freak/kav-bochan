@@ -1714,7 +1714,7 @@ def make_alias(prev_pages, prev_alias, new_pages, index, t0):
     השתנה, או שהשינוי ירד) — המזהה החדש: באותו מק"ט ובאותו סוג, עם כיוון משותף (ואחרת — כל סוג עם כיוון משותף,
     למשל שינוי בלו"ז שהתברר כשינוי מסלול). אין כזה — None, והדף מציג את הקו. נשמר ALIAS_DAYS ימים, עם הכינויים
     מהריצות הקודמות; כינוי שהיעד שלו ירד היום — מצביע על היעד החדש של היעד."""
-    suf = lambda i: (re.match(r'^\d+-\d{8}(-[net])?$', i) or [None, None])[1] or ''   # noqa: E731
+    suf = lambda i: (re.match(r'^\d+-\d{8}(-[netv])?$', i) or [None, None])[1] or ''   # noqa: E731
     dk = lambda rds: {dir_key(r) for r in rds}   # noqa: E731
     by_mk = defaultdict(list)
     for r in index:
@@ -1782,7 +1782,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     pages = defaultdict(list)
     cnt = defaultdict(int)
     for f in sorted(found, key=lambda f: f['eff']):
-        key = (f['ag'], f['makat'], kind(f))
+        # חלופה שבוטלה / חדשה — דף משלה (לא מתערבב עם שינוי המסלול של הקו, ולא משנה את התאריך שלו)
+        key = (f['ag'], f['makat'], kind(f) + (':' + f['var'] if f.get('var') else ''))
         pages[key + (cnt[key + (f['rd'],)],)].append(f)
         cnt[key + (f['rd'],)] += 1
     index = []
@@ -1791,12 +1792,14 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     tpl = open(os.path.join(OUTDIR, 'line-template.html'), encoding='utf-8').read()
     os.makedirs(os.path.join(OUTDIR, 'l'), exist_ok=True)
     for (ag, makat, kd, _n), dirs in pages.items():
+        vk = kd.partition(':')[2]
+        kd = kd.partition(':')[0]
         dirs.sort(key=lambda f: (f['dir'], f['alt']))
         eff = min(f['eff'] for f in dirs)
         formal = min((f['formal'] for f in dirs if f.get('formal')), default=None)
         # הכתובת לפי התאריך הרשמי של השינוי (או הנסיעה הראשונה כשאין) — יציבה בין הריצות.
         # הסוגים החדשים: עם סיומת (n קו חדש · e קו מבוטל · t לוח זמנים)
-        pid = f'{makat}-{(formal or eff).replace("-", "")}' + KIND_SUFFIX.get(kd, '')
+        pid = f'{makat}-{(formal or eff).replace("-", "")}' + KIND_SUFFIX.get(kd, '') + ('-v' if vk else '')
         want.add(pid)
         pages_rds[pid] = dirs
         f0 = dirs[0]
@@ -1826,7 +1829,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if kd == 'route' and len(vs) == 1 and '' not in vs:
             rec['var'] = vs.pop()   # כל הכיוונים בדף: חלופה שבוטלה (end) או חלופה חדשה (new)
             rec['tot']['var'] = rec['var']
-            rec['summary'] = ('חלופה בוטלה' if rec['var'] == 'end' else 'חלופה חדשה') + (' · ' + summ if summ else '')
+            sl = summary_line(dict(tot, geo=False, ext=''))   # בחלופה — בלי "הקו נוסע בדרך אחרת": הדרך הראשית לא משתנה
+            rec['summary'] = ('חלופה בוטלה' if rec['var'] == 'end' else 'חלופה חדשה') + (' · ' + sl if sl else '')
             summ = rec['summary']
         if (formal or eff) < t0:
             rec['started'] = 1   # כבר התחיל (נשמר מהריצות הקודמות, KEEP_DAYS). לא "past" — בדף זה שינוי מהארכיון

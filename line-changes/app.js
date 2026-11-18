@@ -197,9 +197,9 @@
     try { var a = JSON.parse(sessionStorage.getItem('lc-picks') || '{}'); return Array.isArray(a) ? { chg: ok(a) } : { chg: ok(a.chg), tt: ok(a.tt) }; } catch (e) { return {}; }
   }
   /* כתובות קצרות: c=27018 כשלקו יש שינוי קרוב אחד; c=27018.1118 כשצריך את התאריך; c=27018.1118t כשגם זה לא מספיק.
-     (r שינוי מסלול · n קו חדש · e קו מבוטל · t לו"ז). מזהים ארוכים (27018-20261118-t, p-...) — עובדים כמו קודם */
-  var KL = { '': 'r', '-n': 'n', '-e': 'e', '-t': 't' };
-  function idParts(id) { var m = String(id).match(/^(\d+)-(\d{8})(-[net])?$/); return m ? { mk: m[1], md: m[2].slice(4), k: KL[m[3] || ''] } : null; }
+     (r שינוי מסלול · n קו חדש · e קו מבוטל · t לו"ז · v חלופה שבוטלה או נוספה). מזהים ארוכים (27018-20261118-t, p-...) — עובדים כמו קודם */
+  var KL = { '': 'r', '-n': 'n', '-e': 'e', '-t': 't', '-v': 'v' };
+  function idParts(id) { var m = String(id).match(/^(\d+)-(\d{8})(-[netv])?$/); return m ? { mk: m[1], md: m[2].slice(4), k: KL[m[3] || ''] } : null; }
   function shortId(id) {
     if (/^tt-/.test(id)) return id.slice(3);
     var a = idParts(id); if (!a) return id;
@@ -227,7 +227,7 @@
       if (al === undefined) goneMk = lp.mk;
       return al || null;
     }
-    var m = tok.match(/^(\d+)(?:\.(\d{4}))?([rnet])?$/);
+    var m = tok.match(/^(\d+)(?:\.(\d{4}))?([rnetv])?$/);
     if (!m) return tok;
     var match = function (b) { return b && b.mk === m[1] && (!m[2] || b.md === m[2]) && (!m[3] || b.k === m[3]); };
     var hit = idx.changes.filter(function (c) { return match(idParts(c.id)); });
