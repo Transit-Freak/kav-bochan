@@ -180,6 +180,8 @@
   function setUrl(how) {
     var sp = [];
     if (step === 3 && picks.length) sp.push('c=' + picks.map(function (p) { return shortId(p.id); }).join(','));
+    var no = step === 3 ? picks.filter(function (p) { return infNo[p.id]; }) : [];
+    if (no.length) sp.push('s=' + no.map(function (p) { return shortId(p.id); }).join(','));
     if (step === 2 && cur) sp.push('l=' + cur.makat);
     if (kindF !== 'all' && mode !== 'tt') sp.push('k=' + KF_URL[kindF]);
     if (mode === 'tt') sp.unshift('m=tt');
@@ -197,9 +199,9 @@
     try { var a = JSON.parse(sessionStorage.getItem('lc-picks') || '{}'); return Array.isArray(a) ? { chg: ok(a) } : { chg: ok(a.chg), tt: ok(a.tt) }; } catch (e) { return {}; }
   }
   /* כתובות קצרות: c=27018 כשלקו יש שינוי קרוב אחד; c=27018.1118 כשצריך את התאריך; c=27018.1118t כשגם זה לא מספיק.
-     (r שינוי מסלול · n קו חדש · e קו מבוטל · t לו"ז). מזהים ארוכים (27018-20261118-t, p-...) — עובדים כמו קודם */
-  var KL = { '': 'r', '-n': 'n', '-e': 'e', '-t': 't' };
-  function idParts(id) { var m = String(id).match(/^(\d+)-(\d{8})(-[net])?$/); return m ? { mk: m[1], md: m[2].slice(4), k: KL[m[3] || ''] } : null; }
+     (r שינוי מסלול · n קו חדש · e קו מבוטל · t לו"ז · v חלופה שבוטלה או נוספה). מזהים ארוכים (27018-20261118-t, p-...) — עובדים כמו קודם */
+  var KL = { '': 'r', '-n': 'n', '-e': 'e', '-t': 't', '-v': 'v' };
+  function idParts(id) { var m = String(id).match(/^(\d+)-(\d{8})(-[netv])?$/); return m ? { mk: m[1], md: m[2].slice(4), k: KL[m[3] || ''] } : null; }
   function shortId(id) {
     if (/^tt-/.test(id)) return id.slice(3);
     var a = idParts(id); if (!a) return id;
@@ -227,7 +229,7 @@
       if (al === undefined) goneMk = lp.mk;
       return al || null;
     }
-    var m = tok.match(/^(\d+)(?:\.(\d{4}))?([rnet])?$/);
+    var m = tok.match(/^(\d+)(?:\.(\d{4}))?([rnetv])?$/);
     if (!m) return tok;
     var match = function (b) { return b && b.mk === m[1] && (!m[2] || b.md === m[2]) && (!m[3] || b.k === m[3]); };
     var hit = idx.changes.filter(function (c) { return match(idParts(c.id)); });
@@ -252,6 +254,7 @@
     if (c.kind === 'new') return '<span class="tag new">' + (soon ? 'קו חדש מ-' : 'קו חדש מ-') + LC.dm(s) + '</span>';
     if (c.kind === 'ended') return '<span class="tag end">' + (soon ? 'נוסע עד ' + LC.dm(c.last || LC.addDays(s, -1)) : 'בוטל ב-' + LC.dm(s)) + '</span>';
     if (c.kind === 'timetable') return '<span class="tag tt">' + (soon ? 'לו״ז חדש מ-' : 'לו״ז השתנה ב-') + LC.dm(s) + '</span>';
+    if (c.var) return '<span class="tag ' + (soon ? 'soon' : 'was') + '">' + (c.var === 'end' ? (soon ? 'חלופה מתבטלת מ-' : 'חלופה בוטלה ב-') : 'חלופה חדשה מ-') + LC.dm(s) + '</span>';
     return '<span class="tag ' + (soon ? 'soon' : 'was') + '">' + (soon ? 'משתנה מ-' : 'השתנה ב-') + LC.dm(s) + '</span>';
   }
   function badge(l) {
@@ -567,7 +570,7 @@
     var html = up.map(function (c) {
       var t = c.tot || {}, sm = (c.dev || 0) < 1000 && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3;
       return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: c.kind ? null : sm,
-        kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind });
+        kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind, basis: c.inferred ? null : c.basis, inferred: c.inferred });
     }).join('');
     // שינוי מהארכיון שכבר יש לו רישום מלא (גם לפי התאריך של כיוון אחד) — פעם אחת
     var pastEv = clusterPast(recentPast(l)).filter(function (g) {
@@ -606,6 +609,12 @@
   }
   var KIND_LBL = { 'new': ['הקו מתחיל לנסוע', 'הקו התחיל לנסוע'], ended: ['הנסיעה האחרונה', 'הנסיעה האחרונה'], timetable: ['לוח זמנים חדש מ', 'לוח זמנים חדש מ'] };
   var KIND_META = { 'new': 'מפה של המסלול, התחנות ומתי הקו נוסע', ended: 'מפה של המסלול, ואילו קווים עוצרים באותן תחנות', timetable: 'הלוח הישן והחדש — כללי או מפורט' };
+  /* על מה מבוססת ההשוואה (חלופה שהוחלפה / בוטלה / חדשה) — שורה קטנה בכרטיס */
+  function basisLine(b) {
+    if (!b || !b.length) return '';
+    return '<span class="basis" style="display:block;font-size:12px;color:var(--sub);margin-top:4px;line-height:1.35">' + E(b[0]) +
+      (b.length > 1 ? ' (ועוד ' + (b.length - 1) + ')' : '') + '</span>';
+  }
   function card(c) {
     if (c.kind && KIND_LBL[c.kind]) {
       var d = c.kind === 'ended' ? (c.last || LC.addDays(c.date, -1)) : c.date;
@@ -618,14 +627,14 @@
         '<span class="pick-arrow" aria-hidden="true">←</span></button>';
     }
     var lbl = c.past ? 'היה ב' : (c.soon ? 'בקרוב' : 'נכנס לתוקף');
-    var chips = (c.kchip ? '<span class="chip kd">שינוי מסלול</span>' : '') + (c.tot ? LC.chips(c.tot) : '<span class="chip mv">טוען…</span>');
+    var chips = (c.kchip ? '<span class="chip kd">שינוי מסלול</span>' : '') + (c.inferred ? '<span class="chip inf">השוואה משוערת</span>' : '') + (c.tot ? LC.chips(c.tot) : '<span class="chip mv">טוען…</span>');
     var kinds = c.kinds ? Object.keys(c.kinds).map(function (k) { return KIND_TXT[k] || k; }).join(' · ') : '';
     return '<button type="button" class="ccard' + (c.past ? ' past' : '') + '" data-key="' + E(c.key) + '">' +
       '<span class="when"><span class="l">' + lbl + '</span><b>' + E(LC.wd(c.date) + ' ' + LC.dmy(c.date)) + '</b>' +
       (c.past ? '' : '<span class="l">' + E(LC.rel(idx.gen, c.date)) + '</span>') + '</span>' +
       '<span class="what"><span class="chips">' + chips + '</span>' +
       '<span class="size">' + (c.size == null ? '' : c.size ? 'שינוי קטן — עמוד אחד' : 'שינוי גדול — מצגת מלאה') + '</span><span class="meta">' + (kinds ? E(kinds) + ' · ' : '') +
-      (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span></span>' +
+      (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span>' + basisLine(c.basis) + '</span>' +
       '<span class="pick-arrow" aria-hidden="true">←</span></button>';
   }
   $('cards').addEventListener('click', function (ev) {
@@ -649,7 +658,7 @@
     return o;
   }
   function normPage(p) {
-    p.dirs.forEach(function (d) {
+    p.dirs.concat(p.split || []).forEach(function (d) {
       ['old', 'new'].forEach(function (k) {
         d[k].stops = d[k].stops.map(stopObj);
         if (!d[k].shape) d[k].shape = LC.decodePoly(d[k].shp);
@@ -758,12 +767,82 @@
   });
 
 
+  /* ---------- השוואה משוערת: חלופה שהופסקה וחלופה אחרת שהתחילה באותו כיוון ----------
+     המערכת לא מחליטה לבד: בשלב 3 שואלים את מי שמכין את המצגת אם זו אותה נסיעה שהשתנתה.
+     "כן" (ברירת המחדל) — שינוי מסלול, לפני ואחרי. "לא" — חלופה שבוטלה וחלופה חדשה, כל אחת בדף משלה (p.split מהבונה).
+     התשובה "לא" נשמרת בכתובת (s=) ובלשונית (sessionStorage) */
+  var infNo = (function () {
+    var o = {};
+    try { (JSON.parse(sessionStorage.getItem('lc-infno') || '[]') || []).forEach(function (id) { o[id] = 1; }); } catch (e) {}
+    return o;
+  })();
+  function infSave() { try { sessionStorage.setItem('lc-infno', JSON.stringify(Object.keys(infNo))); } catch (e) {} }
+  function infPairs(p) { return p.dirs.filter(function (d) { return d.was; }); }
+  function expandInf(list) {
+    var out = [];
+    list.forEach(function (p) {
+      if (!infNo[p.id] || !infPairs(p).length) { out.push(p); return; }
+      var rest = p.dirs.filter(function (d) { return !d.was; });
+      if (rest.length) out.push(Object.assign({}, p, { dirs: rest }));
+      ['end', 'new'].forEach(function (v) {
+        var ds = (p.split || []).filter(function (d) { return d.var === v; });
+        if (!ds.length) return;
+        var eff = ds.map(function (d) { return d.eff; }).sort()[0];
+        out.push(Object.assign({}, p, { id: p.id + '-x' + v[0], dirs: ds, eff: eff, formal: null, var: v, inferred: 0, sig: '',
+          tot: { var: v, rem: v === 'end' ? ds.reduce(function (n, d) { return n + d.removed.length; }, 0) : 0, add: v === 'new' ? ds.reduce(function (n, d) { return n + d.added.length; }, 0) : 0 } }));
+      });
+    });
+    return out;
+  }
+  var iqMaps = [];
+  function drawInfq() {
+    iqMaps.forEach(function (m) { m.remove(); }); iqMaps = [];
+    var ps = mode === 'tt' ? [] : picks.filter(function (p) { return infPairs(p).length; });
+    $('infq').hidden = !ps.length;
+    $('infq').innerHTML = ps.map(function (p) {
+      var pr = infPairs(p), no = !!infNo[p.id];
+      return '<div class="iq" data-iq="' + E(p.id) + '"><span class="flabel">קו ' + E(p.line) + ' · השוואה משוערת</span>' +
+        '<ul>' + pr.map(function (d) {
+          return '<li>לפי לוח הזמנים, חלופה <b><bdi dir="ltr">' + E(d.was) + '</bdi></b>' + (d.was_last ? ' (עד ' + LC.dmy(d.was_last) + ')' : '') + ' הפסיקה, וחלופה <b><bdi dir="ltr">' + E(d.rd) + '</bdi></b> (מ-' + LC.dmy(d.eff) + ') התחילה באותו כיוון' + (d.od && d.od[1] ? ' (ל' + E(d.od[1]) + ')' : '') + '.</li>';
+        }).join('') + '</ul>' +
+        '<div class="iqmap"></div><div class="iqkey"><span><i class="o"></i>החלופה שהפסיקה</span><span><i></i>החלופה שהתחילה</span></div>' +
+        '<p><b>האם זו אותה נסיעה שהשתנתה?</b></p>' +
+        '<div class="seg2" role="radiogroup" aria-label="האם זו אותה נסיעה שהשתנתה?">' +
+          '<button type="button" role="radio" data-iqa="yes" aria-checked="' + !no + '"><b>כן — להציג כשינוי מסלול</b><small>לפני ואחרי: מפה, תחנות שבוטלו ונוספו</small></button>' +
+          '<button type="button" role="radio" data-iqa="no" aria-checked="' + no + '"' + (p.split && p.split.length ? '' : ' disabled') + '><b>לא — להציג בנפרד</b><small>חלופה שבוטלה וחלופה חדשה</small></button>' +
+        '</div></div>';
+    }).join('');
+    // מפה קטנה: החלופה שהפסיקה (אדום מקווקו) והחלופה שהתחילה (ירוק), עם התחנות שבוטלו ונוספו
+    ps.forEach(function (p) {
+      var el = $('infq').querySelector('[data-iq="' + CSS.escape(p.id) + '"] .iqmap'); if (!el || typeof L === 'undefined') return;
+      var map = L.map(el, { zoomControl: false, attributionControl: true, dragging: true, scrollWheelZoom: false, touchZoom: true, doubleClickZoom: true, zoomSnap: 0.25 });
+      map.attributionControl.setPrefix(false);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true }).addTo(map);
+      var b = L.latLngBounds([]);
+      infPairs(p).forEach(function (d) {
+        if (d.old.shape.length > 1) L.polyline(d.old.shape, { color: '#b8361f', weight: 4, dashArray: '8 7', interactive: false }).addTo(map);
+        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: '#1f9152', weight: 4, opacity: .9, interactive: false }).addTo(map);
+        d.old.stops.forEach(function (s) { if (d.removed.indexOf(s.code) >= 0) { L.circleMarker(s.ll, { radius: 5, color: '#fff', weight: 2, fillColor: '#b8361f', fillOpacity: 1 }).bindTooltip(E(s.name)).addTo(map); b.extend(s.ll); } });
+        d.new.stops.forEach(function (s) { if (d.added.indexOf(s.code) >= 0) { L.circleMarker(s.ll, { radius: 5, color: '#fff', weight: 2, fillColor: '#0a5530', fillOpacity: 1 }).bindTooltip(E(s.name)).addTo(map); b.extend(s.ll); } });
+      });
+      if (!b.isValid()) infPairs(p).forEach(function (d) { d.new.shape.forEach(function (x) { b.extend(x); }); });
+      if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom: 16 });
+      iqMaps.push(map);
+    });
+  }
+  $('infq').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-iqa]'); if (!b || b.disabled) return;
+    var id = b.closest('[data-iq]').getAttribute('data-iq');
+    if (b.getAttribute('data-iqa') === 'no') infNo[id] = 1; else delete infNo[id];
+    infSave(); rebuild();
+  });
   function rebuild() {
     var my = ++token;
     drawPicked();
     if (step === 3) setUrl('replace');
     if (!picks.length) { emptyStage(); return; }
-    var pages = picks.slice().sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0); });
+    var pages = expandInf(picks).sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0); });
+    drawInfq();
     if (my === token) render(pages);
   }
 

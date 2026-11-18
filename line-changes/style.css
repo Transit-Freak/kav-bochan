@@ -362,6 +362,17 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .seg2[hidden],.credit-opt[hidden]{display:none}
 .modes{margin-bottom:var(--sp1)}
 .modes button{min-height:58px}
+/* שאלה על השוואה משוערת (חלופה שהופסקה וחלופה שהתחילה) — מי שמכין את המצגת מחליט */
+.infq[hidden]{display:none}
+.infq .iq{border:2px solid var(--warn);background:var(--warn-bg);border-radius:var(--r2);padding:12px;display:flex;flex-direction:column;gap:10px}
+.infq .iq + .iq{margin-top:var(--sp2)}
+.infq .iq p{margin:0;font-size:15px;line-height:1.45}
+.infq .iq ul{margin:0;padding-inline-start:18px;font-size:14px;line-height:1.45}
+.infq .iqmap{height:220px;border-radius:10px;overflow:hidden;background:#dfe6e2;border:1px solid var(--line)}
+.infq .iqkey{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--sub)}
+.infq .iqkey i{display:inline-block;width:22px;height:0;border-top:4px solid #1f9152;vertical-align:middle;margin-inline-end:4px}
+.infq .iqkey i.o{border-top:4px dashed #b8361f}
+.tag.inf,.chip.inf{background:var(--warn-bg);color:var(--warn)}
 .a4note{margin:var(--sp2) 0 0;padding:10px 12px;border-radius:var(--r2);background:var(--warn-bg);color:var(--fg);font-size:14px;line-height:1.45}
 .a4note[hidden]{display:none}
 .group[hidden]{display:none}

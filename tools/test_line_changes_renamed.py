@@ -43,7 +43,7 @@ def run_case(new_pat, new_shp):
     new_v = {'10970-1-0': var(2, 's2', days(T0, D(2026, 12, 8)))}
     old = Feed(D(2026, 11, 11), {1: list('abcdefgh'), 2: new_pat}, STOPS)
     new = Feed(T0, {2: new_pat}, STOPS)
-    ren = L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, old, T0)
+    ren = L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, old, T0, new)
     assert ren == {'10970-1-0': ('10970-1-#', D(2026, 11, 17))}, ren
     stats = {}
     return L.rename_records(ren, old_v, new_v, old, new, {'s1': SHP}, {'s2': new_shp}, T0, stats), stats
@@ -62,4 +62,11 @@ old_v = {'1-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 12))),   # נג�
          '1-1-5': var(2, 's', {D(2026, 11, 13)})}                          # שישי בלבד
 new_v = {'1-1-5': var(2, 's', {D(2026, 11, 20), D(2026, 11, 27)})}
 assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, Feed(D(2026, 11, 11), {}, {}), T0) == {}
+# 4. מסלול אחר לגמרי (אין תחנות משותפות) — לא "הוחלפה"
+far = {c: stop(c, 31.9, 34.7 + i * 0.01) for i, c in enumerate('pqrs')}
+o4 = Feed(D(2026, 11, 11), {1: list('abcdefgh')}, STOPS)
+n4 = Feed(T0, {2: list('pqrs')}, far)
+old_v = {'5-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 16)))}
+new_v = {'5-1-0': var(2, 's', days(T0, D(2026, 12, 8)))}
+assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, o4, T0, n4) == {}
 print('ok')
