@@ -1131,7 +1131,7 @@
       slide.appendChild(el);
     });
   }
-  function imgMsg(t) { var m = $('imgmsg'); if (m) { m.textContent = t; clearTimeout(imgMsg.t); imgMsg.t = setTimeout(function () { m.textContent = ''; }, 6000); } }
+  function imgMsg(t) { var m = $('imgmsg'); if (m) { m.textContent = t; clearTimeout(imgMsg.t); imgMsg.t = setTimeout(function () { m.textContent = ''; }, 4000); } }
   // מוסיפים תמונה: על השקף sid (תיבה שאפשר להזיז ולשנות גודל), או כשקף תמונה חדש אחריו
   function addImage(file, sid, asSlide) {
     if (!sid) return;
@@ -1157,8 +1157,8 @@
       if (!editMode) setEdit(true);
       drawImgs(sid);
       var el = frameOf(sid).querySelector('.ibox[data-ibox="' + CSS.escape(iid) + '"]');
-      if (el) { el.setAttribute('tabindex', '0'); el.focus({ preventScroll: true }); }
-      imgMsg('התמונה נוספה. גוררים להזזה, והעיגול בפינה משנה את הגודל.');
+      if (el) { el.setAttribute('tabindex', '0'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      imgMsg('התמונה נוספה. גוררים כדי להזיז, והעיגול הכחול משנה את הגודל.');
     }).catch(function () { imgMsg('לא הצלחנו לקרוא את התמונה. נסו קובץ JPG או PNG.'); });
   }
   var picker = document.createElement('input');
