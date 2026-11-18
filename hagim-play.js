@@ -114,6 +114,15 @@
       kf.push({ transform: base, offset: 1 });
       A(iris, kf, { duration: dur, fill: "none", easing: "ease-in-out" });
     }
+    // נקודת ביניים בדרך מהסמל ליעד שלא עוברת מול העין: אם הקו הישר חוצה את העין — דרך הפינה של הריבוע בצד של הסמל
+    // (למטה כשהיעד מתחת לעין, למעלה כשהיעד מעליה). במקרה אחר — באמצע הדרך, קצת למעלה
+    function around(g, from, to, lift) {
+      var u = g.u, X = function (p) { return (p.x - g.E.l) / u; }, Y = function (p) { return (p.y - g.E.t) / u; };
+      var fy = Y(from), ty = Y(to), side = X(from) >= 60 ? 136 : -16;
+      if (ty >= 60 && fy < 92) return { x: g.E.l + side * u, y: g.E.t + 98 * u };
+      if (ty < 60 && fy > 28) return { x: g.E.l + side * u, y: g.E.t + 14 * u };
+      return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - (lift == null ? 16 : lift) * u };
+    }
     // פריט שעף: העתק של הסמל (SVG או אמוג'י) בגודל היעד, שמתחיל בדיוק במקום ובגודל של המקור
     function flyer(src, srcRect, destW, cls) {
       var d = div("hp-fly " + (cls || "")), node = src.cloneNode(true), h;
@@ -136,15 +145,15 @@
         // חיוך קל: העפעף התחתון עולה כרבע מגובה העין (העין נשארת פתוחה, עם הקשתית והאישון) —
         // באותו רקע של הריבוע, כך שרק החלק התחתון של העין מתכסה
         n = div("", "<svg viewBox='0 0 120 120'><defs><linearGradient id='hpBg' x1='0' y1='0' x2='0' y2='120' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#fff'/><stop offset='1' stop-color='#e0f2fe'/></linearGradient>" +
-          "<clipPath id='hpLid'><path d='M8 60 Q60 80 112 60 L112 92 L8 92 Z'/></clipPath><clipPath id='hpTile'><path d='" + EYE + "' transform='translate(60 60) scale(1.08) translate(-60 -60)'/></clipPath></defs>" +
+          "<clipPath id='hpLid'><path d='M8 65 Q60 87 112 65 L112 96 L8 96 Z'/></clipPath><clipPath id='hpTile'><path d='" + EYE + "' transform='translate(60 60) scale(1.08) translate(-60 -60)'/></clipPath></defs>" +
           "<g clip-path='url(#hpTile)'><g clip-path='url(#hpLid)'><rect width='120' height='120' fill='url(#hpBg)'/>" + (CFG.bg || "") + "</g></g>" +
-          "<path d='M19 62 Q60 79 101 62' stroke='" + ln + "' stroke-width='4' stroke-linecap='round' fill='none'/></svg>");
+          "<path d='M19 66 Q60 86 101 66' stroke='" + ln + "' stroke-width='4' stroke-linecap='round' fill='none'/></svg>");
         r = g.box(0, 0, 120, 120);
       } else {
         n = div("", "<svg viewBox='0 0 120 120'><ellipse cx='20' cy='92' rx='11' ry='6' fill='#fb7185' opacity='.55'/><ellipse cx='100' cy='92' rx='11' ry='6' fill='#fb7185' opacity='.55'/></svg>");
         r = g.box(0, 0, 120, 120);
       }
-      n.style.opacity = 0; add(n, r); return { el: n, r: r };
+      n.className = "hp-face"; n.style.opacity = 0; add(n, r); return { el: n, r: r };
     }
     function show(f, t, dur, to) { later(t, function () { A(f.el, [{ opacity: to == null ? 0 : 1 - to }, { opacity: to == null ? 1 : to }], { duration: dur || 160 }); }); }
     function happy(g, t0, t1) {   // עין מחייכת + סומק בין t0 ל-t1
@@ -189,9 +198,7 @@
         var sr = rel(src.getBoundingClientRect(), g.S), m = g.box(60, 103, 0, 0), mouthAt = { x: m.l, y: m.t };
         var f = flyer(src, sr, sr.w, ""), box = { l: 0, t: 0, w: f.w, h: f.h };
         add(f.el, box); hide(src);
-        var s1 = Math.min(1, 34 * g.u / sr.w), mid = { x: (cx(sr) + mouthAt.x) / 2 - 10 * g.u, y: (cy(sr) + mouthAt.y) / 2 - 16 * g.u };
-        // סמל שמעל הפה עף מסביב לצד של העין (לא מול האישון): דרך נקודה ליד הפינה התחתונה של הריבוע, בצד של הסמל
-        if (cy(sr) < g.E.t + 100 * g.u) mid = { x: g.E.l + (cx(sr) >= g.E.l + 60 * g.u ? 134 : -14) * g.u, y: g.E.t + 86 * g.u };
+        var s1 = Math.min(1, 34 * g.u / sr.w), mid = around(g, ctr(sr), mouthAt);
         A(f.el, [
           { transform: T(box, ctr(sr), 1), opacity: 1, offset: 0 },
           { transform: T(box, mid, (1 + s1) / 2, " rotate(-14deg)"), opacity: 1, offset: .55, easing: "ease-in-out" },
@@ -217,7 +224,7 @@
           });
         });
         happy(g, 600, 1620);
-        irisTo([[.2, 0, 4], [.45, -2, 4.5], [.6, 2, 4.5], [.75, 0, 3]], 1900);
+        irisTo([[.2, 0, 3], [.45, -2, 2], [.6, 2, 2], [.75, 0, 1]], 1900);
         show(sm, 1440, 160); show(sm, 1760, 160, 0);
         pop(o, 1360);
         end(1960);
@@ -229,7 +236,7 @@
         var dest = g.box(-14, 80, 148, 50), at = ctr(dest), u = g.u;
         var f = flyer(src, sr, 46 * u), fb = { l: 0, t: 0, w: f.w, h: f.h };
         add(f.el, fb); hide(src);
-        var s0 = sr.w / f.w, mid = { x: (cx(sr) + at.x) / 2, y: Math.min(cy(sr), at.y) - 24 * u };
+        var s0 = sr.w / f.w, mid = around(g, ctr(sr), at);
         A(f.el, [{ transform: T(fb, ctr(sr), s0) }, { transform: T(fb, mid, (s0 + 1) / 2, " rotate(8deg)"), offset: .5 }, { transform: T(fb, at, 1), opacity: 1, offset: .9 }, { transform: T(fb, at, 1), opacity: 0 }], { duration: 520, easing: "ease-in-out" });
         // המגילה הגדולה: קלף ושני מוטות
         var lines = "";
@@ -276,7 +283,7 @@
         });
         var sham = flames.filter(function (x) { return x.x === 80; })[0], rest = flames.filter(function (x) { return x !== sham; }).sort(function (a, b) { return a.x - b.x; });
         var order = (sham ? [sham] : []).concat(rest);
-        var s0 = sr.w / f.w, mid = { x: (cx(sr) + at.x) / 2, y: Math.min(cy(sr), at.y) - 20 * u };
+        var s0 = sr.w / f.w, mid = around(g, ctr(sr), at);
         A(f.el, [{ transform: T(fb, ctr(sr), s0) }, { transform: T(fb, mid, (s0 + 1) / 2), offset: .5 }, { transform: T(fb, at, 1) }], { duration: 520, easing: "ease-in-out" });
         order.forEach(function (fl) { A(fl.g, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.2)", opacity: 0 }], { duration: 220, delay: 60 }); });
         var t0 = 620, dt = 115, tr = [[.18, 0, 6]];
@@ -309,7 +316,7 @@
         add(d, db); hide(part);
         // הסביבון מסתובב סביב העוקץ (למטה) — מתקנים את המרכז כשהוא מוקטן
         var Tb = function (r, p, sc, ex) { return T(r, { x: p.x, y: p.y - .47 * r.h * (1 - sc) }, sc, ex); };
-        var s0 = sr.h / (db.h * 1.08), mid = { x: (cx(sr) + at.x) / 2, y: Math.min(cy(sr), at.y) - 22 * u };
+        var s0 = sr.h / (db.h * 1.08), mid = around(g, ctr(sr), at);
         A(d, [{ transform: Tb(db, ctr(sr), s0, " rotate(22deg)") }, { transform: Tb(db, mid, (s0 + 1) / 2, " rotate(-10deg)"), offset: .55 },
           { transform: Tb(db, { x: at.x, y: at.y - 6 * u }, 1, " rotate(4deg)"), offset: .85 }, { transform: Tb(db, at, 1, " rotate(0deg)") }], { duration: 520, easing: "ease-in-out" });
         var st = d.querySelector(".hp-strip");
@@ -358,7 +365,7 @@
         var fb = { l: 0, t: 0, w: f.w, h: f.h }, at = { x: g.E.l + 60 * u, y: g.E.t + 9 * u - f.h * .32 };
         add(f.el, fb);
         if (hat) { hat.style.transition = "opacity .2s"; hat.style.opacity = 0; cur.undo.push(function () { hat.style.opacity = ""; }); }
-        var s0 = sr.w / f.w, mid = { x: (cx(sr) + at.x) / 2, y: Math.min(cy(sr), at.y) - 30 * u };
+        var s0 = sr.w / f.w, mid = around(g, ctr(sr), at);
         var c = function (p, s, r) { return T(fb, p, s, " rotate(" + r + "deg)"); };
         A(f.el, [{ transform: c(ctr(sr), s0, 0) }, { transform: c(mid, (s0 + 1) / 2, -16), offset: .5 }, { transform: c({ x: at.x, y: at.y - 8 * u }, 1, -6), offset: .78 },
           { transform: c(at, 1, 0) + " scale(1.12,.86)", offset: .9 }, { transform: c(at, 1, -4) }], { duration: 560, easing: "ease-in-out" });
