@@ -404,7 +404,7 @@
     pesach:    { pach: "burn", gold: "eat", bug: "slow", next: "inspect", time: "read", skip: "leap", fares: "rot@b", ratzif: "sip", fleet: "find",
                  rail: "ride", bus: "ride", recep: "sip", slides: "read", speed: "twirl", alerts: "read", feeder: "eat", game: "play" },
     atzmaut:   { pach: "smoke", gold: "leap", bug: "boom", next: "wave", time: "eat@b", skip: "wear", fares: "eat@b", ratzif: "wave", fleet: "juggle",
-                 rail: "ride", bus: "ride", recep: "wave", slides: "read", speed: "peek", alerts: "lift", feeder: "eat", game: "lift" },
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "peek", alerts: "lift", feeder: "eat", game: "lift" },
     lagbaomer: { pach: "smoke", gold: "toast", bug: "shoot", next: "toast", time: "tick", skip: "eat", fares: "eat@b", ratzif: "shoot", fleet: "burn",
                  rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "smoke", alerts: "blow", feeder: "peek", game: "play" },
     shavuot:   { pach: "rot", gold: "eat", bug: "lift", next: "wave@b", time: "eat@b", skip: "leap", fares: "sip@b", ratzif: "eat", fleet: "wreath",

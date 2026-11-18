@@ -135,6 +135,7 @@
       var u = g.u, X = function (p) { return (p.x - g.E.l) / u; }, Y = function (p) { return (p.y - g.E.t) / u; };
       var fy = Y(from), ty = Y(to), side = X(from) >= 60 ? 136 : -16;
       if (ty >= 60 && fy < 92) return { x: g.E.l + side * u, y: g.E.t + 98 * u };
+      if (ty < 60 && fy >= 92) return { x: g.E.l + (side > 60 ? 142 : -22) * u, y: g.E.t + 72 * u };   // מלמטה למעלה — דרך הצד, מתחת לפינת העין
       if (ty < 60 && fy > 28) return { x: g.E.l + side * u, y: g.E.t + 14 * u };
       return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - (lift == null ? 16 : lift) * u };
     }
@@ -1016,7 +1017,7 @@
       juggle: function (o) {
         var g = geo(o), u = g.u, src = pick(o), txt = src.firstChild, parts = txt && txt.nodeType === 3 ? segs(txt.nodeValue) : [];
         if (parts.length < 2) { RUN.twirl(o); return; }
-        var sr = rel(src.getBoundingClientRect(), g.S), fs = parseFloat(getComputedStyle(src).fontSize), n = parts.length, cw = sr.w / n, W1 = 32 * u;
+        var sr = rel(src.getBoundingClientRect(), g.S), fs = parseFloat(getComputedStyle(src).fontSize), n = parts.length, cw = sr.w / n, W1 = 40 * u;
         hide(src);
         var C = P(g, 60, -20), rx = 36 * u, ry = 24 * u;
         var pos = function (th) { return { x: C.x + rx * Math.cos(th), y: C.y + ry * Math.sin(th) }; };
