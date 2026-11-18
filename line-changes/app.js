@@ -443,9 +443,9 @@
     var tt = mode === 'tt';
     document.body.setAttribute('data-mode', mode);
     $('qhead').textContent = tt ? 'איזה קווים?' : 'איזה קו?';
-    $('qhint').textContent = tt ? 'מספר קו, עיר או חברה. קווים לאותו יעד יוצעו יחד.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
+    $('qhint').textContent = tt ? 'מספר קו, שכונה, רחוב, עיר או חברה. בשכונה או ברחוב — כל הקווים שעוצרים שם, בלוח אחד.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
     $('chiprow').style.display = tt ? 'none' : ''; $('kfil').style.display = tt ? 'none' : '';
-    $('q').placeholder = tt ? 'למשל 494, אופקים ירושלים, גלים' : 'למשל 988, הרצל, קרית חב"ד';
+    $('q').placeholder = tt ? 'למשל 494, גני איילון, אופקים ירושלים' : 'למשל 988, הרצל, קרית חב"ד';
   }
   $('modes').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-mode]'); if (!b) return;
@@ -479,9 +479,28 @@
       '<span class="t"><span class="od">לו״ז משולב · ' + E(l.from) + ' ↔ ' + E(l.to) + '</span><span class="meta">' + E(l.op) + ' · ' + ls.length + ' קווים לאותו יעד, בטבלה אחת</span></span>' +
       '<span class="tag new">מומלץ</span></button>';
   }
+  function isBus(l) { return String(l.ty) === '3' || String(l.ty) === '715'; }
+  function plName(pl) { return (pl.kind === 's' ? 'רחוב ' : pl.kind === 'h' ? 'שכונת ' : '') + pl.name + (pl.city && pl.kind !== 'c' ? ', ' + pl.city : ''); }
+  function ttPlaceRow(pl, key) {
+    var n = pl.lines.filter(function (i) { return LINES[i] && isBus(LINES[i]); }).length;
+    return '<button type="button" class="res place" data-pl="' + key + '"><span class="pin" aria-hidden="true">' + ICON[pl.kind] + '</span>' +
+      '<span class="t"><span class="od">' + E(plName(pl)) + '</span><span class="meta">' + (n === 1 ? 'קו אחד עוצר כאן' : n + ' קווים עוצרים כאן') + '</span></span>' +
+      '<span class="tag soon">כל הקווים</span></button>';
+  }
   function drawResultsTT() {
     var nq = LC.norm(q);
     $('reshead').textContent = '';
+    if (placeSel) {   // כל הקווים שעוצרים ברחוב, בשכונה או בעיר — ללוח אחד
+      var seen = {}, all = placeSel.lines.map(function (i) { return LINES[i]; }).filter(function (l) { if (!l || !isBus(l) || seen[l.makat]) return false; seen[l.makat] = 1; return true; });
+      all.sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0) || (a.line < b.line ? -1 : 1); });
+      PLROWS = all;
+      $('reshead').innerHTML = '<button type="button" class="lnk" id="plback">→ לכל התוצאות</button> <b class="pltitle">' + E(plName(placeSel)) + '</b> · ' +
+        (all.length === 1 ? 'קו אחד עוצר כאן' : all.length + ' קווים עוצרים כאן') +
+        (all.length > 1 ? ' <button type="button" class="btn sm" id="plall">+ כל ' + all.length + ' הקווים ללוח אחד</button>' : '');
+      $('results').innerHTML = all.length ? all.map(ttRow).join('') : '<div class="none">אין כאן קווי אוטובוס.</div>';
+      $('results').scrollTop = 0;
+      return;
+    }
     if (!nq) { $('results').innerHTML = '<div class="none">כתבו מספר קו, עיר או חברה — ויופיעו כל הקווים, גם בלי שינוי.</div>'; return; }
     var digits = /^\d+$/.test(nq), words = nq.split(' ');
     var lines = LINES.filter(function (l) {
@@ -494,9 +513,22 @@
     var G = ttGroups(), gs = [], gc = {};
     lines.forEach(function (l) { var k = ttGroupKey(l); if (G[k]) { if (!gc[k]) gs.push(k); gc[k] = (gc[k] || 0) + 1; } });
     gs.sort(function (a, b) { return gc[b] - gc[a]; });
-    var html = gs.slice(0, 4).map(ttGroupRow).join('') + lines.slice(0, 60).map(ttRow).join('');
+    var html = gs.slice(0, 4).map(ttGroupRow).join('') + lines.slice(0, digits ? 60 : 8).map(ttRow).join('');
+    // מילים: גם רחובות, שכונות וערים — "כל הקווים שעוצרים כאן" ללוח אחד
+    if (!digits) {
+      loadPlaces();
+      var srt = placeSortFor(nq), pls = '';
+      var cs = cities().filter(function (c) { return c.n.indexOf(nq) >= 0; }).sort(srt).slice(0, 4);
+      if (PL) {
+        var hd = PL.hoods.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt).slice(0, 6);
+        var st = PL.streets.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt).slice(0, 6);
+        pls += hd.map(function (x) { return ttPlaceRow(x, 'h' + PL.hoods.indexOf(x)); }).join('') + st.map(function (x) { return ttPlaceRow(x, 's' + PL.streets.indexOf(x)); }).join('');
+      } else pls += '<div class="none">טוען רחובות ושכונות…</div>';
+      pls += cs.map(function (x) { return ttPlaceRow(x, 'c' + cityList.indexOf(x)); }).join('');
+      if (pls) html = '<div class="grp-h">כל הקווים במקום</div>' + pls + (html ? '<div class="grp-h">קווים</div>' + html : '');
+    }
     $('results').scrollTop = 0;
-    $('results').innerHTML = html || '<div class="none">לא מצאנו. נסו מספר קו, עיר או חברה.</div>';
+    $('results').innerHTML = html || '<div class="none">לא מצאנו. נסו מספר קו, שכונה, רחוב, עיר או חברה.</div>';
   }
   /* הלו"ז העדכני של קו: data/tt/<מק"ט % 64>.json (נבנה כל לילה) */
   var ttShards = {};
@@ -512,13 +544,15 @@
         var r = e.d[k], x = {}, xa = {}, xn = {}, A = r.A || [], N = r.N || [];
         Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; xn[iso] = N[r.x[iso]] || 0; });
         // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
-        return { dir: k, od: r.od, f: r.f, t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
+        return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
           v: r.v || [], da: r.w.map(function (i) { return A[i] || 0; }), xa: xa,
           // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
           dn: r.w.map(function (i) { return N[i] || 0; }), xn: xn };
       });
+      // עד מתי: היום שלפני השינוי הקרוב בקו (אם יש)
+      var nx = ((l && l.up) || []).map(function (c) { return c.formal || c.eff; }).filter(function (d) { return d && d > sh.valid; }).sort()[0];
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
-        eff: sh.valid, valid: sh.valid, gen: sh.gen, feed: sh.feed, hol: sh.hol || [], dirs: dirs, tot: { kind: 'current' } };
+        eff: sh.valid, valid: sh.valid, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: sh.hol || [], dirs: dirs, tot: { kind: 'current' } };
     });
   }
   $('results').addEventListener('click', function (ev) {
@@ -555,7 +589,7 @@
   });
   $('reshead').addEventListener('click', function (ev) {
     if (ev.target.id === 'plback') { placeSel = null; drawResults(); }
-    if (ev.target.id === 'plall') addAll(PLROWS, ev.target);
+    if (ev.target.id === 'plall') { if (mode === 'tt') addAllTT(PLROWS, ev.target); else addAll(PLROWS, ev.target); }
   });
   $('kfil').addEventListener('click', function (ev) {
     var kf = ev.target.closest('[data-kf]'); if (!kf || kf.disabled) return;
@@ -578,6 +612,17 @@
     if (kindF !== 'all' && kindF !== 'route' && kindF !== 'past') return null;
     var g = clusterPast(recentPast(l))[0];
     return g ? 'p-' + l.makat + '-' + g.d : null;
+  }
+  /* לו"ז עדכני: כל הקווים במקום — "טבלה לפי יעד", ושם המקום בכותרת */
+  function addAllTT(ls, btn) {
+    if (!ls || !ls.length) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'טוען ' + ls.length + ' קווים…'; }
+    var nm = placeSel ? placeSel.name + (placeSel.city && placeSel.kind !== 'c' && placeSel.city !== placeSel.name ? ', ' + placeSel.city : '') : '';
+    Promise.all(ls.map(function (l) { return loadPick('tt-' + l.makat); })).then(function (ps) {
+      ps.filter(Boolean).forEach(function (p) { picks = picks.filter(function (x) { return x.id !== p.id; }); picks.push(p); });
+      if (picks.length) { wantBoard = nm || true; cur = ls[0]; go(3); }
+      else if (btn) btn.textContent = 'אין לו״ז לקווים האלה בשבוע הקרוב';
+    });
   }
   function addAll(ls, btn) {
     if (!ls || !ls.length) return;
@@ -944,14 +989,22 @@
   function xSlide(x, pages) { return x.img ? imgSlide(x) : textSlide(x, pages); }
   // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
+  function edOpts(form) {
+    return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
+      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace };
+  }
+  var wantBoard = null;
   function render(pages) {
     if (!deckOk()) return;
     curPages = pages;
     dropMaps();
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
+    // נבחרו כל הקווים במקום (לו"ז עדכני) — "טבלה לפי יעד", עם שם המקום בכותרת
+    if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.ttc) edits.ttc = 'board'; if (!edits.bplace && typeof wantBoard === 'string') edits.bplace = wantBoard; saveEdits(); }
+    wantBoard = null;
     var form = formOf();
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [] });
+    var base = LCDeck.build(pages, deckCity(pages), edOpts(form));
     pastTense(base, pages);
     drawKinds(pages);
     ttUi(pages); zmUi(pages); rcUi(pages); a4Ui(form);
@@ -1094,11 +1147,21 @@
     var on = cu || pages.some(function (p) { return (p.kind === 'timetable' && !LCDeck.ttSmall(p)) || p.kind === 'new'; });
     $('ttgrp').hidden = !on;
     $('ttfseg').hidden = cu;
-    $('ttcseg').hidden = !cu || pages.length < 2;
+    $('ttcseg').hidden = !cu;
+    var bd = cu && edits.ttc === 'board';
+    $('bdopts').hidden = !bd; $('ttvseg').hidden = bd;
+    ['xl', 'xl2'].forEach(function (id) { $(id).hidden = !cu; });
     if (cu) {
       var to = []; pages.forEach(function (p) { var d = (p.od || [])[1]; if (d && to.indexOf(d) < 0) to.push(d); });
       $('ttcsub').textContent = to.length === 1 ? 'כל השעות ל' + to[0] + ' בטבלה אחת' : 'קווים לאותו יעד בטבלה אחת';
-      $('ttcseg').querySelectorAll('[data-ttc]').forEach(function (b) { b.setAttribute('aria-checked', (edits.ttc === 'sep' ? 'sep' : 'comb') === b.getAttribute('data-ttc') ? 'true' : 'false'); });
+      var tc = edits.ttc === 'sep' || edits.ttc === 'board' ? edits.ttc : 'comb';
+      $('ttcseg').querySelectorAll('[data-ttc]').forEach(function (b) { b.setAttribute('aria-checked', tc === b.getAttribute('data-ttc') ? 'true' : 'false'); });
+      if (bd) {
+        var M = LCDeck.boardModel(pages, edOpts(formOf()));
+        $('bdtitle').placeholder = M.dflt;
+        if (document.activeElement !== $('bdtitle')) $('bdtitle').value = edits.btitle || M.dflt;
+        if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
+      }
     }
     var multi = !cu && formOf() === 'deck' && pages.filter(function (p) { return (p.kind === 'timetable' || p.kind === 'new') && p.dirs.some(function (d) { return d.tt && d.tt.length; }); }).length > 1;
     $('ttperw').hidden = !multi;
@@ -1106,10 +1169,19 @@
     $('ttgrp').querySelectorAll('[data-ttv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttv') === o.v ? 'true' : 'false'); });
     $('ttgrp').querySelectorAll('[data-ttf]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttf') === o.f ? 'true' : 'false'); });
   }
+  /* הכותרת וההערות של "טבלה לפי יעד" — נשמרות עם המצגת; הלוח נבנה מחדש אחרי הפסקה קצרה בהקלדה */
+  var bdT = 0;
+  ['bdtitle', 'bdnote'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      var v = this.value;
+      if (id === 'bdtitle') edits.btitle = v.trim() && v.trim() !== this.placeholder ? v : undefined; else edits.bnote = v.trim() ? v : undefined;
+      saveEdits(); clearTimeout(bdT); bdT = setTimeout(function () { keepScroll(function () { render(curPages); }); }, 450);
+    });
+  });
   $('ttper').addEventListener('change', function () { edits.ttper = this.checked; saveEdits(); keepScroll(function () { render(curPages); }); });
   $('ttgrp').addEventListener('click', function (ev) {
     var c = ev.target.closest('[data-ttc]');
-    if (c) { edits.ttc = c.getAttribute('data-ttc') === 'sep' ? 'sep' : undefined; saveEdits(); keepScroll(function () { render(curPages); }); return; }
+    if (c) { var v = c.getAttribute('data-ttc'); edits.ttc = v === 'sep' || v === 'board' ? v : undefined; saveEdits(); keepScroll(function () { render(curPages); }); return; }
     var b = ev.target.closest('[data-ttv],[data-ttf]'); if (!b) return;
     var o = ttOpts();
     if (b.hasAttribute('data-ttv')) o.v = b.getAttribute('data-ttv'); else o.f = b.getAttribute('data-ttf');
@@ -1775,6 +1847,31 @@
       setTimeout(function () { window.print(); document.title = t0; }, 50);
     });
   }
+  /* ייצוא לאקסל (לו"ז עדכני): אותו מבנה של "טבלה לפי יעד", בקובץ xlsx — xlsx.js נטען רק בלחיצה */
+  var xlP = null;
+  function xlLib() {
+    if (window.LCXlsx) return Promise.resolve();
+    return xlP || (xlP = new Promise(function (res, rej) {
+      var sc = document.createElement('script');
+      sc.src = 'xlsx.js?v=1'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  function exportXlsx() {
+    var cu = curPages.filter(function (p) { return p.kind === 'current'; });
+    if (!cu.length) return;
+    dlMsg('מכין את קובץ האקסל…');
+    var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
+    xlLib().then(function () {
+      var M = LCDeck.boardModel(cu, edOpts(formOf()));
+      var nm = ('לוח-זמנים-' + (edits.bplace || M.home || cu.map(function (p) { return p.line; }).slice(0, 4).join('-')) + '-' + (M.valid || LC.todayIso()))
+        .replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx';
+      save(LCXlsx.board(M), nm, tab);
+      dlMsg('');
+    }).catch(function () { if (tab) tab.close(); dlMsg('לא הצלחנו להכין את קובץ האקסל. נסו שוב.'); });
+  }
+  $('xl').addEventListener('click', exportXlsx);
+  $('xl2').addEventListener('click', exportXlsx);
   $('dl').addEventListener('click', download);
   $('dl2').addEventListener('click', download);
   document.querySelectorAll('.printbtn').forEach(function (b) { b.addEventListener('click', printDeck); });

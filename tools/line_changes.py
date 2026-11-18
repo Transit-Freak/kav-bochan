@@ -1533,7 +1533,7 @@ def current_tts(feed, t0):
             if s0['city'] and (not cs or cs[-1] != s0['city']):
                 cs.append(s0['city'])
         durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
-        rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
+        rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
                    du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
