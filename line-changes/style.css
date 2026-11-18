@@ -376,3 +376,12 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .a4note{margin:var(--sp2) 0 0;padding:10px 12px;border-radius:var(--r2);background:var(--warn-bg);color:var(--fg);font-size:14px;line-height:1.45}
 .a4note[hidden]{display:none}
 .group[hidden]{display:none}
+/* לו"ז עדכני — "טבלה לפי יעד": כותרת והערות, וכפתור לאקסל */
+.bdopts{display:flex;flex-direction:column;gap:var(--sp2)}
+.bdopts[hidden],.xlbtn[hidden]{display:none}
+.bdopts .fld{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:14px}
+.bdopts .fld small{font-weight:600;color:var(--sub)}
+.bdopts input,.bdopts textarea{font:600 16px var(--f-body);padding:8px 10px;border:1.5px solid var(--line);border-radius:var(--r2);background:var(--card);color:var(--fg);width:100%;box-sizing:border-box;resize:vertical}
+#ttcseg{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* בטלפון, עם כפתור אקסל: במקום קישור ההדפסה (ההדפסה — מהכפתורים בשלב 3) */
+.dock .in:has(#xl2:not([hidden])) .printbtn{display:none}

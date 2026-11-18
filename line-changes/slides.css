@@ -866,3 +866,59 @@ body.editing .slide .inset.inoff{display:block!important;opacity:.3}
 .slide .inset-x{display:none;position:absolute;top:4px;right:4px;z-index:1000;width:26px;height:26px;border-radius:50%;border:0;background:#13201b;color:#fff;font-size:14px;line-height:26px;padding:0;cursor:pointer}
 body.editing .slide .inset-x{display:block}
 .s-sgsum .sm-rows p{-webkit-line-clamp:3;font-size:17px}
+/* ================= לו"ז עדכני — טבלה לפי יעד (s-bd), כמו לוח מודעות. --bd: הקטנת הגופן כשיש הרבה קווים ================= */
+.s-bd{--fs:13px}
+.s-bd .bd-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:calc(var(--fs) * var(--bd,1));line-height:1.35}
+.s-bd .bd-t th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;text-align:center;padding:.3em .3em;border:1px solid var(--s-band)}
+.s-bd .bd-t td{border:1px solid var(--s-line);vertical-align:middle;padding:.28em .4em}
+.s-bd .bd-t tr.bband td{color:#fff;font-weight:900;font-family:'Heebo',Arial,sans-serif;text-align:center;padding:.22em .5em;font-size:1.08em;border-color:transparent}
+.s-bd .bd-t td.bl{text-align:center;background:var(--s-paper)}
+.s-bd .bd-t td.bl .badge.sm{min-width:0;font-size:1.55em;padding:.12em .35em .06em;border-radius:.3em}
+.s-bd .bd-t td.bl small{display:block;color:var(--s-sub);font-weight:700;font-size:.78em;line-height:1.15;margin-top:.25em}
+.s-bd .bd-t td.bl small.un{color:#b45309}
+.s-bd .bd-t td.bo{text-align:center;line-height:1.2}
+.s-bd .bd-t td.bo b{display:block;font-weight:800}
+.s-bd .bd-t td.bo small{display:block;color:var(--s-sub);font-weight:600;font-size:.76em;margin-top:.15em}
+.s-bd .bd-t td.bo small.tw{color:var(--s-fg);font-weight:700}
+.s-bd .bd-t td.bt{text-align:right}
+.s-bd .bd-t td.bt.off{text-align:center;color:var(--s-sub);font-weight:700}
+.s-bd .tl{display:block;word-spacing:.18em}
+.s-bd .t{font-weight:700;white-space:nowrap}
+.s-bd .t.alt,.s-bd .alt{color:#c81e1e;font-weight:900}
+.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}
+.s-bd .t sup{font-size:.68em;color:#b45309;font-weight:800;margin-inline-start:.1em;line-height:0}
+.s-bd .bnote{display:block;color:#c81e1e;font-weight:700;font-size:.8em;line-height:1.25;margin-top:.2em}
+.s-bd .bd-foot{flex:none}
+.s-bd .bd-upd{font-weight:700;color:#c81e1e;border:2px solid var(--s-line);border-radius:6px;padding:.25em .6em;margin-top:.5em}
+.s-bd .bd-upd b{color:var(--s-fg);margin-inline-end:.4em}
+.s-bd .bd-ph{display:flex;flex-wrap:wrap;column-gap:1.1em;row-gap:.15em;font-weight:600;margin-top:.45em;color:var(--s-fg)}
+.s-bd .bd-ph > b{color:var(--s-sub)}
+.s-bd .bd-ph b.ltr{font-weight:800}
+.s-bd .bd-head{padding-bottom:.5em}
+.s-cur.s-bd.f-sign{padding:26px 26px 14px}
+.s-bd.f-sign .cu-head h1{font-size:28px}
+.s-bd.f-sign .cu-head .sub{font-size:13px}
+.s-bd.f-sign .cu-body{padding-top:8px}
+.s-bd.f-sign .bd-t col.cl{width:52px}.s-bd.f-sign .bd-t col.co{width:104px}
+.s-bd.f-sign .bd-upd,.s-bd.f-sign .bd-ph{font-size:11.5px}
+.s-cur.s-bd.f-deck{padding:26px 36px 30px}
+.s-bd.f-deck{--fs:16px}
+.s-bd.f-deck .cu-head h1{font-size:34px}
+.s-bd.f-deck .cu-head .sub{font-size:16px}
+.s-bd.f-deck .cu-body{padding-top:8px}
+.s-bd.f-deck .bd-t col.cl{width:76px}.s-bd.f-deck .bd-t col.co{width:150px}
+.s-bd.f-deck .bd-upd,.s-bd.f-deck .bd-ph{font-size:14px}
+.s-bd.f-deck .cu-foot{font-size:12px;padding-top:4px;margin-top:4px}
+.s-cur.s-bd.f-status{padding:90px 36px 50px}
+.s-bd.f-status{--fs:23px}
+.s-bd.f-status .cu-head h1{font-size:54px}
+.s-bd.f-status .cu-head .sub{font-size:24px}
+.s-bd.f-status .cu-body{padding-top:14px}
+.s-bd.f-status .bd-t col.cl{width:96px}.s-bd.f-status .bd-t col.co{width:170px}
+.s-bd.f-status .bd-upd,.s-bd.f-status .bd-ph{font-size:21px}
+.s-bd.f-status .cu-foot{font-size:17px;padding-top:6px;margin-top:6px}
+.s-bd .t bdi{unicode-bidi:isolate}
+.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}
+/* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
+.s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
+.s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
