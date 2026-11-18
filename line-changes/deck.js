@@ -1199,7 +1199,7 @@ var LCDeck = (function () {
       if (fold && !chg(r)) {
         var j = i; while (j + 1 < hrs.length && !chg(hrs[j + 1])) j++;
         if (j > i) {
-          rows.push({ h: M.gridH * 0.8, html: '<tr class="fold"><th class="hr">' + hh(r.h * 60) + ':00–' + hh(hrs[j].h * 60) + ':00</th><td colspan="' + K + '">ללא שינוי</td></tr>' });
+          rows.push({ h: M.gridH * 0.8, html: '<tr class="fold"><th class="hr"></th><td colspan="' + K + '"><b class="num">' + hh(r.h * 60) + ':00–' + hh(hrs[j].h * 60) + ':59</b> · ללא שינוי</td></tr>' });
           i = j; continue;
         }
       }
