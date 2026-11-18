@@ -244,6 +244,24 @@
 .tbox-h{position:absolute;top:-14px;left:-14px;width:28px;height:28px;border-radius:50%;background:#1f5fd1;color:#fff;font-size:16px;line-height:28px;text-align:center;cursor:grab;display:none;touch-action:none}
 .editing .tbox-h{display:block}
 
+
+/* ---- תמונה על שקף: מיקום וגודל באחוזים מהשקף; הידיות רק במצב עריכה ---- */
+.slide .ibox{position:absolute;z-index:690;margin:0;padding:0}
+.slide .ibox img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-select:none}
+.ibox-x,.ibox-r{display:none}
+.editing .slide .ibox{cursor:move;touch-action:none;outline:calc(2px * var(--ik,1)) dashed rgba(31,95,209,.7);outline-offset:calc(2px * var(--ik,1))}
+.editing .slide .ibox:focus{outline:calc(3px * var(--ik,1)) solid #1f5fd1}
+/* הידיות בפינות, בתוך התמונה (כדי שלא ייחתכו בקצה השקף), בגודל קבוע על המסך (40px), גם כשהשקף מוקטן: --ik = 1 / ההקטנה של השקף */
+.editing .slide .ibox-x,.editing .slide .ibox-r{display:block;position:absolute;width:40px;height:40px;border-radius:50%;border:3px solid #fff;color:#fff;padding:0;
+  box-shadow:0 2px 6px rgba(0,0,0,.35);transform:scale(var(--ik,1));touch-action:none}
+.editing .slide .ibox-x{top:0;left:0;transform-origin:top left;background:#b8361f;font:800 20px/1 'Heebo',sans-serif;cursor:pointer}
+.editing .slide .ibox-r{bottom:0;right:0;transform-origin:bottom right;background:#1f5fd1;cursor:nwse-resize}
+.editing .slide .ibox-r::after{content:'';position:absolute;inset:10px;border-right:3px solid #fff;border-bottom:3px solid #fff}
+/* שקף תמונה: התמונה על כל השקף */
+.s-img{position:relative;background:var(--s-paper)}
+.s-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.s-img[data-fit="contain"] img{object-fit:contain}
+
 /* סמני המפה */
 .lc-mk{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12.5px 'Heebo',sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -268,7 +286,8 @@
   .sframe{width:1280px!important;height:720px!important;aspect-ratio:auto;border-radius:0;box-shadow:none;overflow:hidden;margin:0}
   .sitem{break-after:page;page-break-after:always}
   .sitem.lastvis{break-after:auto;page-break-after:auto}
-  .tbox-h{display:none!important}
+  .tbox-h,.ibox-x,.ibox-r{display:none!important}
+  .slide .ibox{outline:none!important}
   .slide{transform:none!important}
   .leaflet-control-zoom{display:none}
 }

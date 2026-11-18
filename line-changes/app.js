@@ -119,6 +119,7 @@
     picks = []; picksBy = { chg: [], tt: [] }; cur = null; pkOpen = false; placeSel = null; q = ''; $('q').value = ''; kindF = 'all';
     mode = 'chg'; modeUi();
     edSig = ''; edits = normEdits(null); editMode = false; document.body.classList.remove('editing');
+    clearImgs();
     try { history.replaceState({ s: 1 }, '', location.pathname); } catch (e) {}
     step = 0; emptyStage(); go(1, 'replace');
   });
@@ -770,7 +771,7 @@
   var editMode = false;
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
-    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -817,6 +818,14 @@
   }
   /* רק הטקסט שבין התגיות */
   function pastHtml(h) { return String(h).replace(/>([^<]+)</g, function (m, t) { return '>' + pastText(t) + '<'; }); }
+  // שקף תמונה: התמונה על כל השקף — ממלאת אותו (cover) או כולה בתוכו (contain)
+  function imgSlide(x) {
+    return { id: x.id, label: 'שקף תמונה', custom: true, img: true, fit: x.fit === 'contain' ? 'contain' : 'cover',
+      html: '<div class="s-img" data-fit="' + (x.fit === 'contain' ? 'contain' : 'cover') + '"><img alt="" src="' + E(getImg(x.img)) + '"></div>' };
+  }
+  function xSlide(x, pages) { return x.img ? imgSlide(x) : textSlide(x, pages); }
+  // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
+  function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
   function render(pages) {
     curPages = pages;
     maps.forEach(function (m) { m.map.remove(); });
@@ -831,9 +840,11 @@
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
-      if (form === 'deck') edits.xslides.filter(function (x) { return x.after === s.id; }).forEach(function (x) { slides.push(textSlide(x, pages)); });
+      edits.xslides.filter(function (x) { return x.after === s.id && xOk(x, form); }).forEach(function (x) { slides.push(xSlide(x, pages)); });
     });
-    if (form === 'deck') edits.xslides.filter(function (x) { return !base.some(function (s) { return s.id === x.after; }); }).forEach(function (x) { slides.splice(slides.length - 1, 0, textSlide(x, pages)); });
+    edits.xslides.filter(function (x) { return xOk(x, form) && !base.some(function (s) { return s.id === x.after; }); }).forEach(function (x) {
+      if (form === 'deck') slides.splice(slides.length - 1, 0, xSlide(x, pages)); else slides.push(xSlide(x, pages));
+    });
     var deck = $('deck'), look = edits.look || 'kav';
     deck.setAttribute('data-look', look);
     $('decktitle').textContent = LCDeck.deckTitle(pages);
@@ -848,6 +859,9 @@
       return '<div class="sitem' + (off ? ' off' : '') + '" data-id="' + E(s.id) + '"' + (off && !editMode ? ' hidden' : '') + '>' +
         '<div class="ebar noprint"><span class="ebar-n">' + E(s.label) + '</span>' +
           '<button type="button" data-act="box">+ תיבת טקסט</button>' +
+          '<button type="button" data-act="img" aria-label="הוספת תמונה לשקף הזה">+ תמונה</button>' +
+          '<button type="button" data-act="ximg" aria-label="שקף חדש עם תמונה על כל השקף, אחרי השקף הזה">+ שקף תמונה</button>' +
+          (s.img ? '<button type="button" data-act="fit" aria-pressed="' + (s.fit === 'contain' ? 'true' : 'false') + '">' + (s.fit === 'contain' ? 'כל התמונה בשקף' : 'התמונה ממלאת את השקף') + '</button>' : '') +
           '<button type="button" data-act="' + (s.custom ? 'xdel' : 'off') + '">' + (s.custom ? 'מחיקת השקף' : off ? 'להחזיר את השקף' : 'לא לכלול את השקף') + '</button></div>' +
         '<div class="sframe" data-id="' + E(s.id) + '"><div class="slide" aria-label="' + E(s.label) + '">' + s.html + '</div>' +
           '<div class="toolong-msg noprint" role="status">הטקסט ארוך מדי לשקף — קצרו אותו</div>' +
@@ -858,7 +872,7 @@
       return '<label><input type="checkbox" value="' + E(s.id) + '"' + (edits.off[s.id] ? '' : ' checked') + '><span>' + E(s.label) + '</span></label>';
     }).join('');
     scale();
-    slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); });
+    slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); drawImgs(s.id); });
     slides.forEach(function (s) {
       if (!s.map) return;
       maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(frameOf(s.id), s.map)));
@@ -987,6 +1001,7 @@
     $('deck').querySelectorAll('.edt,.tbox-t').forEach(function (el) {
       if (on) { el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false'); } else el.removeAttribute('contenteditable');
     });
+    $('deck').querySelectorAll('.ibox').forEach(function (el) { if (on) el.setAttribute('tabindex', '0'); else el.removeAttribute('tabindex'); });
     $('deck').querySelectorAll('.sitem.off').forEach(function (it) { it.hidden = !on; });
     if (!on) hideBar();
   }
@@ -1094,6 +1109,7 @@
   $('deck').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var sid = b.closest('.sitem').getAttribute('data-id'), act = b.getAttribute('data-act');
+    if (imgAct(act, sid, b)) return;
     if (act === 'box') {
       var D0 = dims(), box = { id: 'b' + Date.now().toString(36), x: 80, y: Math.round(D0.h * 0.72), w: Math.min(520, D0.w - 160), text: 'טקסט חדש' };
       (edits.boxes[sid] = edits.boxes[sid] || []).push(box);
@@ -1139,6 +1155,211 @@
     edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt }); saveEdits(); render(curPages);
   });
 
+  /* ---------- תמונות ----------
+     התמונה נשארת במחשב או בטלפון: נקראת מהקובץ (או מההדבקה), מוקטנת על canvas לעד 1600 פיקסלים בצד הארוך
+     (JPEG, או PNG כשיש בה שקיפות) — כך ה-PDF נשאר קטן. לא עולה לשום מקום.
+     התמונות עצמן בזיכרון וב-sessionStorage (אם יש מקום); במצגת (edits.imgs, xslides) נשמר רק המיקום והמזהה */
+  var IMGS = {}, MAXPX = 1600;
+  function getImg(id) {
+    if (IMGS[id]) return IMGS[id];
+    try { var v = sessionStorage.getItem('lc-img:' + id); if (v) IMGS[id] = v; return v || ''; } catch (e) { return ''; }
+  }
+  function putImg(id, url) {
+    IMGS[id] = url;
+    try { sessionStorage.setItem('lc-img:' + id, url); } catch (e) {}   // גדול מדי — נשאר רק בזיכרון
+  }
+  function clearImgs() {
+    IMGS = {};
+    try {
+      for (var i = sessionStorage.length - 1; i >= 0; i--) { var k = sessionStorage.key(i); if (k && k.indexOf('lc-img:') === 0) sessionStorage.removeItem(k); }
+    } catch (e) {}
+  }
+  function readImage(file) {
+    return new Promise(function (res, rej) {
+      if (!file || !/^image\//.test(file.type || 'image/')) { rej(new Error('type')); return; }
+      var fr = new FileReader();
+      fr.onerror = function () { rej(new Error('read')); };
+      fr.onload = function () {
+        var im = new Image();
+        im.onerror = function () { rej(new Error('decode')); };
+        im.onload = function () {
+          var w0 = im.naturalWidth, h0 = im.naturalHeight;
+          if (!w0 || !h0) { rej(new Error('size')); return; }
+          var k = Math.min(1, MAXPX / Math.max(w0, h0)), w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+          var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+          var cx = cv.getContext('2d');
+          cx.drawImage(im, 0, 0, w, h);
+          var alpha = false;
+          if (!/jpe?g/i.test(file.type || '')) {
+            try {
+              var d = cx.getImageData(0, 0, w, h).data;
+              for (var i = 3; i < d.length; i += 16) if (d[i] < 250) { alpha = true; break; }
+            } catch (e) {}
+          }
+          var url;
+          if (alpha) url = cv.toDataURL('image/png');
+          else {
+            // JPEG בלי שקיפות: רקע לבן מתחת (אחרת פיקסלים שקופים למחצה יוצאים שחורים)
+            var cv2 = document.createElement('canvas'); cv2.width = w; cv2.height = h;
+            var c2 = cv2.getContext('2d'); c2.fillStyle = '#fff'; c2.fillRect(0, 0, w, h); c2.drawImage(cv, 0, 0);
+            url = cv2.toDataURL('image/jpeg', 0.85);
+          }
+          res({ url: url, r: w / h });
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function drawImgs(sid) {
+    var fr = frameOf(sid); if (!fr) return;
+    var slide = fr.querySelector('.slide'), D = dims();
+    slide.querySelectorAll('.ibox').forEach(function (x) { x.remove(); });
+    (edits.imgs[sid] || []).forEach(function (b) {
+      var src = getImg(b.img); if (!src) return;
+      var el = LCEdit.imgEl(b, src, D.w, D.h);
+      if (editMode) el.setAttribute('tabindex', '0');
+      slide.appendChild(el);
+    });
+  }
+  function imgMsg(t) { var m = $('imgmsg'); if (m) { m.textContent = t; clearTimeout(imgMsg.t); imgMsg.t = setTimeout(function () { m.textContent = ''; }, 4000); } }
+  // מוסיפים תמונה: על השקף sid (תיבה שאפשר להזיז ולשנות גודל), או כשקף תמונה חדש אחריו
+  function addImage(file, sid, asSlide) {
+    if (!sid) return;
+    imgMsg('מכין את התמונה…');
+    readImage(file).then(function (r) {
+      var iid = 'i' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+      putImg(iid, r.url);
+      if (asSlide) {
+        var nid = 'x' + Date.now().toString(36);
+        edits.xslides.push({ id: nid, after: sid, img: iid, fit: 'cover' });
+        if (!editMode) setEdit(true);
+        saveEdits(); keepScroll(function () { render(curPages); });
+        imgMsg('נוסף שקף עם התמונה');
+        return;
+      }
+      var D = dims(), port = D.h > D.w;
+      var w = port ? 60 : 36, maxW = 100 * 0.6 * D.h * r.r / D.w;   // עד 60% מגובה השקף
+      if (w > maxW) w = maxW;
+      var hP = w * D.w / r.r / D.h;
+      var b = { id: iid, img: iid, x: +(50 - w / 2).toFixed(2), y: +((100 - hP) / 2).toFixed(2), w: +w.toFixed(2), r: +r.r.toFixed(4) };
+      (edits.imgs[sid] = edits.imgs[sid] || []).push(b);
+      saveEdits();
+      if (!editMode) setEdit(true);
+      drawImgs(sid);
+      var el = frameOf(sid).querySelector('.ibox[data-ibox="' + CSS.escape(iid) + '"]');
+      if (el) { el.setAttribute('tabindex', '0'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      imgMsg('התמונה נוספה. גוררים כדי להזיז, והעיגול הכחול משנה את הגודל.');
+    }).catch(function () { imgMsg('לא הצלחנו לקרוא את התמונה. נסו קובץ JPG או PNG.'); });
+  }
+  var picker = document.createElement('input');
+  picker.type = 'file'; picker.accept = 'image/*'; picker.className = 'vh noprint'; picker.tabIndex = -1;
+  picker.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(picker);
+  var pickFor = null;
+  picker.addEventListener('change', function () {
+    var f = picker.files && picker.files[0], p = pickFor; pickFor = null;
+    if (f && p) addImage(f, p.sid, p.slide);
+    picker.value = '';
+  });
+  function findImg(sid, id) { return (edits.imgs[sid] || []).filter(function (b) { return b.id === id; })[0]; }
+  function delImg(sid, id) {
+    edits.imgs[sid] = (edits.imgs[sid] || []).filter(function (b) { return b.id !== id; });
+    if (!edits.imgs[sid].length) delete edits.imgs[sid];
+    saveEdits();
+    var el = frameOf(sid) && frameOf(sid).querySelector('.ibox[data-ibox="' + CSS.escape(id) + '"]');
+    if (el) el.remove();
+    imgMsg('התמונה נמחקה');
+  }
+  // פעולות התמונות בסרגל של השקף. מחזיר true אם הפעולה טופלה כאן
+  function imgAct(act, sid, b) {
+    if (act === 'img' || act === 'ximg') { pickFor = { sid: sid, slide: act === 'ximg' }; picker.click(); return true; }
+    if (act === 'imgdel') { var ib = b.closest('.ibox'); if (ib) delImg(sidOf(ib), ib.getAttribute('data-ibox')); return true; }
+    if (act === 'fit') {
+      edits.xslides.forEach(function (x) { if (x.id === sid) x.fit = x.fit === 'contain' ? 'cover' : 'contain'; });
+      saveEdits(); keepScroll(function () { render(curPages); });
+      return true;
+    }
+    return false;
+  }
+  // הזזה (גרירה של התמונה) ושינוי גודל (העיגול בפינה, שומר על היחס) — עכבר ומגע
+  $('deck').addEventListener('pointerdown', function (ev) {
+    var box = ev.target.closest('.ibox'); if (!box || !editMode || ev.target.closest('.ibox-x')) return;
+    if (ev.button > 0) return;
+    ev.preventDefault();
+    box.focus({ preventScroll: true });
+    var sid = sidOf(box), b = findImg(sid, box.getAttribute('data-ibox')); if (!b) return;
+    var D = dims(), k = box.closest('.slide').getBoundingClientRect().width / D.w;
+    var rsz = !!ev.target.closest('.ibox-r');
+    var x0 = ev.clientX, y0 = ev.clientY;
+    var bx = parseFloat(box.style.left), by = parseFloat(box.style.top), bw = parseFloat(box.style.width);
+    var moved = false;
+    function mv(e) {
+      moved = true;
+      var dx = (e.clientX - x0) / k / D.w * 100, dy = (e.clientY - y0) / k / D.h * 100;
+      if (rsz) {
+        // לפי הכיוון שזז יותר — הגובה מומר לרוחב לפי היחס של התמונה
+        var dw = Math.abs(dx) > Math.abs(dy * D.h / D.w * b.r) ? dx : dy * D.h * b.r / D.w;
+        var maxW = Math.min(100 - bx, (100 - by) * D.h * b.r / D.w);
+        var nw = Math.max(4, Math.min(maxW, bw + dw));
+        box.style.width = nw + '%';
+      } else {
+        var hP = bw * D.w / b.r / D.h;
+        box.style.left = Math.max(0, Math.min(100 - bw, bx + dx)) + '%';
+        box.style.top = Math.max(0, Math.min(100 - hP, by + dy)) + '%';
+      }
+    }
+    function up() {
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      if (!moved) return;
+      b.x = +parseFloat(box.style.left).toFixed(2); b.y = +parseFloat(box.style.top).toFixed(2); b.w = +parseFloat(box.style.width).toFixed(2);
+      saveEdits();
+    }
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  // מקלדת: חיצים מזיזים (עם Shift — יותר), פלוס ומינוס משנים גודל, Delete מוחק
+  $('deck').addEventListener('keydown', function (ev) {
+    var box = ev.target; if (!editMode || !box.classList || !box.classList.contains('ibox')) return;
+    var sid = sidOf(box), b = findImg(sid, box.getAttribute('data-ibox')); if (!b) return;
+    var D = dims(), st = ev.shiftKey ? 5 : 1, hP = function () { return b.w * D.w / b.r / D.h; };
+    var k = ev.key;
+    if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); delImg(sid, b.id); var it = frameOf(sid); if (it) it.closest('.sitem').querySelector('[data-act="img"]').focus(); return; }
+    if (k === 'ArrowLeft') b.x -= st; else if (k === 'ArrowRight') b.x += st;
+    else if (k === 'ArrowUp') b.y -= st; else if (k === 'ArrowDown') b.y += st;
+    else if (k === '+' || k === '=') b.w += st; else if (k === '-' || k === '_') b.w -= st;
+    else return;
+    ev.preventDefault();
+    b.w = Math.max(4, Math.min(b.w, 100, 100 * D.h * b.r / D.w));
+    b.x = +Math.max(0, Math.min(100 - b.w, b.x)).toFixed(2); b.y = +Math.max(0, Math.min(100 - hP(), b.y)).toFixed(2); b.w = +b.w.toFixed(2);
+    box.style.left = b.x + '%'; box.style.top = b.y + '%'; box.style.width = b.w + '%';
+    saveEdits();
+  });
+  // הדבקת תמונה (Ctrl+V במחשב) במצב עריכה: נכנסת לשקף שעובדים עליו — או לשקף שבמרכז המסך
+  var lastSid = null;
+  $('deck').addEventListener('pointerdown', function (ev) { var it = ev.target.closest('.sitem'); if (it) lastSid = it.getAttribute('data-id'); }, true);
+  $('deck').addEventListener('focusin', function (ev) { var it = ev.target.closest('.sitem'); if (it) lastSid = it.getAttribute('data-id'); });
+  function sidNow() {
+    var its = Array.prototype.filter.call($('deck').querySelectorAll('.sitem'), function (x) { return !x.hidden; });
+    if (lastSid && its.some(function (x) { return x.getAttribute('data-id') === lastSid; })) return lastSid;
+    var mid = window.innerHeight / 2, best = null, bd = 1e9;
+    its.forEach(function (x) { var r = x.getBoundingClientRect(), d = r.top <= mid && r.bottom >= mid ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid)); if (d < bd) { bd = d; best = x; } });
+    return best ? best.getAttribute('data-id') : null;
+  }
+  document.addEventListener('paste', function (ev) {
+    if (!editMode || step !== 3 || !ev.clipboardData) return;
+    var items = ev.clipboardData.items || [], f = null;
+    for (var i = 0; i < items.length; i++) if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { f = items[i].getAsFile(); break; }
+    if (!f) {
+      // טקסט שמודבק לתוך שקף: רק טקסט פשוט (בלי תמונות ועיצוב מאתרים אחרים)
+      var tg = ev.target.closest && ev.target.closest('#deck [contenteditable]');
+      if (tg) { ev.preventDefault(); document.execCommand('insertText', false, ev.clipboardData.getData('text/plain') || ''); }
+      return;
+    }
+    ev.preventDefault();
+    var it = ev.target.closest && ev.target.closest('.sitem');
+    addImage(f, it ? it.getAttribute('data-id') : sidNow(), false);
+  });
+
   /* עיצוב המצגת — נשמר עם המצגת (יחד עם העריכות) */
   $('looks').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-look]'); if (!b) return;
@@ -1152,6 +1373,7 @@
       var s = f.querySelector('.slide'); if (!s) return;
       var k = Math.min(1, (f.clientWidth || W) / W);
       s.style.transform = 'scale(' + k + ')';
+      s.style.setProperty('--ik', (1 / k).toFixed(3));
     });
   }
   if (window.ResizeObserver) new ResizeObserver(scale).observe($('deck'));
