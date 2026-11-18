@@ -539,3 +539,5 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-status table.tt-gen.cols1{width:100%}
 .slide table.tt-gen.cols1 th.rl,.slide table.tt-gen.cols2 th.rl{width:auto}
 .slide table.tt-gen.cols2{width:auto;min-width:80%;align-self:flex-start}
+.slide table.tt-det.new.cols1{width:auto;min-width:55%;align-self:flex-start}
+.slide table.tt-det.new.cols1 th.hr{width:62px}

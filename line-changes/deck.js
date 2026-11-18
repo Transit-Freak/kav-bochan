@@ -1171,7 +1171,7 @@ var LCDeck = (function () {
     flush();
     return pages;
   }
-  function ttKey(p) { var o = ttOpt(); return o.v === 'det' ? '<p class="tt-key"><span class="tm ad">00:00</span> נסיעה חדשה <span class="tm rm">00:00</span> נסיעה שמבוטלת</p>' : ''; }
+  function ttKey(p) { var o = ttOpt(); return o.v === 'det' && p.kind === 'timetable' ? '<p class="tt-key"><span class="tm ad">00:00</span> נסיעה חדשה <span class="tm rm">00:00</span> נסיעה שמבוטלת</p>' : ''; }
   function ttPagesHtml(p, form, H) { return paginate(ttBlocks(p, form), H || TTM[form].H); }
 
   /* ---- מפה של כל המסלול (קו חדש: ירוק · קו מבוטל: אדום מקווקו) ---- */
