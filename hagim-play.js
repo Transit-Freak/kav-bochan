@@ -150,11 +150,11 @@
     // לוקחים את הסמל (או אחד מתוך שניים-שלושה אימוג'י זהים) כפריט שעף ברוחב destW. מחזיר גם את המלבן המקורי
     function grab(o, g, destW) {
       var src = pick(o), txt = src.firstChild, parts = txt && txt.nodeType === 3 && src.childNodes.length === 1 ? segs(txt.nodeValue) : [], sr, f;
-      if (parts.length > 1) {
+      if (parts.length) {
         var rg = D.createRange(); rg.setStart(txt, 0); rg.setEnd(txt, parts[0].length);
         sr = rel(rg.getBoundingClientRect(), g.S);
-        var full = txt.nodeValue; txt.nodeValue = full.slice(parts[0].length);
-        cur.undo.push(function () { txt.nodeValue = full; });
+        if (parts.length > 1) { var full = txt.nodeValue; txt.nodeValue = full.slice(parts[0].length); cur.undo.push(function () { txt.nodeValue = full; }); }
+        else hide(src);
         var one = D.createElement("span"); one.textContent = parts[0];
         // אימוג'י אחד רוחבו בערך גובה האות — לא סומכים על רוחב הטווח (ריווח שלילי בין האותיות)
         sr = { l: sr.l, t: sr.t, w: sr.h * .9, h: sr.h };
@@ -923,7 +923,7 @@
             d.appendChild(bs);
           }
         }
-        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 120 : 122;
+        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 127 : 122;
         add(d, fb); hide(whole);
         var a = P(g, 60 + sd * (slow ? 66 : 82), Y), b = P(g, 60 - sd * (slow ? 6 : 82), Y), fl = sd < 0 ? " scaleX(-1)" : "", s0 = sr.w / W0, mid = around(g, ctr(sr), a);
         var pose = function (p, sc, r) { return T(fb, p, sc, " rotate(" + (r || 0) + "deg)" + fl); };
@@ -1043,9 +1043,9 @@
         A(t, [{ transform: "scale(1)" }, { transform: "scale(1.14)", offset: .15 }, { transform: "scale(1)", offset: .3 }, { transform: "scale(1.14)", offset: .45 }, { transform: "scale(1)", offset: .6 }, { transform: "scale(1.14)", offset: .75 }, { transform: "scale(1)" }], { duration: 1500, fill: "none" });
         [0, 1, 2, 3, 4, 5].forEach(function (i) {
           later(i * 200, function () {
-            var w = div("", "<svg viewBox='0 0 30 14'><path d='M3 12 Q15 -2 27 12' stroke='" + (i % 2 ? "#22c55e" : CFG.line) + "' stroke-width='3.6' fill='none' stroke-linecap='round'/></svg>"), r = q.box(q.at(.7), .5, .24);
+            var w = div("", "<svg viewBox='0 0 30 14'><path d='M3 12 Q15 -2 27 12' stroke='" + (i % 2 ? "#22c55e" : CFG.line) + "' stroke-width='3.6' fill='none' stroke-linecap='round'/></svg>"), r = q.box(q.at(.8), .8, .38);
             add(w, r);
-            A(w, [{ transform: T(r, q.at(.6), .6, " rotate(" + rot + "deg)"), opacity: 0 }, { transform: T(r, q.at(.95), 1, " rotate(" + rot + "deg)"), opacity: 1, offset: .35 }, { transform: T(r, q.at(1.5), 1.5, " rotate(" + rot + "deg)"), opacity: 0 }], { duration: 700, easing: "ease-out" });
+            A(w, [{ transform: T(r, q.at(.6), .5, " rotate(" + rot + "deg)"), opacity: 0 }, { transform: T(r, q.at(1.05), 1, " rotate(" + rot + "deg)"), opacity: 1, offset: .3 }, { transform: T(r, q.at(1.9), 1.6, " rotate(" + rot + "deg)"), opacity: 0 }], { duration: 760, easing: "ease-out" });
           });
         });
         var e = spotSide(o, 30, 112); spark(g, e.x, 22, 1200); spark(g, 120 - e.x, 30, 1350);
