@@ -133,9 +133,15 @@ var LCEdit = (function () {
       t.style.zoom = '';
       var what = t.querySelector('.what');
       var tooBig = function () { return over(t) || (what && over(what)); };
-      var z = 1;
-      while (tooBig() && z > 0.79) { z -= 0.04; t.style.zoom = z.toFixed(2); }
-      if (tooBig()) bad = true;
+      if (!tooBig()) return;
+      // אותם צעדים כמו תמיד (0.96, 0.92 … 0.76), אבל מתחילים מהיחס בין הגובה לתוכן — בדיקה או שתיים במקום עד שש
+      var need = Math.min(t.clientHeight / t.scrollHeight, what ? what.clientHeight / what.scrollHeight : 1);
+      var n = Math.max(1, Math.min(6, Math.ceil((1 - need) / 0.04 - 1e-9)));
+      var at = function (k) { t.style.zoom = (1 - 0.04 * k).toFixed(2); return !tooBig(); };
+      var ok = at(n);
+      if (ok) { while (n > 1) { if (at(n - 1)) n--; else { at(n); break; } } }   // אולי נכנס גם בצעד גדול יותר (שבירת שורות אחרת)
+      else while (n < 6 && !(ok = at(++n))) { /* עוד צעד */ }
+      if (!ok) bad = true;
     });
     frame.classList.toggle('toolong', bad);
   }
