@@ -67,4 +67,7 @@ jobs:
         run: |
           git add -A line-history/data
           git commit -q -m "data: line-history — היסטוריית מסלולים 2013–2017 מנתוני משרד התחבורה (חופש מידע)" || echo "אין שינוי"
+          # הענף אולי התקדם בזמן הריצה (שינויי קוד) — ממזגים לפני הדחיפה
+          git fetch -q --shallow-since="$(date -u -d '-4 days' +%F)" origin "$GITHUB_REF_NAME"
+          git merge -q --no-edit "origin/$GITHUB_REF_NAME" -m "מיזוג ענף העבודה" || true
           git push origin "HEAD:$GITHUB_REF_NAME"
