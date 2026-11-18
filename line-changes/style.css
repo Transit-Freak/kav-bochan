@@ -383,4 +383,5 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .bdopts .fld small{font-weight:600;color:var(--sub)}
 .bdopts input,.bdopts textarea{font:600 16px var(--f-body);padding:8px 10px;border:1.5px solid var(--line);border-radius:var(--r2);background:var(--card);color:var(--fg);width:100%;box-sizing:border-box;resize:vertical}
 #ttcseg{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-.dock .in:has(#xl2:not([hidden])){grid-template-columns:auto 1fr auto auto}
+/* בטלפון, עם כפתור אקסל: במקום קישור ההדפסה (ההדפסה — מהכפתורים בשלב 3) */
+.dock .in:has(#xl2:not([hidden])) .printbtn{display:none}
