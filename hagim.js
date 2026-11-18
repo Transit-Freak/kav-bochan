@@ -402,6 +402,8 @@
     ".hag-tile .hag-multi .hag-svg{width:42cqw;height:42cqw;margin-right:-10cqw}.hag-tile .hag-multi .hag-svg:last-child{margin-right:0}",
     ".hag-tile .hag-honey{margin-top:10cqw}.hag-tile .hag-jar{right:-12cqw;top:-18cqw;font-size:24cqw}.hag-tile .hag-drop{right:9cqw;top:4cqw;width:6cqw;height:10cqw}.hag-tile .hag-drop.d2{right:20cqw}.hag-tile .hag-drop.d3{right:31cqw;top:8cqw}",
     ".kbh .orb>span .hag-tile{box-shadow:none}",
+    // שמות החג ארוכים מהרגילים: התווית של הסמל שהעין מסתכלת עליו נשברת לשתי שורות ולא נמרחת על הסמלים שלידה
+    ".hag-fest .kbh .orb b{white-space:normal;width:max-content;max-width:7.5em;text-align:center;line-height:1.25}",
     // העין החגיגית ליד השם "הקו הבוחן"
     ".hag-beye{width:50px;height:50px;flex:none;display:inline-block;vertical-align:middle;margin:-12px 0 -12px 2px;overflow:visible}.kbh .brand svg.hag-beye{width:54px;height:54px;border-radius:0;box-shadow:none}",
     // בטלפון, בעמודי הכלים — בלי העין ליד השם, כדי שיישאר מקום לשם הכלי בסרגל
