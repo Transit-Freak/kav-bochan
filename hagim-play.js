@@ -1,14 +1,14 @@
 /* העין משחקת עם הסמלים — דף הבית בלבד (נטען מ-hagim.js: בחגים לפי הטבלה PLAY, ובימים רגילים לפי DAILY).
 
    מדי פעם, כשהעין הגדולה מסתכלת על סמל, היא משחקת איתו כשתי שניות, והסמל חוזר למקומו:
-   בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה. אף פעם לא פעמיים ברצף
+   בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשמונה-אחד-עשר. אף פעם לא פעמיים ברצף
    על אותו סמל, לא בימים עצובים, ולא כשביקשו "בלי תנועה" (גם אם הכפתור נלחץ אחרי שהדף נטען).
    העין תמיד נשארת פתוחה עם הקשתית והאישון (לכל היותר חיוך קל או מצמוץ מהיר), וכל חפץ עף מסביב לעין ועומד לידה —
    מתחת, מעל או בצד — אף פעם לא מול האישון (around).
    סוגי המשחקים בחגים: eat, dip, seeds, sip, honey, read, light, spin, wear, wreath, blow, wave, shake, sniff, peek, plant,
-   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, burn, ride, slow, leap, tick, signal, play, juggle, upside,
+   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, yuck, burn, ride, slow, leap, tick, signal, play, juggle, upside,
    inspect, bounce (הפירוט ב-hagim.js, ליד PLAY). "סוג@b" — המשחק על התג הקטן של הסמל.
-   בימים רגילים (הסמל הוא תמונה, אז המשחק מצויר לידו): lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
+   בימים רגילים — spot (הסמל קופץ קלות עם טבעת אור, השם גדל לרגע ונצנוץ). משחקים ישנים שנשארו בקוד: lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
    roll, train, bars, meet, drop, align, pad.
    מגע או ריחוף על סמל באמצע — המשחק נעצר בעדינות והכול חוזר למקום. השכבה לא תופסת לחיצות (pointer-events:none).
    הכול transform/opacity (WAAPI) — בלי ספריות.
@@ -51,8 +51,8 @@
     var layer = div("hag-play"); layer.setAttribute("aria-hidden", "true"); stage.appendChild(layer);
     var iris = stage.querySelector(".kb-iris-js"), eyeEl = stage.querySelector(".eye");
     var cur = null, since = 0, last = null, force = null, gap = newGap();
-    // בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה
-    function newGap() { return CFG.daily ? 6 + Math.floor(Math.random() * 3) : 3 + (Math.random() < .5 ? 1 : 0); }
+    // בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשמונה-אחד-עשר
+    function newGap() { return CFG.daily ? 8 + Math.floor(Math.random() * 4) : 3 + (Math.random() < .5 ? 1 : 0); }
 
     // ---------- מתי משחקים ----------
     stage.addEventListener("kbh:gaze", function (e) {
@@ -206,10 +206,9 @@
       n.className = "hp-face"; n.style.opacity = 0; add(n, r); return { el: n, r: r };
     }
     function show(f, t, dur, to) { later(t, function () { A(f.el, [{ opacity: to == null ? 0 : 1 - to }, { opacity: to == null ? 1 : to }], { duration: dur || 160 }); }); }
-    function happy(g, t0, t1) {   // עין מחייכת + סומק בין t0 ל-t1
-      var sq = face(g, "squint"), bl = face(g, "blush");
-      show(sq, t0, 140); show(bl, t0, 220);
-      show(sq, t1, 160, 0); show(bl, t1, 260, 0);
+    function happy(g, t0, t1) {   // סומק בין t0 ל-t1 (בלי עפעף תחתון — הקו שלו נראה כמו פה נוסף מתחת לעין)
+      var bl = face(g, "blush");
+      show(bl, t0, 220); show(bl, t1, 260, 0);
     }
     function pop(o, t) {   // הסמל חוזר לכפתור בקפיצה קטנה
       later(t, function () {
@@ -352,7 +351,7 @@
             A(f.el, [{ transform: pose(hold, sc[i], 0), opacity: 1 }, { transform: pose(bite, sc[i] * (last ? .6 : .95), -sd * 10), opacity: 1, offset: .45 }, { transform: last ? pose(P(g, 60, 104), .1, -sd * 20) : pose(hold, sc[i + 1], 0), opacity: last ? 0 : 1 }], { duration: 300, easing: "ease-in-out" });
           });
         });
-        munch(g, 400);
+        munch(g, 250);
         irisTo([[.15, sd * 6, 7], [.45, sd * 4, 7], [.6, 0, 5], [.8, 0, 3]], 2300);
         pop(o, 1900);
         end(2350);
@@ -384,17 +383,17 @@
           A(parch, [{ transform: T(dest, at, 1) + " scaleX(.08)", opacity: 0 }, { transform: T(dest, at, 1) + " scaleX(.1)", opacity: 1, offset: .15 }, { transform: T(dest, at, 1) + " scaleX(1)", opacity: 1 }], { duration: 420, easing: "cubic-bezier(.3,.9,.4,1)" });
         });
         // קריאה: שתי שורות, מימין לשמאל
-        irisTo([[.2, 0, 5], [.3, 9, 5.5], [.52, -9, 5.5], [.57, 9, 6.5], [.79, -9, 6.5], [.88, 0, 4]], 2300);
-        later(1900, function () {
+        irisTo([[.14, 0, 5], [.2, 9, 5.5], [.47, -9, 5.5], [.51, 9, 6.5], [.78, -9, 6.5], [.84, 0, 4]], 4500);   // לאט: שתי שורות מימין לשמאל, כשלוש שניות וחצי
+        later(3700, function () {
           A(rL, [{ transform: T(rr, { x: xL, y: cyR }, 1), opacity: 1 }, { transform: T(rr, { x: xc - 7 * u, y: cyR }, 1), opacity: 1, offset: .85 }, { transform: T(rr, { x: xc - 7 * u, y: cyR }, 1), opacity: 0 }], { duration: 300, easing: "ease-in" });
           A(rR, [{ transform: T(rr, { x: xR, y: cyR }, 1), opacity: 1 }, { transform: T(rr, { x: xc + 7 * u, y: cyR }, 1), opacity: 1, offset: .85 }, { transform: T(rr, { x: xc + 7 * u, y: cyR }, 1), opacity: 0 }], { duration: 300, easing: "ease-in" });
           A(parch, [{ transform: T(dest, at, 1) + " scaleX(1)", opacity: 1 }, { transform: T(dest, at, 1) + " scaleX(.1)", opacity: 1, offset: .85 }, { transform: T(dest, at, 1) + " scaleX(.08)", opacity: 0 }], { duration: 300, easing: "ease-in" });
         });
-        later(2160, function () {
+        later(3960, function () {
           A(f.el, [{ transform: T(fb, at, 1), opacity: 0 }, { transform: T(fb, at, 1), opacity: 1, offset: .12 }, { transform: T(fb, mid, (s0 + 1) / 2, " rotate(-8deg)"), offset: .55 }, { transform: T(fb, ctr(sr), s0), opacity: 1 }], { duration: 480, easing: "ease-in-out" });
         });
-        backHome(2640);
-        end(2680);
+        backHome(4440);
+        end(4480);
       },
 
       // חנוכייה: באה מול העין, הנרות כבים בדרך ונדלקים אחד אחרי השני — השמש ואז משמאל לימין
@@ -455,7 +454,7 @@
           A(d, [{ transform: b(0) }, { transform: b(-5), offset: .1 }, { transform: b(5), offset: .2 }, { transform: b(-5), offset: .3 }, { transform: b(5), offset: .42 },
             { transform: b(-6), offset: .56 }, { transform: b(7), offset: .7 }, { transform: b(-8), offset: .82 }, { transform: b(0) }], { duration: 1150, easing: "linear" });
         });
-        irisTo([[.18, 0, 6], [.3, 3, 7], [.36, -3, 7], [.42, 3, 7], [.48, -3, 7], [.55, 2, 7], [.62, -2, 7], [.68, 0, 6.5], [.82, 0, 5]], 2700);
+        irisTo([[.18, 0, 6], [.4, 1, 6.5], [.6, -1, 6.5], [.75, 2, 6], [.88, 0, 5]], 2700);   // העין רגועה — רק הסביבון מסתובב
         later(1650, function () {
           var b = function (r) { return Tb(db, at, 1, " rotate(" + r + "deg)"); };
           A(d, [{ transform: b(0) }, { transform: b(30), offset: .55, easing: "ease-in" }, { transform: b(20), offset: .78 }, { transform: b(26) }], { duration: 380, easing: "ease-out" });
@@ -1061,6 +1060,56 @@
         q.look([[.2, 0, 0], [.5, 0, -1], [.8, 0, 0]], 1900);
         happy(g, 1200, 1700);
         end(1850);
+      },
+
+      // אוכל מקולקל (רימון רקוב, סופגנייה שרופה, גבינה חמוצה, מרור): העין מריחה, עושה "איכס" (נשארת פתוחה),
+      // דוחפת אותו הצידה והוא חוזר לכפתור — בלי לאכול
+      yuck: function (o) {
+        var sd = spotSide(o).sd, v = visit(o, 40, { x: 60 + sd * 46, y: 106 }), g = v.g, u = g.u;
+        // ריח רע: גלים ירוקים עולים מהפריט
+        [[-8, 560], [6, 760], [-2, 960], [8, 1160]].forEach(function (s) {
+          later(s[1], function () {
+            var w = div("", "<svg viewBox='0 0 12 30'><path d='M6 28 q-6 -6 0 -12 q6 -6 0 -12' stroke='#65a30d' stroke-width='2.8' fill='none' stroke-linecap='round'/></svg>"), wr = g.box(v.atU.x + s[0] - 5, v.atU.y - 34, 10, 24);
+            add(w, wr);
+            A(w, [{ transform: T(wr, { x: cx(wr), y: cy(wr) + 8 * u }, .6), opacity: 0 }, { transform: T(wr, ctr(wr), 1), opacity: 1, offset: .4 }, { transform: T(wr, { x: cx(wr) - sd * 8 * u, y: cy(wr) - 12 * u }, 1.1), opacity: 0 }], { duration: 700 });
+          });
+        });
+        // מרחרחת: האף/פה קטן מתקרב, האישון מסתכל על הפריט
+        var po = face(g, "o"); show(po, 600, 140); show(po, 1180, 120, 0);
+        later(1000, function () { A(v.inner, [{ transform: "scale(1)" }, { transform: "scale(1.06,.94)", offset: .5 }, { transform: "scale(1)" }], { duration: 220 }); });
+        // איכס
+        var so = face(g, "sour"), bl = face(g, "bleh"), gr = face(g, "green"), bb = T(bl.r, ctr(bl.r), 1);
+        show(so, 1300, 140); show(gr, 1300, 300);
+        later(1320, function () { A(bl.el, [{ opacity: 0, transform: bb + " scaleY(.2)" }, { opacity: 1, transform: bb + " scaleY(1.15)", offset: .55 }, { opacity: 1, transform: bb + " scaleY(1)" }], { duration: 300 }); });
+        later(1640, function () { A(bl.el, [{ transform: bb + " rotate(0deg)" }, { transform: bb + " rotate(-7deg)", offset: .25 }, { transform: bb + " rotate(7deg)", offset: .75 }, { transform: bb + " rotate(0deg)" }], { duration: 500 }); });
+        say(g, "✖", v.atU.x + sd * 4, v.atU.y - 34, 1400, 520);
+        // דוחפת הצידה: הפריט נהדף החוצה ומתנדנד
+        var far = P(g, 60 + sd * 80, 112);
+        later(1500, function () { A(v.el, [{ transform: v.pose(v.at, 1, 0) }, { transform: v.pose({ x: v.at.x - sd * 4 * u, y: v.at.y }, 1, -sd * 6), offset: .2 }, { transform: v.pose(far, .9, sd * 24), offset: .7 }, { transform: v.pose(far, .9, sd * 14) }], { duration: 520, easing: "ease-out" }); });
+        later(2460, function () { A(bl.el, [{ opacity: 1 }, { opacity: 0 }], { duration: 200 }); });
+        show(so, 2460, 180, 0); show(gr, 2460, 260, 0);
+        irisTo([[.12, sd * 7, 6], [.3, sd * 6, 7], [.42, sd * 6, 7], [.5, 0, 3], [.56, -3, 2], [.62, 3, 2], [.68, -3, 2], [.74, 0, 2], [.85, sd * 9, 4]], 2900);
+        v.back(2300, 0, 0, far);
+      },
+
+      // יום רגיל: העין מסתכלת על הכלי — הסמל קופץ קלות, טבעת אור רכה סביבו, השם שלו גדל לרגע ונצנוץ קטן
+      spot: function (o) {
+        var q = orbG(o), g = q.g, ic = o.querySelector("[data-icon]") || q.sp, lb = o.querySelector("b"), R = rel(o.getBoundingClientRect(), g.S);
+        A(ic, [{ scale: "1" }, { scale: "1.16", offset: .3 }, { scale: ".97", offset: .55 }, { scale: "1.04", offset: .75 }, { scale: "1" }], { duration: 900, fill: "none", easing: "ease-out" });
+        if (lb) later(120, function () { A(lb, [{ scale: "1" }, { scale: "1.14", offset: .25 }, { scale: "1.14", offset: .75 }, { scale: "1" }], { duration: 1300, fill: "none" }); });
+        [0, 380].forEach(function (t, i) {
+          later(t, function () {
+            var ring = div("", "<svg viewBox='0 0 40 40'><circle cx='20' cy='20' r='17' fill='none' stroke='" + CFG.line + "' stroke-width='" + (i ? 1.6 : 2.4) + "' opacity='.75'/></svg>"), rr = { l: R.l - R.w * .15, t: R.t - R.h * .15, w: R.w * 1.3, h: R.h * 1.3 };
+            add(ring, rr);
+            A(ring, [{ transform: T(rr, ctr(rr), .85), opacity: 0 }, { transform: T(rr, ctr(rr), 1), opacity: 1, offset: .25 }, { transform: T(rr, ctr(rr), 1.35), opacity: 0 }], { duration: 900, easing: "ease-out" });
+          });
+        });
+        later(260, function () {
+          var r = q.box({ x: R.l + R.w * .9, y: R.t + R.h * .1 }, .22, .22), sp = div("", "<svg viewBox='0 0 20 20'><path d='M10 0 Q11 9 20 10 Q11 11 10 20 Q9 11 0 10 Q9 9 10 0Z' fill='#facc15' stroke='#b45309' stroke-width='.8'/></svg>");
+          add(sp, r); A(sp, [{ transform: T(r, ctr(r), .1, " rotate(0deg)"), opacity: 0 }, { transform: T(r, ctr(r), 1.2, " rotate(45deg)"), opacity: 1, offset: .5 }, { transform: T(r, ctr(r), .2, " rotate(90deg)"), opacity: 0 }], { duration: 600 });
+        });
+        q.look([[.2, 0, 0], [.5, 0, -.5], [.8, 0, 0]], 1500);
+        end(1500);
       },
 
       // זר פרחים: זר עגול נחבש לראש העין (כמו הכתר)
