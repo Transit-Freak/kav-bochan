@@ -918,12 +918,12 @@
           d = div("hp-fly hp-em"); d.style.fontSize = fs + "px"; h = W0 * sr.h / sr.w;
           var car = D.createElement("span"); car.textContent = main.textContent; d.appendChild(car);
           if (badge) {
-            var bs = D.createElement("span"), bf = fs * .52; bs.textContent = badge.textContent;
+            var bs = D.createElement("span"), bf = fs * .46; bs.textContent = badge.textContent;
             bs.style.setProperty("font-size", bf + "px", "important"); bs.style.position = "absolute"; bs.style.left = (W0 / 2 - bf * .6) + "px"; bs.style.top = (-bf * .62) + "px";
             d.appendChild(bs);
           }
         }
-        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 117 : 116;
+        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 120 : 122;
         add(d, fb); hide(whole);
         var a = P(g, 60 + sd * (slow ? 66 : 82), Y), b = P(g, 60 - sd * (slow ? 6 : 82), Y), fl = sd < 0 ? " scaleX(-1)" : "", s0 = sr.w / W0, mid = around(g, ctr(sr), a);
         var pose = function (p, sc, r) { return T(fb, p, sc, " rotate(" + (r || 0) + "deg)" + fl); };
