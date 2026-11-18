@@ -1,0 +1,14 @@
+name: tmp-foi-delbranch
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: [.github/workflows/tmp-foi-delbranch.yml]
+permissions:
+  contents: write
+jobs:
+  del:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/data/routes-by-year-2013-2017"
