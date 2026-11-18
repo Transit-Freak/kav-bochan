@@ -1,9 +1,10 @@
-/* מצגת לשינוי בקו — ייצוא "טבלה לפי יעד" של לו"ז עדכני לקובץ אקסל (.xlsx).
+/* מצגת לשינוי בקו — ייצוא לוחות זמנים לקובץ אקסל (.xlsx): לו"ז עדכני (במבנה של "טבלה לפי יעד", בכל התצוגות)
+   ולו"ז חדש בהודעה על שינוי (גיליון ללוח החדש, ועוד גיליון ללוח הקודם).
    נכתב כאן בלי ספרייה: הגרסה החינמית של SheetJS לא שומרת צבעים, ובלוח כזה הצבעים הם העיקר —
    פס צבעוני לכל יעד, ושעות של נסיעה בדרך אחרת באדום (באותו תא, כמו בגיליון שכונתי).
    הקובץ: גיליון אחד מימין לשמאל, תאים ממוזגים, רוחב עמודות, הערה (comment) על תא המוצא עם התחנה הראשונה,
    והדפסה ברוחב עמוד אחד. ZIP בלי דחיסה (store) — הקובץ קטן ממילא.
-   LCXlsx.board(model) → Blob ; model = LCDeck.boardModel(...) */
+   LCXlsx.board(model) → Blob ; LCXlsx.book([[model, 'שם הגיליון'], ...]) → Blob. model = LCDeck.boardModel / LCDeck.chgModel */
 var LCXlsx = (function () {
   var enc = new TextEncoder();
   function x(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''); }
@@ -48,12 +49,13 @@ var LCXlsx = (function () {
         '<cellXfs count="' + xfs.length + '">' + xfs.join('') + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
     };
   }
-  var COLS = 'ABCDEFGHIJ';
+  var COLS = 'ABCDEFGHIJKLMNOPQRST';
   function ref(c, r) { return COLS.charAt(c) + r; }
   function hexOf(c) { return String(c || '#0f766e').replace('#', '').toUpperCase(); }
 
-  function board(M) {
-    var st = new Styles(), rows = [], merges = [], comments = [], heights = {};
+  /* גיליון אחד: M — המבנה של "טבלה לפי יעד" (LCDeck.boardModel) או של לו"ז בהודעה על שינוי (LCDeck.chgModel); si — מספר הגיליון */
+  function sheetOf(M, st, si) {
+    var rows = [], merges = [], comments = [], heights = {};
     var nC = 3 + M.cols.length + 1, last = nC - 1;   // מפעיל · מס' קו · מוצא · ימים… · הערות
     var W = [11, 8, 22].concat(M.cols.map(function (c, i) { return i === 0 ? 58 : 34; }), [34]);
     var cell = function (r, c, v, s) { (rows[r] = rows[r] || [])[c] = { v: v, s: s }; };
@@ -96,7 +98,7 @@ var LCXlsx = (function () {
             if (x.txt != null) { cell(rr, 3 + ci, x.txt, sTm); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
             if (!x.ents.length) { cell(rr, 3 + ci, 'אינו פעיל', sOff); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
-            var runs = x.ents.map(function (e) { return { t: (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : ''), red: !!e.a }; });
+            var runs = x.ents.map(function (e) { return { t: (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : ''), red: !!e.a, color: e.c || '' }; });
             cell(rr, 3 + ci, { runs: runs }, sTm);
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
@@ -121,7 +123,7 @@ var LCXlsx = (function () {
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, 'השעות הן שעות היציאה מהתחנה הראשונה · באדום — נסיעה בדרך אחרת · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה · לא פרסום רשמי', sC);
+    cell(R, 0, M.legend || 'השעות הן שעות היציאה מהתחנה הראשונה · באדום — נסיעה בדרך אחרת · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה · לא פרסום רשמי', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }
 
@@ -141,7 +143,7 @@ var LCXlsx = (function () {
         var v = o.v, a = ' r="' + ref(c, r) + '" s="' + o.s + '"';
         if (v && v.runs) {
           out += '<c' + a + ' t="inlineStr"><is>' + v.runs.map(function (u, i) {
-            return '<r><rPr>' + (u.red ? '<b/>' : '') + '<sz val="10"/><color rgb="FF' + (u.red ? 'C81E1E' : '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? ' ' : '')) + '</t></r>';
+            return '<r><rPr>' + (u.red || u.color ? '<b/>' : '') + '<sz val="10"/><color rgb="FF' + (u.red ? 'C81E1E' : u.color || '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? ' ' : '')) + '</t></r>';
           }).join('') + '</is></c>';
         } else out += '<c' + a + ' t="inlineStr"><is><t xml:space="preserve">' + x(v) + '</t></is></c>';
       }
@@ -155,43 +157,54 @@ var LCXlsx = (function () {
       '<sheetData>' + sd + '</sheetData><mergeCells count="' + merges.length + '">' + merges.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' +
       (links.length ? '<hyperlinks>' + links.map(function (r, i) { return '<hyperlink ref="' + r + '" r:id="rId' + (3 + i) + '" tooltip="kavbochan.app"/>'; }).join('') + '</hyperlinks>' : '') +
       '<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>' +
-      (comments.length ? '<legacyDrawing r:id="rId2"/>' : '') + '</worksheet>';
+      '<legacyDrawing r:id="rId2"/></worksheet>';
     var cmt = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><comments xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><authors><author>הקו הבוחן</author></authors><commentList>' +
       comments.map(function (c) { return '<comment ref="' + c.ref + '" authorId="0"><text><r><rPr><sz val="10"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(c.t) + '</t></r></text></comment>'; }).join('') + '</commentList></comments>';
     var vml = '<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
-      '<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="1"/></o:shapelayout><v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>' +
+      '<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="' + (si + 1) + '"/></o:shapelayout><v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>' +
       comments.map(function (c, i) {
         var col = COLS.indexOf(c.ref.charAt(0)), row = +c.ref.slice(1) - 1;
-        return '<v:shape id="_x0000_s' + (1025 + i) + '" type="#_x0000_t202" style="position:absolute;margin-left:80pt;margin-top:2pt;width:220pt;height:60pt;z-index:' + (i + 1) + ';visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">' +
+        return '<v:shape id="_x0000_s' + (1025 + si * 1024 + i) + '" type="#_x0000_t202" style="position:absolute;margin-left:80pt;margin-top:2pt;width:220pt;height:60pt;z-index:' + (i + 1) + ';visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">' +
           '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/><v:textbox style="mso-direction-alt:auto"><div style="text-align:right"></div></v:textbox>' +
           '<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>' + (col + 1) + ', 15, ' + row + ', 2, ' + (col + 4) + ', 15, ' + (row + 4) + ', 2</x:Anchor><x:AutoFill>False</x:AutoFill><x:Row>' + row + '</x:Row><x:Column>' + col + '</x:Column></x:ClientData></v:shape>';
       }).join('') + '</xml>';
+    return { sheet: sheet, cmt: cmt, vml: vml, links: links, head: head };
+  }
+  /* קובץ עם כמה גיליונות: list = [[M, 'שם הגיליון'], ...] */
+  function book(list) {
+    var st = new Styles(), sh = list.map(function (x, i) { var o = sheetOf(x[0], st, i); o.name = x[1]; return o; });
+    var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/', CT = 'application/vnd.openxmlformats-officedocument.';
+    var q = function (n) { return "'" + String(n).replace(/'/g, "''") + "'"; };
     var files = [
       ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
-        '<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>' +
-        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-        '<Override PartName="/xl/comments1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/></Types>'],
-      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
-      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<bookViews><workbookView/></bookViews><sheets><sheet name="לוח זמנים" sheetId="1" r:id="rId1"/></sheets>' +
-        '<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'לוח זמנים\'!$' + head + ':$' + head + '</definedName></definedNames></workbook>'],
+        '<Default Extension="vml" ContentType="' + CT + 'vmlDrawing"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + CT + 'spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="' + CT + 'spreadsheetml.styles+xml"/>' +
+        sh.map(function (o, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="' + CT + 'spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/comments' + (i + 1) + '.xml" ContentType="' + CT + 'spreadsheetml.comments+xml"/>'; }).join('') + '</Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + R + 'officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + R.slice(0, -1) + '">' +
+        '<bookViews><workbookView/></bookViews><sheets>' + sh.map(function (o, i) { return '<sheet name="' + x(o.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets>' +
+        '<definedNames>' + sh.map(function (o, i) { return '<definedName name="_xlnm.Print_Titles" localSheetId="' + i + '">' + x(q(o.name)) + '!$' + o.head + ':$' + o.head + '</definedName>'; }).join('') + '</definedNames></workbook>'],
       ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
-      ['xl/styles.xml', st.xml()],
-      ['xl/worksheets/sheet1.xml', sheet],
-      ['xl/worksheets/_rels/sheet1.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments1.xml"/>' +
-        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing1.vml"/>' +
-        links.map(function (r, i) { return '<Relationship Id="rId' + (3 + i) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://kavbochan.app/line-changes/" TargetMode="External"/>'; }).join('') + '</Relationships>'],
-      ['xl/comments1.xml', cmt],
-      ['xl/drawings/vmlDrawing1.vml', vml]
+        sh.map(function (o, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="' + R + 'worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
+        '<Relationship Id="rId' + (sh.length + 1) + '" Type="' + R + 'styles" Target="styles.xml"/></Relationships>'],
+      ['xl/styles.xml', st.xml()]
     ];
+    sh.forEach(function (o, i) {
+      var n = i + 1;
+      files.push(['xl/worksheets/sheet' + n + '.xml', o.sheet]);
+      files.push(['xl/worksheets/_rels/sheet' + n + '.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + R + 'comments" Target="../comments' + n + '.xml"/>' +
+        '<Relationship Id="rId2" Type="' + R + 'vmlDrawing" Target="../drawings/vmlDrawing' + n + '.vml"/>' +
+        o.links.map(function (r, k) { return '<Relationship Id="rId' + (3 + k) + '" Type="' + R + 'hyperlink" Target="https://kavbochan.app/line-changes/" TargetMode="External"/>'; }).join('') + '</Relationships>']);
+      files.push(['xl/comments' + n + '.xml', o.cmt]);
+      files.push(['xl/drawings/vmlDrawing' + n + '.vml', o.vml]);
+    });
     return zip(files);
   }
+  function board(M) { return book([[M, 'לוח זמנים']]); }
   function dmy(iso) { var p = String(iso).split('-'); return +p[2] + '.' + +p[1] + '.' + p[0]; }
-  return { board: board };
+  return { board: board, book: book };
 })();

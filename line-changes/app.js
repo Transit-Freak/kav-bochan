@@ -1159,7 +1159,9 @@
     $('ttcseg').hidden = !cu;
     var bd = cu && edits.ttc === 'board';
     $('bdopts').hidden = !bd; $('ttvseg').hidden = bd;
-    ['xl', 'xl2'].forEach(function (id) { $(id).hidden = !cu; });
+    // ייצוא לאקסל: לו"ז עדכני (כל התצוגות), ובהודעה על שינוי — כשיש בה קו שהלו"ז שלו משתנה או קו חדש
+    var hasTt = cu || pages.some(LCDeck.ttCap);
+    ['xl', 'xl2'].forEach(function (id) { $(id).hidden = !hasTt; });
     if (cu) {
       var to = []; pages.forEach(function (p) { var d = (p.od || [])[1]; if (d && to.indexOf(d) < 0) to.push(d); });
       $('ttcsub').textContent = to.length === 1 ? 'כל השעות ל' + to[0] + ' בטבלה אחת' : 'קווים לאותו יעד בטבלה אחת';
@@ -1949,20 +1951,31 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=4'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=5'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
+  function fileName(s) { return s.replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx'; }
   function exportXlsx() {
-    var cu = curPages.filter(function (p) { return p.kind === 'current'; });
-    if (!cu.length) return;
+    var cu = curPages.filter(function (p) { return p.kind === 'current'; }), tt = curPages.filter(LCDeck.ttCap);
+    if (!cu.length && !tt.length) return;
     dlMsg('מכין את קובץ האקסל…');
     var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
     xlLib().then(function () {
-      var M = LCDeck.boardModel(cu, edOpts(formOf()));
-      var nm = ('לוח-זמנים-' + (edits.bplace || M.home || cu.map(function (p) { return p.line; }).slice(0, 4).join('-')) + '-' + (M.valid || LC.todayIso()))
-        .replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx';
-      save(LCXlsx.board(M), nm, tab);
+      var o = edOpts(formOf()), blob, nm;
+      if (cu.length) {
+        // לו"ז עדכני — בכל תצוגה אותו קובץ: שורה לכל קו וכיוון, עמודה לכל קבוצת ימים, ועמודה לחג כשיש
+        var M = LCDeck.boardModel(cu, o, { hol: true });
+        nm = fileName('לוח-זמנים-' + (edits.bplace || (cu.length <= 3 ? 'קו-' + cu.map(function (p) { return p.line; }).join('-') : M.home)) + '-' + (M.valid || LC.todayIso()));
+        blob = LCXlsx.board(M);
+      } else {
+        // הודעה על שינוי: הלו"ז החדש מיום השינוי, ובגיליון שני — הלוח הקודם (כשהשקפים מראים לפני ואחרי)
+        var N = LCDeck.chgModel(tt, o, false), sheets = [[N, 'לו״ז חדש']];
+        if (LCDeck.hasOld(tt)) sheets.push([LCDeck.chgModel(tt, o, true), 'הלו״ז הקודם']);
+        nm = fileName('לו״ז-חדש-קו-' + tt.map(function (p) { return p.line; }).slice(0, 4).join('-') + '-מ-' + (N.when || LC.todayIso()));
+        blob = LCXlsx.book(sheets);
+      }
+      save(blob, nm, tab);
       dlMsg('');
     }).catch(function () { if (tab) tab.close(); dlMsg('לא הצלחנו להכין את קובץ האקסל. נסו שוב.'); });
   }
