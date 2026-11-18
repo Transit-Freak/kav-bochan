@@ -579,7 +579,8 @@
   /* לוח הזמנים (קו חדש ושינוי בלו"ז): כללי / מפורט, טבלה / טקסט — נשמר עם המצגת, כמו העיצוב */
   function ttOpts() { var t = edits.tt || {}; return { v: t.v === 'det' ? 'det' : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
   function ttUi(pages) {
-    var on = pages.some(function (p) { return p.kind === 'timetable' || p.kind === 'new'; }), o = ttOpts();
+    // שינוי קטן בלו"ז מוצג תמיד כטקסט — הבחירה מופיעה רק כשיש במצגת קו חדש או שינוי גדול יותר
+    var on = pages.some(function (p) { return (p.kind === 'timetable' && !LCDeck.ttSmall(p)) || p.kind === 'new'; }), o = ttOpts();
     $('ttgrp').hidden = !on;
     $('ttgrp').querySelectorAll('[data-ttv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttv') === o.v ? 'true' : 'false'); });
     $('ttgrp').querySelectorAll('[data-ttf]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttf') === o.f ? 'true' : 'false'); });

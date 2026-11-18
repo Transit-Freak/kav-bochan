@@ -541,3 +541,74 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .slide table.tt-gen.cols2{width:auto;min-width:80%;align-self:flex-start}
 .slide table.tt-det.new.cols1{width:auto;min-width:55%;align-self:flex-start}
 .slide table.tt-det.new.cols1 th.hr{width:62px}
+
+/* ---- טבלאות לוח הזמנים (גרסה 2): כמו לוח זמנים מודפס ---- */
+.slide table.tt-g2,.slide table.tt-grid{border-collapse:separate;border-spacing:0;direction:rtl;background:var(--s-card);border:1.5px solid var(--s-line);border-radius:10px;overflow:hidden}
+.slide table.tt-g2{width:100%;font-size:18px}
+.slide table.tt-g2 th,.slide table.tt-g2 td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--s-line);font-variant-numeric:tabular-nums}
+.slide table.tt-g2 thead th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;font-size:15px;line-height:1.2}
+.slide table.tt-g2 thead th.grp{font-size:15.5px;border-bottom:1px solid rgba(255,255,255,.22);border-right:2px solid rgba(255,255,255,.22)}
+.slide table.tt-g2 thead th.was{color:var(--s-band-sub);font-weight:700;font-size:13.5px;border-right:2px solid rgba(255,255,255,.22)}
+.slide table.tt-g2 thead th.now{font-size:13.5px}
+.slide table.tt-g2 th.dt{background:var(--s-band2);color:var(--s-band-fg);font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:19px;white-space:nowrap;width:1%;padding:7px 14px}
+.slide table.tt-g2 thead th.dt{background:var(--s-band)}
+.slide table.tt-g2 td.was{color:var(--s-sub);font-weight:600;border-right:2px solid var(--s-line)}
+.slide table.tt-g2 td.now{font-weight:800;color:var(--s-fg)}
+.slide table.tt-g2.one td.now{border-right:2px solid var(--s-line)}
+.slide table.tt-g2 td.chg{background:var(--s-add-bg);color:var(--s-add);font-weight:900;box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide table.tt-g2 tbody tr:nth-child(even) td:not(.chg){background:#f4f7f5}
+.slide table.tt-g2 tr.same td{color:var(--s-sub);font-weight:700;background:#fafbfa!important}
+.slide .tt-day{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0;font-family:'Heebo',Arial,sans-serif;font-size:22px;font-weight:900}
+.slide .tt-day span{font-family:'Assistant',Arial,sans-serif;font-size:16px;font-weight:700;color:var(--s-sub)}
+.slide .tt-sum{font-size:18px;line-height:1.35;margin:0}
+.slide table.tt-grid{width:100%;table-layout:fixed}
+.slide table.tt-grid thead th{background:var(--s-paper);color:var(--s-sub);font-size:13.5px;font-weight:700;padding:3px 8px;text-align:right;border-bottom:1.5px solid var(--s-line)}
+.slide table.tt-grid thead th.hr{text-align:center}
+.slide table.tt-grid th.hr{width:92px;background:var(--s-band);color:var(--s-band-fg);font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:19px;text-align:center;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(255,255,255,.15);padding:0 4px}
+.slide table.tt-grid th.hr.cont{background:var(--s-band2)}
+.slide table.tt-grid td.m{height:40px;text-align:center;vertical-align:middle;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--s-line);border-left:1px solid #edf1ee;padding:0;line-height:1.05}
+.slide table.tt-grid tbody tr:nth-child(even) td.m{background:#f4f7f5}
+.slide table.tt-grid td.m small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.02em}
+.slide table.tt-grid td.m.ad{background:var(--s-add-bg)!important;color:var(--s-add);font-weight:900;box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide table.tt-grid td.m.rm{background:var(--s-before-bg)!important;color:var(--s-before);text-decoration:line-through;text-decoration-thickness:2px}
+.slide table.tt-grid td.m.rm small{text-decoration:none;display:block}
+.slide table.tt-grid td.m.e{background:transparent}
+.slide table.tt-grid tr.fold th.hr{background:#dfe6e2;color:var(--s-sub);font-size:14px}
+.slide table.tt-grid tr.fold td{background:#fafbfa;color:var(--s-sub);font-weight:700;font-size:15px;padding:0 14px;height:32px;text-align:right;border-bottom:1px solid var(--s-line)}
+.slide .tt-key{gap:14px}
+.slide .tt-key span{display:inline-flex;align-items:center;gap:6px}
+.slide .tt-key i.m{font-style:normal;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;height:34px;border:1px solid var(--s-line);border-radius:5px;background:#fff;color:var(--s-fg);font-weight:800;font-size:15px;line-height:1}
+.slide .tt-key i.m small{font-size:9.5px;font-weight:800}
+.slide .tt-key i.m.ad{background:var(--s-add-bg);color:var(--s-add);box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide .tt-key i.m.rm{background:var(--s-before-bg);color:var(--s-before);text-decoration:line-through}
+/* שלט וסטטוס */
+.s-sign table.tt-g2{font-size:16px}
+.s-sign table.tt-g2 th,.s-sign table.tt-g2 td{padding:6px 3px}
+.s-sign table.tt-g2 thead th{font-size:12.5px}
+.s-sign table.tt-g2 thead th.was,.s-sign table.tt-g2 thead th.now{font-size:11.5px}
+.s-sign table.tt-g2 th.dt{font-size:16px;padding:6px 8px}
+.s-sign table.tt-grid th.hr{width:78px;font-size:18px}
+.s-sign table.tt-grid td.m{height:42px;font-size:19px}
+.s-sign .tt-day{font-size:23px}
+.s-sign .tt-sum{font-size:19px}
+.s-status table.tt-g2{font-size:24px}
+.s-status table.tt-g2 th,.s-status table.tt-g2 td{padding:10px 4px}
+.s-status table.tt-g2 thead th{font-size:19px}
+.s-status table.tt-g2 thead th.was,.s-status table.tt-g2 thead th.now{font-size:16px}
+.s-status table.tt-g2 th.dt{font-size:24px;padding:10px 10px}
+.s-status table.tt-grid th.hr{width:120px;font-size:28px}
+.s-status table.tt-grid td.m{height:62px;font-size:30px}
+.s-status table.tt-grid td.m small{font-size:15px}
+.s-status table.tt-grid thead th{font-size:20px}
+.s-status table.tt-grid tr.fold td{font-size:24px;height:48px}
+.s-status .tt-day{font-size:36px}
+.s-status .tt-day span{font-size:24px}
+.s-status .tt-sum{font-size:30px}
+.s-status .tt-key i.m{min-width:66px;height:52px;font-size:24px}
+.s-status .tt-key i.m small{font-size:13px}
+.deck[data-look="large"] .slide table.tt-grid td.m{font-size:22px}
+.deck[data-look="large"] .slide table.tt-g2{font-size:21px}
+.slide table.tt-grid{width:auto;max-width:100%;align-self:flex-start}
+.slide table.tt-grid td.m{width:78px}
+.s-sign table.tt-grid td.m{width:62px}
+.s-status table.tt-grid td.m{width:100px}
