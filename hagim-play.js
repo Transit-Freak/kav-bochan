@@ -6,7 +6,7 @@
    העין תמיד נשארת פתוחה עם הקשתית והאישון (לכל היותר חיוך קל או מצמוץ מהיר), וכל חפץ עף מסביב לעין ועומד לידה —
    מתחת, מעל או בצד — אף פעם לא מול האישון (around).
    סוגי המשחקים בחגים: eat, dip, seeds, sip, honey, read, light, spin, wear, wreath, blow, wave, shake, sniff, peek, plant,
-   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, burn, ride, slow, hop, tick, play, juggle, upside,
+   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, burn, ride, slow, leap, tick, play, juggle, upside,
    inspect, bounce (הפירוט ב-hagim.js, ליד PLAY). "סוג@b" — המשחק על התג הקטן של הסמל.
    בימים רגילים (הסמל הוא תמונה, אז המשחק מצויר לידו): lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
    roll, train, bars, meet, drop, align, pad.
@@ -178,6 +178,9 @@
           "<g clip-path='url(#hpTile)'><g clip-path='url(#hpLid)'><rect width='120' height='120' fill='url(#hpBg)'/>" + (CFG.bg || "") + "</g></g>" +
           "<path d='M19 66 Q60 86 101 66' stroke='" + ln + "' stroke-width='4' stroke-linecap='round' fill='none'/></svg>");
         r = g.box(0, 0, 120, 120);
+      } else if (kind === "o") {
+        n = div("", "<svg viewBox='0 0 48 30'><ellipse cx='24' cy='13' rx='6.5' ry='7.5' fill='#7f1d1d' stroke='" + ln + "' stroke-width='3'/></svg>");
+        r = g.box(36, 93, 48, 30);
       } else if (kind === "sour") {
         // פרצוף "איכס": העפעף העליון יורד קצת והתחתון עולה קצת — העין מכווצת אבל פתוחה, עם האישון
         n = div("", "<svg viewBox='0 0 120 120'><defs><linearGradient id='hpBg2' x1='0' y1='0' x2='0' y2='120' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#fff'/><stop offset='1' stop-color='#e0f2fe'/></linearGradient>" +
@@ -582,19 +585,30 @@
 
       // תקיעה (שופר, מגפון, חצוצרה): גלי קול יוצאים החוצה מהעין — בלי קול
       blow: function (o) {
-        var v = visit(o, 44, spotSide(o, 66, 134)), g = v.g, sd = v.sd;
-        later(520, function () { A(v.inner, [{ transform: "scale(1)" }, { transform: "scale(1.12,.92)", offset: .2 }, { transform: "scale(.96,1.05)", offset: .4 }, { transform: "scale(1.1,.94)", offset: .6 }, { transform: "scale(1)" }], { duration: 1000 }); });
+        // הצד הצר בפה (פה קטן ועגול ולחיים נפוחות), גלי קול ותווים יוצאים מהצד הרחב
+        var sd = spotSide(o).sd, v = visit(o, 40, { x: 60 + sd * 50, y: 104 }), g = v.g, u = g.u, fx = sd < 0 ? "scaleX(-1) " : "";
+        v.inner.style.transform = fx;
+        later(520, function () { A(v.inner, [{ transform: fx + "scale(1)" }, { transform: fx + "scale(1.12,.92)", offset: .2 }, { transform: fx + "scale(.96,1.05)", offset: .4 }, { transform: fx + "scale(1.1,.94)", offset: .6 }, { transform: fx + "scale(1)" }], { duration: 1100 }); });
+        var po = face(g, "o"), bl = face(g, "blush");
+        show(po, 480, 140); show(bl, 520, 200); show(po, 1700, 160, 0); show(bl, 1700, 220, 0);
         [600, 820, 1040, 1260].forEach(function (t, i) {
           later(t, function () {
             var w = div("", "<svg viewBox='0 0 20 40'><path d='M4 4 Q16 20 4 36' stroke='" + (i % 2 ? "#f59e0b" : CFG.line) + "' stroke-width='3.5' fill='none' stroke-linecap='round'/></svg>"),
-              wr = g.box(v.atU.x + sd * 18 - 5, v.atU.y - 10, 10, 20), fl = sd < 0 ? " scaleX(-1)" : "";
+              wr = g.box(60 + sd * 84 - 7, 90, 14, 28), fl = sd < 0 ? " scaleX(-1)" : "";
             add(w, wr);
-            A(w, [{ transform: T(wr, ctr(wr), .5, fl), opacity: 0 }, { transform: T(wr, { x: cx(wr) + sd * 8 * g.u, y: cy(wr) }, 1, fl), opacity: 1, offset: .3 }, { transform: T(wr, { x: cx(wr) + sd * 16 * g.u, y: cy(wr) }, 1.7, fl), opacity: 0 }], { duration: 620, easing: "ease-out" });
+            A(w, [{ transform: T(wr, ctr(wr), .5, fl), opacity: 0 }, { transform: T(wr, { x: cx(wr) + sd * 8 * u, y: cy(wr) }, 1, fl), opacity: 1, offset: .3 }, { transform: T(wr, { x: cx(wr) + sd * 22 * u, y: cy(wr) }, 1.6, fl), opacity: 0 }], { duration: 640, easing: "ease-out" });
           });
         });
-        irisTo([[.2, sd * 10, 1], [.4, sd * 11, 0], [.6, sd * 11, 1], [.8, sd * 9, 1]], 2100);
-        happy(g, 1300, 1700);
-        v.back(1640);
+        ["\u266A", "\u266B"].forEach(function (nt, i) {
+          later(760 + i * 380, function () {
+            var n = div("hp-em", nt), r = g.box(60 + sd * (78 + i * 8) - 7, 74 - i * 6, 14, 16);
+            n.style.fontSize = (16 * u) + "px"; n.style.color = CFG.line; n.style.fontWeight = "900"; add(n, r);
+            A(n, [{ transform: T(r, ctr(r), .4, " rotate(0deg)"), opacity: 0 }, { transform: T(r, { x: cx(r) + sd * 6 * u, y: cy(r) - 10 * u }, 1, " rotate(" + (sd * 12) + "deg)"), opacity: 1, offset: .4 }, { transform: T(r, { x: cx(r) + sd * 14 * u, y: cy(r) - 26 * u }, 1, " rotate(" + (-sd * 8) + "deg)"), opacity: 0 }], { duration: 760 });
+          });
+        });
+        irisTo([[.2, sd * 7, 5], [.4, sd * 9, 6], [.6, sd * 8, 5], [.8, sd * 6, 3]], 2200);
+        happy(g, 1750, 2100);
+        v.back(1800);
       },
 
       // הרחה (אתרוג, פרחים): ניחוח עולה מהסמל שמתחת לעין, לבבות קטנים וחיוך
@@ -719,7 +733,7 @@
       // מזיגה: הכד נוטה ומטפטף אל נר קטן שנדלק (lamp) או אל הפה (דבש)
       pour: function (o, intoMouth) {
         var sd = spotSide(o).sd, jx = intoMouth ? 60 + sd * 42 : 60 + sd * 70;
-        var v = visit(o, 32, { x: jx, y: intoMouth ? 92 : 88 }), g = v.g;
+        var v = visit(o, intoMouth ? 40 : 32, { x: jx, y: intoMouth ? 92 : 88 }), g = v.g;
         var tgt = intoMouth ? { x: 60, y: 103 } : { x: 60 + sd * 50, y: 114 }, lamp = null, flame = null;
         if (!intoMouth) {
           lamp = div("", "<svg viewBox='0 0 30 22'><path d='M2 12 Q15 24 28 12 Z' fill='#b45309' stroke='#78350f' stroke-width='2'/><path d='M24 12 L30 8' stroke='#78350f' stroke-width='3' stroke-linecap='round'/></svg>");
@@ -821,7 +835,7 @@
         var sd = spotSide(o).sd, v = visit(o, 36, { x: 60 + sd * 56, y: 104 }), g = v.g, mouth = P(g, 60, 104);
         [700, 860, 1020, 1180].forEach(function (t, i) {
           later(t, function () {
-            var s = div("", "<svg viewBox='0 0 10 12'><ellipse cx='5' cy='6' rx='4' ry='5' fill='#dc2626' stroke='#7f1d1d' stroke-width='1'/><ellipse cx='4' cy='4' rx='1.4' ry='2' fill='#fecaca'/></svg>"), r = g.box(0, 0, 6, 7);
+            var s = div("", "<svg viewBox='0 0 10 12'><ellipse cx='5' cy='6' rx='4' ry='5' fill='#dc2626' stroke='#7f1d1d' stroke-width='1'/><ellipse cx='4' cy='4' rx='1.4' ry='2' fill='#fecaca'/></svg>"), r = g.box(0, 0, 10, 12);
             add(s, r); var a = { x: v.at.x - sd * 8 * g.u, y: v.at.y - 10 * g.u }, top = { x: (a.x + mouth.x) / 2, y: g.E.t + (86 - i * 2) * g.u };
             A(s, [{ transform: T(r, a, .5), opacity: 0 }, { transform: T(r, top, 1.1), opacity: 1, offset: .45 }, { transform: T(r, mouth, .7), opacity: 1, offset: .9 }, { transform: T(r, mouth, .3), opacity: 0 }], { duration: 440, easing: "ease-in-out" });
           });
@@ -895,7 +909,7 @@
       // רכב (אוטובוס, רכבת, סוס, מזוודה): נוסע מתחת לעין מצד לצד עם קווי מהירות, והאישון עוקב; slow — שבלול/טרקטור, לאט ועם שובל
       ride: function (o, slow) {
         var g = geo(o), u = g.u, art = o.querySelector(".hag-art"), main = art.querySelector(".hag-em") || art.querySelector("svg") || art.firstElementChild, badge = art.querySelector(".hag-badge");
-        var whole = art.querySelector(".hag-emwrap") || main, sr = rel(main.getBoundingClientRect(), g.S), W0 = (slow ? 50 : 56) * u, d, h;
+        var whole = art.querySelector(".hag-emwrap") || main, sr = rel(main.getBoundingClientRect(), g.S), W0 = (slow ? 52 : 62) * u, d, h;
         if (main.tagName.toLowerCase() === "svg") { var ff = flyer(main, sr, W0); d = ff.el; h = ff.h; }
         else {
           var fs = parseFloat(getComputedStyle(main).fontSize) * W0 / sr.w;
@@ -907,7 +921,7 @@
             d.appendChild(bs);
           }
         }
-        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 112 : 114;
+        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 117 : 116;
         add(d, fb); hide(whole);
         var a = P(g, 60 + sd * (slow ? 66 : 82), Y), b = P(g, 60 - sd * (slow ? 6 : 82), Y), fl = sd < 0 ? " scaleX(-1)" : "", s0 = sr.w / W0, mid = around(g, ctr(sr), a);
         var pose = function (p, sc, r) { return T(fb, p, sc, " rotate(" + (r || 0) + "deg)" + fl); };
@@ -939,7 +953,7 @@
       slow: function (o) { RUN.ride(o, true); },
 
       // קפיצה מעל העין (הקו שמדלג, המטס): הסמל קופץ בקשת גבוהה מעל העין לצד השני, מסתובב, ונוחת עם נצנוצים
-      hop: function (o) {
+      leap: function (o) {
         var sd = spotSide(o).sd, v = visit(o, 38, { x: 60 + sd * 84, y: 70 }), g = v.g, at2 = P(g, 60 - sd * 84, 70), k = [], n = 12;
         for (var i = 0; i <= n; i++) { var th = i / n * Math.PI; k.push({ transform: v.pose(P(g, 60 + sd * 84 * Math.cos(th), 70 - 96 * Math.sin(th)), 1, -sd * 360 * i / n), offset: i / n }); }
         later(560, function () { A(v.inner, [{ transform: "scale(1,1)" }, { transform: "scale(1.15,.8)", offset: .5 }, { transform: "scale(1,1)" }], { duration: 200 }); });
