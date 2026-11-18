@@ -1097,7 +1097,7 @@ def current_tts(feed, t0):
     pats = defaultdict(lambda: defaultdict(int))
     for tid, (rid, sv, _shp) in feed.trips.items():
         r = feed.routes[rid]
-        if r['ty'] == '2' or not r['line']:
+        if r['ty'] not in ('3', '715') or not r['line']:    # רק אוטובוסים (715 — קו בהזמנה)
             continue
         dep = feed.trip_dep.get(tid)
         if dep is None:

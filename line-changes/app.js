@@ -419,6 +419,7 @@
     if (!nq) { $('results').innerHTML = '<div class="none">כתבו מספר קו, עיר או חברה — ויופיעו כל הקווים, גם בלי שינוי.</div>'; return; }
     var digits = /^\d+$/.test(nq), words = nq.split(' ');
     var lines = LINES.filter(function (l) {
+      if (String(l.ty) !== '3' && String(l.ty) !== '715') return false;   // רק אוטובוסים
       if (digits) return l.line.indexOf(nq) === 0 || l.makat === nq;
       var hay = LC.norm(l.line + ' ' + l.op + ' ' + l.from + ' ' + l.to);
       return words.every(function (w) { return hay.indexOf(w) >= 0 || l.line.indexOf(w) === 0 || l.cities.some(function (c) { return LC.norm(c).indexOf(w) === 0; }); });

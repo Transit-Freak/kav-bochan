@@ -1684,16 +1684,18 @@ var LCDeck = (function () {
       if (!cur || cur.h !== h) by.push(cur = { h: h, es: [] });
       cur.es.push(e);
     });
-    return by.map(function (r) {
+    var out = by.map(function (r) {
       return { h: Math.ceil(r.es.length / perLine) * lineH + 6, hour: true,
         html: '<li class="hr"><b class="num">' + String(r.h % 24).padStart(2, '0') + '</b><span class="ms">' + r.es.map(function (e) {
           return '<span class="num"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '*' : '') + '</span>';
         }).join(' ') + '</span></li>' };
     });
+    if (c.ents.some(function (e) { return e.part; })) out.push({ h: lineH + 6, hour: true, html: '<li class="hn"><small class="nt">* רק בחלק מהימים</small></li>' });
+    return out;
   }
   var CUM = {
-    sign: { slots: 6, Hc: 820, rowH: 27, noteH: 13, perLine: 6, lineH: 22, twoSides: true },
-    status: { slots: 3, Hc: 1260, rowH: 58, noteH: 26, perLine: 5, lineH: 46, twoSides: false }
+    sign: { slots: 6, Hc: 820, rowH: 27, noteH: 13, perLine: 9, lineH: 21, twoSides: true },
+    status: { slots: 3, Hc: 1260, rowH: 58, noteH: 26, perLine: 10, lineH: 44, twoSides: false }
   };
   /* עמודות פיזיות: עמודה ארוכה מתפצלת להמשך; עמודה ארוכה מאוד (קו תדיר) — לפי שעה, ברוחב של שתי עמודות */
   function cuChunks(side, cols, M, form) {
@@ -2148,7 +2150,7 @@ var LCDeck = (function () {
   function smallOf(p) { prep(p); return smallInfo(p); }
   function deckTitle(pages) {
     if (pages && pages.length && pages.every(isCur)) {
-      var ods = []; pages.forEach(function (p) { var t = LC.od(p.od) || (p.od || [])[0] || ''; if (t && ods.indexOf(t) < 0) ods.push(t); });
+      var ods = []; pages.forEach(function (p) { var o = p.od || [], t = o[0] && o[0] === o[1] ? 'קו ' + p.line + ' · ' + o[0] : LC.od(o) || o[0] || ''; if (t && ods.indexOf(t) < 0) ods.push(t); });
       return 'לו״ז עדכני' + (ods.length === 1 ? ' · ' + ods[0] : ' · ' + linesTxt(pages));
     }
     return pages && pages.length ? autoTitle(pages, '') : '';
