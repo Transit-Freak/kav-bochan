@@ -19,6 +19,14 @@ const plainClick = (e) => !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || 
 // לשוניות בקישור: ‎#פח/areas‎ · ‎#מוזהב/allTrips‎ (הלשונית הראשונה — בלי סיומת)
 // שדה סינון פעיל — מסגרת כחולה (סגנון home.css דורס את מחלקות המסגרת של Tailwind)
 const ACTIVE_FILTER_STYLE = { borderColor: '#2563eb', borderWidth: 2 };
+// למה נסיעה חלשה נשארת אחרי ההמלצות (אלגוריתם ייעול)
+const KM_REASONS = [
+  ['edge', 'נסיעה ראשונה או אחרונה ביום (לא מבטלים)'],
+  ['noalt', 'אין נסיעה אחרת קרובה בשעה הזו'],
+  ['min', 'מינימום נסיעות ביום לקו'],
+  ['above', 'מעט נוסעים, אבל יותר מרף הביטול'],
+  ['merge', 'גם אחרי האיחוד מעט נוסעים'],
+];
 const KP_TABS = ['redundant', 'areas', 'allTrips', 'simulator', 'deadhead', 'about'];
 const GOLD_TABS = ['top', 'areas', 'expand', 'allTrips', 'about'];
 const tabHref = (base, tabs, t) => '#' + base + (t === tabs[0] ? '' : '/' + t);
@@ -854,6 +862,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
         avgPeak: Math.round(avgPeak),
         percentLow: Math.round(percentLow),
         wastedKm,
+        lowRiderTh,
         totalKm,
         nonWastedKm: Math.max(0, totalKm - wastedKm),
         cost: avgCost,
@@ -2291,6 +2300,7 @@ function KavPach() {
   const [optLine, setOptLine] = useState("");
   const [optCity, setOptCity] = useState("all");
   const [optOperator, setOptOperator] = useState("all");
+  const [optKm, setOptKm] = useState(null);   // ק"מ בשבוע לפני ואחרי ההמלצות של הריצה האחרונה
   const [optRunInfo, setOptRunInfo] = useState({ operator: "all", city: "all" });   // הסינון של הריצה האחרונה — לשורת הסיכום ולשם קובץ האקסל
   const [optDirection, setOptDirection] = useState("all");
   const [optDays, setOptDays] = useState([]); 
@@ -3286,6 +3296,7 @@ const DAYS_FILTER = [
 
     setSimSkipped(skippedMakats.size);
     setOptRunInfo({ operator: operatorToUse || "all", city: cityToUse || "all" });
+    setOptKm(null);
     if (filteredTrips.length === 0) {
       setOptimizations([]);
       setSimLoading(false);
@@ -3311,6 +3322,8 @@ const DAYS_FILTER = [
     const customGapValue = parseInt(optCustomGap, 10);
     const groupEntries = Object.values(grouped);
     const GSIM_CHUNK = 300; 
+    // ק"מ בשבוע: היום, נחסך בהמלצות, וק"מ סרק שנשאר — ולמה נשאר
+    const kmAgg = { total: 0, wasted: 0, saved: 0, remain: 0, reasons: {}, lines: new Map() };
 
     for (let gi = 0; gi < groupEntries.length; gi++) {
       const group = groupEntries[gi];
@@ -3324,6 +3337,9 @@ const DAYS_FILTER = [
       const effTime = new Map();
       const cancelInfo = new Map();   // id -> {rec, gapCheck, dayKey} לאימות בדיעבד
       let cancelledInGroup = 0;
+      const blockReason = new Map();   // id -> למה נסיעה חלשה לא בוטלה (edge/min/noalt)
+      const mergedOut = new Set();     // הנסיעה שיורדת באיחוד
+      const mergedKeep = new Map();    // הנסיעה שנשארת באיחוד -> נוסעים של שתיהן
       
       for(let i = 0; i < group.length; i++) {
         const t1 = group[i];
@@ -3411,6 +3427,7 @@ const DAYS_FILTER = [
               busSize: t1.busSize, capacity: t1.capacity, efficiency: t1.efficiency, metricVal: val1
             });
             usedTrips.add(t1.id); usedTrips.add(t2.id); merged = true; actionTaken = true;
+            mergedOut.add(t1.id); mergedKeep.set(t2.id, (t1.ridership || 0) + (t2.ridership || 0));
             effTime.set(t1.id, suggestedMins); effTime.set(t2.id, suggestedMins);
           }
         }
@@ -3427,13 +3444,13 @@ const DAYS_FILTER = [
             const userMinTrips = parseInt(optMinTrips, 10);
             const minRequired = !isNaN(userMinTrips) ? userMinTrips : (category === 'regional' ? 3 : 0);
 
-            if ((totalTripsBothDirs - currentCancelledBoth) <= minRequired) { allowCancel = false; }
+            if ((totalTripsBothDirs - currentCancelledBoth) <= minRequired) { allowCancel = false; blockReason.set(t1.id, 'min'); }
 
             // הגנה חדשה: אסור לבטל נסיעה ראשונה או אחרונה ביום של הקו והכיוון.
             // ביטול קצוות יומיים פוגע פגיעה לא פרופורציונלית בנוסעים שתלויים בקו.
             const isFirstOfDay = i === 0;
             const isLastOfDay  = i === group.length - 1;
-            if (isFirstOfDay || isLastOfDay) { allowCancel = false; }
+            if (isFirstOfDay || isLastOfDay) { allowCancel = false; blockReason.set(t1.id, 'edge'); }
 
             if (allowCancel) {
               let hasAlternative = false; 
@@ -3443,6 +3460,7 @@ const DAYS_FILTER = [
               if (prev && !cancelledIds.has(prev.id) && (t1.timeMins - prevT) <= cancelGapCheck) hasAlternative = true;
               if (next && (next.timeMins - t1.timeMins) <= cancelGapCheck) hasAlternative = true;
 
+              if (!hasAlternative) blockReason.set(t1.id, 'noalt');
               if (hasAlternative) {
                 results.push({
                   type: 'cancel', isNightLine: t1.isNightLine, isEilatPrebooked: t1.isEilatPrebooked, isFeedingLine: t1.isFeedingLine,
@@ -3482,10 +3500,31 @@ const DAYS_FILTER = [
             Math.abs((effTime.has(m.id) ? effTime.get(m.id) : m.timeMins) - ct.timeMins) <= info.gapCheck);
           if (!stillOk) {
             cancelledIds.delete(cid);
+            blockReason.set(cid, 'noalt');
             info.rec.type = 'ok';
             cancelledCountByLineDay[info.dayKey] = Math.max(0, (cancelledCountByLineDay[info.dayKey] || 1) - 1);
             cancelledInGroup = Math.max(0, cancelledInGroup - 1);
             revalidate = true;
+          }
+        }
+      }
+      {
+        // סרק = נסיעה עם פחות נוסעים מהסף של סוג הקו — אותו סף כמו "ק"מ מבוזבז" בכרטיס הקו
+        const L0 = lineByMakat.get(cleanMk(group[0].makat));
+        const th = L0 && L0.lowRiderTh ? L0.lowRiderTh : 10;
+        const lk = L0 ? L0.groupKey : `${group[0].makat || ''}|${group[0].lineNum}`;
+        let LA = kmAgg.lines.get(lk);
+        if (!LA) { LA = { line: group[0].lineNum, origin: (L0 || group[0]).origin, dest: (L0 || group[0]).dest, total: 0, saved: 0, wasted: 0, remain: 0 }; kmAgg.lines.set(lk, LA); }
+        for (const t of group) {
+          const km = (Number(t.distance) || 0) * (Number(t.tripCount) || 1);
+          if (!(km > 0)) continue;
+          kmAgg.total += km; LA.total += km;
+          if (t.ridership < th) { kmAgg.wasted += km; LA.wasted += km; }
+          if (cancelledIds.has(t.id) || mergedOut.has(t.id)) { kmAgg.saved += km; LA.saved += km; continue; }
+          const riders = mergedKeep.has(t.id) ? mergedKeep.get(t.id) : t.ridership;
+          if (riders < th) {
+            const r = mergedKeep.has(t.id) ? 'merge' : (blockReason.get(t.id) || 'above');
+            kmAgg.remain += km; LA.remain += km; kmAgg.reasons[r] = (kmAgg.reasons[r] || 0) + km;
           }
         }
       }
@@ -3521,6 +3560,7 @@ const DAYS_FILTER = [
       return a.timeMins - b.timeMins;
     });
 
+    setOptKm(kmAgg.total > 0 ? { ...kmAgg, lines: [...kmAgg.lines.values()].filter(l => l.total > 0).sort((a, b) => (b.saved - a.saved) || (b.total - a.total)) } : null);
     setOptimizations(results);
     setSimLoading(false);
   };
@@ -3532,6 +3572,7 @@ const DAYS_FILTER = [
     const exportData = dataToExport.map(opt => {
       const w = wastedOfMakat(opt.makat);
       const row = exportOptRow(opt);
+      if (opt.type !== 'ok') row['ק"מ בשבוע שנחסכים'] = opt.km > 0 ? Math.round(opt.km) : '—';
       row['ק"מ מבוזבזים בקו בשבוע'] = w == null ? '—' : w;
       return row;
     });
@@ -3550,6 +3591,15 @@ const DAYS_FILTER = [
     ws['!views'].push({ rightToLeft: true });
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, "המלצות_ייעול");
+    if (optKm) {
+      const r0 = v => Math.round(v);
+      const kmRows = optKm.lines.map(l => ({ 'קו': l.line, 'מוצא – יעד': `${l.origin} – ${l.dest}`, 'ק"מ בשבוע היום': r0(l.total), 'נחסך בהמלצות': r0(l.saved), 'ק"מ אחרי ההמלצות': r0(l.total - l.saved), 'ק"מ סרק היום': r0(l.wasted), 'ק"מ סרק שנשאר': r0(l.remain) }));
+      kmRows.push({ 'קו': 'סה"כ', 'מוצא – יעד': '', 'ק"מ בשבוע היום': r0(optKm.total), 'נחסך בהמלצות': r0(optKm.saved), 'ק"מ אחרי ההמלצות': r0(optKm.total - optKm.saved), 'ק"מ סרק היום': r0(optKm.wasted), 'ק"מ סרק שנשאר': r0(optKm.remain) });
+      KM_REASONS.forEach(([k, label]) => { if (optKm.reasons[k] > 0) kmRows.push({ 'קו': '', 'מוצא – יעד': `סרק שנשאר: ${label}`, 'ק"מ סרק שנשאר': r0(optKm.reasons[k]) }); });
+      const ws2 = window.XLSX.utils.json_to_sheet(kmRows);
+      ws2['!views'] = [{ rightToLeft: true }];
+      window.XLSX.utils.book_append_sheet(wb, ws2, "קמ_לפני_ואחרי");
+    }
     
     let fileName = "קופח_המלצות_ייעול_לוז.xlsx";
     if (optimizations.length > 0) {
@@ -4775,41 +4825,93 @@ const DAYS_FILTER = [
                   </div>
                 )}
 
-                {!simLoading && optimizations.length > 0 && optRunInfo.operator !== "all" && (() => {
-                  // שורת סיכום לחברה המפעילה שנבחרה — מהתוצאות של הריצה האחרונה
-                  const lines = new Set(optimizations.map(o => String(o.makat || o.line))).size;
-                  const cancels = optimizations.filter(o => o.type === 'cancel');
-                  const merges = optimizations.filter(o => o.type === 'merge');
-                  const km = Math.round([...cancels, ...merges].reduce((a, o) => a + (o.km || 0), 0));
-                  // ק"מ מבוזבזים בשבוע — כל קו פעם אחת (קו עם שני כיוונים = מק"ט אחד או שניים, אותו קו)
-                  const seenLines = new Set();
-                  let wasted = 0, hasWasted = false;
-                  optimizations.forEach(o => {
-                    const l = lineByMakat.get(cleanMk(o.makat));
-                    if (!l || seenLines.has(l.groupKey)) return;
-                    seenLines.add(l.groupKey);
-                    if (l.totalKm > 0) { wasted += l.wastedKm || 0; hasWasted = true; }
-                  });
-                  const cells = [
-                    { v: lines.toLocaleString(), l: lines === 1 ? 'קו נבדק' : 'קווים נבדקו' },
-                    { v: cancels.length.toLocaleString(), l: 'נסיעות לביטול' },
-                    { v: merges.length.toLocaleString(), l: 'איחודי נסיעות' },
-                    { v: km.toLocaleString(), l: 'ק"מ בשבוע נחסכים' },
-                    { v: hasWasted ? Math.round(wasted).toLocaleString() : '—', l: 'ק"מ מבוזבזים בשבוע' },
-                  ];
+                {!simLoading && optimizations.length > 0 && optKm && (() => {
+                  // ק"מ בשבוע לפני ואחרי ההמלצות (בקשת ועד התחבורה הר יונה): כמה נחסך,
+                  // כמה ק"מ סרק נשאר, ולמה האלגוריתם לא נגע בו
+                  const K = optKm;
+                  const R = v => Math.round(v).toLocaleString();
+                  const cancels = optimizations.filter(o => o.type === 'cancel').length;
+                  const merges = optimizations.filter(o => o.type === 'merge').length;
+                  const useful = Math.max(0, K.total - K.wasted);
+                  const reduced = Math.max(0, K.wasted - K.remain);
+                  const w = v => (K.total > 0 ? (v / K.total * 100).toFixed(2) : 0) + '%';
+                  const head = [
+                    optRunInfo.operator !== "all" ? optRunInfo.operator : '',
+                    optRunInfo.city !== "all" ? optRunInfo.city : '',
+                  ].filter(Boolean).join(' · ');
+                  const shown = K.lines.slice(0, 15);
                   return (
-                    <div className="mb-6 bg-teal-50 border border-teal-200 rounded-2xl p-4">
-                      <div className="text-sm font-black text-teal-900 mb-3">
-                        {optRunInfo.operator}{optRunInfo.city !== "all" ? ` · ${optRunInfo.city}` : ''}
+                    <div className="mb-6 bg-white border border-slate-200 rounded-[2rem] p-5 sm:p-6 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-900">ק&quot;מ בשבוע: לפני ואחרי ההמלצות</h3>
+                      <p className="text-slate-500 text-xs font-bold mb-4">
+                        {head ? head + ' · ' : ''}{K.lines.length === 1 ? 'קו אחד' : `${K.lines.length} קווים`} · {cancels} נסיעות לביטול · {merges} איחודים
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+                        <div className="rounded-2xl border-2 border-slate-200 px-3 py-2">
+                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">ק&quot;מ היום</div>
+                          <div className="text-lg sm:text-2xl font-black text-slate-900 tabular-nums">{R(K.total)}</div>
+                        </div>
+                        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-3 py-2">
+                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">נחסך בהמלצות</div>
+                          <div className="text-lg sm:text-2xl font-black text-rose-600 tabular-nums text-right" dir="ltr">−{R(K.saved)}</div>
+                        </div>
+                        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-3 py-2">
+                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">ק&quot;מ אחרי ההמלצות</div>
+                          <div className="text-lg sm:text-2xl font-black text-emerald-700 tabular-nums">{R(K.total - K.saved)}</div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        {cells.map(c => (
-                          <div key={c.l} className="bg-white rounded-xl px-3 py-2 border border-teal-100">
-                            <div className="text-xl font-black text-slate-900 tabular-nums">{c.v}</div>
-                            <div className="text-xs font-bold text-slate-500">{c.l}</div>
-                          </div>
-                        ))}
+                      <div className="text-sm font-black text-slate-900">ק&quot;מ סרק: {R(K.wasted)} היום ← {R(K.remain)} אחרי ההמלצות</div>
+                      <div className="flex h-6 rounded-lg overflow-hidden my-2 bg-slate-100">
+                        <div style={{ width: w(useful), background: '#10b981' }} />
+                        <div style={{ width: w(reduced), background: 'repeating-linear-gradient(45deg,#fda4af 0 6px,#fecdd3 6px 12px)' }} />
+                        <div style={{ width: w(K.remain), background: '#f59e0b' }} />
                       </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-600">
+                        <span><i className="inline-block w-3 h-3 rounded-sm ml-1 align-[-1px]" style={{ background: '#10b981' }} />ק&quot;מ עם נוסעים {R(useful)}</span>
+                        <span><i className="inline-block w-3 h-3 rounded-sm ml-1 align-[-1px]" style={{ background: '#fda4af' }} />סרק שההמלצות מורידות {R(reduced)}</span>
+                        <span><i className="inline-block w-3 h-3 rounded-sm ml-1 align-[-1px]" style={{ background: '#f59e0b' }} />סרק שנשאר {R(K.remain)}</span>
+                      </div>
+                      <div className="text-[11px] font-bold text-slate-400 mt-1">סרק = נסיעות עם פחות נוסעים מהסף של סוג הקו, כמו ב&quot;קווים לא יעילים&quot;</div>
+                      {K.remain > 0 && (
+                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm">
+                          <div className="font-black text-amber-800 mb-1">למה נשארו {R(K.remain)} ק&quot;מ סרק?</div>
+                          {KM_REASONS.filter(([k]) => K.reasons[k] > 0).map(([k, label]) => (
+                            <div key={k} className="flex justify-between gap-3 font-bold text-slate-700 py-0.5">
+                              <span>{label}</span><span className="tabular-nums">{R(K.reasons[k])}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {K.lines.length > 1 && (
+                        <div className="mt-5 overflow-x-auto">
+                          <div className="text-sm font-black text-slate-900 mb-2">לפי קו</div>
+                          <table className="w-full text-xs sm:text-sm">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-500 text-xs">
+                                <th className="text-right font-black px-1 sm:px-2 py-2">קו</th>
+                                <th className="text-right font-black px-1 sm:px-2 py-2">ק&quot;מ היום</th>
+                                <th className="text-right font-black px-1 sm:px-2 py-2">נחסך</th>
+                                <th className="text-right font-black px-1 sm:px-2 py-2">ק&quot;מ אחרי</th>
+                                <th className="text-right font-black px-1 sm:px-2 py-2">סרק שנשאר</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shown.map((l, i) => (
+                                <tr key={i} className="border-b border-slate-100 font-bold">
+                                  <td className="px-1 sm:px-2 py-2 min-w-[6rem]"><div className="font-black">{l.line}</div><div className="text-[11px] text-slate-500 leading-tight">{l.origin} – {l.dest}</div></td>
+                                  <td className="px-1 sm:px-2 py-2 tabular-nums">{R(l.total)}</td>
+                                  <td className="px-1 sm:px-2 py-2 tabular-nums text-rose-600"><span dir="ltr">{l.saved > 0 ? '−' + R(l.saved) : '0'}</span></td>
+                                  <td className="px-1 sm:px-2 py-2 tabular-nums">{R(l.total - l.saved)}</td>
+                                  <td className="px-1 sm:px-2 py-2 tabular-nums text-amber-700">{R(l.remain)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {K.lines.length > shown.length && (
+                            <div className="text-xs font-bold text-slate-500 mt-2">ועוד {K.lines.length - shown.length} קווים · כולם בקובץ האקסל</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -4872,6 +4974,12 @@ const DAYS_FILTER = [
                             <span className="font-black text-indigo-700">שעה מומלצת לאיחוד:</span>
                             <span className="font-black text-2xl text-indigo-600 bg-white px-3 py-1 rounded-xl shadow-sm">{opt.suggestedTime}</span>
                           </div>
+                          {opt.km > 0 && (
+                            <div className="flex justify-between items-center text-sm pt-3 mt-3 border-t border-slate-200">
+                              <span className="font-bold text-emerald-700">חוסך בשבוע:</span>
+                              <span className="font-black text-emerald-700">{Math.round(opt.km).toLocaleString()} ק&quot;מ</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : opt.type === 'cancel' ? (
@@ -4918,6 +5026,12 @@ const DAYS_FILTER = [
                             <span className="font-bold text-slate-500">ציון יעילות:</span>
                             <span className={`font-black text-rose-600`}>{opt.efficiency}</span>
                           </div>
+                          {opt.km > 0 && (
+                            <div className="flex justify-between items-center text-sm pt-3 mt-3 border-t border-slate-200">
+                              <span className="font-bold text-emerald-700">חוסך בשבוע:</span>
+                              <span className="font-black text-emerald-700">{Math.round(opt.km).toLocaleString()} ק&quot;מ</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
