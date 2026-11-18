@@ -313,6 +313,8 @@ export class InspectorFP {
     if (near && C.wait < CINE_WAIT) { C.wait += dt; vt = 0; } else if (atPause) { C.paused += dt; vt = 0; }
     C.v += THREE.MathUtils.clamp(vt - C.v, -dt * 3.5, dt * 2.6); if (C.skip) { C.u = C.len; C.v = 0; }
     C.u = Math.min(C.len, C.u + C.v * dt); if (C.pauseAt >= 0 && C.paused < 0.45 && C.u > C.pauseAt) C.u = C.pauseAt;
+    // מישהו נכנס למעבר ממש לפנינו (קם ממושב, יוצא מאחור): נסוגים לאט לאחור במסלול, עד שיש 45 ס"מ
+    if (!C.M && !C.skip) { const cur = this.cineAt(C.pts, C.L, C.u); if (ws.some(l => Math.hypot(l.x - cur.x, l.z - cur.z) < 0.45)) { C.v = 0; C.u = Math.max(0, C.u - 0.7 * dt); } }
     if (C.u >= C.len - 1e-4) C.t = C.dur = 1; else { C.t = 0; C.dur = 1; }
     const u2 = C.u, P = this.cineAt(C.pts, C.L, u2), T = this.cineAt(C.all, C.LA, u2 + 0.7);
     // גובה העיניים: מעל מה שעומדים עליו, ובמדרגה — צעד מהיר (רבע שנייה), לא שיפוע
@@ -332,6 +334,8 @@ export class InspectorFP {
       if (mv.lengthSq() > 0) { if (mv.length() > 1.5 * dt * 4) mv.setLength(1.5 * dt * 4); C.push.add(mv.multiplyScalar(0.5)); } }
     // לא חוזרים למצב רחוק מהאוטובוס יותר מדי: הדחיפה עד 1.2 מ'
     if (C.push.length() > 1.2) C.push.setLength(1.2);
+    // ...אבל לא אל האוטובוס: לפחות 45 ס"מ מהדופן שלו (האוטובוס עוד יוצא לידנו)
+    if (C.M) { const sx = Math.sign(C.pts[C.pts.length - 1].x) || -1, lim = 1.25 + 0.45; if (sx * (P.x + C.push.x) < lim) C.push.x = sx * lim - P.x; }
     const Pw = P.clone().add(C.push).applyMatrix4(W);
     let Tw = T.clone().add(C.push).applyMatrix4(W);
     // אחרי הירידה: המבט מסתובב מעט אל האוטובוס שיוצא; ואם הוא לא זז אחרי 1.2 ש' — המבט פונה לאורך הרחוב (הלאה מהדלת)
