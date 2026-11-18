@@ -592,10 +592,10 @@
     edits.tt = o; saveEdits(); keepScroll(function () { render(curPages); });
   });
 
-  /* צורה: מצגת (16:9) · שלט לתחנה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
+  /* צורה: מצגת (16:9) · שלט להדפסה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
   var FORM_TXT = {
     deck: { one: 'שקף אחד', many: ' שקפים', dl: 'הורדת PDF', hint: 'קובץ PDF, שקף בכל עמוד.', credit: 'להוסיף קרדיט לקו הבוחן בסוף המצגת' },
-    sign: { one: 'עמוד אחד', many: ' עמודים', dl: 'הורדת PDF', hint: 'קובץ PDF בגודל A4 לאורך, שלט בכל עמוד — להדפסה ולתלייה בתחנה.', credit: 'להוסיף קרדיט לקו הבוחן בתחתית השלט' },
+    sign: { one: 'עמוד אחד', many: ' עמודים', dl: 'הורדת PDF', hint: 'קובץ PDF בגודל A4 לאורך, שלט בכל עמוד — להדפסה ולתלייה.', credit: 'להוסיף קרדיט לקו הבוחן בתחתית השלט' },
     status: { one: 'תמונה אחת', many: ' תמונות', dl: 'הורדת תמונות', dl1: 'הורדת תמונה', hint: 'תמונה (PNG) בגודל של סטטוס בווטסאפ, לכל שינוי.', credit: 'להוסיף את הכתובת של הקו הבוחן לתמונה' }
   };
   function formOf() { var f = edits.form; return FORM_TXT[f] ? f : 'deck'; }
@@ -864,7 +864,7 @@
     var ds = curPages.map(function (p) { return p.formal || p.eff || ''; }).filter(Boolean).sort();
     var base = LCDeck.deckTitle(curPages);   // כמו בשער: שינוי בקו 9 / שינויים בקווים 9, 18 ו-54 / אותו שינוי ב-3 קווים
     var f = formOf();
-    if (f === 'sign') base = 'שלט-' + base;
+    if (f === 'sign') base = 'שלט-להדפסה-' + base;
     if (f === 'status') base = 'סטטוס-' + base;
     return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + (f === 'status' ? '' : '.pdf');
   }

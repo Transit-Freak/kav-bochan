@@ -298,7 +298,7 @@ details.group summary span{font-weight:600;color:var(--sub)}
 
 #reshead .btn.sm{width:auto;display:inline-flex;margin-top:8px;padding:8px 14px;font-size:15px;min-height:auto}
 
-/* צורה: מצגת / שלט לתחנה / סטטוס — כל כפתור עם ציור קטן של העמוד בפרופורציות שלו */
+/* צורה: מצגת / שלט להדפסה / סטטוס — כל כפתור עם ציור קטן של העמוד בפרופורציות שלו */
 .forms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp2)}
 .forms button{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r2);padding:8px 6px;cursor:pointer;color:var(--fg);font:800 13.5px var(--f-body);text-align:center;min-height:44px}
 .forms button[aria-checked="true"]{border-color:var(--after);box-shadow:0 0 0 2px var(--after)}
