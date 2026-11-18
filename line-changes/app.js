@@ -509,9 +509,11 @@
     return ttShard(mk).then(function (sh) {
       var e = sh && sh.lines[mk]; if (!e) return null;
       var l = lineOf(mk), dirs = Object.keys(e.d).sort().map(function (k) {
-        var r = e.d[k], x = {};
-        Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; });
-        return { dir: k, od: r.od, f: r.f, t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x };
+        var r = e.d[k], x = {}, xa = {}, A = r.A || [];
+        Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; });
+        // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
+        return { dir: k, od: r.od, f: r.f, t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
+          v: r.v || [], da: r.w.map(function (i) { return A[i] || 0; }), xa: xa };
       });
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
         eff: sh.valid, valid: sh.valid, gen: sh.gen, feed: sh.feed, hol: sh.hol || [], dirs: dirs, tot: { kind: 'current' } };
