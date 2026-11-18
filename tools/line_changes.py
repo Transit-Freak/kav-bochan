@@ -1417,6 +1417,41 @@ def alt_labels(feed, pw):
     return V, ai
 
 
+HE_DOW = dict(zip(DOWS, 'אבגדהוש'))
+
+
+def load_vcnt(path):
+    """תגבורים: כמה אוטובוסים יוצאים באותה דקה על אותה נסיעה — מפרסום הרישוי של משרד התחבורה (Gtfs_10_days),
+    שהקובץ הקלאסי (israel-public-transportation) לא יודע לייצג. לא קוראים את הרישוי שוב: "הקו בזמן" כבר שומר
+    אותו כל יום ב-line-history/data/sched/XX.json (tools/scan_vcnt_daily.py) — {rd: {יום: ["HH:MM" או ["HH:MM", N]]}}.
+    מחזיר {rd: {יום: {דקות: N}}} — רק N ≥ 2"""
+    out = {}
+    if not path or not os.path.isdir(path):
+        return out
+    for fn in os.listdir(path):
+        if not fn.endswith('.json'):
+            continue
+        try:
+            lines = json.load(open(os.path.join(path, fn), encoding='utf-8')).get('lines', {})
+        except (OSError, ValueError):
+            continue
+        for rd, days in lines.items():
+            for dl, ts in days.items():
+                for t in ts:
+                    if isinstance(t, list) and len(t) == 2 and t[1] >= 2:
+                        h, m = t[0].split(':')
+                        out.setdefault(rd, {}).setdefault(dl, {})[int(h) * 60 + int(m)] = t[1]
+    return out
+
+
+VCNT = {}
+
+
+def vcnt(rd, dl, m):
+    """כמה אוטובוסים יוצאים בדקה m (מחצות של אותו יום) לפי הרישוי; 1 כשאין תגבור"""
+    return VCNT.get(rd, {}).get(dl, {}).get(m, 1)
+
+
 def current_tts(feed, t0):
     """הלו"ז העדכני של כל קווי האוטובוס, לשבוע הקרוב: לכל מק"ט ולכל כיוון — היציאות מהתחנה הראשונה לכל יום בשבוע
     (יום רגיל: התאריך הקרוב שאינו חג או ערב חג), ובתאריכי חג בשבוע הקרוב — רק אם השעות שונות מהיום הרגיל.
@@ -1424,9 +1459,12 @@ def current_tts(feed, t0):
     כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, du: משך נסיעה טיפוסי (דק'),
              w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+),
              v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
-             אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...)}
+             אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...),
+             N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt)}
     חלופה ראשית = זו עם הכי הרבה נסיעות. חלופה עם אותן תחנות כמו הראשית נחשבת ראשית."""
     DAY = datetime.timedelta(days=1)
+    VCNT.clear()
+    VCNT.update(load_vcnt(os.environ.get('LH_SCHED', 'line-history/data/sched')))
     hol = {h[0] for h in hebcal.holidays(t0 - DAY, feed.d1)}
     week = [t0 + DAY * i for i in range(TT_DAYS)]
     trips = defaultdict(lambda: defaultdict(list))   # (ag, מק"ט, כיוון) → service → [(יציאה, משך)]
@@ -1445,15 +1483,17 @@ def current_tts(feed, t0):
         trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None, rp[1] if len(rp) > 1 else ''))
         pats[key][(feed.trip_pat.get(tid), rid)] += len(feed.svc_dates[sv])
 
-    def day_list(svcs, d, ai):
-        """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) — [(דקה, אינדקס חלופה)]"""
+    def day_list(svcs, d, ai, pre):
+        """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) —
+        [(דקה, אינדקס חלופה, כמה אוטובוסים לפי הרישוי)]"""
         a, b = [], []
+        l0, l1 = HE_DOW[dow(d)], HE_DOW[dow(d + DAY)]
         for sv, lst in svcs.items():
             ss = feed.svc_set.get(sv, ())
             if d in ss:
-                a += [(x[0], ai.get(x[2], 0)) for x in lst if x[0] >= NIGHT]
+                a += [(x[0], ai.get(x[2], 0), vcnt(pre + x[2], l0, x[0])) for x in lst if x[0] >= NIGHT]
             if d + DAY in ss:
-                b += [(x[0] + 1440, ai.get(x[2], 0)) for x in lst if x[0] < NIGHT]
+                b += [(x[0] + 1440, ai.get(x[2], 0), vcnt(pre + x[2], l1, x[0])) for x in lst if x[0] < NIGHT]
         return tuple(sorted(a + b))
 
     shards = defaultdict(dict)
@@ -1462,25 +1502,27 @@ def current_tts(feed, t0):
         ag, mk, dr = key
         svcs = trips[key]
         V, ai = alt_labels(feed, pats[key])
+        pre = f'{mk}-{dr}-'
         usual = {}
         for d in week:
             alt = next((x for x in (d, d + 7 * DAY, d + 14 * DAY) if x not in hol and x + DAY <= feed.d1), d)
-            usual[dow(d)] = day_list(svcs, alt, ai)
+            usual[dow(d)] = day_list(svcs, alt, ai, pre)
         if not any(usual.values()):
             continue
-        L, A, ix = [], [], {}
+        L, A, N, ix = [], [], [], {}
 
         def idx(lst):
             if lst not in ix:
                 ix[lst] = len(L)
-                L.append([m for m, _a in lst])
-                A.append(''.join(str(a) for _m, a in lst) if any(a for _m, a in lst) else 0)
+                L.append([m for m, _a, _n in lst])
+                A.append(''.join(str(a) for _m, a, _n in lst) if any(a for _m, a, _n in lst) else 0)
+                N.append([[i, n] for i, (_m, _a, n) in enumerate(lst) if n > 1] or 0)
             return ix[lst]
         w = [idx(usual[x]) for x in DOWS]
         x = {}
         for d in week:
             if d in hol:
-                lst = day_list(svcs, d, ai)
+                lst = day_list(svcs, d, ai, pre)
                 if lst != usual[dow(d)]:
                     x[d.isoformat()] = idx(lst)
         (pid, rid), _n = max(pats[key].items(), key=lambda kv: kv[1])
@@ -1497,6 +1539,8 @@ def current_tts(feed, t0):
             rec['x'] = x
         if any(A):
             rec['v'], rec['A'] = V, A
+        if any(N):
+            rec['N'] = N
         sh = shards[tt_shard(mk)]
         e = sh.get(mk)
         if e and e['a'] != ag:     # אותו מק"ט בשתי חברות (נדיר) — נשאר הקו עם יותר נסיעות

@@ -3,7 +3,8 @@ name: line-changes
 # מצגת לשינוי בקו (line-changes) — כל לילה: השינויים במסלולים ובתחנות שיכנסו לתוקף
 # בשבועיים הקרובים, בכל הארץ, מהשוואת ה-GTFS של היום לשבוע שעבר (tools/line_changes.py).
 # הבונה קורא את ה-GTFS ישר מהארכיון היומי של דאטאבוס ב-S3 (קריאה בטווחים, בלי להוריד את כל ה-zip),
-# ומוסיף לכל קו את השינויים מהשבועיים האחרונים מתוך "הקו בזמן" (line-history/data/changes).
+# ומוסיף לכל קו את השינויים מהשבועיים האחרונים מתוך "הקו בזמן" (line-history/data/changes),
+# וללו"ז העדכני — כמה אוטובוסים יוצאים באותה שעה (תגבור) מפרסום הרישוי, כפי ש"הקו בזמן" שומר אותו (line-history/data/sched).
 # שינויים שכבר התחילו נשארים ברשימה שבועיים (KEEP_DAYS), עם הקובץ המלא שלהם — גם להם אפשר להכין מצגת.
 # לחיפוש: רחובות (מתיאור התחנות) ושכונות (הפוליגונים הרשמיים ב-line-history/data/neighborhoods).
 # נשמרים רק קבצים קטנים: אינדקס הקווים, רשימת השינויים, קובץ לכל שינוי (כ-3MB), והלו"ז העדכני של כל הקווים
@@ -36,12 +37,14 @@ jobs:
             /line-changes/
             /line-history/data/changes/
             /line-history/data/neighborhoods/
+            /line-history/data/sched/
 
       - name: השינויים בקווים
         env:
           TZ: Asia/Jerusalem
           LH_CHANGES: line-history/data/changes
           NBR_DIR: line-history/data/neighborhoods
+          LH_SCHED: line-history/data/sched   # תגבורים מהרישוי (נשמר כל יום ע"י הקו בזמן)
         run: python3 tools/line_changes.py
 
       - name: שמירה
