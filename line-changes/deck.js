@@ -1759,7 +1759,7 @@ var LCDeck = (function () {
     var head = '<tr><th>ימים</th><th>נסיעות</th><th>הראשונה</th><th>האחרונה</th>' + bands.map(function (b) { return '<th>' + b[2] + '<small>' + b[3] + '</small></th>'; }).join('') + '</tr>';
     var rows = cols.map(function (c) {
       var ms = c.ents.map(function (e) { return e.m; }), uniq = ms.filter(function (m, i) { return ms.indexOf(m) === i; });
-      var per = g.pages.length > 1 ? '<small>' + g.pages.map(function (p) { var n = c.ents.filter(function (e) { return e.p === p && !e.part; }).reduce(function (t, e) { return t + e.n; }, 0); return n ? cuLb(p) + n : ''; }).filter(Boolean).join(' ') + '</small>' : '';
+      var per = g.pages.length > 1 ? '<small>' + g.pages.map(function (p) { var n = c.ents.filter(function (e) { return e.p === p && !e.part; }).reduce(function (t, e) { return t + e.n; }, 0); return n ? '<span class="pl">' + cuLb(p) + '<span class="num">' + n + '</span></span>' : ''; }).filter(Boolean).join('') + '</small>' : '';
       var full = c.ents.filter(function (e) { return !e.part; }).reduce(function (t, e) { return t + e.n; }, 0);
       return '<tr><th>' + E(c.label) + (cuSub(c) ? '<small>' + E(cuSub(c)) + '</small>' : '') + '</th><td class="n"><b class="num">' + (full || c.ents.length) + '</b>' + per + '</td>' +
         '<td class="num">' + (ms.length ? hm2(ms[0]) : '—') + '</td><td class="num">' + (ms.length ? hm2(ms[ms.length - 1]) : '—') + '</td>' +
@@ -1771,7 +1771,7 @@ var LCDeck = (function () {
   function cuPaged(pages, form, hol) {
     var out = [], M = CUM[form], o = ttOpt();
     cuGroups(pages).forEach(function (g, gi) {
-      var lbl = cuTitle(g), pre = 'לו״ז · ' + lbl, sides = g.sides.map(function (s) { return { s: s, cols: cuCols(s, hol) }; }).filter(function (x) { return x.cols.length; });
+      var lbl = cuTitle(g), pre = 'לו״ז · ' + (g.pages.length === 1 && lbl.indexOf('קו ') !== 0 ? 'קו ' + g.pages[0].line + ' · ' : '') + lbl, sides = g.sides.map(function (s) { return { s: s, cols: cuCols(s, hol) }; }).filter(function (x) { return x.cols.length; });
       var wrap = function (body, i, n) {
         return { id: (form === 'sign' ? 'sg-' : 'st-') + 'cu' + gi + '-' + i, label: pre + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
           html: '<div class="s-cur f-' + form + ' v-' + o.v + '">' + cuHead(g) + '<div class="cu-body">' + body + '</div>' + cuFoot(form) + '</div>' };

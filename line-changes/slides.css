@@ -820,3 +820,6 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-status.s-sum .sm-rows p{font-size:32px;-webkit-line-clamp:3}
 .s-mt .mt-t td.from small{display:block;font-weight:700;color:var(--s-sub);font-size:.8em}
 .s-cur .cu-cols.hashol .cu-ch{min-height:2.9em;justify-content:flex-end}
+.s-cur .cu-gt td.n small{display:flex;justify-content:center;gap:10px;margin-top:3px}
+.s-cur .cu-gt td.n .pl{display:inline-flex;align-items:center;gap:4px}
+.s-cur .cu-gt td.n small .lb{margin:0}
