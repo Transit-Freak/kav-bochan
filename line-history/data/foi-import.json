@@ -1,0 +1,22 @@
+{
+ "source": "data-foi-routes-2013-2017",
+ "foiD": 3544,
+ "k_baseline": 9070,
+ "k_extend": 602,
+ "k_new": 813,
+ "k_removed": 2086,
+ "k_shorten": 371,
+ "k_stops": 3863,
+ "k_stops-add": 2866,
+ "k_stops-del": 2386,
+ "k_terminal": 2422,
+ "lines": 10437,
+ "newLines": 2434,
+ "noInfo": 2631,
+ "skippedRd": 3,
+ "t0Diff": 681,
+ "t0Same": 9854,
+ "variants": 13071,
+ "versions": 24479,
+ "versionsWithNowNames": 5581
+}
