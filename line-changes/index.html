@@ -23,8 +23,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=11">
-<link rel="stylesheet" href="slides.css?v=8">
+<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="slides.css?v=9">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -100,6 +100,14 @@
         <div class="kinds" id="kinds"></div>
       </div>
       <div class="group">
+        <span class="flabel" id="formslbl">צורה</span>
+        <div class="forms" id="forms" role="radiogroup" aria-labelledby="formslbl">
+          <button type="button" role="radio" data-form="deck"><i class="fm fm-deck"></i><span>מצגת<small>16:9</small></span></button>
+          <button type="button" role="radio" data-form="sign"><i class="fm fm-sign"></i><span>שלט לתחנה<small>A4 להדפסה</small></span></button>
+          <button type="button" role="radio" data-form="status"><i class="fm fm-status"></i><span>סטטוס<small>תמונה לווטסאפ</small></span></button>
+        </div>
+      </div>
+      <div class="group">
         <span class="flabel" id="lookslbl">עיצוב</span>
         <div class="looks" id="looks" role="radiogroup" aria-labelledby="lookslbl">
           <button type="button" role="radio" data-look="kav"><i class="sw-kav"></i><span>הקו הבוחן</span></button>
@@ -129,8 +137,9 @@
           <span>הורדת PDF</span>
         </button>
         <p class="dlmsg" role="status"></p>
-        <label class="credit-opt"><input type="checkbox" id="credit" checked> להוסיף קרדיט לקו הבוחן בסוף המצגת</label>
-        <p class="hint">קובץ PDF, שקף בכל עמוד. רוצים להדפיס? <button type="button" class="lnk printbtn">הדפסה</button></p>
+        <div class="pngs" hidden></div>
+        <label class="credit-opt"><input type="checkbox" id="credit" checked> <span id="creditlbl">להוסיף קרדיט לקו הבוחן בסוף המצגת</span></label>
+        <p class="hint"><span id="dlhint">קובץ PDF, שקף בכל עמוד.</span> <span class="printwrap">רוצים להדפיס? <button type="button" class="lnk printbtn">הדפסה</button></span></p>
       </div>
     </section>
   </aside>
@@ -154,6 +163,7 @@
     </button>
     <button class="lnk printbtn" type="button">הדפסה</button>
     <p class="dlmsg" role="status"></p>
+    <div class="pngs" hidden></div>
   </div>
 </div>
 
@@ -166,9 +176,9 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="common.js?v=5"></script>
-<script src="deck.js?v=10"></script>
-<script src="editor.js?v=3"></script>
-<script src="app.js?v=9"></script>
+<script src="deck.js?v=11"></script>
+<script src="editor.js?v=4"></script>
+<script src="app.js?v=10"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>

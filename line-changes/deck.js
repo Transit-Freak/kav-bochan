@@ -721,7 +721,200 @@ var LCDeck = (function () {
     return out;
   }
 
-  var ED = {};   // אפשרויות: {look, modes: {pageId: 'one'|'full'}}
+
+  /* ================= צורות נוספות: שלט לתחנה (A4 לאורך) ותמונה לסטטוס (9:16) =================
+     אותו תוכן כמו במצגת (מה משתנה, מקרא, התחנה הקרובה, מפה) — בעימוד אחר.
+     המזהים של העמודים מתחילים ב-sg- / st-, כדי שהעריכות שלהם לא יתערבבו עם השקפים של המצגת. */
+  /* הכיוונים של שינוי, בקבוצות לפי מקום (כמו בעמוד אחד): כיוונים שהשינוי בהם קרוב — יחד, עד שתי קבוצות */
+  function dirGroups(p) {
+    var ds = uniqDirs(p).filter(function (d) { return d.added.length || d.removed.length || d.moved.length || d.geo; });
+    if (!ds.length) ds = uniqDirs(p).slice(0, 1);
+    var groups = [];
+    ds.forEach(function (d) {
+      var c = changeCenter(d), g = groups.filter(function (x) { return c && x.c && dist(c, x.c) < 1500; })[0];
+      if (g || groups.length >= 2) (g || groups[groups.length - 1]).dirs.push(d);
+      else groups.push({ c: c, dirs: [d] });
+    });
+    groups.forEach(function (g) {
+      g.main = g.dirs.slice().sort(function (a, b) { return (b.added.length + b.removed.length + b.moved.length) - (a.added.length + a.removed.length + a.moved.length); })[0];
+    });
+    return groups;
+  }
+  /* קווים עם אותו שינוי — יחידה אחת (שלט אחד / תמונה אחת) */
+  function units(pages) {
+    var out = [], merged = {};
+    pages.forEach(function (p, i) {
+      if (merged[p.id]) return;
+      var sig = oneSig(p), others = sig ? pages.slice(i + 1).filter(function (o) { return !merged[o.id] && oneSig(o) === sig; }) : [];
+      others.forEach(function (o) { merged[o.id] = 1; });
+      out.push({ p: p, others: others, all: [p].concat(others) });
+    });
+    return out;
+  }
+  /* "קרית גת ↔ חצור" — וקו בתוך העיר: רק שם העיר */
+  function odTxt(p) { var o = p.od || []; return o[0] && o[0] === o[1] ? o[0] : LC.od(o); }
+  function opsOf(all) { var ops = []; all.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); }); return ops; }
+  function itemsOf(u, dirs) {
+    var items = whatChanges(u.p, dirs).filter(Boolean);
+    if (u.others.length) items = items.map(function (t) { return t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, ''); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    return items;
+  }
+  function badgesHtml(lines) { return lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join(''); }
+  function contactHtml(ops) {
+    return ops.filter(function (o) { return PHONES[o]; }).slice(0, 3).map(function (o) { return '<span>' + E(o) + ' <b class="ltr">' + E(PHONES[o]) + '</b></span>'; }).join('') +
+      '<span>משרד התחבורה <b class="ltr">' + MOT + '</b></span>';
+  }
+  /* "קו 29 משנה מסלול" / "קווים 54 ו-784 מבטלים תחנה" */
+  function headline(u, dirs) {
+    var many = u.all.length > 1, rem = 0, add = 0, ext = dirs.every(function (d) { return extOf(d); }), rr = dirs.some(rerouted);
+    var rs = {}, as = {};
+    dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
+    rem = Object.keys(rs).length; add = Object.keys(as).length;
+    var v = ext ? (many ? 'מאריכים את המסלול' : 'מאריך את המסלול')
+      : rr ? (many ? 'משנים מסלול' : 'משנה מסלול')
+      : rem && !add ? (many ? 'מבטלים ' : 'מבטל ') + (rem === 1 ? 'תחנה' : 'תחנות')
+      : add && !rem ? (many ? 'מוסיפים ' : 'מוסיף ') + (add === 1 ? 'תחנה' : 'תחנות')
+      : rem === 1 && add === 1 ? (many ? 'מעבירים תחנה' : 'מעביר תחנה')
+      : (many ? 'משנים תחנות' : 'משנה תחנות');
+    var who = many ? 'קווים ' + andList(u.all.map(function (x) { return x.line; }), 6) : 'קו ' + u.p.line;
+    return who + ' ' + v;
+  }
+  /* התחנה הקרובה לכל תחנה שמבוטלת — רק אם זה עוד לא כתוב ב"מה משתנה?" */
+  function nearBox(remS, items) {
+    var txt = plain(items.join(' '));
+    var rows = remS.filter(function (s) { return s._near && !s._near.none && txt.indexOf(s._near.name) < 0; }).slice(0, 3).map(function (s) {
+      return '<li><i class="dot rem"></i><span>במקום <b>' + E(s.name) + '</b>: <b>' + E(s._near.name) + '</b> · ' + E(walkTxt(s._near)) + '</span></li>';
+    });
+    return rows.length ? '<div class="sg-near"><h3 class="hd">איפה לעלות במקום?</h3><ul>' + rows.join('') + '</ul></div>' : '';
+  }
+
+  /* ---- שלט לתחנה: A4 לאורך (794×1123), עמוד לכל שינוי; הרבה תחנות — עמוד נוסף עם הרשימה ---- */
+  var SG_W = 794, SG_H = 1123;
+  function signPages(pages, feed) {
+    var out = [];
+    units(pages).forEach(function (u) {
+      var gs = dirGroups(u.p), pre = pages.length > 1 ? u.all.map(function (x) { return x.line; }).join(', ') + ' · ' : '';
+      gs.forEach(function (g, gi) {
+        var id = 'sg-' + u.p.id + (gi ? '-' + gi : '');
+        var remS = allStops(g.dirs, '_rem'), addS = allStops(g.dirs, '_add');
+        var many = remS.length + addS.length > 4;
+        var lbl = pre + 'שלט' + (gs.length > 1 ? ' ' + (gi + 1) + ' · ' + trip(g.main) : '');
+        out.push({ id: id, label: lbl, html: signHtml(u, g, gi, gs.length, feed, remS, many),
+          map: { d: g.main, remS: remS, addS: addS, show: null, one: !many } });
+        if (many) signStops(u, g, remS, addS).forEach(function (h, k, a) {
+          out.push({ id: id + '-s' + k, label: pre + 'התחנות' + (a.length > 1 ? ' (' + (k + 1) + '/' + a.length + ')' : ''), html: h });
+        });
+      });
+    });
+    return out;
+  }
+  function signHtml(u, g, gi, ng, feed, remS, many) {
+    var p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
+    var items = itemsOf(u, g.dirs);
+    var more = whatChanges(p, g.dirs).length > items.length || many;
+    return '<div class="s-sign">' +
+      '<div class="sg-band"><div class="sg-row"><div class="badges' + (multi ? ' multi' : '') + '">' + badgesHtml(u.all.map(function (x) { return x.line; })) + '</div>' +
+        '<div class="t"><h1 class="hd">' + (multi ? 'שינוי בקווים ' + E(andList(u.all.map(function (x) { return x.line; }), 6)) : 'שינוי בקו ' + E(p.line)) + '</h1>' +
+        '<p class="sub">' + E(multi ? ops.join(' · ') : [odTxt(p), p.op].filter(Boolean).join(' · ')) + '</p></div></div>' +
+        '<div class="seam"><i></i></div></div>' +
+      '<div class="sg-when"><b>' + (p.past ? 'מ' : 'החל מ') + E(LC.wd(s0) + ' ' + LC.dmy(s0)) + '</b><span>' + E(hebDate(s0)) + '</span></div>' +
+      (ng > 1 ? '<p class="sg-part">' + E(trip(g.main)) + ' (' + (gi + 1) + ' מתוך ' + ng + ')</p>' : '') +
+      '<div class="sg-mapw"><div class="smap"></div><div class="inset"></div></div>' +
+      legendHtml(g.main) +
+      '<div class="sg-what"><h2 class="hd">מה משתנה?</h2><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') +
+        (more ? '<li class="more">' + (many ? 'כל התחנות שמשתנות — בעמוד הבא.' : 'ועוד שינויים קטנים.') + '</li>' : '') + '</ul></div>' +
+      (many ? '' : nearBox(remS, items)) +
+      '<div class="sg-contact"><span class="l">לפני הנסיעה בדקו:</span>' + contactHtml(ops) + '</div>' +
+      '<div class="note">המידע הוכן על ידי אדם פרטי, על סמך נתוני משרד התחבורה, ואינו פרסום רשמי. השינוי עלול להשתנות.</div>' +
+      '<div class="sg-foot"><span>לפי נתוני משרד התחבורה' + (feed ? ' מ-' + E(LC.dmy(feed)) : '') + ' · מפה: © תורמי OpenStreetMap' +
+        (ED.credit === false ? '' : ' · נוצר בכלי של הקו הבוחן, <b class="ltr">kavbochan.app</b>') + '</span><span class="pg num"></span></div>' +
+      '</div>';
+  }
+  /* רשימת התחנות לשלט: שתי עמודות, ממלאים לפי גובה משוער; עמוד חדש כשנגמר המקום */
+  function signStops(u, g, remS, addS) {
+    var cnt = {};
+    remS.concat(addS).forEach(function (s) { if (s.city) cnt[s.city] = (cnt[s.city] || 0) + 1; });
+    var mainCity = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || '';
+    var ent = [];
+    var lines = function (t, per) { return Math.max(1, Math.ceil(t.length / per)); };
+    var row = function (s, n) {
+      var nr = s._near, sub = s._k !== 'rem' ? '' : '<span class="nr">' + (!nr || nr.none ? 'אין תחנה קרובה במסלול החדש' : 'במקום: ' + E(nr.name) + ' (' + walkTxt(nr) + ')') + '</span>';
+      var nm = s.name + (s.city && s.city !== mainCity ? ' ' + s.city : '');
+      return { h: lines(nm + ' מק״ט ' + s.code, 32) * 28 + (sub ? lines(plain(sub), 40) * 22 : 0) + 14,
+        html: '<li><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + E(s.name) + ' <span class="sc">מק״ט ' + E(s.code) + '</span>' +
+          (s.city && s.city !== mainCity ? ' <span class="cd">' + E(s.city) + '</span>' : '') + sub + '</span></li>' };
+    };
+    if (remS.length) { ent.push({ h: 60, head: '<h3 class="hd rem">תחנות שמבוטלות (' + remS.length + ')</h3>' }); remS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
+    if (addS.length) { ent.push({ h: 60, head: '<h3 class="hd add">תחנות חדשות (' + addS.length + ')</h3>' }); addS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
+    var H = 860, cols = [], col = null;
+    var hOf = function (a) { return a.reduce(function (t, e) { return t + e.h; }, 0); };
+    var cut = remS.length ? remS.length + 1 : 0;
+    // הכול נכנס בעמוד אחד: תחנות שמבוטלות בעמודה אחת, חדשות בשנייה (כמו במצגת)
+    if (cut && addS.length && hOf(ent.slice(0, cut)) <= H && hOf(ent.slice(cut)) <= H) cols = [{ parts: ent.slice(0, cut) }, { parts: ent.slice(cut) }];
+    else ent.forEach(function (e, i) {
+      // כותרת לא נשארת לבד בתחתית עמודה
+      var need = e.head ? e.h + (ent[i + 1] ? ent[i + 1].h : 0) : e.h;
+      if (!col || col.h + need > H) { col = { h: 0, parts: [] }; cols.push(col); }
+      col.parts.push(e); col.h += e.h;
+    });
+    var colHtml = function (c) {
+      var h = '', open = false;
+      c.parts.forEach(function (e) {
+        if (e.head) { if (open) h += '</ol>'; h += e.head; h += '<ol>'; open = true; }
+        else { if (!open) { h += '<ol>'; open = true; } h += e.html; }
+      });
+      return '<div class="col">' + h + (open ? '</ol>' : '') + '</div>';
+    };
+    var lines2 = u.all.map(function (x) { return x.line; }), out = [];
+    for (var i = 0; i < cols.length; i += 2) {
+      out.push('<div class="s-signstops"><div class="sg-shead"><div class="badges">' + badgesHtml(lines2).replace(/class="badge num"/g, 'class="badge sm num"') + '</div>' +
+        '<div class="t"><h2 class="hd">התחנות שמשתנות' + (i ? ' (המשך)' : '') + '</h2><p class="sub">' + E(trip(g.main)) + ' · ' + (u.p.past ? 'מ' : 'החל מ') + E(LC.wd(start(u.p)) + ' ' + LC.dmy(start(u.p))) + '</p></div></div>' +
+        '<div class="seam"><i></i></div>' +
+        '<div class="sg-cols' + (cols.every(function (c) { return hOf(c.parts) < H * 0.72; }) ? ' roomy' : '') + '">' + colHtml(cols[i]) + (cols[i + 1] ? colHtml(cols[i + 1]) : '<div class="col"></div>') + '</div>' +
+        '<div class="sg-foot"><span>המספרים כמו במפה · ' + (remS.some(function (x) { return x._near && x._near.path; }) ? 'זמן ההליכה לפי מפת הרחובות' : 'המרחק לתחנה הקרובה הוא הערכה') +
+          ' · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>');
+    }
+    return out;
+  }
+
+  /* ---- תמונה לסטטוס: 1080×1920 לכל שינוי — מספר הקו, כותרת אחת, מפה קטנה, עד שלושה משפטים ---- */
+  var ST_W = 1080, ST_H = 1920;
+  function statusPages(pages) {
+    var out = [];
+    units(pages).forEach(function (u) {
+      var gs = dirGroups(u.p), pre = pages.length > 1 ? u.all.map(function (x) { return x.line; }).join(', ') + ' · ' : '';
+      gs.forEach(function (g, gi) {
+        var remS = allStops(g.dirs, '_rem'), addS = allStops(g.dirs, '_add');
+        out.push({ id: 'st-' + u.p.id + (gi ? '-' + gi : ''), label: pre + 'תמונה לסטטוס' + (gs.length > 1 ? ' ' + (gi + 1) + ' · ' + trip(g.main) : ''),
+          html: statusHtml(u, g, gi, gs.length), map: { d: g.main, remS: remS, addS: addS, show: null, one: remS.length + addS.length <= 4 } });
+      });
+    });
+    return out;
+  }
+  function statusHtml(u, g, gi, ng) {
+    var p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
+    var items = itemsOf(u, g.dirs).slice(0, 2);
+    // משפט סיכום: כמה תחנות — רק כשיש יותר שינויים ממה שנכנס
+    var rs = {}, as = {};
+    g.dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
+    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length });
+    if (tl && (rs && Object.keys(rs).length + Object.keys(as).length > 2 || whatChanges(p, g.dirs).filter(Boolean).length > items.length)) items.push('בסך הכול: ' + E(tl) + '.');
+    var ph = ops.length === 1 && PHONES[ops[0]];
+    return '<div class="s-status">' +
+      '<div class="st-top"><div class="badges' + (multi ? ' multi' : '') + '">' + badgesHtml(u.all.map(function (x) { return x.line; })) + '</div>' +
+        '<h1 class="hd">' + E(headline(u, g.dirs)) + ' <span class="nw">מ-' + E(LC.dm(s0)) + '</span></h1>' +
+        '<p class="sub">' + E(LC.wd(s0) + ' ' + LC.dmy(s0)) + ' · ' + E(multi ? ops.join(' · ') : (ng > 1 ? trip(g.main) : [odTxt(p), p.op].filter(Boolean).join(' · '))) + '</p>' +
+        '<div class="seam"><i></i></div></div>' +
+      '<div class="st-mapw"><div class="smap"></div></div>' +
+      '<div class="st-what"><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
+      '<div class="st-foot"><p class="st-check">לפני הנסיעה בדקו: ' + (ph ? E(ops[0]) + ' <b class="ltr">' + E(ph) + '</b> · ' : '') + 'משרד התחבורה <b class="ltr">' + MOT + '</b></p>' +
+        '<p class="st-note">לא פרסום רשמי · הוכן על ידי אדם פרטי' + (ED.credit === false ? '' : ' · <b class="ltr">kavbochan.app</b>') + '</p></div>' +
+      '</div>';
+  }
+  /* גודל העמוד של כל צורה */
+  var FORMS = { deck: { w: 1280, h: 720 }, sign: { w: SG_W, h: SG_H }, status: { w: ST_W, h: ST_H } };
+
+  var ED = {};   // אפשרויות: {look, modes: {pageId: 'one'|'full'}, form: 'deck'|'sign'|'status', credit}
   function isOne(p) { var m = ED.modes && ED.modes[p.id]; return m ? m === 'one' : smallInfo(p).small; }
   function build(pages, city, edits) {
     ED = edits || {};
@@ -729,6 +922,8 @@ var LCDeck = (function () {
     RR = big ? 6 : 10; RA = big ? 10 : 16; SEG_MAX = big ? 3 : 4; COVER_MAX = big ? 2 : 3;
     pages.forEach(prep);
     var feed = pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop();
+    if (ED.form === 'sign') return signPages(pages, feed);
+    if (ED.form === 'status') return statusPages(pages);
     // קו אחד עם שינוי קטן — עמוד אחד (או שניים), בלי שער ובלי שקף סיום
     if (pages.length === 1 && isOne(pages[0])) return onePages(pages[0], feed, '');
     var slides = [{ id: 'cover', label: 'שער', html: cover(pages, city) }];
@@ -912,7 +1107,7 @@ var LCDeck = (function () {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
       var was = wasEnd[st.code], c = map.latLngToContainerPoint(st.ll);
-      var w = Math.max(String(st.name).length, was ? 18 : 0) * 7 + 20, h = was ? 38 : 24, g = 15;
+      var w = Math.max(String(st.name).length, was ? 18 : 0, chgCode[st.code] ? 12 + (st._to ? st._to.length + 3 : 0) : 0) * 7 + 20, h = was || chgCode[st.code] ? 38 : 24, g = 15;
       var opts2 = [
         { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
         { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
@@ -1005,5 +1200,5 @@ var LCDeck = (function () {
       ';--s-band-fg:#ffffff;--s-band-sub:' + tint(c, 0.7);
   }
   function smallOf(p) { prep(p); return smallInfo(p); }
-  return { geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

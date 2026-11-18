@@ -486,16 +486,19 @@
     maps = [];
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn() });
+    var form = formOf();
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form });
     drawKinds(pages);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
-      edits.xslides.filter(function (x) { return x.after === s.id; }).forEach(function (x) { slides.push(textSlide(x, pages)); });
+      if (form === 'deck') edits.xslides.filter(function (x) { return x.after === s.id; }).forEach(function (x) { slides.push(textSlide(x, pages)); });
     });
-    edits.xslides.filter(function (x) { return !base.some(function (s) { return s.id === x.after; }); }).forEach(function (x) { slides.splice(slides.length - 1, 0, textSlide(x, pages)); });
+    if (form === 'deck') edits.xslides.filter(function (x) { return !base.some(function (s) { return s.id === x.after; }); }).forEach(function (x) { slides.splice(slides.length - 1, 0, textSlide(x, pages)); });
     var deck = $('deck'), look = edits.look || 'kav';
     deck.setAttribute('data-look', look);
+    deck.setAttribute('data-form', form);
+    formUi(form);
     deck.style.cssText = LCDeck.lookVars(look, pages);
     $('looks').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-look') === look ? 'true' : 'false'); });
     var opv = LCDeck.lookVars('op', pages).match(/--s-brand:([^;]+);.*--s-band:([^;]+)/);
@@ -541,6 +544,35 @@
   });
   function frameOf(id) { return $('deck').querySelector('.sframe[data-id="' + CSS.escape(id) + '"]'); }
 
+  /* צורה: מצגת (16:9) · שלט לתחנה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
+  var FORM_TXT = {
+    deck: { one: 'שקף אחד', many: ' שקפים', dl: 'הורדת PDF', hint: 'קובץ PDF, שקף בכל עמוד.', credit: 'להוסיף קרדיט לקו הבוחן בסוף המצגת' },
+    sign: { one: 'עמוד אחד', many: ' עמודים', dl: 'הורדת PDF', hint: 'קובץ PDF בגודל A4 לאורך, שלט בכל עמוד — להדפסה ולתלייה בתחנה.', credit: 'להוסיף קרדיט לקו הבוחן בתחתית השלט' },
+    status: { one: 'תמונה אחת', many: ' תמונות', dl: 'הורדת תמונות', dl1: 'הורדת תמונה', hint: 'תמונה (PNG) בגודל של סטטוס בווטסאפ, לכל שינוי.', credit: 'להוסיף את הכתובת של הקו הבוחן לתמונה' }
+  };
+  function formOf() { var f = edits.form; return FORM_TXT[f] ? f : 'deck'; }
+  function dims() { return LCDeck.FORMS[formOf()]; }
+  function dlText() { var t = FORM_TXT[formOf()]; return t.dl1 && slidesOn() === 1 ? t.dl1 : t.dl; }
+  function slidesOn() { return slides.filter(function (s) { return !edits.off[s.id]; }).length; }
+  function formUi(form) {
+    var t = FORM_TXT[form], d = LCDeck.FORMS[form];
+    $('forms').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-form') === form ? 'true' : 'false'); });
+    $('kindgrp').style.display = form === 'deck' ? '' : 'none';
+    $('dlhint').textContent = t.hint;
+    $('creditlbl').textContent = t.credit;
+    document.querySelectorAll('.printwrap,.dock .printbtn').forEach(function (x) { x.style.display = form === 'status' ? 'none' : ''; });
+    if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = t.dl; });
+    document.querySelectorAll('.pngs').forEach(function (x) { if (x.getAttribute('data-form') !== form) { x.hidden = true; x.innerHTML = ''; } });
+    // גודל העמוד בהדפסה רגילה
+    var st = $('pagesz') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'pagesz' }));
+    st.textContent = form === 'deck' ? '' : '@page{size:' + d.w + 'px ' + d.h + 'px;margin:0}';
+  }
+  $('forms').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-form]'); if (!b) return;
+    edits.form = b.getAttribute('data-form'); if (edits.form === 'deck') delete edits.form;
+    saveEdits(); render(curPages);
+  });
+
   /* עיר למצגת של כמה קווים: העיר שמשותפת לכל הקווים */
   function deckCity(pages) {
     if (pages.length < 2) return '';
@@ -558,7 +590,9 @@
   function number() {
     var vis = Array.prototype.filter.call(document.querySelectorAll('.sitem'), function (f) { return !f.classList.contains('off'); });
     vis.forEach(function (f, i) { f.classList.toggle('lastvis', i === vis.length - 1); f.querySelectorAll('.pg').forEach(function (p) { p.textContent = (i + 1) + ' / ' + vis.length; }); });
-    $('pcount').textContent = vis.length === 1 ? 'שקף אחד' : vis.length + ' שקפים';
+    var ft = FORM_TXT[formOf()];
+    $('pcount').textContent = vis.length === 1 ? ft.one : vis.length + ft.many;
+    if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = dlText(); });
     $('tgcount').textContent = '(' + vis.length + ' מתוך ' + slides.length + ')';
   }
 
@@ -649,6 +683,9 @@
     } else return;
     saveEdits();
     LCEdit.fit(el.closest('.sframe'));
+    // בשלט ובסטטוס המפה ממלאת את המקום שנשאר — טקסט ארוך או קצר יותר משנה את הגודל שלה
+    var fsid = sidOf(el);
+    maps.forEach(function (m) { if (m.id === fsid) m.map.invalidateSize({ pan: false }); });
     showBar(el);
   });
   // מחקו את כל הטקסט בהקלדה: כשיוצאים מהשדה — השורה יורדת, יחד עם הסימן שלידה
@@ -687,7 +724,7 @@
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var sid = b.closest('.sitem').getAttribute('data-id'), act = b.getAttribute('data-act');
     if (act === 'box') {
-      var box = { id: 'b' + Date.now().toString(36), x: 80, y: 520, w: 520, text: 'טקסט חדש' };
+      var D0 = dims(), box = { id: 'b' + Date.now().toString(36), x: 80, y: Math.round(D0.h * 0.72), w: Math.min(520, D0.w - 160), text: 'טקסט חדש' };
       (edits.boxes[sid] = edits.boxes[sid] || []).push(box);
       saveEdits();
       var el = LCEdit.boxEl(box);
@@ -709,10 +746,10 @@
     var h = ev.target.closest('.tbox-h'); if (!h || !editMode) return;
     ev.preventDefault();
     var box = h.closest('.tbox'), sid = sidOf(box), id = box.getAttribute('data-box');
-    var k = box.closest('.slide').getBoundingClientRect().width / 1280;
+    var D = dims(), k = box.closest('.slide').getBoundingClientRect().width / D.w;
     var x0 = ev.clientX, y0 = ev.clientY, bx = parseFloat(box.style.left), by = parseFloat(box.style.top);
     function mv(e) {
-      var nx = Math.max(0, Math.min(1280 - 60, bx - (x0 - e.clientX) / k)), ny = Math.max(0, Math.min(720 - 30, by + (e.clientY - y0) / k));
+      var nx = Math.max(0, Math.min(D.w - 60, bx - (x0 - e.clientX) / k)), ny = Math.max(0, Math.min(D.h - 30, by + (e.clientY - y0) / k));
       box.style.left = nx + 'px'; box.style.top = ny + 'px';
     }
     function up() {
@@ -728,7 +765,7 @@
     var b = $('resetall');
     if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
-    edits = normEdits({ look: edits.look }); saveEdits(); render(curPages);
+    edits = normEdits({ look: edits.look, form: edits.form }); saveEdits(); render(curPages);
   });
 
   /* עיצוב המצגת — נשמר עם המצגת (יחד עם העריכות) */
@@ -737,10 +774,14 @@
     edits.look = b.getAttribute('data-look'); saveEdits(); render(curPages);
   });
 
-  /* התצוגה המקדימה: השקף בגודל 1280×720 מוקטן לרוחב העמודה */
+  /* התצוגה המקדימה: השקף בגודל המלא (1280×720, ובצורות האחרות — הגודל שלהן) מוקטן לרוחב המסגרת */
   function scale() {
-    var w = $('deck').clientWidth || 1280, k = Math.min(1, w / 1280);
-    document.querySelectorAll('.slide').forEach(function (s) { s.style.transform = 'scale(' + k + ')'; });
+    var W = dims().w;
+    document.querySelectorAll('.sframe').forEach(function (f) {
+      var s = f.querySelector('.slide'); if (!s) return;
+      var k = Math.min(1, (f.clientWidth || W) / W);
+      s.style.transform = 'scale(' + k + ')';
+    });
   }
   if (window.ResizeObserver) new ResizeObserver(scale).observe($('deck'));
   window.addEventListener('resize', scale);
@@ -775,7 +816,10 @@
     var ls = curPages.map(function (p) { return String(p.line); }).filter(function (x, i, a) { return a.indexOf(x) === i; });
     var ds = curPages.map(function (p) { return p.formal || p.eff || ''; }).filter(Boolean).sort();
     var base = ls.length === 1 ? 'שינוי-בקו-' + ls[0] : 'שינויים-בקווים-' + (ls.length <= 5 ? ls.join('-') : ls.slice(0, 5).join('-') + '-ועוד');
-    return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|\s]+/g, '-') + '.pdf';
+    var f = formOf();
+    if (f === 'sign') base = 'שלט-' + base;
+    if (f === 'status') base = 'סטטוס-' + base;
+    return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|\s]+/g, '-') + (f === 'status' ? '' : '.pdf');
   }
   var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var SAFARI = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
@@ -795,11 +839,15 @@
     if (busy || !slides.length) return;
     busy = true;
     var btns = [$('dl'), $('dl2')], wasEdit = editMode, t0 = performance.now();
+    var form = formOf(), D = dims(), PW = D.w, PH = D.h, png = form === 'status', pngs = [];
+    document.querySelectorAll('.pngs').forEach(function (x) { x.hidden = true; x.innerHTML = ''; });
     var label = function (t) { btns.forEach(function (b) { b.querySelector('span').textContent = t; }); };
     btns.forEach(function (b) { b.disabled = true; b.classList.add('busy'); });
-    label('מכין PDF…'); dlMsg('');
+    var making = png ? 'מכין תמונות…' : 'מכין PDF…';
+    label(making); dlMsg('');
     // iOS בלי תמיכה בהורדת Blob (Chrome, Firefox ב-iOS): פותחים לשונית עכשיו, בזמן הלחיצה, ושמים בה את הקובץ בסוף
-    var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
+    // (תמונות לסטטוס — בלי לשונית: הן מוצגות ברשימה, ושומרים בלחיצה ארוכה או בשיתוף)
+    var tab = IOS && !SAFARI && !png ? window.open('', '_blank') : null;
     var items = Array.prototype.filter.call($('deck').querySelectorAll('.sitem'), function (it) { return !it.classList.contains('off'); });
     var vis = maps.filter(function (m) { return !edits.off[m.id]; });
     var host = null, cur = null;
@@ -814,11 +862,11 @@
       host = document.createElement('div');
       host.className = 'pdfhost';
       host.setAttribute('aria-hidden', 'true');
-      host.style.cssText = 'position:fixed;top:0;left:-3000px;width:1280px;height:720px;overflow:hidden;pointer-events:none';
+      host.style.cssText = 'position:fixed;top:0;left:-' + (PW + 1800) + 'px;width:' + PW + 'px;height:' + PH + 'px;overflow:hidden;pointer-events:none';
       $('deck').appendChild(host);
       var H = window.htmlToImage;
       var opts = {
-        width: 1280, height: 720, pixelRatio: 2,
+        width: PW, height: PH, pixelRatio: png ? 1 : 2,
         imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
         // בלי ממשק העריכה, ובלי אריחי מפה שלא נטענו (אחרת הספרייה מנסה להוריד אותם שוב ויכולה להיתקע)
         filter: function (n) {
@@ -827,14 +875,15 @@
           return !(c.contains('noprint') || c.contains('tbox-h') || c.contains('mkoff') || c.contains('leaflet-control-zoom'));
         }
       };
-      var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720], hotfixes: ['px_scaling'], compress: true });
+      var orient = PW > PH ? 'landscape' : 'portrait';
+      var pdf = png ? null : new window.jspdf.jsPDF({ orientation: orient, unit: 'px', format: [PW, PH], hotfixes: ['px_scaling'], compress: true });
       // הגופנים מוטמעים פעם אחת לכל המצגת (במקום בכל שקף מחדש)
       return timeout(H.getFontEmbedCSS($('deck'), opts), 10000).catch(function () { return ''; }).then(function (css) {
         if (css) opts.fontEmbedCSS = css;
         var i = 0;
         function next() {
           if (i >= items.length) return pdf;
-          label('מכין PDF… ' + (i + 1) + '/' + items.length);
+          label(making + ' ' + (i + 1) + '/' + items.length);
           var s = items[i].querySelector('.slide'), home = s.parentNode, after = s.nextSibling;
           cur = { s: s, home: home, after: after };
           s.style.transform = 'none';
@@ -845,8 +894,14 @@
           };
           return (SAFARI ? shot().then(shot) : shot()).then(function (cv) {
             home.insertBefore(s, after); cur = null;
-            if (i > 0) pdf.addPage([1280, 720], 'landscape');
-            pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, 1280, 720, undefined, 'FAST');
+            if (png) {
+              return new Promise(function (res, rej) { cv.toBlob(function (b) { b ? res(b) : rej(new Error('png')); }, 'image/png'); }).then(function (b) {
+                pngs.push(b); cv.width = cv.height = 0; i++;
+                return new Promise(function (r) { setTimeout(r, 0); }).then(next);
+              });
+            }
+            if (i > 0) pdf.addPage([PW, PH], orient);
+            pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PW, PH, undefined, 'FAST');
             cv.width = cv.height = 0;
             i++;
             return new Promise(function (r) { setTimeout(r, 0); }).then(next);   // לתת לדפדפן לצייר את ההתקדמות
@@ -855,11 +910,18 @@
         return next();
       });
     }).then(function (pdf) {
+      if (png) {
+        if (pngs.length !== items.length) throw new Error('png count');
+        showPngs(pngs);
+        if (window.LCApp) window.LCApp.lastPdf = { pages: pngs.length, png: true, ms: Math.round(performance.now() - t0) };
+        return;
+      }
       save(pdf.output('blob'), pdfName(), tab);
       if (window.LCApp) window.LCApp.lastPdf = { pages: items.length, ms: Math.round(performance.now() - t0) };
     }).catch(function (e) {
       if (window.console) console.error('PDF', e);
       if (tab) try { tab.close(); } catch (x) {}
+      if (png) { dlMsg('לא הצלחנו ליצור את התמונות. נסו שוב, או צלמו את המסך.'); return; }
       dlMsg('לא הצלחנו ליצור את קובץ ה-PDF. נפתח חלון ההדפסה — שם בוחרים "שמירה כ-PDF".');
       setTimeout(printDeck, 300);
     }).then(function () {
@@ -868,9 +930,28 @@
       scale();
       if (wasEdit && !editMode) setEdit(true);
       btns.forEach(function (b) { b.disabled = false; b.classList.remove('busy'); });
-      label('הורדת PDF');
       busy = false;
+      label(dlText());
     });
+  }
+  /* תמונות לסטטוס: יורדות אחת אחרי השנייה (חוץ מ-iOS), ונשארות ברשימה — לשמירה שוב או לשיתוף ישר לווטסאפ */
+  function showPngs(blobs) {
+    var name = pdfName(), form = formOf();
+    var files = blobs.map(function (b, i) { return { blob: b, name: name + (blobs.length > 1 ? '-' + (i + 1) : '') + '.png', url: URL.createObjectURL(b) }; });
+    var canShare = false;
+    try { canShare = !!(navigator.canShare && window.File && navigator.canShare({ files: [new File([blobs[0]], files[0].name, { type: 'image/png' })] })); } catch (e) {}
+    document.querySelectorAll('.pngs').forEach(function (box) {
+      box.setAttribute('data-form', form);
+      box.innerHTML = '<p>' + (IOS ? 'לשמירה בתמונות: לחיצה ארוכה על התמונה ← "הוספה לתמונות".' : (files.length > 1 ? 'התמונות ירדו. אפשר להוריד כל אחת שוב:' : 'התמונה ירדה. אפשר להוריד אותה שוב:')) + '</p>' +
+        files.map(function (f, i) { return '<a href="' + f.url + '" download="' + E(f.name) + '"><img src="' + f.url + '" alt="תמונה ' + (i + 1) + ' לסטטוס">' + (files.length > 1 ? 'תמונה ' + (i + 1) : 'הורדה') + '</a>'; }).join('') +
+        (canShare ? '<button type="button" class="btn sharebtn">שיתוף ' + (files.length > 1 ? 'התמונות' : 'התמונה') + ' (ווטסאפ ועוד)</button>' : '');
+      box.hidden = false;
+      var sb = box.querySelector('.sharebtn');
+      if (sb) sb.addEventListener('click', function () {
+        navigator.share({ files: files.map(function (f) { return new File([f.blob], f.name, { type: 'image/png' }); }) }).catch(function () {});
+      });
+    });
+    if (!IOS) files.forEach(function (f, i) { setTimeout(function () { save(f.blob, f.name); }, i * 700); });
   }
   /* הדפסה רגילה (גם כגיבוי כשה-PDF לא נוצר) */
   function printDeck() {

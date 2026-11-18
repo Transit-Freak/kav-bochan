@@ -287,3 +287,117 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 
 /* מק"ט של תחנה שמשתנה */
 .slide .sc{font-size:.78em;color:var(--s-sub);font-weight:600;white-space:nowrap}
+
+/* ================= צורות (data-form על .deck) =================
+   שלט לתחנה: A4 לאורך, 794×1123 (210×297 מ"מ ב-96dpi) — מודפס ונתלה בתחנה, כתב שנקרא ממטר וחצי.
+   סטטוס: 1080×1920 (9:16) — תמונה לסטטוס בווטסאפ. בשתיהן אותם צבעים (data-look) ואותה חתימה. */
+.deck[data-form="sign"] .sframe{aspect-ratio:794/1123}
+.deck[data-form="sign"] .slide,.deck[data-form="sign"] .slide > div:first-child{width:794px;height:1123px}
+.deck[data-form="status"] .sframe{aspect-ratio:1080/1920}
+.deck[data-form="status"] .slide,.deck[data-form="status"] .slide > div:first-child{width:1080px;height:1920px}
+.deck[data-form="sign"] .sitem{width:100%;max-width:640px;margin-inline:auto}
+.deck[data-form="status"] .sitem{width:100%;max-width:420px;margin-inline:auto}
+.deck[data-form="sign"] .addslide,.deck[data-form="status"] .addslide{display:none!important}
+.slide .badges{display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex:none}
+
+/* ---- שלט לתחנה ---- */
+.s-sign{display:flex;flex-direction:column}
+.s-sign > *{flex:none}
+.sg-band{background:var(--s-band);color:var(--s-band-fg);padding:30px 44px 0;display:flex;flex-direction:column;gap:22px}
+.sg-row{display:flex;align-items:center;gap:26px}
+.s-sign .sg-band .badge{font-size:100px;padding:calc(12px + .07em) 28px calc(12px - .07em);border-radius:22px;min-width:140px}
+.s-sign .badges.multi{max-width:300px}
+.s-sign .badges.multi .badge{font-size:54px;min-width:96px;padding:calc(8px + .07em) 14px calc(8px - .07em);border-radius:14px}
+.sg-row .t{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sg-row h1{font-size:54px;font-weight:900;line-height:1.06}
+.sg-row .sub{font-size:24px;font-weight:600;color:var(--s-band-sub);line-height:1.3}
+.sg-band .seam{margin:0 -44px}
+.sg-when{padding:20px 44px 4px;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 18px}
+.sg-when b{font-family:'Heebo',Arial,sans-serif;font-size:42px;font-weight:900;line-height:1.15;color:var(--s-fg)}
+.sg-when span{font-size:22px;font-weight:600;color:var(--s-sub)}
+.sg-part{padding:0 44px;font-size:22px;font-weight:800;color:var(--s-brand)}
+.sg-mapw{position:relative;margin:12px 40px 0;flex:1 1 420px!important;min-height:280px;border-radius:16px;overflow:hidden;background:#dfe6e2;border:1px solid var(--s-line)}
+.sg-mapw .smap{position:absolute;top:0;right:0;width:calc(100% / 1.15);height:calc(100% / 1.15);transform:scale(1.15);transform-origin:top right;background:#dfe6e2}
+.sg-mapw .inset{position:absolute;left:12px;top:12px;width:200px;height:150px;border:3px solid #fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.3);background:#dfe6e2;z-index:600}
+.s-sign .legend{margin:10px 40px 0;background:var(--s-card);border-radius:12px;padding:9px 14px;display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:6px 16px;font-size:14.5px;line-height:1.2}
+.s-sign .legend span{display:flex;align-items:center;gap:9px}
+.sg-what{margin:14px 44px 0;max-height:300px;overflow:hidden;display:flex;flex-direction:column;gap:8px}
+.sg-what h2{font-size:32px;font-weight:900;color:var(--s-brand);line-height:1.1}
+.sg-what ul{margin:0;padding:0 28px 0 0;display:flex;flex-direction:column;gap:8px}
+.sg-what li{font-size:24px;line-height:1.36}
+.sg-what li b{font-weight:800}
+.sg-what li.more{list-style:none;font-size:20px;color:var(--s-sub);font-weight:700}
+.sg-near{margin:14px 40px 0;background:var(--s-card);border-radius:14px;padding:12px 18px;border-right:8px solid var(--s-new-stop);display:flex;flex-direction:column;gap:6px}
+.sg-near h3{font-size:22px;font-weight:900}
+.sg-near ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sg-near li{display:flex;gap:10px;align-items:flex-start;font-size:22px;line-height:1.3}
+.sg-near .dot{margin-top:5px;width:18px;height:18px}
+.sg-contact{margin:16px 44px 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 22px;font-size:21px}
+.sg-contact .l{font-weight:800}
+.sg-contact b{font-family:'Heebo',Arial,sans-serif;font-size:27px;font-weight:900}
+.s-sign .note{margin:14px 40px 0;font-size:17px;padding:9px 18px;font-weight:700;line-height:1.35}
+.sg-foot{margin-top:auto;padding:10px 44px 18px;display:flex;justify-content:space-between;gap:16px;font-size:12.5px;color:var(--s-sub)}
+.sg-foot .pg{white-space:nowrap}
+.deck[data-look="light"] .sg-band{border-bottom:1px solid var(--s-line)}
+.deck[data-look="large"] .sg-what li{font-size:26px}
+.deck[data-look="large"] .s-sign .legend,.deck[data-look="large"] .sg-near{border:2px solid #000}
+
+/* ---- שלט: עמוד התחנות ---- */
+.s-signstops{display:flex;flex-direction:column}
+.sg-shead{background:var(--s-band);color:var(--s-band-fg);padding:26px 44px 22px;display:flex;align-items:center;gap:18px}
+.sg-shead .badge.sm{font-size:40px;padding:calc(8px + .07em) 16px calc(8px - .07em);border-radius:12px}
+.sg-shead .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sg-shead h2{font-size:36px;font-weight:900;line-height:1.1}
+.sg-shead .sub{font-size:20px;color:var(--s-band-sub);font-weight:600}
+.s-signstops > .seam{margin-top:-1px}
+.sg-cols{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:22px 40px 0}
+.sg-cols .col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sg-cols h3{font-size:24px;font-weight:900;padding-bottom:6px;border-bottom:3px solid currentColor;margin-top:6px}
+.sg-cols h3.rem{color:var(--s-before);border-bottom-style:dashed}
+.sg-cols h3.add{color:var(--s-add)}
+.sg-cols ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.sg-cols.roomy li{font-size:25px;padding:9px 0}.sg-cols.roomy li .nr{font-size:20px}
+.sg-cols li{display:flex;align-items:flex-start;gap:10px;font-size:21px;line-height:1.3;padding:6px 0;border-bottom:1px solid var(--s-line)}
+.sg-cols li .dot{width:26px;height:26px;font-size:12px;margin-top:2px}
+.sg-cols li .nm{flex:1;min-width:0;font-weight:700}
+.sg-cols li .nr{display:block;font-size:17px;font-weight:600;color:var(--s-sub);line-height:1.3}
+.sg-cols li .cd{color:var(--s-sub);font-size:16px;font-weight:600}
+
+/* ---- סטטוס ---- */
+.s-status{display:flex;flex-direction:column}
+.s-status > *{flex:none}
+.st-top{background:var(--s-band);color:var(--s-band-fg);padding:150px 64px 0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px}
+.s-status .st-top .badge{font-size:230px;padding:calc(18px + .07em) 64px calc(18px - .07em);border-radius:44px;min-width:330px}
+.s-status .badges{justify-content:center}
+.s-status .badges.multi{gap:18px;max-width:900px}
+.s-status .badges.multi .badge{font-size:120px;min-width:190px;padding:calc(12px + .07em) 30px calc(12px - .07em);border-radius:28px}
+.st-top h1 .nw{white-space:nowrap}
+.st-top h1{font-size:76px;font-weight:900;line-height:1.1;max-width:940px;text-wrap:balance}
+.st-top .sub{font-size:34px;font-weight:600;color:var(--s-band-sub);line-height:1.3;max-width:940px}
+.st-top .seam{align-self:stretch;margin:22px -64px 0;height:12px}
+.st-top .seam::before{height:8px}
+.st-top .seam::after{height:11px}
+.st-top .seam i{width:28px;height:28px;border-width:6px}
+.st-mapw{position:relative;margin:48px 56px 0;flex:1 1 640px!important;min-height:460px;border-radius:36px;overflow:hidden;background:#dfe6e2;box-shadow:0 4px 18px rgba(0,0,0,.14)}
+.st-mapw .smap{position:absolute;top:0;right:0;width:calc(100% / 1.75);height:calc(100% / 1.75);transform:scale(1.75);transform-origin:top right;background:#dfe6e2}
+.st-mapw .leaflet-control-attribution{font-size:9px}
+.deck[data-form="status"] .lc-mk{font-size:0}
+.st-what{margin:44px 64px 0;flex:0 1 auto!important;min-height:0;overflow:hidden}
+.st-what ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:22px}
+.st-what li{position:relative;padding-right:44px;font-size:40px;line-height:1.3;font-weight:600}
+.st-what li::before{content:"";position:absolute;right:4px;top:.42em;width:20px;height:20px;border-radius:50%;background:var(--s-new)}
+.st-what li b{font-weight:800}
+.st-foot{margin-top:auto;padding:36px 64px 130px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+.st-check{font-size:32px;font-weight:700;color:var(--s-fg)}
+.st-check b{font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:36px}
+.st-note{font-size:28px;font-weight:700;color:var(--s-note-fg);background:var(--s-note);border-radius:999px;padding:8px 30px}
+.deck[data-look="light"] .st-top{border-bottom:1px solid var(--s-line)}
+.deck[data-look="large"] .st-what li{font-size:44px}
+
+@media print{
+  .deck[data-form="sign"]{width:794px}
+  .deck[data-form="sign"] .sframe{width:794px!important;height:1123px!important}
+  .deck[data-form="status"]{width:1080px}
+  .deck[data-form="status"] .sframe{width:1080px!important;height:1920px!important}
+  .deck[data-form] .sitem{max-width:none;margin:0}
+}
