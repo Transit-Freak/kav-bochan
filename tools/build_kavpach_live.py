@@ -62,6 +62,23 @@ def main():
         rank = (0 if l.get('historicalOnly') else 1, 0 if l.get('lk') == 'removed' else 1, l.get('ld') or '')
         if mk not in op_best or rank > op_best[mk][0]:
             op_best[mk] = (rank, op)
+    # החברה של היום מה-GTFS העדכני (line-changes/data/lines.json): בארכיון החברה נרשמת רק כשהווריאנט
+    # נוצר, ומעבר של קו לחברה אחרת לא יוצר אירוע — כך קווי מעלה אדומים נשארו "אגד תעבורה"
+    # אחרי שעברו לאלקטרה אפיקים תחבורה
+    try:
+        cur = json.load(open(os.environ.get('LC_LINES', 'line-changes/data/lines.json'), encoding='utf-8'))
+        cops = cur.get('ops') or []
+        for row in cur.get('lines') or []:
+            mk = str(row[0]).lstrip('0')
+            oi = row[2] if len(row) > 2 else None
+            if mk and isinstance(oi, int) and 0 <= oi < len(cops) and cops[oi]:
+                for k in (mk, str(row[0])):
+                    if k in op_best:
+                        op_best[k] = (op_best[k][0], cops[oi])
+                if mk not in op_best and str(row[0]) not in op_best:
+                    op_best[mk] = ((1, 1, ''), cops[oi])
+    except Exception as e:
+        print('אין GTFS עדכני לחברות — נשארת החברה מהארכיון:', e)
     for l in idx:
         rd = l.get('rd') or ''
         if rd.count('-') < 2:
