@@ -339,3 +339,13 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .kfil{margin-top:0}
 .kfil button:disabled{opacity:.45;cursor:default}
 .chip.kd{background:var(--ink);color:var(--ink-fg)}
+
+/* מחיקת כל הקווים מהמצגת — עם אישור קטן בתוך הדף */
+.pkhead{display:flex;align-items:center;justify-content:space-between;gap:var(--sp2)}
+.pkhead .lnk{min-height:36px;font-size:13.5px}
+.pkconfirm{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp2) var(--sp3);background:var(--before-bg);border:1px solid var(--before);border-radius:var(--r2);padding:var(--sp2) var(--sp3);font-weight:800;font-size:14px;color:var(--fg)}
+.pkconfirm[hidden]{display:none}
+.pkconfirm span{flex:1 1 100%}
+.pkconfirm .btn.danger{width:auto;font-size:15px;padding:0 var(--sp4);background:var(--before);border-color:var(--before);color:#fff;min-height:40px}
+.pkconfirm .lnk{min-height:40px}
+.pk.pkmore{background:none;border-style:dashed;cursor:pointer;color:var(--after);padding:4px 12px;font:inherit;font-weight:800;font-size:14px}

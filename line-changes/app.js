@@ -516,16 +516,30 @@
   }
 
   /* ---------- שלב 3: המצגת ---------- */
+  /* רשימת הקווים במצגת: עם הרבה קווים — 8 הראשונים, ו"ועוד N" פותח את כולם */
+  var PK_MAX = 8, pkOpen = false;
   function drawPicked() {
-    $('picked').innerHTML = picks.map(function (p, i) {
+    $('clearall').hidden = picks.length < 2;
+    if (picks.length < 2) $('pkconfirm').hidden = true;
+    var showN = pkOpen || picks.length <= PK_MAX + 2 ? picks.length : PK_MAX;
+    $('picked').innerHTML = picks.slice(0, showN).map(function (p, i) {
       var when = p.kind === 'ended' ? 'עד ' + LC.dmy(p.last || p.eff) : (p.past ? 'היה ב-' : p.kind === 'new' ? 'קו חדש מ-' : p.kind === 'timetable' ? 'לו״ז מ-' : 'מ-') + LC.dmy(p.formal || p.eff);
       return '<span class="pk"><span class="badge">' + E(p.line) + '</span><span>' + E(when) + '</span>' +
         (picks.length > 1 ? '<button type="button" data-rm="' + i + '" aria-label="להוציא את קו ' + E(p.line) + ' מהמצגת">×</button>' : '') + '</span>';
-    }).join('');
+    }).join('') + (showN < picks.length ? '<button type="button" class="pk pkmore" data-more="1" aria-expanded="false">ועוד ' + (picks.length - showN) + ' ▾</button>' : '');
   }
   $('picked').addEventListener('click', function (ev) {
+    if (ev.target.closest('[data-more]')) { pkOpen = true; drawPicked(); return; }
     var b = ev.target.closest('[data-rm]'); if (!b) return;
     picks.splice(+b.getAttribute('data-rm'), 1);  rebuild();
+  });
+  // מחיקת כל הקווים: אישור קטן בתוך הדף, ואז חזרה לשלב 1 עם מצגת ריקה
+  $('clearall').addEventListener('click', function () { $('pkconfirm').hidden = false; $('pkyes').focus(); });
+  $('pkno').addEventListener('click', function () { $('pkconfirm').hidden = true; $('clearall').focus(); });
+  $('pkyes').addEventListener('click', function () {
+    $('pkconfirm').hidden = true;
+    picks = []; cur = null; pkOpen = false; placeSel = null;
+    setUrl(); emptyStage(); go(1);
   });
 
   function rebuild() {

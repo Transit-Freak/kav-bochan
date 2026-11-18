@@ -92,7 +92,8 @@
     <section class="panel pane" data-pane="3">
       <h2 class="ph">המצגת <span class="dtitle" id="decktitle"></span></h2>
       <div class="group">
-        <span class="flabel">הקווים במצגת</span>
+        <div class="pkhead"><span class="flabel">הקווים במצגת</span><button type="button" class="lnk" id="clearall" hidden>מחיקת הכול</button></div>
+        <div class="pkconfirm" id="pkconfirm" role="alertdialog" aria-labelledby="pkcq" hidden><span id="pkcq">למחוק את כל הקווים מהמצגת?</span><button type="button" class="btn sm danger" id="pkyes">כן, למחוק</button><button type="button" class="lnk" id="pkno">ביטול</button></div>
         <div class="picked" id="picked"></div>
         <button type="button" class="ghost" id="addline">+ להוסיף קו נוסף</button>
       </div>
