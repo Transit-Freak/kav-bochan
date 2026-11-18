@@ -2244,6 +2244,7 @@ function KavPach() {
   const [redAllOfOp, setRedAllOfOp] = useState(true);
   // הגדרות הניקוד של המשתמש (שלמה 07.09: "לבחור מה זה קו טוב") + סינון מספרי
   const [pset, updPset, resetPset, psetDefault] = useStoredSettings('kb-pach-score', PACH_DEFAULTS);
+  const [scoreBand, setScoreBand] = useState(null);   // רמת ציון מכרטיס הסיכום (min של STATUS_TIERS), null = הכל
   const [pFilt, setPFilt] = useState({ minScore: null, minWasted: null, maxRiders: null, minTrips: null });
   const pFiltOn = Object.values(pFilt).some(v => v != null);
   const [showCrowded, setShowCrowded] = useState(false);
@@ -3013,6 +3014,12 @@ const DAYS_FILTER = [
     if (filterCategory !== "all") {
       result = result.filter(r => r.category === filterCategory);
     }
+    // רמת ציון מכרטיס הסיכום (שלמה 18.11): חמור / לא יעיל / טעון בדיקה / סטייה קלה
+    if (scoreBand != null) {
+      const ti = STATUS_TIERS.findIndex(t => t.min === scoreBand);
+      const top = ti > 0 ? STATUS_TIERS[ti - 1].min : Infinity;
+      result = result.filter(r => r.score >= scoreBand && r.score < top);
+    }
     // סינון מספרי (שלמה 07.09)
     if (pFilt.minScore != null) result = result.filter(r => r.score >= pFilt.minScore);
     if (pFilt.minWasted != null) result = result.filter(r => r.wastedKm >= pFilt.minWasted);
@@ -3039,7 +3046,7 @@ const DAYS_FILTER = [
     });
 
     return result;
-  }, [redundantLines, allScoredLines, redShowAll, redLineVals, redOperator, lineOps, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt]);
+  }, [redundantLines, allScoredLines, redShowAll, redLineVals, redOperator, lineOps, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt, scoreBand]);
 
   useEffect(() => { setVisibleLineCount(30); }, [filteredRedundant]);
 
@@ -3121,6 +3128,7 @@ const DAYS_FILTER = [
   }, [filteredRedundant]);
   // כותרת הסיכום ושם הקובץ — לפי הסינון שנבחר
   const redFilterParts = () => [
+    scoreBand != null ? (STATUS_TIERS.find(t => t.min === scoreBand) || {}).label : '',
     redOperator !== "all" ? redOperator : '',
     searchCity || '',
     filterDistrict !== "all" ? filterDistrict : '',
@@ -3917,8 +3925,18 @@ const DAYS_FILTER = [
                 </div>
 
                 {/* סיכום הרשימה המסוננת וייצוא לאקסל — לנציגי חברות ולמשרד (שלמה 18.11) */}
-                {filteredRedundant.length > 0 && (
-                  <div className="bg-rose-50 border border-rose-200 rounded-[2rem] px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-4">
+                {(filteredRedundant.length > 0 || scoreBand != null) && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-[2rem] px-6 py-4">
+                  <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="בחירה לפי ציון">
+                    {[{ min: null, label: 'הכל' }].concat(STATUS_TIERS.filter(t => t.min > 0 || redShowAll).map(t => ({ min: t.min, label: t.label.replace(/ - .*/, ''), range: STATUS_TIERS.indexOf(t) === 0 ? `${t.min}+` : `${t.min}–${STATUS_TIERS[STATUS_TIERS.indexOf(t) - 1].min - 1}` }))).map(c => (
+                      <button key={c.label} type="button" aria-pressed={scoreBand === c.min}
+                        onClick={() => setScoreBand(c.min)}
+                        className={`px-3 py-2 rounded-xl text-xs font-black border transition-colors ${scoreBand === c.min ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-slate-700 border-rose-200 hover:border-rose-400'}`}>
+                        {c.label}{c.range && <> · <span dir="ltr">{c.range}</span></>}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                     <div className="text-base font-black text-slate-900 lg:max-w-xs">
                       {(() => { const p = redFilterParts(); return p.length ? p.join(' · ') : 'כל הקווים ברשימה'; })()}
                       {redShowAll && <span className="block text-xs font-bold text-slate-500 mt-0.5">כולל קווים יעילים</span>}
@@ -3940,6 +3958,8 @@ const DAYS_FILTER = [
                       className="bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-2xl px-5 py-3 shadow-sm self-stretch lg:self-auto">
                       ייצוא לאקסל
                     </button>
+                  </div>
+                  {filteredRedundant.length === 0 && <div className="text-sm font-bold text-slate-500 mt-2">אין קווים ברמה הזו לפי הסינון הנוכחי.</div>}
                   </div>
                 )}
 
