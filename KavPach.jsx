@@ -2203,11 +2203,13 @@ function KavPach() {
   // שכבר בוטלו. נטען ברקע; אם איננו — הכל עובד כמו קודם.
   const [liveMap, setLiveMap] = useState(null);
   const [liveGen, setLiveGen] = useState('');
+  // החברה המפעילה לכל מקט (ops = שמות, opOf = מקט ← מספר) — לסינון באלגוריתם הייעול
+  const [liveOps, setLiveOps] = useState(null);
   useEffect(() => { if (linesPreMeta && linesPreMeta.deps && linesPreMeta.deps.live) setLiveGen(g => g || linesPreMeta.deps.live); }, [linesPreMeta]);
   useEffect(() => {
     if (!depsStart) return;
     fetch('kavpach-live.json').then(r => (r.ok ? r.json() : null)).then(d => {
-      if (d) { setLiveMap(d.lines || null); setLiveGen(d.gen || ''); }
+      if (d) { setLiveMap(d.lines || null); setLiveGen(d.gen || ''); if (d.ops && d.opOf) setLiveOps({ ops: d.ops, opOf: d.opOf }); }
     }).catch(() => {}).finally(() => setDepsDone(n => n + 1));
   }, [depsStart]);
   // הכרטיסים מאגדים את שני הכיוונים — לכן החיפוש ברמת המקט השלם
@@ -2217,6 +2219,11 @@ function KavPach() {
     const mk = String(makat || '').replace(/^0+/, '').trim();
     return liveMap[mk] || null;
   }, [liveMap]);
+  const operatorOf = useCallback((makat) => {
+    if (!liveOps) return '';
+    const ix = liveOps.opOf[String(makat || '').replace(/^0+/, '').trim()];
+    return ix == null ? '' : (liveOps.ops[ix] || '');
+  }, [liveOps]);
   const [filterDistrict, setFilterDistrict] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [redundantSortBy, setRedundantSortBy] = useState("score");
@@ -2276,6 +2283,8 @@ function KavPach() {
   
   const [optLine, setOptLine] = useState("");
   const [optCity, setOptCity] = useState("all");
+  const [optOperator, setOptOperator] = useState("all");
+  const [optRunInfo, setOptRunInfo] = useState({ operator: "all", city: "all" });   // הסינון של הריצה האחרונה — לשורת הסיכום ולשם קובץ האקסל
   const [optDirection, setOptDirection] = useState("all");
   const [optDays, setOptDays] = useState([]); 
   const [optimizations, setOptimizations] = useState([]);
@@ -2356,6 +2365,24 @@ function KavPach() {
       allLineTypes: Array.from(types).sort()
     };
   }, [trips, linesPre]);
+
+  // החברות המפעילות שיש להן נסיעות בסימולציה, עם מספר הקווים (מקטים, בלי קווים שכבר בוטלו)
+  const operatorOptions = useMemo(() => {
+    if (!liveOps || trips.length === 0) return [];
+    const byOp = new Map();
+    for (let i = 0; i < trips.length; i++) {
+      const mk = String(trips[i].makat || '').replace(/^0+/, '').trim();
+      if (!mk) continue;
+      const op = operatorOf(mk);
+      if (!op) continue;
+      const live = liveOf(mk);
+      if (live && live.rm) continue;
+      if (!byOp.has(op)) byOp.set(op, new Set());
+      byOp.get(op).add(mk);
+    }
+    return [...byOp.entries()].map(([name, set]) => ({ name, lines: set.size }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  }, [trips, liveOps, operatorOf, liveOf]);
 
 const DAYS_FILTER = [
     { id: "1", label: "ראשון" },
@@ -3113,9 +3140,10 @@ const DAYS_FILTER = [
     return filtered;
   }, [trips, searchCity, showCrowded, sortConfig, lineCitiesMap, filterLineType, appMode, tab]);
 
-  const runOptimization = async (overrideLine, overrideCity, overrideDirection, overrideDays) => {
+  const runOptimization = async (overrideLine, overrideCity, overrideDirection, overrideDays, overrideOperator) => {
     const lineToUse = typeof overrideLine === 'string' ? overrideLine : optLine;
     const cityToUse = typeof overrideCity === 'string' ? overrideCity : optCity;
+    const operatorToUse = typeof overrideOperator === 'string' ? overrideOperator : optOperator;
     const dirToUse = typeof overrideDirection === 'string' ? overrideDirection : optDirection;
     const daysToUse = Array.isArray(overrideDays) ? overrideDays : optDays;
     setSimLoading(true);
@@ -3144,6 +3172,8 @@ const DAYS_FILTER = [
         const matchesTransit = citiesSet ? Array.from(citiesSet).some(c => c.includes(sCity)) : false;
         if (!matchesOriginDest && !matchesTransit) return false;
       }    
+
+      if (operatorToUse && operatorToUse !== "all" && operatorOf(t.makat) !== operatorToUse) return false;
       
       if (dirToUse && dirToUse !== "all" && !String(t.direction).includes(dirToUse)) return false;
       
@@ -3159,6 +3189,7 @@ const DAYS_FILTER = [
     });
 
     setSimSkipped(skippedMakats.size);
+    setOptRunInfo({ operator: operatorToUse || "all", city: cityToUse || "all" });
     if (filteredTrips.length === 0) {
       setOptimizations([]);
       setSimLoading(false);
@@ -3276,7 +3307,9 @@ const DAYS_FILTER = [
               isEilatPrebooked: t1.isEilatPrebooked,
               isFeedingLine: t1.isFeedingLine,
               categoryLabel: category === 'urban' ? 'עירוני' : category === 'regional' ? 'אזורי' : 'בין-עירוני',
-              line: t1.lineNum, origin: t1.origin, dest: t1.dest, direction: t1.direction,
+              line: t1.lineNum, makat: t1.makat, origin: t1.origin, dest: t1.dest, direction: t1.direction,
+              // ק"מ בשבוע שנחסכים: נסיעה אחת פחות בכל יום פעילות
+              km: (Number(t1.distance) || 0) * (Number(t1.tripCount) || 1),
               from: t1.time, to: t2.time, timeMins: t1.timeMins, suggestedTime: suggestedTime,
               days: t1.days, gap: gap1, usedMetric: optMetric, total: Number(totalVal1.toFixed(2)), val1: val1, val2: val2,
               busSize: t1.busSize, capacity: t1.capacity, efficiency: t1.efficiency, metricVal: val1
@@ -3318,7 +3351,7 @@ const DAYS_FILTER = [
                 results.push({
                   type: 'cancel', isNightLine: t1.isNightLine, isEilatPrebooked: t1.isEilatPrebooked, isFeedingLine: t1.isFeedingLine,
                   categoryLabel: category === 'urban' ? 'עירוני' : category === 'regional' ? 'אזורי' : 'בין-עירוני',
-                  line: t1.lineNum, origin: t1.origin, dest: t1.dest, direction: t1.direction,
+                  line: t1.lineNum, makat: t1.makat, km: (Number(t1.distance) || 0) * (Number(t1.tripCount) || 1), origin: t1.origin, dest: t1.dest, direction: t1.direction,
                   time: t1.time, timeMins: t1.timeMins, days: t1.days, usedMetric: optMetric, metricVal: valCancel, efficiency: t1.efficiency,
                   busSize: t1.busSize, capacity: t1.capacity
                 });
@@ -3333,7 +3366,7 @@ const DAYS_FILTER = [
            results.push({
               type: 'ok', isNightLine: t1.isNightLine, isEilatPrebooked: t1.isEilatPrebooked, isFeedingLine: t1.isFeedingLine,
               categoryLabel: category === 'urban' ? 'עירוני' : category === 'regional' ? 'אזורי' : 'בין-עירוני',
-              line: t1.lineNum, origin: t1.origin, dest: t1.dest, direction: t1.direction, time: t1.time, timeMins: t1.timeMins, days: t1.days, usedMetric: optMetric, metricVal: getMetricVal(t1), efficiency: t1.efficiency,
+              line: t1.lineNum, makat: t1.makat, origin: t1.origin, dest: t1.dest, direction: t1.direction, time: t1.time, timeMins: t1.timeMins, days: t1.days, usedMetric: optMetric, metricVal: getMetricVal(t1), efficiency: t1.efficiency,
               busSize: t1.busSize, capacity: t1.capacity
            });
            usedTrips.add(t1.id);
@@ -3421,8 +3454,11 @@ const DAYS_FILTER = [
       if (optLine) {
         const o = optimizations.find(x => String(x.line) === String(optLine)) || optimizations[0];
         fileName = `קו ${o.line} ${o.origin} - ${o.dest}.xlsx`;
-      } else if (optCity !== "all") {
-        fileName = `ייעול_קווים_${optCity}.xlsx`;
+      } else {
+        // חברה מפעילה ו/או עיר מהריצה האחרונה — ייעול_קווים_אפיקים_חיפה.xlsx
+        const parts = [optRunInfo.operator, optRunInfo.city].filter(v => v && v !== "all")
+          .map(v => String(v).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim());
+        if (parts.length) fileName = `ייעול_קווים_${parts.join('_')}.xlsx`;
       }
     }
     window.XLSX.writeFile(wb, fileName);
@@ -3431,10 +3467,11 @@ const DAYS_FILTER = [
   const handleOptimizeLine = (lineNum, city) => {
     setOptLine(lineNum);
     setOptCity(city || "all");
+    setOptOperator("all");
     setOptDirection("all");
     setOptDays([]); 
     setTab("simulator");
-    runOptimization(lineNum, city || "all", "all", []);
+    runOptimization(lineNum, city || "all", "all", [], "all");
   };
 
   const toggleDay = (dayId) => {
@@ -3510,10 +3547,11 @@ const DAYS_FILTER = [
   const handleOptimizeLineForm = (lineNum, city) => {
     setOptLine(lineNum);
     setOptCity(city || "all");
+    setOptOperator("all");
     setOptDirection("all");
     setOptDays([]); 
     setTab("simulator");
-    runOptimization(lineNum, city || "all", "all", []);
+    runOptimization(lineNum, city || "all", "all", [], "all");
   };
 
   // מסך טעינה מלא — מוצג רק כשנכנסים לכלי לפני שהנתונים מוכנים
@@ -4418,8 +4456,9 @@ const DAYS_FILTER = [
                 </header>
                 
                 <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 mb-8 shadow-inner">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div>
+                  <div className={`grid grid-cols-1 ${operatorOptions.length > 0 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-6 mb-8`}>
+                    {/* עם שדה החברה: קו + כיוון בשורה הראשונה, עיר + חברה מפעילה זו ליד זו בשנייה */}
+                    <div className={operatorOptions.length > 0 ? 'md:order-1' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">מספר קו / מק&quot;ט</label>
                       <input
                         type="text"
@@ -4435,7 +4474,7 @@ const DAYS_FILTER = [
                         className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black text-sm outline-none focus:border-slate-900 shadow-sm transition-all"
                       />
                     </div>
-                    <div>
+                    <div className={operatorOptions.length > 0 ? 'md:order-3' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">עיר (מוצא או יעד)</label>
                       <input 
                         type="text" 
@@ -4446,7 +4485,17 @@ const DAYS_FILTER = [
                         className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black outline-none focus:border-slate-900 text-right transition-all shadow-sm"
                       />
                     </div>
-                    <div>
+                    {operatorOptions.length > 0 && (
+                    <div className="md:order-4">
+                      <label htmlFor="opt-operator" className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">חברה מפעילה <span className="font-bold normal-case tracking-normal">(מספר קווים)</span></label>
+                      <select id="opt-operator" value={optOperator} onChange={e => setOptOperator(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black outline-none focus:border-slate-900 cursor-pointer text-right shadow-sm appearance-none">
+                        <option value="all">כל החברות</option>
+                        {optOperator !== "all" && !operatorOptions.some(o => o.name === optOperator) && <option value={optOperator}>{optOperator}</option>}
+                        {operatorOptions.map(o => <option key={`op-${o.name}`} value={o.name}>{o.name} ({o.lines})</option>)}
+                      </select>
+                    </div>
+                    )}
+                    <div className={operatorOptions.length > 0 ? 'md:order-2' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">כיוון נסיעה</label>
                       <select value={optDirection} onChange={e => setOptDirection(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black outline-none focus:border-slate-900 cursor-pointer text-right shadow-sm appearance-none">
                         <option value="all">כל הכיוונים</option>
@@ -4571,6 +4620,35 @@ const DAYS_FILTER = [
                     </label>
                   </div>
                 )}
+
+                {!simLoading && optimizations.length > 0 && optRunInfo.operator !== "all" && (() => {
+                  // שורת סיכום לחברה המפעילה שנבחרה — מהתוצאות של הריצה האחרונה
+                  const lines = new Set(optimizations.map(o => String(o.makat || o.line))).size;
+                  const cancels = optimizations.filter(o => o.type === 'cancel');
+                  const merges = optimizations.filter(o => o.type === 'merge');
+                  const km = Math.round([...cancels, ...merges].reduce((a, o) => a + (o.km || 0), 0));
+                  const cells = [
+                    { v: lines.toLocaleString(), l: lines === 1 ? 'קו נבדק' : 'קווים נבדקו' },
+                    { v: cancels.length.toLocaleString(), l: 'נסיעות לביטול' },
+                    { v: merges.length.toLocaleString(), l: 'איחודי נסיעות' },
+                    { v: km.toLocaleString(), l: 'ק"מ בשבוע נחסכים' },
+                  ];
+                  return (
+                    <div className="mb-6 bg-teal-50 border border-teal-200 rounded-2xl p-4">
+                      <div className="text-sm font-black text-teal-900 mb-3">
+                        {optRunInfo.operator}{optRunInfo.city !== "all" ? ` · ${optRunInfo.city}` : ''}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {cells.map(c => (
+                          <div key={c.l} className="bg-white rounded-xl px-3 py-2 border border-teal-100">
+                            <div className="text-xl font-black text-slate-900 tabular-nums">{c.v}</div>
+                            <div className="text-xs font-bold text-slate-500">{c.l}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {!simLoading && optimizations.length === 0 && simSkipped > 0 && (
                   <div className="text-center py-8 text-red-500 font-black text-sm bg-red-50 border border-red-200 rounded-2xl">
