@@ -119,13 +119,22 @@ async function init() {
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time), nextDriverBus: prev => shift.on ? shift.next(prev) : undefined });
   shift = new DriverShift({ sim, lines: () => lines, toast, demand, setSpeed, speed: () => sim.speed || G.lastSpeed || 1, score: n => { drive.score.pts += n; },
     ui: { qBox: $('#qBox'), qText: $('#qText'), qBtns: $('#qBtns') }, ended: () => { $('#dhDuty').hidden = true; } });
-  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
+  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), busDoorActs: b => buses.map.get(b.id)?.action || null, useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
     ui: { root: $('#ifp'), top: $('#ifpTop'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
     onExit: pose => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow');
       // מהמבט האחרון של הפקח (אחרי הירידה) אל המבט הרגיל — בתנועה רכה, לא בקפיצה
-      if (pose && cams.current === 'follow') { const p1 = camera.position.clone(), t1 = controls.target.clone(), f1 = camera.fov; camera.position.copy(pose.p); controls.target.copy(pose.t);
-        camAnim = { t: 0, dur: 1.3, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1 }; } } });
+      // המצלמה עולה מאחורי הפקח ומעליו (קשת), והמבט עובר בהדרגה מהנקודה שלפניו אל האוטובוס — בלי סיבוב חד. היעד זז עם האוטובוס
+      if (pose && cams.current === 'follow') { const o = buses.objectOf(cams.modes.follow.bus), f1 = camera.fov;
+        const rel = o ? { o, p: camera.position.clone().sub(o.position), t: controls.target.clone().sub(o.position) } : null;
+        const fw = pose.t.clone().sub(pose.p).setY(0).normalize(), ctrl = pose.p.clone().addScaledVector(fw, -4).add(new THREE.Vector3(0, 12, 0));
+        // הקשת עוברת מעל הכביש (לצד האוטובוס), לא מעל המדרכה — כך היא לא חותכת את גג הסככה
+        if (o) { const tb = o.position.clone().sub(pose.p).setY(0); if (tb.lengthSq() > 1e-4) ctrl.addScaledVector(tb.normalize(), 2.5); }
+        // (בזמן המעבר בלי המרחק המינימלי של OrbitControls — אחרת המצלמה נדחפת אחורה מהעיניים של הפקח בפריים הראשון)
+        const p1 = camera.position.clone(), t1 = controls.target.clone(); camAnim = null;
+        camera.position.copy(pose.p); controls.target.copy(pose.t);
+        camAnim = { t: 0, dur: 2, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1, rel, ctrl, minD: controls.minDistance, near: camera.near }; controls.minDistance = 0; camera.near = 0.05;   // (קרוב לקרקע: המדרכה לא נחתכת)
+        if (rel) { camAnim.p1.copy(o.position).add(rel.p); camAnim.t1.copy(o.position).add(rel.t); } } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
   G.disp = dispUI;
@@ -733,8 +742,8 @@ function bindUI() {
   $('#money').onclick = () => { showTab('money'); openPanel(); };
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
   $('#stopPane').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeLook(selectedStop); });
-  canvas.addEventListener('pointerdown', () => { camAnim = null; });
-  canvas.addEventListener('wheel', () => { camAnim = null; }, { passive: true });
+  canvas.addEventListener('pointerdown', () => { if (camAnim?.minD != null) { controls.minDistance = camAnim.minD; camera.near = camAnim.near; camera.updateProjectionMatrix(); } camAnim = null; });
+  canvas.addEventListener('wheel', () => { if (camAnim?.minD != null) controls.minDistance = camAnim.minD; camAnim = null; }, { passive: true });
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm({ check: true }); };
   // קו חדש: שומרים אותו, ומיד פותחים את הכיוון ההפוך לבדיקה (רק כשהשחקן מבקש)
@@ -1713,12 +1722,17 @@ function closeLook(s) {
   const tgt = frameV(f, a, f.shelter ? 2.4 : 1.2, 0.9), pos = frameV(f, a + 5.5, -10, 4.4);
   if (cams.current !== 'free') cams.set('free');
   if (innerWidth <= 820) $('#panel').classList.add('min');
+  if (camAnim?.minD != null) controls.minDistance = camAnim.minD;
   camAnim = { t: 0, dur: 1.1, p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt };
 }
 function stepCamAnim(dt) {
   if (!camAnim) return;
   const A = camAnim; A.t = Math.min(A.dur, A.t + dt);
   const k0 = A.t / A.dur, k = k0 * k0 * (3 - 2 * k0);
+  if (A.rel) { A.p1.copy(A.rel.o.position).add(A.rel.p); A.t1.copy(A.rel.o.position).add(A.rel.t); }
+  // קשת (בזייה) דרך נקודת ביניים, והמבט אל היעד בהדרגה — בלי הרמה נוספת
+  if (A.ctrl) { const a = (1 - k) * (1 - k), b2 = 2 * k * (1 - k), c2 = k * k; camera.position.set(0, 0, 0).addScaledVector(A.p0, a).addScaledVector(A.ctrl, b2).addScaledVector(A.p1, c2);
+    controls.target.lerpVectors(A.t0, A.t1, k * k * (3 - 2 * k)); camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); if (k0 >= 1) { camAnim = null; controls.minDistance = A.minD; camera.near = A.near; camera.updateProjectionMatrix(); } else if (k > 0.5) { camera.near = Math.min(A.near, 0.05 + (A.near - 0.05) * (k - 0.5) * 2); } return; }
   // דרך קשת: באמצע המעבר המצלמה קצת גבוהה יותר, כדי שלא תעבור דרך בניינים
   const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
   camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
