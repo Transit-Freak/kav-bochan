@@ -28,7 +28,6 @@ import gzip
 import json
 import os
 import re
-import statistics
 import sys
 from pathlib import Path
 
@@ -100,27 +99,10 @@ def states(vs):
                 g['trips'][y] = g['trips'].get(y, 0) + n
         else:
             out.append({'codes': codes, 'stops': v['stops'], 'vids': [vid], 'end': v['max'],
-                        'first_year': min(v['years']), 'trips': dict(v['trips']),
-                        'first_trips': sum(v['trips'].values())})
+                        'first_year': min(v['years']), 'first_end': v['max'], 'trips': dict(v['trips'])})
     for i, g in enumerate(out):
         g['start'] = plus(out[i - 1]['end'], 1) if i else None
     return out
-
-
-def estimate_start(groups):
-    """מועד ההתחלה של המצב הראשון בקו שהתחיל אחרי תחילת הקובץ: לפי קצב הנסיעות של הקו
-    במצבים שמועדיהם ידועים. בלי קצב — רק השנה ידועה."""
-    g0 = groups[0]
-    rates = []
-    for g in groups[1:]:
-        days = (day(min(g['end'], DATA_END)) - day(g['start'])).days + 1
-        if days >= 14:
-            rates.append(sum(g['trips'].values()) / days)
-    if not rates or not g0['first_trips']:
-        return f"{g0['first_year']}-01-01", 'y'
-    days = round(g0['first_trips'] / statistics.median(rates))
-    est = plus(g0['end'], -max(days - 1, 0))
-    return max(est, f"{g0['first_year']}-01-01"), 'm'
 
 
 class Names:
@@ -193,34 +175,40 @@ def build(rd, foi_vs, lf, names, siblings, stats):
     added = []
     earlier = [v for v in official if v['d'] < (groups[0]['start'] or DATA_START) and v.get('stops')]
     for i, g in enumerate(groups):
-        if i == 0:
-            if g['first_year'] == 2013:
-                d, ap = DATA_START, 'm'
-            else:
-                d, ap = estimate_start(groups)
+        sd = None
+        if i == 0 and g['first_year'] == 2013:
+            d, ap = DATA_START, 'm'
+        elif i == 0:
+            # לא היה בקובץ של השנה הקודמת: התחיל בין תחילת השנה לבין היום האחרון של הגרסה הראשונה
+            sd, d, ap = f"{g['first_year']}-01-01", g['first_end'], 'r'
         else:
             d, ap = g['start'], 'm'
         if t0 and d >= t0:
             break
         st = stops_of(g)
         v = {'d': d, 'src': SRC, 'stops': st, 'shp': '', 'ap': ap, 'foiVer': g['vids'], 'foiEnd': g['end']}
+        if sd:
+            v['sd'] = sd
         if i == 0:
             if earlier:
                 base = earlier[-1]
                 kind, add, rem = classify(base['stops'], st, '', '')
                 if not kind:
                     continue
-                v.update(k=kind, sd=base['d'])
+                v.update(k=kind, sd=base['d'], ap='r')
                 if add: v['add'] = add
                 if rem: v['rem'] = rem
-                v['note'] = f'{NOTE_BASE}: המסלול כפי שנסע בסוף 2013. השינוי מהתיעוד הקודם קרה בין {fmt(base["d"])} לסוף 2013.'
+                v['note'] = f'{NOTE_BASE}: השינוי מהתיעוד הקודם ({fmt(base["d"])}) קרה לפני {fmt(d)}; המועד המדויק אינו ידוע.'
             elif g['first_year'] == 2013:
                 v['k'] = 'baseline'
                 v['note'] = f'{NOTE_BASE}: הקובץ מתחיל בסוף 2013, והקו כבר נסע אז. מועד הפתיחה אינו ידוע.'
+            elif g['first_year'] == 2014:
+                # קובץ 2013 מכסה רק ימים ספורים — קו שלא נסע בהם אולי נסע גם לפני כן
+                v['k'] = 'baseline'
+                v['note'] = f'{NOTE_BASE}: מופיע בקובץ לראשונה ב-2014 (עד {fmt(d)}). ייתכן שנסע גם קודם.'
             else:
                 v['k'] = 'new'
-                v['note'] = (f'{NOTE_BASE}: הנסיעות הראשונות ב-{g["first_year"]}. '
-                             + ('המועד משוער לפי מספר הנסיעות.' if ap == 'm' else 'רק השנה ידועה.'))
+                v['note'] = f'{NOTE_BASE}: לא נסע ב-{g["first_year"] - 1}; התחיל בין {fmt(sd)} ל-{fmt(d)}.'
         else:
             p = groups[i - 1]
             kind, add, rem = classify(stops_of(p), st, '', '')
