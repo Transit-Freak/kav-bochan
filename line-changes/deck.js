@@ -155,11 +155,22 @@ var LCDeck = (function () {
         '</div>' +
         '<p class="intro" data-k="intro">' + E(autoIntro(pages)) + '</p>' +
         (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? 'מה חשוב לדעת?' : 'מה משתנה?') + '<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
-          '<ul data-k="what">' + listHtml(ED.cover, coverItems(pages)) + '</ul></div>' : '') +
+          '<ul data-k="what">' + listHtml(ED.cover, coverItems(pages)) + '</ul></div>' : coverRows(pages)) +
         '<div class="note">המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.</div>' +
       '</div></div>';
   }
 
+  /* שער של יותר משלושה קווים: שורה קצרה לכל קו — מספר, סוג השינוי, ומאיפה לאן ומתי */
+  var COVER_ROWS = 8;
+  function coverRows(pages) {
+    var rows = pages.slice(0, COVER_ROWS).map(function (p) {
+      var when = p.kind === 'ended' ? 'נסיעה אחרונה ' + LC.dm(lastOf(p)) : (p.past ? 'היה ב-' : 'מ-') + LC.dm(start(p));
+      return '<li><span class="badge sm num">' + E(p.line) + '</span><span class="chips">' + LC.chips(p.kind ? { kind: p.kind } : p.tot || {}) + '</span>' +
+        '<span class="cs">' + E((odTxt(p) ? odTxt(p) + ' · ' : '') + when) + '</span></li>';
+    });
+    if (pages.length > COVER_ROWS) rows.push('<li class="more">ועוד ' + (pages.length - COVER_ROWS) + ' קווים — בעמוד הבא</li>');
+    return '<div class="what crows"><ul>' + rows.join('') + '</ul></div>';
+  }
   function overview(pages, part, nparts) {
     return '<div class="s-over"><h2 class="hd">' + (nparts > 1 ? 'כל הקווים שמשתנים (' + (part + 1) + '/' + nparts + ')' : 'כל הקווים שמשתנים') + '</h2>' +
       '<table><tr><th style="width:34%">קו</th><th style="width:44%">מה משתנה</th><th style="width:22%">ממתי</th></tr>' +
@@ -711,7 +722,8 @@ var LCDeck = (function () {
     var out = [], seen = {};
     dirs.forEach(function (d) {
       (d[k] || []).forEach(function (s) {
-        if (seen[s.code]) return; seen[s.code] = 1;
+        if (seen[s.code]) { out.forEach(function (x, i) { if (x.code === s.code && x._to) out[i] = Object.assign({}, x, { _to: 'בשני הכיוונים' }); }); return; }
+        seen[s.code] = 1;
         out.push(dirs.length > 1 ? Object.assign({}, s, { _to: toward(d).replace(/^בנסיעה /, '') }) : s);
       });
     });
@@ -1036,17 +1048,34 @@ var LCDeck = (function () {
   }
   /* שינוי קטן בלו"ז: עד 6 נסיעות שנוספו או בוטלו בסך הכול, והנסיעה הראשונה/האחרונה לא זזה בחצי שעה או יותר.
      אז תמיד טקסט, ובו בדיוק אילו נסיעות */
+  /* נסיעה שבוטלה ונסיעה שנוספה באותה שעה, עד 5 דקות זו מזו — אותה נסיעה שהוזזה: [שעה חדשה, 'sh', השעה הקודמת] */
+  var SHIFT_MAX = 5;
+  function mergeSh(o, n) {
+    var items = merge(o, n), used = {};
+    items.forEach(function (x, i) {
+      if (x[1] !== 'rm' || used[i]) return;
+      var best = -1, bd = SHIFT_MAX + 1;
+      items.forEach(function (y, j) {
+        if (y[1] === 'ad' && !used[j] && Math.floor(y[0] / 60) === Math.floor(x[0] / 60) && Math.abs(y[0] - x[0]) < bd) { bd = Math.abs(y[0] - x[0]); best = j; }
+      });
+      if (best >= 0) { used[i] = 1; used[best] = 1; items[best] = [items[best][0], 'sh', x[0]]; }
+    });
+    return items.filter(function (x, i) { return !(used[i] && x[1] === 'rm'); });
+  }
   function ttDiff(e) {
-    var out = { ad: [], rm: [] };
-    merge(e.o || [], e.n || []).forEach(function (x) { if (x[1]) out[x[1]].push(x[0]); });
+    var out = { ad: [], rm: [], sh: [] };
+    mergeSh(e.o || [], e.n || []).forEach(function (x) { if (x[1] === 'sh') out.sh.push([x[2], x[0]]); else if (x[1]) out[x[1]].push(x[0]); });
     return out;
+  }
+  function shWord(sh) {   // "בדקה–שתיים" / "בכמה דקות"
+    return sh.every(function (z) { return Math.abs(z[1] - z[0]) <= 2; }) ? 'בדקה–שתיים' : 'בכמה דקות';
   }
   function ttSmall(p) {
     if (p.kind !== 'timetable') return false;
     var n = 0, big = false;
     ttDirs(p).forEach(function (d) {
       d.tt.forEach(function (e) {
-        var x = ttDiff(e); n += x.ad.length + x.rm.length;
+        var x = ttDiff(e); n += x.ad.length + x.rm.length + x.sh.length;
         if (!e.so.n || !e.sn.n || Math.abs(e.so.f - e.sn.f) >= 30 || Math.abs(e.so.l - e.sn.l) >= 30) big = true;
       });
     });
@@ -1055,7 +1084,9 @@ var LCDeck = (function () {
   function hmList(a) { return andList(a.map(hm), 12); }
   function smallLine(e) {
     var x = ttDiff(e), w = dtIn(e.t), parts = [];
-    if (x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30) return '<b>' + E(w) + '</b> הנסיעה של ' + hm(x.rm[0]) + ' תצא ב-' + hm(x.ad[0]) + '.';
+    if (!x.sh.length && x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30) return '<b>' + E(w) + '</b> הנסיעה של ' + hm(x.rm[0]) + ' תצא ב-' + hm(x.ad[0]) + '.';
+    if (x.sh.length && x.sh.length <= 3) x.sh.forEach(function (z) { parts.push('הנסיעה של ' + hm(z[0]) + ' תצא ב-' + hm(z[1])); });
+    else if (x.sh.length) parts.push(x.sh.length + ' נסיעות הוזזו ' + shWord(x.sh));
     if (x.ad.length) parts.push((x.ad.length === 1 ? 'נוספה נסיעה ב-' : 'נוספו נסיעות ב-') + hmList(x.ad));
     if (x.rm.length) parts.push((x.rm.length === 1 ? 'בוטלה הנסיעה של ' : 'בוטלו הנסיעות של ') + hmList(x.rm));
     return '<b>' + E(w) + '</b> ' + parts.join(', ו') + '.';
@@ -1177,21 +1208,22 @@ var LCDeck = (function () {
      תא אדום מחוק. בשינוי קטן — שעות בלי שינוי מתקפלות לשורה אחת בהירה ("06:00–13:00 ללא שינוי") ---- */
   function diffSummary(e) {
     var x = ttDiff(e), t = [];
-    if (!x.ad.length && !x.rm.length) return '';
+    if (!x.ad.length && !x.rm.length && !x.sh.length) return '';
     if (x.ad.length) t.push(x.ad.length === 1 ? 'נסיעה חדשה אחת' : x.ad.length + ' נסיעות חדשות');
-    if (x.rm.length) t.push(x.rm.length === 1 ? 'נסיעה אחת בוטלה' : x.rm.length + ' נסיעות בוטלו');
-    var all = x.ad.concat(x.rm).sort(function (a, b) { return a - b; });
+    if (x.rm.length) t.push(x.rm.length === 1 ? (t.length ? 'אחת בוטלה' : 'נסיעה אחת בוטלה') : x.rm.length + (t.length ? ' בוטלו' : ' נסיעות בוטלו'));
+    if (x.sh.length) t.push((x.sh.length === 1 ? (t.length ? 'אחת הוזזה ' : 'נסיעה אחת הוזזה ') : x.sh.length + (t.length ? ' הוזזו ' : ' נסיעות הוזזו ')) + shWord(x.sh));
+    var all = x.ad.concat(x.rm).concat(x.sh.map(function (z) { return z[1]; })).sort(function (a, b) { return a - b; });
     var rng = all.length === 1 ? 'ב-' + hm(all[0]) : 'בין ' + hm(all[0]) + ' ל-' + hm(all[all.length - 1]);
-    var keep = e.n.length - x.ad.length;
-    return '<b>' + E(dtIn(e.t)) + ':</b> ' + t.join(/^\d/.test(t[1] || '') ? ' ו-' : ' ו') + ', ' + rng + (keep > 0 ? '. השאר ללא שינוי.' : '.');
+    var keep = e.n.length - x.ad.length - x.sh.length;
+    return '<b>' + E(dtIn(e.t)) + ':</b> ' + t.join(', ') + ', ' + rng + (keep > 0 ? '. השאר ללא שינוי.' : '.');
   }
   function detTable(p, e, title, M) {
-    var isNew = p.kind === 'new', items = isNew ? e.n.map(function (m) { return [m, '']; }) : merge(e.o, e.n);
+    var isNew = p.kind === 'new', items = isNew ? e.n.map(function (m) { return [m, '']; }) : mergeSh(e.o, e.n);
     var hrs = byHour(items), K = Math.max(1, Math.min(M.cols, Math.max.apply(null, hrs.map(function (r) { return r.items.length; }))));
     var chg = function (r) { return r.items.some(function (x) { return x[1]; }); };
     var nChg = hrs.filter(chg).length, fold = !isNew && nChg <= Math.max(2, hrs.length * 0.4);
     var cellOf = function (x) {
-      return '<td class="m' + (x[1] ? ' ' + x[1] : '') + '">' + mm(x[0]) + (x[1] === 'ad' ? '<small>חדש</small>' : x[1] === 'rm' ? '<small>בוטלה</small>' : '') + '</td>';
+      return '<td class="m' + (x[1] ? ' ' + x[1] : '') + '">' + mm(x[0]) + (x[1] === 'ad' ? '<small>חדש</small>' : x[1] === 'rm' ? '<small>בוטלה</small>' : x[1] === 'sh' ? '<small>היה ' + hm(x[2]) + '</small>' : '') + '</td>';
     };
     var rows = [];
     for (var i = 0; i < hrs.length; i++) {
@@ -1220,7 +1252,7 @@ var LCDeck = (function () {
   }
   /* מפורט, טקסט: כל השעות ברצף — חדשות בירוק, שמבוטלות באדום מחוק */
   function detText(p, e, title, tH, M, effTxt) {
-    var items = p.kind === 'new' ? e.n.map(function (m) { return [m, '']; }) : merge(e.o, e.n);
+    var items = p.kind === 'new' ? e.n.map(function (m) { return [m, '']; }) : mergeSh(e.o, e.n);
     var head = '<div class="tt-cap"><b>' + E(dtJoin(e.t, DT_NAME)) + '</b><span>' + (p.kind === 'new' ? trips(e.sn.n) : trips(e.so.n) + ' ← ' + trips(e.sn.n)) + '</span></div>';
     // בטקסט ארוך — מחלקים לשורות של שעה-שעתיים, כדי שהעין תמצא את השעה
     var rows = [], cur = [], curH = -1;
@@ -1258,8 +1290,8 @@ var LCDeck = (function () {
     var o = ttOpt();
     if (o.v !== 'det' || p.kind !== 'timetable' || ttSmall(p)) return '';
     return o.f === 'table'
-      ? '<p class="tt-key"><span><i class="m">20</i>ללא שינוי</span><span><i class="m ad">20<small>חדש</small></i>נסיעה חדשה</span><span><i class="m rm">20<small>בוטלה</small></i>נסיעה שבוטלה</span></p>'
-      : '<p class="tt-key"><span class="tm ad">14:20</span> נסיעה חדשה <span class="tm rm">14:20</span> נסיעה שבוטלה</p>';
+      ? '<p class="tt-key"><span><i class="m">20</i>ללא שינוי</span><span><i class="m ad">20<small>חדש</small></i>נסיעה חדשה</span><span><i class="m rm">20<small>בוטלה</small></i>נסיעה שבוטלה</span><span><i class="m sh">30<small>היה 14:31</small></i>נסיעה שהוזזה</span></p>'
+      : '<p class="tt-key"><span class="tm ad">14:20</span> נסיעה חדשה <span class="tm rm">14:20</span> נסיעה שבוטלה <span class="tm sh">14:30</span> נסיעה שהוזזה</p>';
   }
   function ttPagesHtml(p, form, H) { return paginate(ttBlocks(p, form), H || TTM[form].H); }
 

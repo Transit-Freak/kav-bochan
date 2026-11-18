@@ -612,3 +612,17 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .slide table.tt-grid td.m{width:78px}
 .s-sign table.tt-grid td.m{width:62px}
 .s-status table.tt-grid td.m{width:100px}
+.slide table.tt-grid td.m.sh{background:#fff3d6!important;color:#7a4f00;font-weight:900;box-shadow:inset 0 0 0 2px #d99a00}
+.slide table.tt-grid td.m.sh small{font-size:9.5px;font-weight:700;color:#7a4f00}
+.slide .tt-key i.m.sh{background:#fff3d6;color:#7a4f00;box-shadow:inset 0 0 0 2px #d99a00;min-width:58px}
+.slide .tm.sh{background:#fff3d6;color:#7a4f00;font-weight:900;box-shadow:inset 0 0 0 1.5px #d99a00}
+.s-cover .what.crows{padding:10px 18px}
+.s-cover .what.crows ul{list-style:none;padding:0;gap:0}
+.s-cover .what.crows li{display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid var(--s-line);font-size:16px;line-height:1.2}
+.s-cover .what.crows li:last-child{border-bottom:none}
+.s-cover .what.crows .badge.sm{font-size:18px;min-width:52px;padding:calc(3px + .07em) 8px calc(3px - .07em);border-radius:7px}
+.s-cover .what.crows .chips{flex:none}
+.s-cover .what.crows .chip{font-size:13px;padding:1px 9px}
+.s-cover .what.crows .cs{color:var(--s-sub);font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-cover .what.crows li.more{color:var(--s-sub);font-weight:700;justify-content:flex-start}
+.slide .chip.tt{background:#fff2cf;color:#8a5a00}
