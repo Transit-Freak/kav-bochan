@@ -786,7 +786,8 @@ def find_alts(ended_codes, cand_index, exclude, max_n=ALT_MAX):
 def find_renamed(keys, old_v, new_v, old, t0, new=None):
     """חלופות שהוחלפו: {מק"ט-כיוון-חלופה חדש: (הישן, היום הראשון של החדש)}.
     הישן — נסע בשבוע שעבר ולא נוסע מעכשיו; החדש — באותו מק"ט-כיוון, לא נסע בתחילת השבוע שעבר,
-    ומתחיל עד 4 ימים אחרי שהישן הפסיק (או עד 8, כשבינתיים אין בכיוון אף נסיעה). כמה ישנים לאותו חדש — זה שנסע אחרון (ובשוויון — זה עם הכי הרבה נסיעות)."""
+    ומתחיל עד 4 ימים אחרי שהישן הפסיק (או עד 8, כשבינתיים אין בכיוון אף נסיעה), עם חצי מהתחנות משותפות לפחות.
+    כמה ישנים לאותו חדש — הדומה ביותר בתחנות (ובלי new — זה שנסע אחרון)."""
     dates = lambda vs: set().union(*[x['dates'] for x in vs.values()]) if vs else set()   # noqa: E731
     by_dk = defaultdict(list)
     for k in keys:
@@ -810,11 +811,19 @@ def find_renamed(keys, old_v, new_v, old, t0, new=None):
             pre = [g for g in gone if g[0] < F <= g[0] + datetime.timedelta(days=4)
                    or (g[0] < F <= g[0] + datetime.timedelta(days=8) and not any(g[0] < d < F for d in busy))]
             if pre and new is not None:
-                # אותו קו? לפחות רבע מהתחנות משותפות (אחרת זה מסלול אחר לגמרי, לא החלפה)
+                # אותו קו? לפחות חצי מהתחנות משותפות (אחרת זה מסלול אחר, לא החלפה). כמה מועמדים — הדומה ביותר
+                # (בדיקה על 9 שבועות, ספטמבר–נובמבר 2026: 65 זוגות; בפחות מחצי תחנות משותפות — 3 זוגות, כולם חלופות של חג)
                 def st(feed, vs):
                     return {feed.stops[x]['code'] for pid, _ in vs for x in feed.pat_list[pid] if x in feed.stops}
                 b = st(new, new_v[k])
-                pre = [g for g in pre if len(st(old, old_v[g[2]]) & b) * 4 >= min(len(st(old, old_v[g[2]])), len(b))]
+                sim = {}
+                for g in pre:
+                    a = st(old, old_v[g[2]])
+                    if len(a & b) * 2 >= min(len(a), len(b)):
+                        sim[g[2]] = (len(a & b) / len(a | b), g[0])
+                if sim:
+                    out[k] = (max(sim, key=lambda x: sim[x]), F)
+                continue
             if pre:
                 out[k] = (max(pre)[2], F)
     return out
