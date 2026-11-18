@@ -935,6 +935,8 @@
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
     e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {}; e.inset = e.inset || {};
+    // "טבלה לפי יעד": טקסט שנערך בלוח, שורות וקווים שהוסרו (ראו bdT ב-deck.js)
+    e.bd = e.bd && typeof e.bd === 'object' ? e.bd : {}; e.bd.t = e.bd.t || {}; e.bd.offR = e.bd.offR || {}; e.bd.offL = e.bd.offL || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -991,7 +993,7 @@
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
   function edOpts(form) {
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
-      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace };
+      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bd: edits.bd, editing: editMode };
   }
   var wantBoard = null;
   function render(pages) {
@@ -999,7 +1001,13 @@
     curPages = pages;
     dropMaps();
     var sig = pages.map(function (p) { return p.id; }).join(',');
-    if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
+    if (sig !== edSig) {
+      // לו"ז עדכני: הוציאו או הוסיפו קו — העריכות (הצורה, "טבלה לפי יעד", הכותרת, מה שנמחק או הוסר) עוברות לרשימה החדשה
+      var had = null; try { had = localStorage.getItem('lc-ed2:' + sig); } catch (x) {}
+      var carry = !had && /^tt-/.test(edSig) && edits && pages.length && pages.every(function (p) { return p.kind === 'current'; }) ? JSON.parse(JSON.stringify(edits)) : null;
+      edSig = sig; edits = carry ? normEdits(carry) : loadEdits(sig);
+      if (carry) saveEdits();
+    }
     // נבחרו כל הקווים במקום (לו"ז עדכני) — "טבלה לפי יעד", עם שם המקום בכותרת
     if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.ttc) edits.ttc = 'board'; if (!edits.bplace && typeof wantBoard === 'string') edits.bplace = wantBoard; saveEdits(); }
     wantBoard = null;
@@ -1044,6 +1052,7 @@
     }).join('');
     scale();
     slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); drawImgs(s.id); });
+    if (editMode) $('deck').querySelectorAll('.bdt').forEach(function (el) { el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false'); });
     // המפות שכבר על המסך (או קרוב אליו) — מיד, כמו קודם; השאר — כשמגיעים אליהן
     var vh = window.innerHeight || 800, now = [];
     slides.forEach(function (s) {
@@ -1159,7 +1168,7 @@
       if (bd) {
         var M = LCDeck.boardModel(pages, edOpts(formOf()));
         $('bdtitle').placeholder = M.dflt;
-        if (document.activeElement !== $('bdtitle')) $('bdtitle').value = edits.btitle || M.dflt;
+        if (document.activeElement !== $('bdtitle')) $('bdtitle').value = 'title' in edits.bd.t ? '' : edits.btitle || M.dflt;
         if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
         $('bdnote').placeholder = edits.bnote ? '' : M.note;
       }
@@ -1176,6 +1185,7 @@
     $(id).addEventListener('input', function () {
       var v = this.value;
       if (id === 'bdtitle') edits.btitle = v.trim() && v.trim() !== this.placeholder ? v : undefined; else edits.bnote = v.trim() ? v : undefined;
+      delete edits.bd.t[id === 'bdtitle' ? 'title' : 'note'];
       saveEdits(); clearTimeout(bdT); bdT = setTimeout(function () { keepScroll(function () { render(curPages); }); }, 450);
     });
   });
@@ -1258,7 +1268,7 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       b.querySelector('span').textContent = on ? 'סיום העריכה' : 'עריכת הטקסט';
     });
-    $('deck').querySelectorAll('.edt,.tbox-t').forEach(function (el) {
+    $('deck').querySelectorAll('.edt,.tbox-t,.bdt').forEach(function (el) {
       if (on) { el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false'); } else el.removeAttribute('contenteditable');
     });
     $('deck').querySelectorAll('.ibox').forEach(function (el) { if (on) el.setAttribute('tabindex', '0'); else el.removeAttribute('tabindex'); });
@@ -1268,6 +1278,8 @@
   ['editbtn', 'editbtn2'].forEach(function (id) {
     $(id).addEventListener('click', function () {
       setEdit(!editMode);
+      // "טבלה לפי יעד": במצב עריכה יש מקום לשורות שהוסרו (עם "להחזיר"); בלי עריכה — העמודים מלאים
+      if (edits.ttc === 'board' && curPages.length && curPages.every(function (p) { return p.kind === 'current'; })) keepScroll(function () { render(curPages); });
       if (editMode && id === 'editbtn2') { var f = $('deck'); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
   });
@@ -1322,32 +1334,108 @@
   // סרגל קטן ליד הטקסט שעורכים
   var bar = document.createElement('div');
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
-  bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>';
+  bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
+    '<button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
     curEl = el;
-    var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t');
-    bar.querySelector('[data-t="add"]').hidden = isBox;
-    bar.querySelector('[data-t="reset"]').hidden = isBox || !(el.classList.contains('edited'));
+    var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t'), isBd = el.classList.contains('bdt'), isRow = el.tagName === 'TR';
+    bar.querySelector('[data-t="add"]').hidden = isBox || isBd || isRow;
+    bar.querySelector('[data-t="del"]').hidden = isRow;
+    bar.querySelector('[data-t="reset"]').hidden = isRow || isBox || !(isBd ? bdEdited(el.getAttribute('data-bk')) : el.classList.contains('edited'));
     bar.querySelector('[data-t="del"]').textContent = isBox ? 'מחיקת התיבה' : 'מחיקה';
+    // שורה שנבחרה בלוח: "מחיקת השורה" / "מחיקת הקו", והסרגל מעל השורה או מתחתיה — לא עליה
+    bar.querySelector('[data-t="rowdel"]').hidden = !bdSel || bdSel.line;
+    bar.querySelector('[data-t="linedel"]').hidden = !bdSel;
+    if (bdSel && el.closest('.slide')) r = bdSelRect(el.closest('.slide')) || r;
     bar.hidden = false;
     var top = r.top - bar.offsetHeight - 6;
-    if (top < 60) top = r.bottom + 6;
+    if (top < 60 && r.bottom + 6 + bar.offsetHeight < window.innerHeight) top = r.bottom + 6;
     bar.style.top = Math.max(8, top) + 'px';
     bar.style.left = Math.max(8, Math.min(window.innerWidth - bar.offsetWidth - 8, r.left + r.width / 2 - bar.offsetWidth / 2)) + 'px';
   }
-  function hideBar() { bar.hidden = true; curEl = null; }
+  function hideBar() { bar.hidden = true; curEl = null; bdSelect(null); }
+  /* "טבלה לפי יעד" במצב עריכה: לחיצה על תא בוחרת את השורה שלו (על תא מספר הקו — את כל השורות של הקו),
+     והסרגל מציע "מחיקת השורה" / "מחיקת הקו". Delete במקלדת (כשלא עורכים טקסט) מוחק את מה שנבחר */
+  var bdSel = null;
+  function bdSelect(sel) {
+    bdSel = sel;
+    $('deck').querySelectorAll('.s-bd tr.bsel').forEach(function (t) { t.classList.remove('bsel'); });
+    if (sel) $('deck').querySelectorAll(sel.line ? '.s-bd tr.br[data-mk="' + CSS.escape(sel.mk) + '"]' : '.s-bd tr.br[data-rk="' + CSS.escape(sel.rk) + '"]').forEach(function (t) { t.classList.add('bsel'); });
+  }
+  function bdSelRect(slide) {
+    var trs = slide.querySelectorAll('tr.bsel'); if (!trs.length) return null;
+    var a = trs[0].getBoundingClientRect(), b = trs[trs.length - 1].getBoundingClientRect();
+    return { top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom), left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), width: Math.max(a.right, b.right) - Math.min(a.left, b.left) };
+  }
+  function bdDelSel(line) {
+    if (!bdSel) return;
+    if (line) edits.bd.offL[bdSel.mk] = 1; else edits.bd.offR[bdSel.rk] = 1;
+    saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
+  }
+  $('deck').addEventListener('pointerdown', function (ev) {
+    if (!editMode) return;
+    var tr = ev.target.closest('.s-bd tr.br');
+    if (!tr) return;
+    var td = ev.target.closest('td');
+    bdSelect({ rk: tr.getAttribute('data-rk'), mk: tr.getAttribute('data-mk'), line: !!(td && td.classList.contains('bl')) });
+  }, true);
+  $('deck').addEventListener('click', function (ev) {
+    if (!editMode || !bdSel || ev.target.closest('.bdt,[data-bdx]')) return;
+    var tr = ev.target.closest('.s-bd tr.br'); if (!tr) return;
+    showBar(tr);   // לחיצה על תא בלי טקסט לעריכה — רק בחירת השורה
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (!editMode || !bdSel || (ev.key !== 'Delete' && ev.key !== 'Backspace')) return;
+    var a = document.activeElement;
+    if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+    ev.preventDefault(); bdDelSel(bdSel.line);
+  });
   $('deck').addEventListener('focusin', function (ev) {
-    var el = ev.target.closest('.edt,.tbox-t');
-    if (el && editMode) showBar(el);
+    var el = ev.target.closest('.edt,.tbox-t,.bdt');
+    if (el && editMode) { if (el.classList.contains('bdt') && !el.hasAttribute('data-o')) el.setAttribute('data-o', el.innerText); showBar(el); }
   });
   document.addEventListener('mousedown', function (ev) {
-    if (!bar.hidden && !ev.target.closest('#etb') && !ev.target.closest('.edt,.tbox-t')) hideBar();
+    if (!bar.hidden && !ev.target.closest('#etb') && !ev.target.closest('.edt,.tbox-t,.bdt,.s-bd tr.br')) hideBar();
   });
   window.addEventListener('scroll', function () { if (curEl && !bar.hidden) showBar(curEl); }, { passive: true });
   function sidOf(el) { return el.closest('.sframe').getAttribute('data-id'); }
   function splitAdd(id) { var m = id.match(/^(.*)\+(\d+)$/); return m ? { base: m[1], i: +m[2] } : null; }
+  /* "טבלה לפי יעד": טקסט בלוח (.bdt) נשמר לפי המפתח שלו (data-bk) ב-edits.bd.t, ואחרי היציאה מהשדה הלוח נבנה מחדש —
+     כך השינוי (או המחיקה) מגיע לכל העמודים, לשלט, למצגת, לסטטוס ולאקסל. כותרת ו"עדכונים" — אותם שדות כמו בשלב 3 */
+  function bdEdited(k) {
+    if (k === 'title') return edits.btitle !== undefined || 'title' in edits.bd.t;
+    if (k === 'note') return edits.bnote !== undefined || 'note' in edits.bd.t;
+    return k in edits.bd.t;
+  }
+  function bdSet(k, v) {   // v === null — שחזור
+    var t = edits.bd.t;
+    if (k === 'title' || k === 'note') {
+      var f = k === 'title' ? 'btitle' : 'bnote';
+      delete t[k];
+      if (v === null) edits[f] = undefined; else if (v.trim()) edits[f] = v.trim(); else { edits[f] = undefined; t[k] = ''; }
+    } else if (v === null) delete t[k]; else t[k] = v.replace(/\s+$/, '');
+    saveEdits();
+  }
+  $('deck').addEventListener('focusout', function (ev) {
+    var el = ev.target;
+    if (!el.classList || !el.classList.contains('bdt') || !editMode) return;
+    var o = el.getAttribute('data-o'); el.removeAttribute('data-o');
+    if (o === null || o === el.innerText) return;
+    bdSet(el.getAttribute('data-bk'), el.innerText);
+    setTimeout(function () { if (!bar.hidden && curEl === el) hideBar(); keepScroll(function () { render(curPages); }); }, 0);
+  });
+  // "להחזיר" — שורה או קו שהוסרו חוזרים ללוח
+  $('deck').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-bdx]'); if (!b) return;
+    ev.preventDefault();
+    var v = b.getAttribute('data-bdx'), kind = v.charAt(0) === 'L' ? 'offL' : 'offR', k = v.slice(2);
+    if (edits.bd[kind][k]) delete edits.bd[kind][k]; else edits.bd[kind][k] = 1;
+    // מחזירים קו שלם — גם השורות שלו שהוסרו אחת-אחת
+    if (kind === 'offL' && !edits.bd.offL[k]) Object.keys(edits.bd.offR).forEach(function (rk) { if (rk.split('.')[0] === k) delete edits.bd.offR[rk]; });
+    saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
+  });
   $('deck').addEventListener('input', function (ev) {
     var el = ev.target;
     if (el.classList.contains('tbox-t')) {
@@ -1375,6 +1463,13 @@
   bar.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b || !curEl) return;
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
+    if (t === 'rowdel' || t === 'linedel') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdDelSel(t === 'linedel'); return; }
+    if (el.classList.contains('bdt')) {   // טקסט בלוח: מחיקה — ריק, שחזור — הטקסט מהנתונים
+      el.removeAttribute('data-o');
+      bdSet(el.getAttribute('data-bk'), t === 'reset' ? null : '');
+      hideBar(); keepScroll(function () { render(curPages); });
+      return;
+    }
     if (el.classList.contains('tbox-t')) {
       if (t === 'del') { var id = el.getAttribute('data-boxt'); edits.boxes[sid] = (edits.boxes[sid] || []).filter(function (x) { return x.id !== id; }); saveEdits(); el.closest('.tbox').remove(); hideBar(); }
       return;
@@ -1443,7 +1538,7 @@
     var b = $('resetall');
     if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
-    edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt }); saveEdits(); render(curPages);
+    edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace }); saveEdits(); render(curPages);
   });
 
   /* ---------- תמונות ----------
@@ -1854,7 +1949,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=3'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=4'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }

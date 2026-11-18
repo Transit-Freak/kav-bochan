@@ -385,3 +385,37 @@ details.group summary span{font-weight:600;color:var(--sub)}
 #ttcseg{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 /* בטלפון, עם כפתור אקסל: במקום קישור ההדפסה (ההדפסה — מהכפתורים בשלב 3) */
 .dock .in:has(#xl2:not([hidden])) .printbtn{display:none}
+/* "טבלה לפי יעד" במצב עריכה: טקסט בלוח, ✕ להסרת שורה או קו, ושורה אפורה עם "להחזיר" */
+.editing .bdt{cursor:text;border-radius:3px}
+.editing .bdt:hover{outline:2px dashed rgba(31,95,209,.55);outline-offset:1px}
+.editing .bdt[contenteditable]:focus{outline:3px solid #1f5fd1;outline-offset:1px;background:rgba(31,95,209,.06)}
+.editing .bdt.bnote,.editing .bdt.tl{display:block;min-height:1em}
+.editing .bdt:empty{display:inline-block;min-width:2.5em;min-height:1em;outline:1px dashed rgba(91,107,101,.7)}
+/* טקסט גדול (נגישות: a11y.js מגדיל את הדף) או מסך צר מאוד: שורת השלבים והפס התחתון מתכווצים בלי לגלוש מהמסך.
+   לפי הרוחב האמיתי של הפס (container query), כי הגדלת הטקסט לא משנה את רוחב המסך שה-media query רואה */
+.steps .in{container-type:inline-size}
+.steps ol button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@container (max-width:340px){
+  .steps .in{gap:6px}
+  .steps .back{font-size:0;padding:0 10px;gap:0}
+  .steps .back span{font-size:18px}
+  .steps li + li::before{display:none}
+  .steps ol button{gap:6px;padding:4px 6px}
+  .steps ol button span{font-size:15px}
+  .steps li{flex:none}
+  .steps li:has(button[aria-current="step"]){flex:0 1 auto;min-width:0}
+  .steps ol button{flex:0 1 auto}
+  .steps .reset{padding:0 8px}
+}
+.dock{container-type:inline-size}
+.dock .in{grid-template-columns:minmax(0,auto) minmax(0,1fr) minmax(0,auto)}
+.dock .in > *{min-width:0}
+@container (max-width:380px){
+  .dock .in{gap:6px}
+  .dock .btn,.dock .btn2{padding:0 10px;font-size:15px;gap:6px}
+  .dock .btn .ic,.dock .btn2 .ic{width:18px;height:18px}
+  .dock .printbtn{font-size:14px;padding:0 4px}
+}
+/* הסרגל בטלפון: הכפתורים יורדים לשורה שנייה במקום לצאת מהמסך; מחיקת שורה/קו בלוח — באדום */
+.etb{flex-wrap:wrap;max-width:calc(100vw - 16px)}
+.etb button.rowdel{color:#ffb4a8}

@@ -60,9 +60,10 @@ var LCXlsx = (function () {
     var R = 1;
     // כותרת ותוקף
     var sT = st.get({ b: 1, sz: 18, fill: 'D9DEDC', h: 'center' }), sV = st.get({ b: 1, sz: 11, color: '8A5A00', fill: 'D9DEDC', h: 'center' });
-    cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++;
-    var vt = [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
-    cell(R, 0, vt, sV); merges.push('A' + R + ':' + ref(last, R)); R++;
+    // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
+    if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
+    var vt = M.sub !== M.subDflt ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
+    if (vt) { cell(R, 0, vt, sV); merges.push('A' + R + ':' + ref(last, R)); R++; }
     // קרדיט לקו הבוחן: שורה קצרה מתחת לכותרת, ושורה מודגשת בסוף — עם קישור לכלי
     var CR = 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', links = [];
     if (M.credit !== false) { cell(R, 0, CR, st.get({ b: 1, sz: 10, color: '1F9152', fill: 'D9DEDC', h: 'center' })); merges.push('A' + R + ':' + ref(last, R)); links.push(ref(0, R)); R++; }
@@ -71,7 +72,10 @@ var LCXlsx = (function () {
     var head = R; R++;
     var sOp = st.get({ b: 1, sz: 10, h: 'center' }), sLn = st.get({ b: 1, sz: 20, h: 'center' }), sOr = st.get({ b: 1, sz: 10, h: 'center' });
     var sTm = st.get({ sz: 10 }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center' }), sNt = st.get({ sz: 9, color: 'C81E1E' });
-    M.bands.forEach(function (b) {
+    M.bands.forEach(function (b0) {
+      // שורות וקווים שהוסרו בעריכה — לא בקובץ; פס בלי שורות — לא בקובץ
+      var b = { label: b0.label, color: b0.color, rows: b0.rows.filter(function (r) { return !r.off; }) };
+      if (!b.rows.length) return;
       var bs = st.get({ b: 1, sz: 12, color: 'FFFFFF', fill: hexOf(b.color), h: 'center' });
       cell(R, 0, b.label, bs); merges.push('A' + R + ':' + ref(last, R)); R++;
       var i = 0;
@@ -83,17 +87,20 @@ var LCXlsx = (function () {
           var r = b.rows[i + k], rr = R + k, lines = 1;
           cell(rr, 0, k ? '' : r.op, sOp);
           cell(rr, 1, k ? '' : r.line, sLn);
-          cell(rr, 2, r.origin + (r.toward ? '\n' + r.toward : ''), sOr);
+          cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), sOr);
           comments.push({ ref: ref(2, rr), t: r.comment });
           var notes = [];
           r.cells.forEach(function (x, ci) {
+            var pre = M.cols.length > 1 ? M.cols[ci].label + ': ' : '';
+            if (x.ntxt) notes.push(pre + x.ntxt);
+            if (x.txt != null) { cell(rr, 3 + ci, x.txt, sTm); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
             if (!x.ents.length) { cell(rr, 3 + ci, 'אינו פעיל', sOff); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
             var runs = x.ents.map(function (e) { return { t: (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : ''), red: !!e.a }; });
             cell(rr, 3 + ci, { runs: runs }, sTm);
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            x.notes.forEach(function (nt) { notes.push((M.cols.length > 1 ? M.cols[ci].label + ': ' : '') + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)'); });
+            if (x.ntxt == null) x.notes.forEach(function (nt) { notes.push(pre + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)'); });
             var pt = x.ents.filter(function (e) { return e.part; });
             if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });

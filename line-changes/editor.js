@@ -7,7 +7,7 @@
    boxes — תיבות טקסט חופשיות לכל שקף · xslides — שקפי טקסט (ותמונה) שנוספו · off — שקפים שלא ייכללו ·
    imgs — תמונות על שקף: מיקום ורוחב באחוזים מגודל השקף (כך הן נשארות במקום גם כשהשקף מוקטן). */
 var LCEdit = (function () {
-  var SKIP = '.ibox,.s-img,table,.ttc,.tt-run,.tt-key,.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
+  var SKIP = '.bdt,.bd-upd,.bd-ph,.bdx,.boff,.ibox,.s-img,table,.ttc,.tt-run,.tt-key,.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
   // עד כאן מורידים אלמנטים ריקים אחרי מחיקה (לא את השקף, העמודות או הרשימה עצמה)
   var STOP = '.slide,.tt-body,.tt-blk,.s-tt,.alts,.instead,.side,.body,.cols,.grp,.two,ul,ol,.legend,.what,.owhat,.cards,.ocontact,.s-stops,.s-map,.s-one,.s-cover,.s-text,.s-close,.s-over,.s-sign,.s-signstops,.s-status,.sg-what,.sg-near,.sg-cols,.col,.sg-contact,.st-what,.st-foot';
   var MARKS = '.alts .badge,.side .segn,.side .segb,.side .dot,.side .sw,.s-stops .dot,.legend .dot,.legend .sw,.ohead .badge,.s-map .badge,.sg-near .dot,.sg-cols .dot';

@@ -922,3 +922,19 @@ body.editing .slide .inset-x{display:block}
 /* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
 .s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
 .s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
+/* עריכה בלוח: ✕ בפינה של תא המוצא (שורה) ושל תא הקו (קו שלם); מה שהוסר — שורה אפורה דקה, רק במצב עריכה */
+/* במצב עריכה: השורה שנבחרה (לחיצה על תא; על מספר הקו — כל השורות של הקו) — רקע תכלת ומסגרת כחולה */
+body.editing .s-bd tr.br{cursor:pointer}
+body.editing .s-bd tr.bsel > td{background:#e6eefc!important}
+body.editing .s-bd tr.bsel{outline:3px solid #1f5fd1;outline-offset:-3px}
+.s-bd tr.boff{display:none}
+body.editing .s-bd tr.boff{display:table-row}
+body.editing .s-bd tr.boff td{background:repeating-linear-gradient(-45deg,#f1f3f2 0 6px,#e6eae8 6px 12px);color:#5b6b65;font-weight:700;font-size:.85em;padding:.2em .5em;text-align:right;opacity:.85}
+body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
+.s-bd .bdr{border:1.5px solid #1f5fd1;background:#fff;color:#1f5fd1;font:800 1em Arial,sans-serif;border-radius:6px;padding:0 .5em;margin-inline-end:.4em;cursor:pointer}
+.s-bd .bd-t td.bo .bdt:empty{margin:0}
+/* בטלפון השלט מוקטן לרוחב המסך — ה-✕ ו"להחזיר" גדולים יותר, כדי שאפשר יהיה ללחוץ עליהם באצבע */
+@media (max-width:700px){
+  body.editing .deck .s-bd .bdr{font-size:1.6em;padding:.1em .7em}
+  body.editing .deck .s-bd tr.boff td{font-size:1.15em;padding:.35em .5em}
+}
