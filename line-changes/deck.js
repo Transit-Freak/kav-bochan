@@ -2245,7 +2245,7 @@ var LCDeck = (function () {
     return { title: (ED.btitle || '').trim() || dflt, dflt: dflt, valid: valid, until: until, home: home, cols: cols, bands: bands, pages: ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה)
       note: (ED.bnote || '').trim() || (bands.some(function (b) { return b.rows.some(function (r) { return r.cells.some(function (x) { return x.notes.length; }); }); }) ? 'נסיעות באדום עוברות בדרך אחרת' : ''), contacts: ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]]),
-      feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '' };
+      feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: ED.credit !== false };
   }
   function bdRow(p, d, i, n, b) {
     var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
@@ -2303,7 +2303,8 @@ var LCDeck = (function () {
     return '<div class="bd-foot">' + (M.note ? '<p class="bd-upd"><b>עדכונים</b> ' + E(M.note) + '</p>' : '') +
       '<p class="bd-ph"><b>מוקדי מידע</b> ' + M.contacts.map(function (c) { return '<span>' + E(c[0]) + ' <b class="ltr">' + E(c[1]) + '</b></span>'; }).join('') + '</p>' +
       '<div class="cu-foot"><span>שעות היציאה מהתחנה הראשונה · <span class="alt">באדום</span> — נסיעה בדרך אחרת · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה' +
-      (M.feed ? ' מ-' + LC.dmy(M.feed) : '') + ' · לא פרסום רשמי' + (ED.credit === false ? '' : ' · <b class="ltr">kavbochan.app</b>') + '</span><span class="pg num"></span></div></div>';
+      (M.feed ? ' מ-' + LC.dmy(M.feed) : '') + ' · לא פרסום רשמי</span><span class="pg num"></span></div>' +
+      (M.credit ? '<p class="bd-cr">הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · <span class="ltr">kavbochan.app</span></p>' : '') + '</div>';
   }
   function bdTable(M, rows) {
     return '<table class="bd-t">' + bdColgroup(M) + '<thead><tr><th>קו</th><th>מוצא</th>' + M.cols.map(function (c) { return '<th>' + E(c.label) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table>';

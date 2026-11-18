@@ -919,3 +919,6 @@ body.editing .slide .inset-x{display:block}
 .s-bd.f-status .cu-foot{font-size:17px;padding-top:6px;margin-top:6px}
 .s-bd .t bdi{unicode-bidi:isolate}
 .s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}
+/* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
+.s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
+.s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
