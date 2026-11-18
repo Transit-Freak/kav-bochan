@@ -425,15 +425,16 @@
   function loadPlay(stage) {
     if (window.HagPlay) { window.HagPlay.attach(stage); return; }
     if (document.getElementById("hag-play-js")) return;
-    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118d") });
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118e") });
     s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
     document.head.appendChild(s);
   }
-  // ימים רגילים (לא חג ולא יום עצוב): מדי פעם, כשהעין מסתכלת על כלי, הסמל שלו קופץ קלות עם טבעת אור והשם שלו גדל לרגע (spot), נדיר יותר מבחגים
+  // ימים רגילים (לא חג ולא יום עצוב): משחק קטן ועדין לכל כלי, נדיר יותר מבחגים (hagim-play.js — המשחקים בסוף הקובץ), עם הילה קלה על הכפתור
   function daily() {
     if (window.__hagPlay || !document.addEventListener) return;
     try { if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
-    var DAILY = {}; ["kavpach", "golden", "kavbug", "next-station", "skip-stops", "line-history", "line-changes", "bus", "bus-speed", "alerts", "fleet", "rail", "reception", "feeder", "fares", "ratzif", "game"].forEach(function (k) { DAILY[k] = "spot"; });
+    var DAILY = { kavpach: "lid", golden: "flip", kavbug: "crawl", "next-station": "signflip", "skip-stops": "hop", "line-history": "clock", "line-changes": "slides",
+      bus: "gauge", "bus-speed": "speedo", alerts: "ring", fleet: "roll", rail: "train", reception: "bars", feeder: "meet", fares: "drop", ratzif: "align", game: "pad" };
     window.__hagPlay = { id: "daily", daily: true, play: DAILY, line: "#0ea5e9", bg: "" };
     // דף הבית יכול להיבנות מחדש (חזרה מכלי) — מחברים כל במה חדשה
     var go = function () { var st = document.querySelector(".kbh .stage"); if (st && !st.__hagPlay && st.querySelector(".eye")) loadPlay(st); }, pend = 0;

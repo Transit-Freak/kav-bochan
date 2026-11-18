@@ -1,14 +1,14 @@
 /* העין משחקת עם הסמלים — דף הבית בלבד (נטען מ-hagim.js: בחגים לפי הטבלה PLAY, ובימים רגילים לפי DAILY).
 
    מדי פעם, כשהעין הגדולה מסתכלת על סמל, היא משחקת איתו כשתי שניות, והסמל חוזר למקומו:
-   בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשמונה-אחד-עשר. אף פעם לא פעמיים ברצף
+   בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה. אף פעם לא פעמיים ברצף
    על אותו סמל, לא בימים עצובים, ולא כשביקשו "בלי תנועה" (גם אם הכפתור נלחץ אחרי שהדף נטען).
    העין תמיד נשארת פתוחה עם הקשתית והאישון (לכל היותר חיוך קל או מצמוץ מהיר), וכל חפץ עף מסביב לעין ועומד לידה —
    מתחת, מעל או בצד — אף פעם לא מול האישון (around).
    סוגי המשחקים בחגים: eat, dip, seeds, sip, honey, read, light, spin, wear, wreath, blow, wave, shake, sniff, peek, plant,
    boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, yuck, burn, ride, slow, leap, tick, signal, play, juggle, upside,
    inspect, bounce (הפירוט ב-hagim.js, ליד PLAY). "סוג@b" — המשחק על התג הקטן של הסמל.
-   בימים רגילים — spot (הסמל קופץ קלות עם טבעת אור, השם גדל לרגע ונצנוץ). משחקים ישנים שנשארו בקוד: lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
+   בימים רגילים (הסמל הוא תמונה, אז המשחק מצויר לידו, עם הילה קלה על הכפתור): lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
    roll, train, bars, meet, drop, align, pad.
    מגע או ריחוף על סמל באמצע — המשחק נעצר בעדינות והכול חוזר למקום. השכבה לא תופסת לחיצות (pointer-events:none).
    הכול transform/opacity (WAAPI) — בלי ספריות.
@@ -51,8 +51,8 @@
     var layer = div("hag-play"); layer.setAttribute("aria-hidden", "true"); stage.appendChild(layer);
     var iris = stage.querySelector(".kb-iris-js"), eyeEl = stage.querySelector(".eye");
     var cur = null, since = 0, last = null, force = null, gap = newGap();
-    // בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשמונה-אחד-עשר
-    function newGap() { return CFG.daily ? 8 + Math.floor(Math.random() * 4) : 3 + (Math.random() < .5 ? 1 : 0); }
+    // בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה
+    function newGap() { return CFG.daily ? 6 + Math.floor(Math.random() * 3) : 3 + (Math.random() < .5 ? 1 : 0); }
 
     // ---------- מתי משחקים ----------
     stage.addEventListener("kbh:gaze", function (e) {
@@ -94,8 +94,13 @@
       // "eat@b" — המשחק על התג הקטן של הסמל (למשל הגזר שעל הצלחת) במקום על הסמל הגדול
       var pa = act.split("@");
       cur = { o: o, act: pa[0], part: pa[1] || "", anims: [], els: [], undo: [], timers: [] };
+      if (CFG.daily) glow(o);
       // העין רק עכשיו התחילה לזוז לסמל (מעבר של 0.8 שנ') — מחכים שתגיע
       later(780, function () { try { RUN[pa[0]](o); } catch (err) { if (DBG && W.console) console.error(err); finish(); } });
+    }
+    function glow(o) {   // יום רגיל: הילה קלה על הכפתור בזמן המשחק
+      var ic = o.querySelector("[data-icon]"); if (!ic) return;
+      later(780, function () { A(ic, [{ filter: "drop-shadow(0 0 0 rgba(14,165,233,0))" }, { filter: "drop-shadow(0 0 7px rgba(14,165,233,.75))", offset: .2 }, { filter: "drop-shadow(0 0 7px rgba(14,165,233,.75))", offset: .8 }, { filter: "drop-shadow(0 0 0 rgba(14,165,233,0))" }], { duration: 1700, fill: "none" }); });
     }
     function later(ms, fn) { var c = cur; if (!c) return; c.timers.push(setTimeout(function () { if (cur === c) fn(); }, ms)); }
     function A(node, kf, opt) {
