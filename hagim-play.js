@@ -1,20 +1,23 @@
-/* העין משחקת עם סמלי החג — דף הבית בלבד (נטען מ-hagim.js, שם גם הטבלה PLAY: איזה סמל → איזה משחק).
+/* העין משחקת עם הסמלים — דף הבית בלבד (נטען מ-hagim.js: בחגים לפי הטבלה PLAY, ובימים רגילים לפי DAILY).
 
-   מדי פעם (בערך פעם בשלושה-ארבעה מבטים, אף פעם לא פעמיים ברצף על אותו סמל), כשהעין הגדולה מסתכלת על סמל
-   של החג, היא משחקת איתו לפי הסוג שלו, והסמל חוזר למקומו תוך כשתיים-שלוש שניות:
-     eat   — פה קטן נפתח מתחת לעין, הסמל עף לתוכו מהצד, העין לועסת בחיוך קל (נשארת פתוחה), והסמל צומח מחדש בכפתור
-     read  — המגילה נפתחת מול העין והאישון זז מימין לשמאל כמו בקריאה
-     light — החנוכייה באה מול העין, הנרות כבים ונדלקים אחד אחרי השני (השמש קודם)
-     spin  — העין מסובבת את הסביבון, הוא מאט, נוטה ומראה אות
-     wear  — הכתר עף לראש העין, היא חובשת אותו לרגע בגאווה ומחזירה
+   מדי פעם, כשהעין הגדולה מסתכלת על סמל, היא משחקת איתו כשתי שניות, והסמל חוזר למקומו:
+   בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה. אף פעם לא פעמיים ברצף
+   על אותו סמל, לא בימים עצובים, ולא כשביקשו "בלי תנועה" (גם אם הכפתור נלחץ אחרי שהדף נטען).
+   העין תמיד נשארת פתוחה עם הקשתית והאישון (לכל היותר חיוך קל או מצמוץ מהיר), וכל חפץ עף מסביב לעין ועומד לידה —
+   מתחת, מעל או בצד — אף פעם לא מול האישון (around).
+   סוגי המשחקים בחגים: eat, dip, seeds, sip, honey, read, light, spin, wear, wreath, blow, wave, shake, sniff, peek, plant,
+   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, inspect, bounce (הפירוט ב-hagim.js, ליד PLAY).
+   בימים רגילים (הסמל הוא תמונה, אז המשחק מצויר לידו): lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
+   roll, train, bars, meet, drop, align, pad.
    מגע או ריחוף על סמל באמצע — המשחק נעצר בעדינות והכול חוזר למקום. השכבה לא תופסת לחיצות (pointer-events:none).
-   הכול transform/opacity (WAAPI) — בלי ספריות. לא רץ כשביקשו "בלי תנועה" (גם אם הכפתור נלחץ אחרי שהדף נטען).
-   בדיקה: ‎?hag=hanukkah&eyeplay=eat‎ (או read / light / spin / wear / all) — העין פונה מיד לסמל וחוזרת על המשחק בלולאה. */
+   הכול transform/opacity (WAAPI) — בלי ספריות.
+   בדיקה: ‎?hag=hanukkah&eyeplay=eat‎ (או כמה סוגים מופרדים בפסיק, או all; בלי hag — יום רגיל) — העין פונה מיד לסמל
+   וחוזרת על המשחקים בלולאה. */
 (function () {
   "use strict";
   var W = window, D = document, CFG = W.__hagPlay;
   if (!CFG || W.HagPlay || !Element.prototype.animate) return;
-  var q = /[?&]eyeplay=([a-z]+)/.exec(location.search), DBG = q ? q[1] : "";
+  var q = /[?&]eyeplay=([a-z,]+)/.exec(location.search), DBG = q ? q[1] : "";
   var EYE = "M14 60 Q60 20 106 60 Q60 100 14 60 Z";
   var LETTERS = ["נ", "ג", "ה", "פ"];
 
@@ -60,7 +63,7 @@
       }
       start(o, act);
     });
-    function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || x === a); }); }
+    function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || a.split(",").indexOf(x) >= 0); }); }
     if (DBG) {
       var n = 0;
       var next = function () {
