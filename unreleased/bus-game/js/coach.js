@@ -435,7 +435,9 @@ export function buildCoach(root, tint) {
   // הגוף בצבע הסוג (רק בעותק הזה), והזכוכית כהה יותר (חלונות כהים ברצועה רציפה)
   const swap = new Map();
   root.traverse(o => { if (!o.isMesh) return; const f = m => { if (!m) return m; if (m.name === 'M_Silver' || m.name === 'M_BodyWhite') return swap.get(m) || swap.set(m, M.body).get(m);
-    if (m.name === 'M_Glass') { if (!swap.has(m)) { const g = m.clone(); g.color = m.color.clone().multiplyScalar(0.55); g.opacity = Math.min(1, (m.opacity ?? 1) + 0.06); swap.set(m, g); } return swap.get(m); } return m; };
+    if (m.name === 'M_Glass') { if (!swap.has(m)) { const g = m.clone(); g.color = m.color.clone().multiplyScalar(0.55); g.opacity = Math.min(1, (m.opacity ?? 1) + 0.06);
+      // (העותק שומר את השיידר של החלון מבפנים — בהיר ושקוף, רואים את הרחוב — אם יש כזה בדגם הרגיל)
+      if (m.onBeforeCompile) { g.onBeforeCompile = m.onBeforeCompile; g.customProgramCacheKey = m.customProgramCacheKey; } swap.set(m, g); } return swap.get(m); } return m; };
     o.material = Array.isArray(o.material) ? o.material.map(f) : f(o.material); });
   const grp = new THREE.Group(); grp.name = 'CoachInterior'; root.add(grp);
   const P = new Parts(), stopG = [];
