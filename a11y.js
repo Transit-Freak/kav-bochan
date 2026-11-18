@@ -72,7 +72,6 @@
     /* הכפתור */
     "#kb-a11y-btn { position: fixed; bottom: 16px; inset-inline-start: 14px; z-index: 99999; width: 48px; height: 48px; box-sizing: border-box; border-radius: 50%; border: 2px solid #fff; background: #0055aa; box-shadow: 0 2px 10px rgba(0,0,0,.35); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }",
     "@media (max-width: 640px) { #kb-a11y-btn { width: 44px; height: 44px; bottom: 12px; inset-inline-start: 10px; } #kb-a11y-btn svg { width: 26px; height: 26px; } }",
-    "@media (prefers-reduced-motion: no-preference) { #kb-a11y-btn { transition: transform .18s ease-out; } }",
     "#kb-a11y-btn:hover { background: #0066cc; }",
     "#kb-a11y-btn svg { width: 28px; height: 28px; display: block; pointer-events: none; }",
     "#kb-a11y-btn:focus { outline: none; }",
@@ -103,111 +102,52 @@
   var INTERACTIVE = 'a[href],button,input:not([type="hidden"]),select,textarea,summary,label,[role="button"],[role="link"],[role="tab"],' +
     '[role="checkbox"],[role="radio"],[role="switch"],[role="menuitem"],[role="option"],[role="slider"],[contenteditable="true"],[contenteditable=""],[tabindex]:not([tabindex="-1"])';
 
+  // מיקום הכפתור (שלמה 18.11): הכפתור עומד קבוע בפינה ולא "רוקד" בגלילה או בלחיצות.
+  // זז רק כשבפינה שלו יושב פס קבוע (למשל סרגל כפתורים בתחתית המסך) — אז עולה מעליו.
   function makePlacer(btn, panel) {
-    var dx = 0, dy = 0, timer = 0, busy = false;
-    var posCache = null;
-
+    var dy = 0, timer = 0;
     function ours(el) { return el === btn || btn.contains(el) || panel.contains(el); }
-    // אלמנט שתופס כמעט את כל המסך (מפה, קנבס, מכל עם tabindex) — לא נחשב
-    // "כפתור": אפשר לשבת על הפינה שלו
-    function huge(r, vw, vh) { return r.width * r.height > vw * vh * 0.4; }
-    function bottomBar(el, vh) {
-      var p = posCache.get(el);
-      if (p === undefined) {
-        var s = getComputedStyle(el);
-        p = (s.position === "fixed" || s.position === "sticky");
-        if (p) { var r = el.getBoundingClientRect(); p = r.bottom >= vh - 2 && r.height < vh * 0.5 && r.width > 200; }
-        posCache.set(el, p);
+    function fixedOf(el, cache) {
+      for (var e = el; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+        var v = cache.get(e);
+        if (v === undefined) { var ps = getComputedStyle(e).position; v = (ps === "fixed" || ps === "sticky") ? e : null; cache.set(e, v); }
+        if (v) return v;
       }
-      return p;
+      return null;
     }
-    function textAt(el, x, y) {
-      for (var n = el.firstChild; n; n = n.nextSibling) {
-        if (n.nodeType !== 3 || !/\S/.test(n.nodeValue)) continue;
-        var rg = document.createRange();
-        rg.selectNodeContents(n);
-        var rs = rg.getClientRects();
-        for (var i = 0; i < rs.length; i++) {
-          var q = rs[i];
-          if (x >= q.left - 2 && x <= q.right + 2 && y >= q.top - 2 && y <= q.bottom + 2) return true;
-        }
-      }
-      return false;
-    }
-    // דרגת ההסתרה במקום מסוים: 0 — פנוי · 1 — טקסט · 2 — פינה ריקה של כרטיס/שורה גדולים
-    // שכולם קישור (נשאר הרבה שטח ללחוץ) · 3 — פינה כזו עם טקסט · 9 — פקד קטן או פס תחתון קבוע
-    function probe(l, t, w, h, vw, vh) {
-      var worst = 0, pad = 3, big = w * h * 12;
-      for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
-        var x = l - pad + (w + 2 * pad) * i / 3, y = t - pad + (h + 2 * pad) * j / 3;
-        x = Math.min(vw - 1, Math.max(0, x)); y = Math.min(vh - 1, Math.max(0, y));
-        var st = document.elementsFromPoint(x, y), top = null, card = false;
-        for (var k = 0; k < st.length; k++) {
-          var el = st[k];
-          if (ours(el) || el === document.documentElement || el === document.body) continue;
-          if (!top) top = el;
-          if (bottomBar(el, vh)) return 9;
-          var it = el.closest(INTERACTIVE);
-          if (it && !ours(it)) {
-            var r = it.getBoundingClientRect();
-            if (huge(r, vw, vh)) continue;
-            if (r.width * r.height < big) return 9;
-            card = true;
-          }
-        }
-        var tx = top && textAt(top, x, y);
-        var v = card ? (tx ? 3 : 2) : (tx ? 1 : 0);
-        if (v > worst) worst = v;
-      }
-      return worst;
-    }
-
     function place() {
       timer = 0;
-      if (busy || !panel.hidden || document.activeElement === btn) return;
-      if (!document.elementsFromPoint || btn.offsetParent === null && getComputedStyle(btn).position !== "fixed") return;
-      busy = true;
-      posCache = new Map();
+      if (!panel.hidden || !document.elementsFromPoint) return;
       try {
-        var vw = document.documentElement.clientWidth || innerWidth, vh = innerHeight;
-        var r = btn.getBoundingClientRect();
-        var w = r.width, h = r.height, bl = r.left - dx, bt = r.top - dy;   // המקום הבסיסי (בלי ההזזה)
-        if (!w) return;
-        var other = (vw - (bl + w)) - bl;          // הזזה לפינה הנגדית
-        var maxUp = Math.max(0, bt - vh * 0.4);    // לא עולים מעל 40% מגובה המסך
-        var cand = [];
-        for (var up = 0; up <= maxUp; up += 8) {
-          cand.push([0, -up, up]);
-          cand.push([other, -up, up + 56]);         // הפינה השנייה — רק אם אין מקום קרוב באותה פינה
+        var vh = innerHeight, r = btn.getBoundingClientRect();
+        if (!r.width) return;
+        var bt = r.top - dy, h = r.height, l = r.left, w = r.width, cache = new Map(), lift = 0;
+        for (var round = 0; round < 3; round++) {
+          var top = bt - lift, hit = null;
+          [[l + 2, top + 2], [l + w - 2, top + 2], [l + 2, top + h - 2], [l + w - 2, top + h - 2], [l + w / 2, top + h / 2]].forEach(function (pt) {
+            document.elementsFromPoint(pt[0], pt[1]).forEach(function (el) {
+              if (ours(el)) return;
+              var f = fixedOf(el, cache);
+              if (f && f !== btn) { var fr = f.getBoundingClientRect(); if (fr.bottom >= vh - 2 && fr.height < vh * 0.5) hit = !hit || fr.top < hit.top ? fr : hit; }
+            });
+          });
+          if (!hit) break;
+          lift = Math.min(vh * 0.6, bt + h - hit.top + 8);
         }
-        cand.sort(function (a, b) { return a[2] - b[2]; });
-        var best = null, bestV = 99;
-        for (var c = 0; c < cand.length && bestV > 0; c++) {
-          var v = probe(bl + cand[c][0], bt + cand[c][1], w, h, vw, vh);
-          if (v < bestV) { bestV = v; best = cand[c]; }
-        }
-        if (!best || bestV >= 9) best = [0, 0];
-        if (best[0] !== dx || best[1] !== dy) {
-          dx = best[0]; dy = best[1];
-          btn.style.transform = (dx || dy) ? "translate(" + dx + "px," + dy + "px)" : "";
-        }
+        if (lift !== -dy) { dy = -lift; btn.style.transform = dy ? "translateY(" + dy + "px)" : ""; }
       } catch (e) { /* דפדפן ישן — הכפתור נשאר במקומו */ }
-      finally { busy = false; posCache = null; }
     }
     function soon(ms) {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(place, ms == null ? 160 : ms);
+      timer = setTimeout(place, ms == null ? 300 : ms);
     }
-    window.addEventListener("scroll", function () { soon(); }, { passive: true, capture: true });
     window.addEventListener("resize", function () { soon(); });
-    document.addEventListener("click", function () { soon(350); }, true);
-    document.addEventListener("input", function () { soon(400); }, true);
     window.addEventListener("load", function () { soon(0); });
     try {
       new MutationObserver(function (ms) {
-        for (var i = 0; i < ms.length; i++) if (!ours(ms[i].target)) { soon(300); return; }
+        for (var i = 0; i < ms.length; i++) if (!ours(ms[i].target)) { soon(500); return; }
       }).observe(document.body, { childList: true, subtree: true });
-    } catch (e) { /* בלי MutationObserver — רק גלילה ושינוי גודל */ }
+    } catch (e) { /* בלי MutationObserver — רק שינוי גודל */ }
     soon(0);
     return { now: place, soon: soon };
   }
