@@ -110,7 +110,7 @@ var LCEdit = (function () {
   }
 
   /* טקסט ארוך: מקטינים את האזור עד 78%, ואם עדיין לא נכנס — אזהרה (לא מודפסת) */
-  var FIT = '.s-cover .body,.s-map .side,.s-one .side,.s-stops,.s-over,.s-close,.s-text,.sg-what,.sg-cols,.st-what,.tt-body';
+  var FIT = '.s-cover .body,.s-map .side,.s-one .side,.s-stops,.s-alts,.s-tt,.s-over,.s-close,.s-text,.sg-what,.sg-cols,.st-what,.tt-body';
   function over(el) { return el.scrollHeight > el.clientHeight + 2; }
   function fit(frame) {
     var slide = frame.querySelector('.slide'), bad = false;

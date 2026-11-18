@@ -154,7 +154,7 @@ var LCDeck = (function () {
           '<div class="fact"><span class="l">משרד התחבורה</span><span class="v num"><span class="ltr">' + MOT + '</span></span><span class="x">מוקד המידע</span></div>' +
         '</div>' +
         '<p class="intro" data-k="intro">' + E(autoIntro(pages)) + '</p>' +
-        (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">מה משתנה?<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
+        (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? 'מה חשוב לדעת?' : 'מה משתנה?') + '<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
           '<ul data-k="what">' + listHtml(ED.cover, coverItems(pages)) + '</ul></div>' : '') +
         '<div class="note">המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.</div>' +
       '</div></div>';
@@ -554,7 +554,7 @@ var LCDeck = (function () {
       var r = rows.filter(function (y) { return y.w === w && w; })[0];
       if (r) r.lines.push(x.line); else rows.push({ w: w, lines: [x.line] });
     });
-    if (rows.length === 1) return [rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
+    if (rows.length === 1) return [rows[0].lines.length > 1 ? plu(rows[0].w) : rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
     return rows.map(function (r) { return '<b>' + (r.lines.length > 1 ? 'קווים ' + E(andList(r.lines, 12)) : 'קו ' + E(r.lines[0])) + ':</b> ' + r.w; });
   }
   /* טקסט שהמשתמש ערך (מערך של מחרוזות) — או הטקסט שנוצר אוטומטית (HTML) */
@@ -704,7 +704,7 @@ var LCDeck = (function () {
     var firstTrip = p.formal && p.formal !== p.eff ? ' · נסיעה ראשונה ' + LC.wd(p.eff) + ' ' + LC.dm(p.eff) : '';
     var items = whatChanges(p, dirs).filter(Boolean);
     // כמה קווים: בלי "בנסיעה ל..." של הקו הראשון (ליעדים של הקווים האחרים זה לא נכון), ובלי כפילויות
-    if (multi) items = items.map(function (t) { return t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, ''); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    if (multi) items = items.map(function (t) { return plu(t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
     return '<div class="s-one"><div class="smap"></div><div class="side">' +   // בלי מפת התמצאות — המפה הקרובה מספיקה
       (multi ? '<div class="ohead multi"><div class="badges">' + lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join('') + '</div>' +
           '<div class="t"><h1 class="hd">אותו שינוי ב-' + lines.length + ' קווים</h1><p class="sub">' + E(ops.join(' · ')) + '</p></div></div>'
@@ -774,8 +774,15 @@ var LCDeck = (function () {
   function opsOf(all) { var ops = []; all.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); }); return ops; }
   function itemsOf(u, dirs) {
     var items = whatChanges(u.p, dirs).filter(Boolean);
-    if (u.others.length) items = items.map(function (t) { return t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, ''); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    if (u.others.length) items = items.map(function (t) { return plu(t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
     return items;
+  }
+  /* אותו שינוי בכמה קווים: "הקו יעצור" → "הקווים יעצרו" (ושאר הפעלים שבמשפטים) */
+  var PLU = { 'יעצור': 'יעצרו', 'ייסע': 'ייסעו', 'יתחיל': 'יתחילו', 'ימשיך': 'ימשיכו', 'יסיים': 'יסיימו', 'יגיע': 'יגיעו', 'יחזור': 'יחזרו', 'נוסע': 'נוסעים', 'עוצר': 'עוצרים' };
+  function plu(t) {
+    return String(t).replace(/(^|[\s>.,])(הקו|הוא)( כבר)?( לא)? (יעצור|ייסע|יתחיל|ימשיך|יסיים|יגיע|יחזור|נוסע|עוצר)(?=[\s<.,]|$)/g, function (m, a, who, k, l, v) {
+      return a + (who === 'הקו' ? 'הקווים' : 'הם') + (k || '') + (l || '') + ' ' + PLU[v];
+    }).replace(/^המסלול לא משתנה\./, 'המסלול לא משתנה.');
   }
   function badgesHtml(lines) { return lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join(''); }
   function contactHtml(ops) {
@@ -949,6 +956,7 @@ var LCDeck = (function () {
   function ttOpt() { var t = ED.tt || {}; return { v: t.v === 'det' ? 'det' : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
   function isKind(p) { return !!(p && p.kind && p.kind !== 'route'); }
   function kSide(d, p) { return p.kind === 'ended' ? d.old : d.new; }
+  function started(p) { return !!p.gen && start(p) <= p.gen; }
   function lastOf(p) { return p.last || LC.addDays(start(p), -1); }
   /* הכיוונים של קו חדש או מבוטל: כיוון שהתחנות שלו זהות לכיוון אחר (קו מעגלי עם שני מק"טים) — פעם אחת */
   function kDirs(p) {
@@ -1002,12 +1010,13 @@ var LCDeck = (function () {
     var ds = p.kind === 'timetable' ? ttDirs(p) : kDirs(p), two = ds.length > 1, out = [];
     var pre = function (d) { return two ? '<b>' + E(toward(d)) + '</b>, ' : ''; };
     if (p.kind === 'new') {
-      out.push('הקו יתחיל לנסוע ב' + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + '.');
-      ds.forEach(function (d) { var S = d.new.stops; if (S.length) out.push(pre(d) + 'הקו ייסע מ<b>' + E(S[0].name) + '</b> עד <b>' + E(S[S.length - 1].name) + '</b>, ויעצור ב-' + S.length + ' תחנות.'); });
-      var d0 = ds[0];
-      if (d0 && d0.tt) (d0.tt.length ? [newTtLine(d0.tt[0])] : []).forEach(function (t) { out.push(t); });
+      out.push((started(p) ? 'הקו התחיל לנסוע ב' : 'הקו יתחיל לנסוע ב') + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + '.');
+      var d0 = ds[0], S0 = d0 ? d0.new.stops : [];
+      if (S0.length) out.push('הקו נוסע מ<b>' + E(S0[0].name) + '</b> עד <b>' + E(S0[S0.length - 1].name) + '</b>' + (ds.length > 1 ? ' ובחזרה' : '') + ', ועוצר ב-' + S0.length + ' תחנות.');
+      if (d0 && d0.tt && d0.tt.length) out.push(newTtLine(d0.tt[0]));
+      if (d0) { var nr = noRun(p, d0); if (nr) out.push(nr); }
     } else if (p.kind === 'ended') {
-      out.push('הנסיעה האחרונה של הקו: ' + E(LC.wd(lastOf(p)) + ' ' + LC.dmy(lastOf(p))) + '. מ' + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + ' הקו לא ייסע יותר.');
+      out.push('הנסיעה האחרונה של הקו: ' + E(LC.wd(lastOf(p)) + ' ' + LC.dmy(lastOf(p))) + '. ' + (started(p) ? 'מאז הקו לא נוסע.' : 'מ' + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + ' הקו לא ייסע יותר.'));
       var al = altsOf(p);
       out.push(al.length ? 'במקום זה: ' + (al.length === 1 ? 'קו <b>' + E(al[0].line) + '</b> עוצר' : 'קווים <b>' + E(andList(al.slice(0, 4).map(function (a) { return a.line; }), 4)) + '</b> עוצרים') + ' בחלק גדול מהתחנות של הקו.'
         : 'לא מצאנו קו אחר שעוצר ברוב התחנות של הקו.');
@@ -1053,8 +1062,12 @@ var LCDeck = (function () {
   function ttBlocks(p, form) {
     var M = TTM[form], o = ttOpt(), blocks = [], ds = p.kind === 'timetable' ? ttDirs(p) : kDirs(p).filter(function (d) { return d.tt && d.tt.length; });
     var effTxt = 'מ-' + LC.dm(start(p));
+    // שני כיוונים עם בדיוק אותו לוח זמנים — פעם אחת, "בשני הכיוונים"
+    var sig2 = function (d) { return JSON.stringify([o.v === 'gen' ? (d.tt || []).map(function (e) { return [e.t, e.so, e.sn]; }) : d.tt, d.same]); };
+    var same2 = ds.length === 2 && sig2(ds[0]) === sig2(ds[1]);
+    if (same2) ds = ds.slice(0, 1);
     ds.forEach(function (d, di) {
-      var title = dirTitle(p, d, ds.length), tH = title ? M.titleH : 0;
+      var title = same2 ? '<h3 class="tt-dir hd">בשני הכיוונים</h3>' : dirTitle(p, d, ds.length), tH = title ? M.titleH : 0;
       if (o.v === 'gen' && o.f === 'text') {
         var items = ttItems(p, d), h = tH + M.gap;
         items.forEach(function (t) { h += Math.ceil(plain(t).length / M.cpl) * M.lineH + 6; });
@@ -1180,8 +1193,8 @@ var LCDeck = (function () {
   function kindMapSlide(p, pre) {
     var ds = kDirs(p), d = ds[0], S = kSide(d, p).stops;
     var lead = p.kind === 'new'
-      ? 'הקו יתחיל לנסוע ב' + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + '. ' + (S.length ? 'הוא ייסע מ<b>' + E(S[0].name) + '</b> עד <b>' + E(S[S.length - 1].name) + '</b>, ויעצור ב-' + S.length + ' תחנות.' : '')
-      : 'הנסיעה האחרונה: <b>' + E(LC.wd(lastOf(p)) + ' ' + LC.dmy(lastOf(p))) + '</b>. אחרי זה הקו לא ייסע יותר.';
+      ? (started(p) ? 'הקו התחיל לנסוע ב' : 'הקו יתחיל לנסוע ב') + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + '. ' + (S.length ? 'הוא נוסע מ<b>' + E(S[0].name) + '</b> עד <b>' + E(S[S.length - 1].name) + '</b>, ועוצר ב-' + S.length + ' תחנות.' : '')
+      : 'הנסיעה האחרונה: <b>' + E(LC.wd(lastOf(p)) + ' ' + LC.dmy(lastOf(p))) + '</b>. ' + (started(p) ? 'מאז הקו לא נוסע.' : 'אחרי זה הקו לא ייסע יותר.');
     return { id: p.id + '-km', label: pre + 'מפה · ' + (p.kind === 'new' ? 'המסלול של הקו החדש' : 'המסלול של הקו שמבוטל'), map: routeMap(p),
       html: '<div class="s-map k-' + p.kind + '"><div class="smap"></div><div class="side">' +
         '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + '</span></div>' +
@@ -1195,7 +1208,9 @@ var LCDeck = (function () {
   }
   /* כל התחנות של קו חדש: שלוש עמודות, המשך בשקף הבא */
   function routeStopsSlides(p, d, pre, rows) {
-    var S = d.new.stops, per = rows * 3, out = [], n = Math.ceil(S.length / per);
+    var S = d.new.stops;
+    if (S.length <= rows * 3) rows = Math.max(6, Math.ceil(S.length / 3));
+    var per = rows * 3, out = [], n = Math.ceil(S.length / per);
     var cnt = {}; S.forEach(function (s) { if (s.city) cnt[s.city] = (cnt[s.city] || 0) + 1; });
     var main = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || '';
     for (var i = 0; i < n; i++) {
@@ -1215,7 +1230,7 @@ var LCDeck = (function () {
   /* "במקום זה" — שקף עם כל הקווים שעוצרים בתחנות של קו שמבוטל */
   function altsSlide(p, pre) {
     return { id: p.id + '-alt', label: pre + 'במקום זה: קווים אחרים',
-      html: '<div class="s-stops s-alts"><div class="head"><span class="badge sm num">' + E(p.line) + '</span><h2 class="hd">במקום קו ' + E(p.line) + ': קווים שעוצרים באותן תחנות</h2></div>' +
+      html: '<div class="s-alts"><div class="head"><span class="badge sm num">' + E(p.line) + '</span><h2 class="hd">במקום קו ' + E(p.line) + ': קווים שעוצרים באותן תחנות</h2></div>' +
         '<p class="lead">הקווים האלה עוצרים בחלק גדול מהתחנות של קו ' + E(p.line) + '. הם לא נוסעים בדיוק באותו מסלול — בדקו לאן כל קו נוסע לפני שעולים.</p>' +
         altList(p, 5, 'big') +
         '<div class="sfoot"><span>לפי התחנות שבהן הקווים עוצרים בנתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>' };
@@ -1273,7 +1288,7 @@ var LCDeck = (function () {
     }
     if (p.kind !== 'ended' && !(p.kind === 'new' && o.v === 'gen' && o.f === 'text')) {
       // השלט הראשון של שינוי בלו"ז: עם כותרת גדולה, מוקדים והבהרה — פחות מקום ללוח הזמנים
-      var first = p.kind === 'timetable', pages = paginate(ttBlocks(p, 'sign'), TTM.sign.H, first ? 560 : 0);
+      var first = p.kind === 'timetable', pages = paginate(ttBlocks(p, 'sign'), TTM.sign.H, first ? 660 : 0);
       pages.forEach(function (h, i) {
         out.push({ id: 'sg-' + p.id + '-tt' + i, label: pre + (p.kind === 'new' ? 'מתי הקו נוסע' : 'שלט · לוח הזמנים') + (pages.length > 1 ? ' (' + (i + 1) + '/' + pages.length + ')' : ''),
           html: '<div class="s-sign s-signtt">' + (i === 0 && first ? signBand(p) + '<div class="sg-when">' + kindWhen(p) + '</div>'
@@ -1291,8 +1306,8 @@ var LCDeck = (function () {
     var out = [], o = ttOpt();
     var top = function (sub, small) {
       return '<div class="st-top' + (small ? ' sm' : '') + '"><div class="badges">' + badgesHtml([p.line]) + '</div>' +
-        '<h1 class="hd">' + E(p.kind === 'new' ? 'קו חדש' : p.kind === 'ended' ? 'הקו מפסיק לפעול' : 'לוח זמנים חדש') + ' <span class="nw">' +
-          E(p.kind === 'ended' ? 'אחרי ' + LC.dm(lastOf(p)) : 'מ-' + LC.dm(start(p))) + '</span></h1>' +
+        '<h1 class="hd">' + E(p.kind === 'new' ? 'קו חדש' : p.kind === 'ended' ? (started(p) ? 'הקו לא נוסע יותר' : 'הקו מפסיק לפעול') : 'לוח זמנים חדש') + ' <span class="nw">' +
+          E(p.kind === 'ended' ? (started(p) ? 'מ-' + LC.dm(start(p)) : 'אחרי ' + LC.dm(lastOf(p))) : 'מ-' + LC.dm(start(p))) + '</span></h1>' +
         '<p class="sub">' + E(sub) + '</p><div class="seam"><i></i></div></div>';
     };
     var foot = '<div class="st-foot"><p class="st-check">לפני הנסיעה בדקו: ' + (PHONES[p.op] ? E(p.op) + ' <b class="ltr">' + E(PHONES[p.op]) + '</b> · ' : '') + 'משרד התחבורה <b class="ltr">' + MOT + '</b></p>' +

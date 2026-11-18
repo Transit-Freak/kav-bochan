@@ -433,6 +433,9 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .deck[data-look="large"] .s-rstops li{font-size:19px;min-height:38px}
 
 /* במקום זה (קו מבוטל) */
+.s-alts{padding:36px 48px 60px;display:flex;flex-direction:column;gap:18px}
+.s-alts .head{display:flex;align-items:center;gap:14px}
+.s-alts h2{font-size:32px;font-weight:900;line-height:1.15}
 .s-alts .lead{font-size:20px;line-height:1.45;color:var(--s-fg);max-width:1050px}
 .slide ul.alts.big{gap:14px}
 .slide ul.alts.big li{background:var(--s-card);border-radius:14px;padding:12px 18px}
@@ -531,3 +534,8 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-status .tt-cap span{font-size:26px}
 .s-status.k-ended .st-top h1{color:var(--s-band-fg)}
 .s-map .kod{font-size:21px;font-weight:700;color:var(--s-sub);margin-top:-6px}
+.slide table.tt-gen.cols1{width:auto;min-width:62%;align-self:flex-start}
+.slide table.tt-gen.one.cols1{min-width:46%}
+.s-status table.tt-gen.cols1{width:100%}
+.slide table.tt-gen.cols1 th.rl,.slide table.tt-gen.cols2 th.rl{width:auto}
+.slide table.tt-gen.cols2{width:auto;min-width:80%;align-self:flex-start}
