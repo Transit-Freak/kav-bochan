@@ -1334,28 +1334,70 @@
   // סרגל קטן ליד הטקסט שעורכים
   var bar = document.createElement('div');
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
-  bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>';
+  bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
+    '<button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
     curEl = el;
-    var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t'), isBd = el.classList.contains('bdt');
-    bar.querySelector('[data-t="add"]').hidden = isBox || isBd;
-    bar.querySelector('[data-t="reset"]').hidden = isBox || !(isBd ? bdEdited(el.getAttribute('data-bk')) : el.classList.contains('edited'));
+    var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t'), isBd = el.classList.contains('bdt'), isRow = el.tagName === 'TR';
+    bar.querySelector('[data-t="add"]').hidden = isBox || isBd || isRow;
+    bar.querySelector('[data-t="del"]').hidden = isRow;
+    bar.querySelector('[data-t="reset"]').hidden = isRow || isBox || !(isBd ? bdEdited(el.getAttribute('data-bk')) : el.classList.contains('edited'));
     bar.querySelector('[data-t="del"]').textContent = isBox ? 'מחיקת התיבה' : 'מחיקה';
+    // שורה שנבחרה בלוח: "מחיקת השורה" / "מחיקת הקו", והסרגל מעל השורה או מתחתיה — לא עליה
+    bar.querySelector('[data-t="rowdel"]').hidden = !bdSel || bdSel.line;
+    bar.querySelector('[data-t="linedel"]').hidden = !bdSel;
+    if (bdSel && el.closest('.slide')) r = bdSelRect(el.closest('.slide')) || r;
     bar.hidden = false;
     var top = r.top - bar.offsetHeight - 6;
-    if (top < 60) top = r.bottom + 6;
+    if (top < 60 && r.bottom + 6 + bar.offsetHeight < window.innerHeight) top = r.bottom + 6;
     bar.style.top = Math.max(8, top) + 'px';
     bar.style.left = Math.max(8, Math.min(window.innerWidth - bar.offsetWidth - 8, r.left + r.width / 2 - bar.offsetWidth / 2)) + 'px';
   }
-  function hideBar() { bar.hidden = true; curEl = null; }
+  function hideBar() { bar.hidden = true; curEl = null; bdSelect(null); }
+  /* "טבלה לפי יעד" במצב עריכה: לחיצה על תא בוחרת את השורה שלו (על תא מספר הקו — את כל השורות של הקו),
+     והסרגל מציע "מחיקת השורה" / "מחיקת הקו". Delete במקלדת (כשלא עורכים טקסט) מוחק את מה שנבחר */
+  var bdSel = null;
+  function bdSelect(sel) {
+    bdSel = sel;
+    $('deck').querySelectorAll('.s-bd tr.bsel').forEach(function (t) { t.classList.remove('bsel'); });
+    if (sel) $('deck').querySelectorAll(sel.line ? '.s-bd tr.br[data-mk="' + CSS.escape(sel.mk) + '"]' : '.s-bd tr.br[data-rk="' + CSS.escape(sel.rk) + '"]').forEach(function (t) { t.classList.add('bsel'); });
+  }
+  function bdSelRect(slide) {
+    var trs = slide.querySelectorAll('tr.bsel'); if (!trs.length) return null;
+    var a = trs[0].getBoundingClientRect(), b = trs[trs.length - 1].getBoundingClientRect();
+    return { top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom), left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), width: Math.max(a.right, b.right) - Math.min(a.left, b.left) };
+  }
+  function bdDelSel(line) {
+    if (!bdSel) return;
+    if (line) edits.bd.offL[bdSel.mk] = 1; else edits.bd.offR[bdSel.rk] = 1;
+    saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
+  }
+  $('deck').addEventListener('pointerdown', function (ev) {
+    if (!editMode) return;
+    var tr = ev.target.closest('.s-bd tr.br');
+    if (!tr) return;
+    var td = ev.target.closest('td');
+    bdSelect({ rk: tr.getAttribute('data-rk'), mk: tr.getAttribute('data-mk'), line: !!(td && td.classList.contains('bl')) });
+  }, true);
+  $('deck').addEventListener('click', function (ev) {
+    if (!editMode || !bdSel || ev.target.closest('.bdt,[data-bdx]')) return;
+    var tr = ev.target.closest('.s-bd tr.br'); if (!tr) return;
+    showBar(tr);   // לחיצה על תא בלי טקסט לעריכה — רק בחירת השורה
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (!editMode || !bdSel || (ev.key !== 'Delete' && ev.key !== 'Backspace')) return;
+    var a = document.activeElement;
+    if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+    ev.preventDefault(); bdDelSel(bdSel.line);
+  });
   $('deck').addEventListener('focusin', function (ev) {
     var el = ev.target.closest('.edt,.tbox-t,.bdt');
     if (el && editMode) { if (el.classList.contains('bdt') && !el.hasAttribute('data-o')) el.setAttribute('data-o', el.innerText); showBar(el); }
   });
   document.addEventListener('mousedown', function (ev) {
-    if (!bar.hidden && !ev.target.closest('#etb') && !ev.target.closest('.edt,.tbox-t,.bdt')) hideBar();
+    if (!bar.hidden && !ev.target.closest('#etb') && !ev.target.closest('.edt,.tbox-t,.bdt,.s-bd tr.br')) hideBar();
   });
   window.addEventListener('scroll', function () { if (curEl && !bar.hidden) showBar(curEl); }, { passive: true });
   function sidOf(el) { return el.closest('.sframe').getAttribute('data-id'); }
@@ -1384,7 +1426,7 @@
     bdSet(el.getAttribute('data-bk'), el.innerText);
     setTimeout(function () { if (!bar.hidden && curEl === el) hideBar(); keepScroll(function () { render(curPages); }); }, 0);
   });
-  // ✕ — להסיר שורה (קו וכיוון) או קו שלם מהלוח; "להחזיר" — מחזיר
+  // "להחזיר" — שורה או קו שהוסרו חוזרים ללוח
   $('deck').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-bdx]'); if (!b) return;
     ev.preventDefault();
@@ -1421,6 +1463,7 @@
   bar.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b || !curEl) return;
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
+    if (t === 'rowdel' || t === 'linedel') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdDelSel(t === 'linedel'); return; }
     if (el.classList.contains('bdt')) {   // טקסט בלוח: מחיקה — ריק, שחזור — הטקסט מהנתונים
       el.removeAttribute('data-o');
       bdSet(el.getAttribute('data-bk'), t === 'reset' ? null : '');

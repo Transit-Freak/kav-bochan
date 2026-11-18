@@ -923,20 +923,10 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
 .s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
 /* עריכה בלוח: ✕ בפינה של תא המוצא (שורה) ושל תא הקו (קו שלם); מה שהוסר — שורה אפורה דקה, רק במצב עריכה */
-/* ✕ להסרה — לא על הטקסט: ✕ של שורה בעמודה צרה משלה בקצה הטבלה, ✕ של קו בשורה משלו מתחת למספר הקו.
-   רק במצב עריכה (הלוח נבנה אז עם העמודה). --bx — גודל הכפתור בפיקסלים של השקף, כך שעל המסך הוא לפחות 32px */
-.s-bd{--bx:40px}
-.deck[data-form="deck"] .s-bd{--bx:50px}
-.deck[data-form="status"] .s-bd{--bx:84px}
-.s-bd .bdx{display:none;width:var(--bx);height:var(--bx);margin:0 auto;padding:0;border:0;border-radius:50%;background:#b42318;color:#fff;font:800 calc(var(--bx) * .5)/var(--bx) Arial,sans-serif;cursor:pointer}
-.s-bd .bdx.bdxl{background:#13201b;margin-top:.35em}
-body.editing .s-bd .bdx{display:block}
-.s-bd .bd-t col.cc{width:calc(var(--bx) + 10px)}
-body.editing .s-bd .bd-t col.cl{width:max(52px,calc(var(--bx) + 12px))}
-.s-bd .bd-t td.bc{padding:4px;text-align:center;vertical-align:middle;background:#f6f8f7}
-.s-bd .bd-t th.bc{font-size:.8em;padding:.3em 0}
-body:not(.editing) .s-bd .bd-t .bc{display:none}
-body:not(.editing) .s-bd .bd-t col.cc{width:0}
+/* במצב עריכה: השורה שנבחרה (לחיצה על תא; על מספר הקו — כל השורות של הקו) — רקע תכלת ומסגרת כחולה */
+body.editing .s-bd tr.br{cursor:pointer}
+body.editing .s-bd tr.bsel > td{background:#e6eefc!important}
+body.editing .s-bd tr.bsel{outline:3px solid #1f5fd1;outline-offset:-3px}
 .s-bd tr.boff{display:none}
 body.editing .s-bd tr.boff{display:table-row}
 body.editing .s-bd tr.boff td{background:repeating-linear-gradient(-45deg,#f1f3f2 0 6px,#e6eae8 6px 12px);color:#5b6b65;font-weight:700;font-size:.85em;padding:.2em .5em;text-align:right;opacity:.85}
@@ -945,9 +935,6 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
 .s-bd .bd-t td.bo .bdt:empty{margin:0}
 /* בטלפון השלט מוקטן לרוחב המסך — ה-✕ ו"להחזיר" גדולים יותר, כדי שאפשר יהיה ללחוץ עליהם באצבע */
 @media (max-width:700px){
-  .deck[data-form="sign"] .s-bd{--bx:76px}
-  .deck[data-form="deck"] .s-bd{--bx:120px}
-  .deck[data-form="status"] .s-bd{--bx:104px}
   body.editing .deck .s-bd .bdr{font-size:1.6em;padding:.1em .7em}
   body.editing .deck .s-bd tr.boff td{font-size:1.15em;padding:.35em .5em}
 }
