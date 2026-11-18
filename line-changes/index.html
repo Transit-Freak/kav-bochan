@@ -16,7 +16,7 @@
       if (!/^(tt-)?\w+$/.test(t)) return;
       var mk = t.replace(/^tt-/, ''), d = mk.replace(/\D/g, ''), i = d ? parseInt(d, 10) % 64 : mk.split('').reduce(function (s, ch) { return s + ch.charCodeAt(0); }, 0) % 64;
       if (!P.tt[i]) P.tt[i] = get('data/tt/' + i + '.json');
-    } else if (/^\d+-\d{8}(-[net])?$/.test(t)) P.l[t] = get('data/l/' + encodeURIComponent(t) + '.json');
+    } else if (/^\d+-\d{8}(-[netv])?$/.test(t)) P.l[t] = get('data/l/' + encodeURIComponent(t) + '.json');
   });
   var dp = null;
   function js(src, sri) {
