@@ -2228,6 +2228,35 @@ var LCDeck = (function () {
     if (p.kind === 'ended') return it[0] || '';
     return (it[0] || totLine(p.tot || {})) + '';
   }
+  /* שלט לכמה קווים: כשהוא יוצא ארוך (יותר מ-SIGN_MAX עמודים, למשל "כל הקווים בעיר") — במקום טבלת הלו"ז של כל
+     הקווים: עמודי "מה משתנה" (שורה לכל קו), ואחריהם השלטים המפורטים רק של SIGN_LINES הקווים הראשונים.
+     ED.a4full — המשתמש ביקש את הגרסה המלאה. SIGN_INFO — כמה עמודים בכל אחת (להודעה בשלב 3) */
+  var SIGN_MAX = 10, SIGN_LINES = 20, SIGN_INFO = null;
+  function signLimit(pages, full, feed) {
+    SIGN_INFO = { full: full.length, limited: false, short: full.length };   // (נקרא רק בשלט של שינויים)
+    if (pages.length < 2 || full.length <= SIGN_MAX) return full;
+    var lines = []; pages.forEach(function (p) { if (lines.indexOf(p.line) < 0) lines.push(p.line); });
+    var keep = lines.slice(0, SIGN_LINES), more = lines.length - keep.length;
+    var short = sumSign(pages, more).concat(signPages(pages.filter(function (p) { return keep.indexOf(p.line) >= 0; }), feed));
+    SIGN_INFO = { full: full.length, limited: ED.a4full !== true, short: short.length, more: more };
+    return ED.a4full === true ? full : short;
+  }
+  function sumSign(pages, more) {
+    var per = 8, out = [], n = Math.ceil(pages.length / per);
+    for (var i = 0; i < n; i++) {
+      var ps = pages.slice(i * per, (i + 1) * per);
+      out.push({ id: 'sg-sum' + i, label: 'שלט · מה משתנה' + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
+        html: '<div class="s-sign s-sgsum"><div class="sg-band"><div class="sg-row" style="padding-top:14px"><div class="t"><h1 class="hd">מה משתנה בקווים</h1><p class="sub">' +
+          E(linesTxt(pages) + ' · ' + mtWhen(pages)) + (n > 1 ? ' · ' + (i + 1) + '/' + n : '') + '</p></div></div><div class="seam"><i></i></div></div>' +
+          '<ul class="sm-rows" style="margin:12px 40px 0">' + ps.map(function (p) {
+            return '<li><span class="badge sm num">' + E(p.line) + '</span><div class="sm-t"><div class="sm-h">' + LC.chips(p.kind ? { kind: p.kind } : p.tot || {}).replace(/^(<span class="chip[^"]*">[^<]*<\/span>)[\s\S]*$/, '$1') +
+              '<span class="sm-od">' + E(odTxt(p)) + '</span></div><p>' + sumLine(p) + '</p></div></li>';
+          }).join('') + '</ul>' +
+          (i === n - 1 && more ? '<p style="margin:14px 40px 0;font-size:20px;font-weight:700">ועוד ' + more + ' קווים — הפרטים המלאים שלהם במצגת.</p>' : '') +
+          signFoot(null, false) + '</div>' });
+    }
+    return out;
+  }
   function sumSlides(pages, form) {
     var per = form === 'status' ? 7 : 5, out = [], n = Math.ceil(pages.length / per);
     var rowsOf = function (ps) {
@@ -2255,7 +2284,7 @@ var LCDeck = (function () {
   var ED = {};   // אפשרויות: {look, modes: {pageId: 'one'|'full'}, form: 'deck'|'sign'|'status', credit}
   function isOne(p) { if (isKind(p)) return false; var m = ED.modes && ED.modes[p.id]; return m ? m === 'one' : smallInfo(p).small; }
   function build(pages, city, edits) {
-    ED = edits || {};
+    ED = edits || {}; SIGN_INFO = null;
     var big = ED.look === 'large';
     RR = big ? 6 : 10; RA = big ? 10 : 16; SEG_MAX = big ? 3 : 4; COVER_MAX = big ? 2 : 3;
     var feed = pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop();
@@ -2265,7 +2294,7 @@ var LCDeck = (function () {
     // שינוי קטן מאוד בלו"ז (ttOne) — לא נכנס לטבלת הלו"ז של כל הקווים, אלא אם ביקשו "גם שקף נפרד לכל קו"
     var ttCapB = function (p) { return ttCap(p) && !(ttOne(p) && ED.ttper !== true && pages.length > 1); };
     var mt = pages.filter(ttCapB).length > 1, rest = mt ? pages.filter(function (p) { return !ttCapB(p); }) : pages;
-    if (ED.form === 'sign') return mt ? mtSlides(pages.filter(ttCapB), 'sign').concat(rest.length ? signPages(rest, feed) : []) : signPages(pages, feed);
+    if (ED.form === 'sign') return signLimit(pages, mt ? mtSlides(pages.filter(ttCapB), 'sign').concat(rest.length ? signPages(rest, feed) : []) : signPages(pages, feed), feed);
     if (ED.form === 'status') return mt ? sumSlides(pages, 'status').concat(rest.length ? statusPages(rest) : []) : statusPages(pages);
     // קו אחד עם שינוי קטן — עמוד אחד (או שניים), בלי שער ובלי שקף סיום
     if (pages.length === 1 && isOne(pages[0])) return onePages(pages[0], feed, '');
@@ -2632,5 +2661,5 @@ var LCDeck = (function () {
     }
     return pages && pages.length ? autoTitle(pages, '') : '';
   }
-  return { ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

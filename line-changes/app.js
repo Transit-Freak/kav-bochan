@@ -833,10 +833,10 @@
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, hol: idx.hol || [] });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [] });
     pastTense(base, pages);
     drawKinds(pages);
-    ttUi(pages); zmUi(pages); rcUi(pages);
+    ttUi(pages); zmUi(pages); rcUi(pages); a4Ui(form);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -908,6 +908,19 @@
     var v = edits.zm || (nk.some(function (p) { return p.kind === 'new'; }) ? 'yes' : 'no');
     $('zmgrp').querySelectorAll('[data-zm]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-zm') === v ? 'true' : 'false'); });
   }
+  /* שלט ארוך (הרבה קווים): הודעה, וכפתור לגרסה המלאה / המקוצרת (edits.a4full) */
+  function a4Ui(form) {
+    var si = form === 'sign' && LCDeck.signInfo(), el = $('a4note');
+    if (!si || si.full <= si.short && !si.limited && edits.a4full !== true) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = si.limited
+      ? 'השלט היה יוצא ארוך — ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים: "מה משתנה" לכל הקווים, והשלטים המפורטים של 20 הקווים הראשונים' + (si.more ? ' (עוד ' + si.more + ' קווים — במצגת)' : '') + '. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
+      : 'השלט ארוך — ' + si.full + ' עמודים. <button type="button" class="lnk" data-a4="short">לגרסה המקוצרת (' + si.short + ' עמודים)</button>';
+  }
+  $('a4note').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-a4]'); if (!b) return;
+    edits.a4full = b.getAttribute('data-a4') === 'full'; saveEdits(); keepScroll(function () { render(curPages); });
+  });
   /* צבעי המסלול במפת השינוי — רק כשיש במצגת שינוי מסלול (לא קו חדש / מבוטל / לו"ז) */
   function rcUi(pages) {
     $('rcgrp').hidden = !pages.some(function (p) { return !p.kind; });
