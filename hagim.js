@@ -377,15 +377,35 @@
   }
 
   // ---------- העין משחקת עם סמלי החג (דף הבית) ----------
-  // מדי פעם, כשהעין הגדולה מסתכלת על סמל של החג, היא משחקת איתו לפי סוג הסמל (hagim-play.js, נטען רק בדף הבית):
-  //   eat — אוכל: פה קטן נפתח מתחת לעין, הסמל עף פנימה והעין לועסת בחיוך · read — מגילה/ספר: נפתחת מול העין והאישון קורא
-  //   light — חנוכייה/נרות: הנרות נדלקים אחד אחרי השני · spin — סביבון: מסתובב ונופל על אות · wear — כתר/מסכה: העין חובשת לרגע
-  // חג חדש = שורה כאן (מפתח הכלי כמו ב-ART → סוג המשחק). סוגים לעתיד (עוד לא ממומשים ב-hagim-play.js):
-  //   blow (שופר — גלי קול בלי קול), sip (כוס יין — לגימה וסומק), wave (דגל), boom (זיקוקים).
+  // מדי פעם, כשהעין הגדולה מסתכלת על סמל של החג, היא משחקת איתו לפי סוג הסמל (hagim-play.js, נטען רק בדף הבית).
+  // העין תמיד נשארת פתוחה, והסמל תמיד לידה (מתחת, מעל או בצד) — אף פעם לא מול האישון. הסוגים:
+  //   eat אוכל · dip טבילה בדבש ואכילה · seeds גרעיני רימון לפה · sip לגימה וסומק · honey דבש מטפטף לפה
+  //   read קריאה (מגילה/הגדה) · light הדלקת נרות (סמל עם להבות) · spin סביבון · wear חבישה (כתר/מסכה/מדליה) · wreath זר פרחים
+  //   blow תקיעה עם גלי קול (בלי קול) · wave נפנוף דגל · shake ניענוע לולב · sniff הרחה · peek הצצה פנימה
+  //   plant שתילה והשקיה · boom זיקוקים · smoke עשן מהמנגל · toast מרשמלו על המדורה · shoot קשת וחץ
+  //   pour מזיגת שמן לנר · coins מטבעות · find מציאת האפיקומן · lift הרמה בגאווה · twirl סיבוב · noise רעשן
+  //   inspect זכוכית מגדלת · bounce קפיצה במקום — לסמלים שאינם חפץ (גרפים, אוטובוסים, שעונים)
+  // חג חדש = שורה כאן (מפתח הכלי כמו ב-ART → סוג המשחק). כל סמל שאין לו שורה — בלי משחק.
   // לא בימים עצובים (וגם לא בתענית אסתר שלפני פורים), ולא כשביקשו "בלי תנועה". בדיקה: ‎?hag=purim&eyeplay=read‎ (או all).
   var PLAY = {
-    hanukkah: { pach: "eat", speed: "eat", skip: "eat", time: "light", bug: "spin" },
-    purim:    { fares: "eat", time: "read", ratzif: "wear" }
+    rosh:      { pach: "inspect", gold: "seeds", bug: "blow", next: "dip", time: "inspect", skip: "bounce", fares: "honey", ratzif: "eat", fleet: "eat",
+                 rail: "blow", bus: "bounce", recep: "bounce", slides: "read", speed: "inspect", alerts: "blow", feeder: "eat", game: "bounce" },
+    sukkot:    { pach: "peek", gold: "sniff", bug: "shake", next: "peek", time: "bounce", skip: "wave", fares: "coins", ratzif: "shake", fleet: "twirl",
+                 rail: "read", bus: "sniff", recep: "bounce", slides: "read", speed: "bounce", alerts: "read", feeder: "lift", game: "bounce" },
+    hanukkah:  { pach: "eat", gold: "pour", bug: "spin", next: "inspect", time: "light", skip: "eat", fares: "coins", ratzif: "inspect", fleet: "bounce",
+                 rail: "bounce", bus: "bounce", recep: "light", slides: "read", speed: "eat", alerts: "blow", feeder: "eat", game: "bounce" },
+    tubishvat: { pach: "plant", gold: "sniff", bug: "inspect", next: "bounce", time: "inspect", skip: "plant", fares: "coins", ratzif: "eat", fleet: "eat",
+                 rail: "bounce", bus: "bounce", recep: "bounce", slides: "read", speed: "eat", alerts: "blow", feeder: "honey", game: "bounce" },
+    purim:     { pach: "noise", gold: "lift", bug: "bounce", next: "wear", time: "read", skip: "boom", fares: "eat", ratzif: "wear", fleet: "bounce",
+                 rail: "bounce", bus: "bounce", recep: "eat", slides: "read", speed: "bounce", alerts: "blow", feeder: "eat", game: "bounce" },
+    pesach:    { pach: "inspect", gold: "eat", bug: "bounce", next: "inspect", time: "read", skip: "bounce", fares: "coins", ratzif: "sip", fleet: "find",
+                 rail: "bounce", bus: "bounce", recep: "sip", slides: "read", speed: "twirl", alerts: "read", feeder: "eat", game: "bounce" },
+    atzmaut:   { pach: "smoke", gold: "bounce", bug: "boom", next: "wave", time: "bounce", skip: "wear", fares: "coins", ratzif: "wave", fleet: "bounce",
+                 rail: "boom", bus: "bounce", recep: "wave", slides: "read", speed: "bounce", alerts: "bounce", feeder: "eat", game: "lift" },
+    lagbaomer: { pach: "smoke", gold: "toast", bug: "shoot", next: "toast", time: "bounce", skip: "eat", fares: "coins", ratzif: "shoot", fleet: "bounce",
+                 rail: "bounce", bus: "bounce", recep: "bounce", slides: "read", speed: "bounce", alerts: "blow", feeder: "peek", game: "bounce" },
+    shavuot:   { pach: "eat", gold: "eat", bug: "lift", next: "bounce", time: "bounce", skip: "bounce", fares: "coins", ratzif: "eat", fleet: "wreath",
+                 rail: "bounce", bus: "bounce", recep: "bounce", slides: "read", speed: "bounce", alerts: "blow", feeder: "eat", game: "bounce" }
   };
   function startPlay(stage) {
     var P = PLAY[active.id], F = FEYE[active.id];
