@@ -3322,7 +3322,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           : approx
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
-        {(gv.foiNames || []).length > 0 && <div className="mut"><TipTag cls="mut" tip="שם התחנה כפי שהוא רשום היום — השם בתקופה הזו לא ידוע">שם עדכני</TipTag>: ל-{gv.foiNames.length} מהתחנות בגרסה הזו לא נמצא שם מהתקופה, ומוצג השם שלהן היום (בלחיצה על התחנה במפה ובשמות התחנות שנוספו או ירדו).</div>}
+        {((gv.foiNames || []).length > 0 || ((pgv && pgv.foiNames) || []).length > 0) && <div className="mut">ℹ️ <TipTag cls="mut" tip="שם התחנה כפי שהוא רשום היום — השם בתקופה הזו לא ידוע">שם עדכני</TipTag> — שם התחנה כפי שהוא רשום היום; השם בתקופה הזו לא ידוע{(gv.foiNames || []).length ? ` (${gv.foiNames.length} תחנות בגרסה הזו)` : ""}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
