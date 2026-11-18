@@ -1337,12 +1337,95 @@ def hol_lists(feed, svcs, t0, eff, by_dow):
     return out
 
 
+TT_ALTS = 4   # כמה חלופות לכל היותר מסומנות באות (א, ב, ...); השאר — "בחלופה אחרת" (האות האחרונה)
+
+
+def alt_via(main, st):
+    """תיאור קצר של חלופה לעומת הראשית: מה יש רק בה (ערים, רחובות, תחנת קצה), או מה אין בה. '' — אותן תחנות"""
+    mc = {s['code'] for s in main}
+    cc = {s['code'] for s in st}
+    if [s['code'] for s in st] == [s['code'] for s in main]:
+        return ''
+    extra = [s for s in st if s['code'] not in mc]
+    miss = [s for s in main if s['code'] not in cc]
+
+    def uniq(arr):
+        out = []
+        for a in arr:
+            if a and a not in out:
+                out.append(a)
+        return out
+
+    def two(arr):
+        arr = [re.sub(r'^ת\.\s*רכבת', 'תחנת הרכבת', re.sub(r'^ת\.\s*מרכזית', 'התחנה המרכזית', a.replace("''", '"'))) for a in arr]
+        return arr[0] if len(arr) == 1 else arr[0] + ' ו' + arr[1]
+
+    def street(s):   # הרחוב מתיאור התחנה, ואם אין — החלק הראשון של השם ("עמק חפר/בקעת רימון")
+        return s['street'] or s['name'].split('/')[0].strip()
+
+    def via(t):
+        return t if t.startswith('דרך ') else 'דרך ' + t
+    mcity = {s['city'] for s in main}
+    cities = uniq([s['city'] for s in extra if s['city'] not in mcity])
+    if cities:
+        return 'דרך ' + two(cities)
+    if st and st[-1]['code'] not in mc:
+        return 'עד ' + two([st[-1]['name']])
+    if st and st[0]['code'] not in mc:
+        return 'מ' + two([st[0]['name']])
+    if extra:
+        mst = {street(s) for s in main}
+        sts = uniq([street(s) for s in extra if street(s) not in mst]) or uniq([s['name'] for s in extra])
+        return via(two(sts))
+    if st and main and st[-1]['code'] != main[-1]['code']:
+        return 'עד ' + two([st[-1]['name']])
+    if st and main and st[0]['code'] != main[0]['code']:
+        return 'מ' + two([st[0]['name']])
+    scity = {s['city'] for s in st}
+    gone = uniq([s['city'] for s in miss if s['city'] not in scity])
+    if gone:
+        return 'לא דרך ' + two(gone)
+    sst = {street(s) for s in st}
+    gone = uniq([street(s) for s in miss if street(s) not in sst])
+    return 'לא דרך ' + two(gone) if gone else 'מסלול מקוצר'
+
+
+def alt_labels(feed, pw):
+    """החלופות של מק"ט-כיוון: (תיאורים לחלופות שאינן הראשית, {חלופה: אינדקס}) — 0 = ראשית.
+    pw = {(רצף, route_id): נסיעות×ימים}"""
+    by = defaultdict(lambda: defaultdict(int))
+    for (pid, rid), n in pw.items():
+        if pid is not None:
+            rp = (feed.routes[rid]['rd'] or rid).split('-')
+            by[rp[2] if len(rp) > 2 else ''][pid] += n
+    if len(by) < 2:
+        return [], {}
+    tot = {a: sum(v.values()) for a, v in by.items()}
+    order = sorted(by, key=lambda a: -tot[a])
+    main = stops_of(feed, max(by[order[0]].items(), key=lambda kv: kv[1])[0])
+    V, ai = [], {}
+    for a in order[1:]:
+        lbl = alt_via(main, stops_of(feed, max(by[a].items(), key=lambda kv: kv[1])[0]))
+        if not lbl:
+            continue
+        if lbl not in V:
+            if len(V) < TT_ALTS:
+                V.append(lbl)
+            else:   # יותר מדי חלופות — האות האחרונה לכל השאר
+                V[-1] = lbl = 'במסלול אחר'
+        ai[a] = V.index(lbl) + 1
+    return V, ai
+
+
 def current_tts(feed, t0):
     """הלו"ז העדכני של כל קווי האוטובוס, לשבוע הקרוב: לכל מק"ט ולכל כיוון — היציאות מהתחנה הראשונה לכל יום בשבוע
     (יום רגיל: התאריך הקרוב שאינו חג או ערב חג), ובתאריכי חג בשבוע הקרוב — רק אם השעות שונות מהיום הרגיל.
     נכתב ל-data/tt/NN.json (מק"ט % 64). קו = {l: מספר, a: agency_id, o: חברה, d: {כיוון: {...}}}
     כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, du: משך נסיעה טיפוסי (דק'),
-             w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+)}"""
+             w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+),
+             v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
+             אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...)}
+    חלופה ראשית = זו עם הכי הרבה נסיעות. חלופה עם אותן תחנות כמו הראשית נחשבת ראשית."""
     DAY = datetime.timedelta(days=1)
     hol = {h[0] for h in hebcal.holidays(t0 - DAY, feed.d1)}
     week = [t0 + DAY * i for i in range(TT_DAYS)]
@@ -1357,45 +1440,47 @@ def current_tts(feed, t0):
             continue
         end = feed.trip_end.get(tid)
         mk, _, rest = (r['rd'] or rid).partition('-')
-        key = (r['ag'], mk, rest.split('-')[0])
-        trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None))
+        rp = rest.split('-')
+        key = (r['ag'], mk, rp[0])
+        trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None, rp[1] if len(rp) > 1 else ''))
         pats[key][(feed.trip_pat.get(tid), rid)] += len(feed.svc_dates[sv])
 
-    def day_list(svcs, d):
-        """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+)"""
+    def day_list(svcs, d, ai):
+        """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) — [(דקה, אינדקס חלופה)]"""
         a, b = [], []
         for sv, lst in svcs.items():
             ss = feed.svc_set.get(sv, ())
             if d in ss:
-                a += [x[0] for x in lst if x[0] >= NIGHT]
+                a += [(x[0], ai.get(x[2], 0)) for x in lst if x[0] >= NIGHT]
             if d + DAY in ss:
-                b += [x[0] + 1440 for x in lst if x[0] < NIGHT]
-        return sorted(a + b)
+                b += [(x[0] + 1440, ai.get(x[2], 0)) for x in lst if x[0] < NIGHT]
+        return tuple(sorted(a + b))
 
     shards = defaultdict(dict)
     n_dirs = 0
     for key in sorted(trips):
         ag, mk, dr = key
         svcs = trips[key]
+        V, ai = alt_labels(feed, pats[key])
         usual = {}
         for d in week:
             alt = next((x for x in (d, d + 7 * DAY, d + 14 * DAY) if x not in hol and x + DAY <= feed.d1), d)
-            usual[dow(d)] = day_list(svcs, alt)
+            usual[dow(d)] = day_list(svcs, alt, ai)
         if not any(usual.values()):
             continue
-        L, ix = [], {}
+        L, A, ix = [], [], {}
 
         def idx(lst):
-            k = tuple(lst)
-            if k not in ix:
-                ix[k] = len(L)
-                L.append(lst)
-            return ix[k]
+            if lst not in ix:
+                ix[lst] = len(L)
+                L.append([m for m, _a in lst])
+                A.append(''.join(str(a) for _m, a in lst) if any(a for _m, a in lst) else 0)
+            return ix[lst]
         w = [idx(usual[x]) for x in DOWS]
         x = {}
         for d in week:
             if d in hol:
-                lst = day_list(svcs, d)
+                lst = day_list(svcs, d, ai)
                 if lst != usual[dow(d)]:
                     x[d.isoformat()] = idx(lst)
         (pid, rid), _n = max(pats[key].items(), key=lambda kv: kv[1])
@@ -1405,11 +1490,13 @@ def current_tts(feed, t0):
         for s0 in st:
             if s0['city'] and (not cs or cs[-1] != s0['city']):
                 cs.append(s0['city'])
-        durs = sorted(du for lst in svcs.values() for _d, du in lst if du)
+        durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
         rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
                    du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
+        if any(A):
+            rec['v'], rec['A'] = V, A
         sh = shards[tt_shard(mk)]
         e = sh.get(mk)
         if e and e['a'] != ag:     # אותו מק"ט בשתי חברות (נדיר) — נשאר הקו עם יותר נסיעות

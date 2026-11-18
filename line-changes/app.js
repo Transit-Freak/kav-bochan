@@ -22,7 +22,21 @@
   var edits = { t: {}, add: {}, boxes: {}, xslides: [], off: {} }, edSig = '';
 
   /* ---------- טעינה ---------- */
-  Promise.all([LC.getJSON('data/lines.json'), LC.getJSON('data/index.json')]).then(function (r) {
+  // הקבצים כבר בדרך מה-<head> (LCPRE ב-index.html); בלי זה — מורידים כאן
+  var PRE = window.LCPRE || { l: {}, tt: {} };
+  var indexP = PRE.index || LC.getJSON('data/index.json');
+  // קישור קצר (?c=10970): המזהה המלא ידוע רק אחרי index.json — הקובץ של השינוי מתחיל לרדת מיד, בלי לחכות לרשימת הקווים
+  if (mode !== 'tt') indexP.then(function (ix) {
+    var keep = [idx, goneMk];
+    idx = ix;
+    try {
+      (new URLSearchParams(location.search).get('c') || '').split(',').filter(Boolean).map(resolveId).forEach(function (id) {
+        if (id && !/^(tt|p|x)-/.test(id) && !cache[id] && !PRE.l[id]) PRE.l[id] = LC.getJSON('data/l/' + encodeURIComponent(id) + '.json');
+      });
+    } catch (e) {}
+    idx = keep[0]; goneMk = keep[1];
+  }).catch(function () {});
+  Promise.all([PRE.lines || LC.getJSON('data/lines.json'), indexP]).then(function (r) {
     var li = r[0]; idx = r[1];
     OPS = li.ops; CITIES = li.cities;
     var OPIDS = li.op_ids || [];
@@ -49,6 +63,8 @@
       else if (ll) { cur = ll; go(2, 'replace'); }
       else if (goneMk && lineOf(goneMk)) { goneNote = goneMk; cur = lineOf(goneMk); go(2, 'replace'); }   // קישור ישן לשינוי שירד — הקו
       else go(1, 'replace');
+      // שלב 1 מוכן: הקוד של המצגת יורד ברקע, כדי שהמעבר למצגת יהיה מיידי
+      (window.requestIdleCallback || function (f) { setTimeout(f, 1500); })(function () { deckLib().catch(function () {}); }, { timeout: 4000 });
     });
   }).catch(function () {
     $('results').innerHTML = '<div class="none">לא הצלחנו לטעון את רשימת הקווים. נסו לרענן את הדף.</div>';
@@ -186,9 +202,15 @@
     if (kindF !== 'all' && mode !== 'tt') sp.push('k=' + KF_URL[kindF]);
     if (mode === 'tt') sp.unshift('m=tt');
     var url = sp.length ? '?' + sp.join('&') : location.pathname;
-    try { history[how === 'push' ? 'pushState' : 'replaceState']({ s: step, l: cur && cur.makat, op: cur && cur.op }, '', url); } catch (e) {}
+    var st = { s: step, l: cur && cur.makat, op: cur && cur.op }, w = function () { try { history[how === 'push' ? 'pushState' : 'replaceState'](st, '', url); } catch (e) {} };
+    // הנתונים יכולים להגיע עוד לפני שהסקריפטים של האתר (defer — למשל ‎?hag=‎ ב-hagim.js) קראו את הכתובת: משנים אותה רק אחרי שהדף נקרא
+    if (document.readyState === 'loading') {
+      if (!urlLater) document.addEventListener('DOMContentLoaded', function () { if (urlLater) urlLater(); });
+      urlLater = w;
+    } else w();
     sessSet();
   }
+  var urlLater = null;
   function sessSet() {
     picksBy[mode] = picks;
     var ids = function (a) { return a.map(function (p) { return p.id; }); };
@@ -480,15 +502,18 @@
   var ttShards = {};
   function ttShard(mk) {
     var d = String(mk).replace(/\D/g, ''), i = d ? parseInt(d, 10) % 64 : String(mk).split('').reduce(function (t, c) { return t + c.charCodeAt(0); }, 0) % 64;
-    return ttShards[i] || (ttShards[i] = LC.getJSON('data/tt/' + i + '.json').catch(function () { delete ttShards[i]; return null; }));
+    var pre = PRE.tt[i]; delete PRE.tt[i];
+    return ttShards[i] || (ttShards[i] = (pre || LC.getJSON('data/tt/' + i + '.json')).catch(function () { delete ttShards[i]; return null; }));
   }
   function ttPick(mk) {
     return ttShard(mk).then(function (sh) {
       var e = sh && sh.lines[mk]; if (!e) return null;
       var l = lineOf(mk), dirs = Object.keys(e.d).sort().map(function (k) {
-        var r = e.d[k], x = {};
-        Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; });
-        return { dir: k, od: r.od, f: r.f, t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x };
+        var r = e.d[k], x = {}, xa = {}, A = r.A || [];
+        Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; });
+        // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
+        return { dir: k, od: r.od, f: r.f, t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
+          v: r.v || [], da: r.w.map(function (i) { return A[i] || 0; }), xa: xa };
       });
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
         eff: sh.valid, valid: sh.valid, gen: sh.gen, feed: sh.feed, hol: sh.hol || [], dirs: dirs, tot: { kind: 'current' } };
@@ -672,7 +697,8 @@
     if ((m = key.match(/^tt-(\w+)$/))) return ttPick(m[1]).then(function (p) { return p ? (cache[key] = p) : null; });
     if ((m = key.match(/^p-(\d+)-(\d{4}-\d{2}-\d{2})$/))) return pastPick(m[1], m[2], null).then(function (p) { return (cache[key] = p); });
     if ((m = key.match(/^x-(\d+)-(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})$/))) return pastPick(m[1], m[3], m[2]).then(function (p) { return (cache[key] = p); });
-    return LC.getJSON('data/l/' + encodeURIComponent(key) + '.json').then(function (p) { return (cache[key] = normPage(p)); }).catch(function () { return null; });
+    var pre = PRE.l[key]; delete PRE.l[key];
+    return (pre || LC.getJSON('data/l/' + encodeURIComponent(key) + '.json')).then(function (p) { return (cache[key] = normPage(p)); }).catch(function () { return null; });
   }
 
   /* קובץ של "הקו בזמן" לכיוון אחד: גרסאות עם תחנות ומסלול */
@@ -698,7 +724,8 @@
     if (!l) return Promise.resolve(null);
     var rests = before ? l.rds : l.past.filter(function (e) { return Math.abs(LC.daysBetween(e[0], d)) <= 3; }).map(function (e) { return e[1]; });
     rests = rests.filter(function (r, i) { return rests.indexOf(r) === i; });
-    return Promise.all(rests.map(function (r) { return lhFile(makat + '-' + r); })).then(function (files) {
+    return Promise.all(rests.map(function (r) { return lhFile(makat + '-' + r); }).concat([deckLib()])).then(function (files) {
+      files.pop();   // deckLib — LCDeck.geoChanged ב-diffDir
       var dirs = [];
       files.forEach(function (f, i) {
         if (!f) return;
@@ -842,9 +869,19 @@
     if (step === 3) setUrl('replace');
     if (!picks.length) { emptyStage(); return; }
     var pages = expandInf(picks).sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0); });
+    if (!deckOk()) {   // הקוד של המצגת עוד יורד — הודעה קצרה, והמצגת מיד כשהוא מגיע
+      $('deck').innerHTML = '<div class="empty-state"><p>טוען את המצגת…</p></div>';
+      deckLib().then(function () { if (my === token && step === 3) rebuild(); }, function () {
+        if (my === token) $('deck').innerHTML = '<div class="empty-state"><p>לא הצלחנו לטעון את המצגת. נסו לרענן את הדף.</p></div>';
+      });
+      return;
+    }
     drawInfq();
     if (my === token) render(pages);
   }
+  /* deck.js, editor.js ו-Leaflet נטענים רק כשצריך (LCDeckLoad ב-index.html) */
+  function deckOk() { return !!(window.LCDeck && window.LCEdit); }
+  function deckLib() { return deckOk() ? Promise.resolve() : window.LCDeckLoad ? window.LCDeckLoad() : Promise.reject(new Error('deck')); }
 
   /* ---------- המצגת: בנייה, עריכות, תצוגה ---------- */
   var editMode = false;
@@ -906,9 +943,9 @@
   // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
   function render(pages) {
+    if (!deckOk()) return;
     curPages = pages;
-    maps.forEach(function (m) { m.map.remove(); });
-    maps = [];
+    dropMaps();
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
@@ -952,13 +989,42 @@
     }).join('');
     scale();
     slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); drawImgs(s.id); });
+    // המפות שכבר על המסך (או קרוב אליו) — מיד, כמו קודם; השאר — כשמגיעים אליהן
+    var vh = window.innerHeight || 800, now = [];
     slides.forEach(function (s) {
       if (!s.map) return;
-      maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(frameOf(s.id), s.map)));
+      var m = { id: s.id, spec: s.map, fr: frameOf(s.id), map: null, ready: null }, r = m.fr.getBoundingClientRect();
+      maps.push(m);
+      if (!mapIO || (r.height && r.bottom > -1.5 * vh && r.top < 2.5 * vh)) now.push(m); else mapIO.observe(m.fr);
     });
+    now.forEach(buildMap);
     setEdit(editMode);
     number();
   }
+  /* מפות: כל מפה נבנית רק כשהשקף שלה מתקרב למסך (עם מרווח נדיב), ולפני PDF / תמונות / הדפסה — כולן */
+  var mapIO = window.IntersectionObserver ? new IntersectionObserver(function (ents) {
+    ents.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      mapIO.unobserve(e.target);
+      maps.forEach(function (m) { if (m.fr === e.target) buildMap(m); });
+    });
+  }, { rootMargin: '150% 0px 150% 0px' }) : null;
+  function buildMap(m) {
+    if (m.map || m.ready) return m;
+    if (mapIO) mapIO.unobserve(m.fr);
+    try { var r = LCDeck.drawMap(m.fr, m.spec); m.map = r.map; m.ready = r.ready; }
+    catch (e) { if (window.console) console.error('map', e); m.ready = Promise.resolve(); }
+    return m;
+  }
+  function dropMaps() {
+    maps.forEach(function (m) { if (mapIO) mapIO.unobserve(m.fr); if (m.map) m.map.remove(); });
+    maps = [];
+  }
+  // המפות של השקפים שייכללו — נבנות עכשיו (אם עוד לא), ומחכים שיהיו מוכנות
+  function mapsReady(all) {
+    return Promise.all(maps.filter(function (m) { return all || !edits.off[m.id]; }).map(function (m) { return buildMap(m).ready; }));
+  }
+  window.addEventListener('beforeprint', function () { maps.forEach(function (m) { if (!edits.off[m.id]) buildMap(m); }); });
   /* שינוי קטן — עמוד אחד; שינוי גדול — מצגת מלאה. אפשר להחליף לכל קו */
   function drawKinds(pages) {
     $('kinds').innerHTML = pages.filter(function (p) { return !p.kind; }).map(function (p) {
@@ -1221,7 +1287,7 @@
     LCEdit.fit(el.closest('.sframe'));
     // בשלט ובסטטוס המפה ממלאת את המקום שנשאר — טקסט ארוך או קצר יותר משנה את הגודל שלה
     var fsid = sidOf(el);
-    maps.forEach(function (m) { if (m.id === fsid) m.map.invalidateSize({ pan: false }); });
+    maps.forEach(function (m) { if (m.id === fsid && m.map) m.map.invalidateSize({ pan: false }); });
     showBar(el);
   });
   // מחקו את כל הטקסט בהקלדה: כשיוצאים מהשדה — השורה יורדת, יחד עם הסימן שלידה
@@ -1518,12 +1584,15 @@
 
   /* התצוגה המקדימה: השקף בגודל המלא (1280×720, ובצורות האחרות — הגודל שלהן) מוקטן לרוחב המסגרת */
   function scale() {
-    var W = dims().w;
-    document.querySelectorAll('.sframe').forEach(function (f) {
+    if (!deckOk()) return;
+    var W = dims().w, fs = document.querySelectorAll('.sframe'), fw = 0;
+    // כל המסגרות באותו רוחב: קוראים פעם אחת (מהמסגרת הראשונה שמוצגת), ואז כותבים לכולן — בלי חישוב פריסה בכל שקף
+    for (var i = 0; i < fs.length && !fw; i++) fw = fs[i].clientWidth;
+    var k = Math.min(1, (fw || W) / W), t = 'scale(' + k + ')', ik = (1 / k).toFixed(3);
+    fs.forEach(function (f) {
       var s = f.querySelector('.slide'); if (!s) return;
-      var k = Math.min(1, (f.clientWidth || W) / W);
-      s.style.transform = 'scale(' + k + ')';
-      s.style.setProperty('--ik', (1 / k).toFixed(3));
+      s.style.transform = t;
+      s.style.setProperty('--ik', ik);
     });
   }
   if (window.ResizeObserver) new ResizeObserver(scale).observe($('deck'));
@@ -1591,12 +1660,12 @@
     // (תמונות לסטטוס — בלי לשונית: הן מוצגות ברשימה, ושומרים בלחיצה ארוכה או בשיתוף)
     var tab = IOS && !SAFARI && !png ? window.open('', '_blank') : null;
     var items = Array.prototype.filter.call($('deck').querySelectorAll('.sitem'), function (it) { return !it.classList.contains('off'); });
-    var vis = maps.filter(function (m) { return !edits.off[m.id]; });
     var host = null, cur = null;
+    var mapsP = mapsReady();   // המפות שעוד לא נבנו — מתחילות עכשיו, במקביל לספריות
     loadLibs().then(function () {
       label('מכין את המפות…');
       // כל אריחי המפות (לכל מפה יש זמן קצוב משלה ב-deck.js), והגופנים — ועוד גבול עליון לכל ההמתנה
-      return timeout(Promise.all(vis.map(function (m) { return m.ready; }).concat(document.fonts ? [document.fonts.ready] : [])), 15000);
+      return timeout(Promise.all([mapsP].concat(document.fonts ? [document.fonts.ready] : [])), 15000);
     }).then(function () {
       if (editMode) setEdit(false);
       // מקום מחוץ למסך, בגודל המלא של שקף; השקף עובר לשם לרגע ומצולם בלי ההקטנה של התצוגה המקדימה.
@@ -1697,8 +1766,7 @@
   }
   /* הדפסה רגילה (גם כגיבוי כשה-PDF לא נוצר) */
   function printDeck() {
-    var vis = maps.filter(function (m) { return !edits.off[m.id]; });
-    timeout(Promise.all(vis.map(function (m) { return m.ready; })), 15000).then(function () {
+    timeout(mapsReady(), 15000).then(function () {
       var t0 = document.title;
       document.title = LCDeck.deckTitle(curPages) || 'מצגת';
       if (editMode) setEdit(false);
@@ -1708,5 +1776,5 @@
   $('dl').addEventListener('click', download);
   $('dl2').addEventListener('click', download);
   document.querySelectorAll('.printbtn').forEach(function (b) { b.addEventListener('click', printDeck); });
-  window.LCApp = { ready: function () { return Promise.all(maps.map(function (m) { return m.ready; })); }, step: function () { return step; } };
+  window.LCApp = { ready: function () { return mapsReady(true); }, step: function () { return step; } };
 })();
