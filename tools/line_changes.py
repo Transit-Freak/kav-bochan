@@ -1562,17 +1562,60 @@ def keep_prev(found, prev, t0, keep_from, keep_all=False):
     return [f for i, f in enumerate(found) if i not in drop] + keep
 
 
+ALIAS_DAYS = 30   # מזהה של דף שהשתנה או ירד — קישורים ישנים ממשיכים לעבוד 30 יום
+
+
+def make_alias(prev_pages, prev_alias, new_pages, index, t0):
+    """קישורים ישנים: {מזהה ישן: [מזהה חדש או None, תאריך]}. מזהה שהיה אתמול ואין היום (התאריך שלו
+    השתנה, או שהשינוי ירד) — המזהה החדש: באותו מק"ט ובאותו סוג, עם כיוון משותף (ואחרת — כל סוג עם כיוון משותף,
+    למשל שינוי בלו"ז שהתברר כשינוי מסלול). אין כזה — None, והדף מציג את הקו. נשמר ALIAS_DAYS ימים, עם הכינויים
+    מהריצות הקודמות; כינוי שהיעד שלו ירד היום — מצביע על היעד החדש של היעד."""
+    suf = lambda i: (re.match(r'^\d+-\d{8}(-[net])?$', i) or [None, None])[1] or ''   # noqa: E731
+    dk = lambda rds: {dir_key(r) for r in rds}   # noqa: E731
+    by_mk = defaultdict(list)
+    for r in index:
+        by_mk[r['makat']].append(r['id'])
+
+    def succ(old, info):
+        mk, sx = old.split('-')[0], suf(old)
+        cands = [i for i in by_mk.get(mk, []) if dk(new_pages[i]) & dk(info.get('rds', []))]
+        same = [i for i in cands if suf(i) == sx] or cands
+        if not same and not info.get('rds'):
+            same = [i for i in by_mk.get(mk, []) if suf(i) == sx]
+        e = info.get('eff') or ''
+        return min(same, key=lambda i: (abs(int(i.split('-')[1]) - int((e or '0').replace('-', '') or 0)), i)) if same else None
+
+    keep_from = (datetime.date.fromisoformat(t0) - datetime.timedelta(days=ALIAS_DAYS)).isoformat()
+    out = {}
+    for old, info in prev_pages.items():
+        if old not in new_pages:
+            out[old] = [succ(old, info), t0]
+    for old, (to, d) in prev_alias.items():
+        if old in new_pages or old in out or d < keep_from:
+            continue
+        if to and to not in new_pages:
+            to = out.get(to, [None])[0] or succ(to, prev_pages.get(to, {}))
+        out[old] = [to, d]
+    return out
+
+
 def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
     data = os.path.join(OUTDIR, 'data')
     os.makedirs(os.path.join(data, 'l'), exist_ok=True)
     # השינויים מהריצות הקודמות — מקובצי הדפים עצמם (אין קובץ מצב נפרד)
-    prev = []
+    prev, prev_pages = [], {}
     for fn in sorted(os.listdir(os.path.join(data, 'l'))):
         if fn.endswith('.json'):
             try:
-                prev += json.load(open(os.path.join(data, 'l', fn), encoding='utf-8')).get('dirs', [])
+                dd = json.load(open(os.path.join(data, 'l', fn), encoding='utf-8'))
+                prev += dd.get('dirs', [])
+                prev_pages[fn[:-5]] = dict(eff=dd.get('eff', ''), rds=[x['rd'] for x in dd.get('dirs', [])])
             except Exception:  # noqa: BLE001
                 pass
+    try:
+        prev_alias = json.load(open(os.path.join(data, 'index.json'), encoding='utf-8')).get('alias', {})
+    except Exception:  # noqa: BLE001
+        prev_alias = {}
     if os.path.exists(os.path.join(data, 'state.json')):
         os.remove(os.path.join(data, 'state.json'))
     t0 = TODAY.isoformat()
@@ -1600,6 +1643,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         cnt[key + (f['rd'],)] += 1
     index = []
     want = set()
+    pages_rds = {}
     tpl = open(os.path.join(OUTDIR, 'line-template.html'), encoding='utf-8').read()
     os.makedirs(os.path.join(OUTDIR, 'l'), exist_ok=True)
     for (ag, makat, kd, _n), dirs in pages.items():
@@ -1610,6 +1654,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         # הסוגים החדשים: עם סיומת (n קו חדש · e קו מבוטל · t לוח זמנים)
         pid = f'{makat}-{(formal or eff).replace("-", "")}' + KIND_SUFFIX.get(kd, '')
         want.add(pid)
+        pages_rds[pid] = dirs
         f0 = dirs[0]
         cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops'] if s[4]})
         ch_codes = {c for f in dirs for c in f['added'] + f['removed']} | {m['code'] for f in dirs for m in f['moved']}
@@ -1669,15 +1714,17 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         html = (tpl.replace('{{TITLE}}', esc(title)).replace('{{DESC}}', esc(desc))
                 .replace('{{URL}}', f'{SITE}/l/{pid}.html').replace('{{ID}}', pid))
         open(os.path.join(OUTDIR, 'l', pid + '.html'), 'w', encoding='utf-8').write(html)
-    # ניקוי דפים שכבר לא ברשימה
+    alias = make_alias(prev_pages, prev_alias, {r['id']: [d['rd'] for d in pages_rds[r['id']]] for r in index}, index, t0)
+    # ניקוי דפים שכבר לא ברשימה. דף השיתוף (l/<id>.html) של מזהה ישן נשאר כל עוד יש לו כינוי (ALIAS_DAYS):
+    # הוא מעביר ל-?c=<המזהה הישן>, והדף מוצא את השינוי העדכני (או את הקו)
     for d, ext in ((os.path.join(data, 'l'), '.json'), (os.path.join(OUTDIR, 'l'), '.html')):
         for fn in os.listdir(d):
-            if fn.endswith(ext) and fn[:-len(ext)] not in want:
+            if fn.endswith(ext) and fn[:-len(ext)] not in want and not (ext == '.html' and fn[:-len(ext)] in alias):
                 os.remove(os.path.join(d, fn))
     index.sort(key=lambda r: (r['eff'], int(re.sub(r'\D', '', r['line']) or 0)))
     json.dump(dict(gen=t0, feed=new_day.isoformat(), ref=old_day.isoformat(), horizon=HORIZON,
                    scope=sorted(CITIES_RAW.split(',')) if CITIES else [], stats=stats, filtered=filtered, hol=hol_week(TODAY),
-                   changes=index),
+                   changes=index, alias=alias),
               open(os.path.join(data, 'index.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, separators=(',', ':'))
     print(f'{len(index)} דפים נכתבו ל-{OUTDIR}', flush=True)

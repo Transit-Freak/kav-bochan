@@ -37,7 +37,7 @@
     // הכתובת מתארת את המסך: ?c=... — המצגת (שלב 3), ?l=<מק"ט> — שלב 2. בלי אחד מהם — שלב 1,
     // והמצגת שכבר הוכנה בלשונית הזו חוזרת מ-sessionStorage (עם פס "המצגת שלך" בשלב 1)
     var sp = new URLSearchParams(location.search);
-    var want = (sp.get('c') || '').split(',').filter(Boolean).map(resolveId).filter(Boolean), fromUrl = want.length > 0;
+    var want = (sp.get('c') || '').split(',').filter(Boolean).map(resolveId).filter(Boolean), fromUrl = want.length > 0 || !!goneMk;
     var ss = sessGet(), other = mode === 'tt' ? 'chg' : 'tt';
     if (!fromUrl) want = ss[mode] || [];
     Promise.all(want.map(loadPick).concat([Promise.all((ss[other] || []).map(loadPick))])).then(function (ps) {
@@ -47,6 +47,7 @@
       var lm = sp.get('l'), ll = lm && lineOf(lm);
       if (fromUrl && picks.length) { cur = lineOf(picks[picks.length - 1].makat, picks[picks.length - 1].op); go(3, 'replace'); }
       else if (ll) { cur = ll; go(2, 'replace'); }
+      else if (goneMk && lineOf(goneMk)) { goneNote = goneMk; cur = lineOf(goneMk); go(2, 'replace'); }   // קישור ישן לשינוי שירד — הקו
       else go(1, 'replace');
     });
   }).catch(function () {
@@ -206,12 +207,34 @@
     var sd = same.filter(function (b) { return b.md === a.md; });
     return a.mk + '.' + a.md + (sd.length > 1 ? a.k : '');
   }
+  /* קישורים ישנים: מזהה שהשתנה (התאריך של השינוי עודכן) או ירד — index.json alias: {ישן: [חדש או null, תאריך]}.
+     אין שינוי חדש — מציגים את הקו (שלב 2) עם הערה קטנה */
+  var goneMk = null, goneNote = null;
+  function aliasOf(id, mk) {
+    var a = (idx.alias || {})[id];
+    if (!a) return undefined;
+    if (a[0] && idx.changes.some(function (c) { return c.id === a[0]; })) return a[0];
+    goneMk = mk; return null;
+  }
   function resolveId(tok) {
     if (mode === 'tt') return /^(tt-)?[\w]+$/.test(tok) ? 'tt-' + String(tok).replace(/^tt-/, '') : null;
-    var m = String(tok).match(/^(\d+)(?:\.(\d{4}))?([rnet])?$/);
+    tok = String(tok);
+    var lp = idParts(tok);
+    if (lp) {   // מזהה ארוך: 10970-20261118
+      if (idx.changes.some(function (c) { return c.id === tok; })) return tok;
+      var al = aliasOf(tok, lp.mk);
+      if (al === undefined) goneMk = lp.mk;
+      return al || null;
+    }
+    var m = tok.match(/^(\d+)(?:\.(\d{4}))?([rnet])?$/);
     if (!m) return tok;
-    var hit = idx.changes.filter(function (c) { var b = idParts(c.id); return b && b.mk === m[1] && (!m[2] || b.md === m[2]) && (!m[3] || b.k === m[3]); });
-    return hit.length ? hit[0].id : null;
+    var match = function (b) { return b && b.mk === m[1] && (!m[2] || b.md === m[2]) && (!m[3] || b.k === m[3]); };
+    var hit = idx.changes.filter(function (c) { return match(idParts(c.id)); });
+    if (hit.length) return hit[0].id;
+    var old = Object.keys(idx.alias || {}).filter(function (id) { return match(idParts(id)); })[0];
+    var to = old ? aliasOf(old, m[1]) : undefined;
+    if (!to) goneMk = m[1];
+    return to || null;
   }
   /* כפתורי הסינון, עם מספר הקווים מכל סוג בתצוגה הנוכחית (החיפוש או המקום) */
   function drawKfil(ls) {
@@ -553,9 +576,11 @@
       return card({ key: 'p-' + l.makat + '-' + g.d, date: g.d, past: true, kinds: g.kinds, dirs: g.rests.length });
     }).join('');
     if (!up.length && !pastEv.length) {
-      $('cards').innerHTML = '<div class="none">אין שינוי בקו הזה בשבועיים הקרובים או בשבועיים האחרונים.</div>';
+      $('cards').innerHTML = (goneNote === l.makat ? '<div class="none">השינוי עודכן — זה המידע העדכני על הקו</div>' : '') +
+        '<div class="none">אין שינוי בקו הזה בשבועיים הקרובים או בשבועיים האחרונים.</div>';
       return;
     }
+    if (goneNote === l.makat) html = '<div class="none">השינוי עודכן — זה המידע העדכני על הקו</div>' + html;
     $('cards').innerHTML = html;
     var first = $('cards').querySelector('.ccard');
     if (first) first.classList.add('rec');
