@@ -306,7 +306,7 @@ export class InspectorFP {
     if (C.skip) { C.t = C.dur; C.watch = 99; }
     // ההולכים (עולים, יורדים, ועל המדרכה) — במערכת של המסלול (האוטובוס, או אחרי הירידה — המקום הקפוא בעולם)
     const W = C.M || o.matrixWorld, Wi = C.M ? C.M.clone().invert() : inv;
-    const ws = PL.walkers.filter(w => w.obj.visible && w.mode !== 'ride').map(w => w.obj.getWorldPosition(new THREE.Vector3()).applyMatrix4(Wi));
+    const ws = PL.walkers.filter(w => w.obj.visible && w.mode !== 'ride' && !w.fpHold).map(w => w.obj.getWorldPosition(new THREE.Vector3()).applyMatrix4(Wi));
     // מחכים למי שהולך בדרך — לא עוברים דרכו (45 ס"מ, גם על המדרכה)
     // הליכה: מהירות של הולך (1.3 מ' בשנייה), מאיצים בחצי השנייה הראשונה ומאטים לפני הסוף; עצירה קצרה לפני הדלת (pauseAt)
     const ease = k => k * k * (3 - 2 * k), ahead = this.cineAt(C.pts, C.L, Math.min(C.len, C.u + 0.3)), walking = C.u < C.len - 1e-4;
@@ -400,7 +400,7 @@ export class InspectorFP {
     if (blk) { const P0 = this.pathAt(this.s), P1 = this.pathAt(Math.min(this.len, this.s + 0.2)); const away = (P1.x - P0.x) * (blk.x - P0.x) + (P1.z - P0.z) * (blk.z - P0.z) > 0 ? -1 : 1; ns = THREE.MathUtils.clamp(this.s + away * 0.8 * dt, 0, this.len); }
     // המצלמה לא נכנסת בגוף: לא מתקרבים לפחות מ-40 ס"מ ממי שהולך במעבר, ולא לתוך תא תפוס
     const E = this.pathAt(ns), E0 = this.pathAt(this.s);
-    const near = q => PL.walkers.some(w => w.obj.visible && w.mode !== 'ride' && (() => { const l = o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())); return Math.hypot(l.x - q.x, l.z - q.z) < 0.4; })());
+    const near = q => PL.walkers.some(w => w.obj.visible && w.mode !== 'ride' && !w.fpHold && (() => { const l = o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())); return Math.hypot(l.x - q.x, l.z - q.z) < 0.4; })());
     // ולא מתקרבים לראש של נוסע יושב/עומד לפחות מ-35 ס"מ (במישור) — הפקח עומד במעבר, לא מעל הכתף של אף אחד
     const heads = [...(PL.onboardPos || new Map()).values()].map(h => o.worldToLocal(h.clone()));
     const hd = q => heads.reduce((m, h) => Math.min(m, Math.hypot(h.x - q.x, h.z - q.z)), 9);
