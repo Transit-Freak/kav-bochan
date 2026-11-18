@@ -457,7 +457,7 @@
   function loadPlay(stage) {
     if (window.HagPlay) { window.HagPlay.attach(stage); return; }
     if (document.getElementById("hag-play-js")) return;
-    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118f") });
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118g") });
     s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
     document.head.appendChild(s);
   }
