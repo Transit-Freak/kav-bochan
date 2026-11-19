@@ -14,7 +14,7 @@
   var KIND_TXT = { route: 'דרך אחרת ותחנות אחרות', stops: 'שינוי בתחנות', 'stops-add': 'נוספו תחנות', 'stops-del': 'בוטלו תחנות',
     extend: 'הקו הוארך', shorten: 'הקו קוצר', terminal: 'שינוי בתחנה הראשונה או האחרונה' };
 
-  var LINES = [], OPS = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
+  var LINES = [], OPS = [], OP_PHONES = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
   var cache = {}, lhCache = {}, picks = [], cur = null, step = 1, q = '';
   /* מה מכינים: 'chg' — הודעה על שינוי · 'tt' — לו"ז עדכני לכל קו (גם בלי שינוי). לכל אחד רשימת קווים משלו */
   var mode = new URLSearchParams(location.search).get('m') === 'tt' ? 'tt' : 'chg', picksBy = { chg: [], tt: [] };
@@ -40,6 +40,7 @@
     var li = r[0]; idx = r[1];
     OPS = li.ops; CITIES = li.cities;
     var OPIDS = li.op_ids || [];
+    OP_PHONES = li.op_phones || [];   // agency_phone מ-GTFS, לפי הסדר של ops
     LINES = li.lines.map(function (a) {
       return { makat: a[0], line: a[1], op: OPS[a[2]], ag: OPIDS[a[2]] || '', from: a[3], to: a[4], cities: a[5].map(function (i) { return CITIES[i]; }),
         rds: a[6], ty: a[7], past: (a[8] || []).slice().reverse() };
@@ -295,7 +296,7 @@
     plLoading = true;
     LC.getJSON('data/places.json').then(function (p) {
       var mk = function (kind) {   // שמות ערים ב-GTFS: כפר ביל''ו → כפר ביל"ו
-        return function (x) { var c = String(p.cities[x[1]]).replace(/''/g, '"'); return { kind: kind, name: x[0], city: c, lines: x[2], n: LC.norm(x[0]), nc: LC.norm(c) }; };
+        return function (x) { var c = String(p.cities[x[1]]).replace(/''/g, '"'); return { kind: kind, name: x[0], city: c, lines: x[2], stops: x[3] || null, n: LC.norm(x[0]), nc: LC.norm(c) }; };
       };
       PL = { streets: p.streets.map(mk('s')), hoods: p.hoods.map(mk('h')) };
       drawResults();
@@ -544,14 +545,17 @@
         var r = e.d[k], x = {}, xa = {}, xn = {}, A = r.A || [], N = r.N || [];
         Object.keys(r.x || {}).forEach(function (iso) { x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; xn[iso] = N[r.x[iso]] || 0; });
         // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
-        return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
+        // sc / vs / vc — התחנות והערים של החלופה הראשית ושל כל חלופה (ללוח של מקום: רק מה שעוצר בו)
+        return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, sc: r.sc || null, vs: r.vs || null, vc: r.vc || null, du: r.du, days: r.w.map(function (i) { return r.L[i] || []; }), x: x,
           v: r.v || [], da: r.w.map(function (i) { return A[i] || 0; }), xa: xa,
           // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
           dn: r.w.map(function (i) { return N[i] || 0; }), xn: xn };
       });
       // עד מתי: היום שלפני השינוי הקרוב בקו (אם יש)
       var nx = ((l && l.up) || []).map(function (c) { return c.formal || c.eff; }).filter(function (d) { return d && d > sh.valid; }).sort()[0];
-      return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
+      // מוצא ויעד: מהכיוונים בלו"ז (הנסיעות שמוצגות), לא מהשם של הקו ברשימה — שם שנלקח לפעמים מחלופה אחרת של הקו
+      var dod = dirs.filter(function (d) { return d.od && d.od[0] && d.od[1] && d.days.some(function (x) { return x && x.length; }); }).map(function (d) { return d.od; })[0];
+      return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: dod ? dod.slice() : l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
         eff: sh.valid, valid: sh.valid, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: sh.hol || [], dirs: dirs, tot: { kind: 'current' } };
     });
   }
@@ -618,9 +622,11 @@
     if (!ls || !ls.length) return;
     if (btn) { btn.disabled = true; btn.textContent = 'טוען ' + ls.length + ' קווים…'; }
     var nm = placeSel ? placeSel.name + (placeSel.city && placeSel.kind !== 'c' && placeSel.city !== placeSel.name ? ', ' + placeSel.city : '') : '';
+    // המקום עצמו — בלוח יוצגו רק כיוונים וחלופות שעוצרים בו
+    var pl = placeSel ? { k: placeSel.kind, n: placeSel.name, c: placeSel.kind === 'c' ? placeSel.name : placeSel.city, s: placeSel.stops || null, m: ls.map(function (l) { return l.makat; }) } : null;   // m — הקווים שנבחרו מהמקום (קו שנוסף ביד — מוצג כולו)
     Promise.all(ls.map(function (l) { return loadPick('tt-' + l.makat); })).then(function (ps) {
       ps.filter(Boolean).forEach(function (p) { picks = picks.filter(function (x) { return x.id !== p.id; }); picks.push(p); });
-      if (picks.length) { wantBoard = nm || true; cur = ls[0]; go(3); }
+      if (picks.length) { wantBoard = { nm: nm, pl: pl }; cur = ls[0]; go(3); }
       else if (btn) btn.textContent = 'אין לו״ז לקווים האלה בשבוע הקרוב';
     });
   }
@@ -993,11 +999,12 @@
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
   function edOpts(form) {
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
-      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bd: edits.bd, editing: editMode };
+      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode };
   }
   var wantBoard = null;
   function render(pages) {
     if (!deckOk()) return;
+    if (LCDeck.setPhones) LCDeck.setPhones(OPS, OP_PHONES);
     curPages = pages;
     dropMaps();
     var sig = pages.map(function (p) { return p.id; }).join(',');
@@ -1009,7 +1016,7 @@
       if (carry) saveEdits();
     }
     // נבחרו כל הקווים במקום (לו"ז עדכני) — "טבלה לפי יעד", עם שם המקום בכותרת
-    if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.ttc) edits.ttc = 'board'; if (!edits.bplace && typeof wantBoard === 'string') edits.bplace = wantBoard; saveEdits(); }
+    if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.ttc) edits.ttc = 'board'; if (!edits.bplace && wantBoard.nm) edits.bplace = wantBoard.nm; if (wantBoard.pl) edits.bpl = wantBoard.pl; saveEdits(); }
     wantBoard = null;
     var form = formOf();
     var base = LCDeck.build(pages, deckCity(pages), edOpts(form));
@@ -1540,7 +1547,7 @@
     var b = $('resetall');
     if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
-    edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace }); saveEdits(); render(curPages);
+    edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace, bpl: edits.bpl }); saveEdits(); render(curPages);
   });
 
   /* ---------- תמונות ----------
