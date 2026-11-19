@@ -44,7 +44,7 @@
 
   // סמן גדול: חץ שחור עם מסגרת לבנה, 40 פיקסלים
   var CURSOR = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M5 3v30l8-7 5 12 6-3-5-11h10z' fill='%23000' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E\") 5 3, auto";
-  var KIDS = "body > :not(#kb-a11y-btn):not(#kb-a11y-panel):not(script):not(style):not(link)";
+  var KIDS = "body > :not(#kb-a11y-btn):not(#kb-a11y-panel):not(#kb-theme-tip):not(script):not(style):not(link)";
 
   var css = [
     /* הגדלת תצוגה — על התוכן, לא על הכפתור הצף */
@@ -70,7 +70,7 @@
     "html.a11y-nomotion *, html.a11y-nomotion *::before, html.a11y-nomotion *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }",
 
     /* הכפתור — כפתור רגיל בתוך הפס העליון (לא צף): 44×44 למגע, עיגול כחול של 36 */
-    "[data-a11y-slot] { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }",
+    "[data-a11y-slot] { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 0; width: auto !important; min-width: 88px; min-height: 44px; }",
     "#kb-a11y-btn { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; cursor: pointer; vertical-align: middle; -webkit-tap-highlight-color: transparent; transform: none; float: none; }",
     "#kb-a11y-btn .kb-a11y-ico { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #0055aa; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15,23,42,.3); }",
     "#kb-a11y-btn:hover .kb-a11y-ico, #kb-a11y-btn[aria-expanded='true'] .kb-a11y-ico { background: #0066cc; }",
@@ -97,8 +97,45 @@
     "#kb-a11y-panel a { display: flex; align-items: center; min-height: 44px; font-size: 13px; color: #0055aa; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }",
     "#kb-a11y-panel button.a11y-opt:focus-visible, #kb-a11y-panel a:focus-visible { outline: 3px solid #0055aa !important; outline-offset: 2px; }",
     "#kb-a11y-panel button.a11y-opt:focus:not(:focus-visible) { outline: none; }",
-    "@media print { #kb-a11y-btn, #kb-a11y-panel, #kb-a11y-top { display: none !important; } }",
+    /* כפתור תאורת יום / לילה — באותו גודל, ליד כפתור הנגישות */
+    "#kb-theme-btn { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; cursor: pointer; vertical-align: middle; -webkit-tap-highlight-color: transparent; transform: none; float: none; }",
+    "#kb-theme-btn .kb-a11y-ico { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #fff; border: 2px solid #0055aa; box-shadow: 0 1px 4px rgba(15,23,42,.3); color: #0055aa; }",
+    "#kb-theme-btn:hover .kb-a11y-ico { background: #e6f0fa; }",
+    "#kb-theme-btn svg { width: 22px; height: 22px; display: block; pointer-events: none; }",
+    "#kb-theme-btn:focus { outline: none; }",
+    "#kb-theme-btn:focus-visible .kb-a11y-ico { outline: 3px solid #0f172a; outline-offset: 1px; box-shadow: 0 0 0 6px #fff; }",
+    "#kb-theme-tip { position: fixed; z-index: 100001; background: #0f172a; color: #fff; font: 700 13.5px/1.3 Heebo, Arial, sans-serif; padding: 8px 12px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.3); direction: rtl; pointer-events: none; white-space: nowrap; }",
+    "#kb-theme-tip[hidden] { display: none !important; }",
+    /* מצב כהה — החלונית, הכפתור ושורת זכויות היוצרים */
+    "html.kb-dark #kb-theme-btn .kb-a11y-ico { background: #1e293b; border-color: #93c5fd; color: #fde68a; }",
+    "html.kb-dark #kb-theme-btn:hover .kb-a11y-ico { background: #334155; }",
+    "html.kb-dark #kb-a11y-btn .kb-a11y-ico { border-color: #93c5fd; }",
+    "html.kb-dark #kb-a11y-btn:focus-visible .kb-a11y-ico, html.kb-dark #kb-theme-btn:focus-visible .kb-a11y-ico { outline-color: #f1f5f9; box-shadow: 0 0 0 6px #0f172a; }",
+    "html.kb-dark #kb-theme-tip { background: #f1f5f9; color: #0f172a; }",
+    "html.kb-dark #kb-a11y-panel { background: #1e293b; color: #e2e8f0; border-color: #475569; box-shadow: 0 8px 30px rgba(0,0,0,.6); }",
+    "html.kb-dark #kb-a11y-panel h2 { color: #f1f5f9; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt { background: #0f172a; color: #e2e8f0; border-color: #64748b; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt::before { background: #0f172a; border-color: #94a3b8; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt[aria-pressed='true'] { background: #172554; color: #bfdbfe; border-color: #60a5fa; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt[aria-pressed='true']::before { border-color: #60a5fa; background-color: #2563eb; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt:hover { border-color: #93c5fd; }",
+    "html.kb-dark #kb-a11y-panel .a11y-links { border-top-color: #334155; }",
+    "html.kb-dark #kb-a11y-panel a { color: #93c5fd; }",
+    "html.kb-dark #kb-a11y-panel button.a11y-opt:focus-visible, html.kb-dark #kb-a11y-panel a:focus-visible { outline-color: #93c5fd !important; }",
+    ".kb-copyright { margin: 28px 16px 72px; text-align: center; font-size: 12px; line-height: 1.7; color: #596779; font-family: Arial, sans-serif; direction: rtl; }",
+    ".kb-copyright a { color: inherit; }",
+    "html.kb-dark .kb-copyright { color: #a3b1c2; }",
+    "@media print { #kb-a11y-btn, #kb-theme-btn, #kb-theme-tip, #kb-a11y-panel, #kb-a11y-top { display: none !important; } }",
   ].join("\n");
+
+  /* סמלי התאורה: לפי הטלפון = עיגול חצוי, בהיר = שמש, כהה = ירח */
+  var T_ICONS = {
+    auto: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>',
+    light: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/></g></svg>',
+    dark: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.6A8.2 8.2 0 0 1 9.4 4a8.2 8.2 0 1 0 10.6 10.6z" fill="currentColor"/></svg>',
+  };
+  var T_NAMES = { auto: "לפי הטלפון", light: "בהיר", dark: "כהה" };
+  var T_NEXT = { auto: "light", light: "dark", dark: "auto" };
 
   var ICON = '<svg viewBox="0 0 26 26" aria-hidden="true" focusable="false"><circle cx="13" cy="4.4" r="2.2" fill="#fff"/><path d="M13 7.2 v6.2 h5.6 M13 10.4 h4.6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.9 11.2 a5.6 5.6 0 1 0 7.1 7.4 M18.6 13.6 l1.6 5.6 h1.6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -149,6 +186,45 @@
     btn.setAttribute("aria-controls", "kb-a11y-panel");
     btn.title = "נגישות";
     btn.innerHTML = '<span class="kb-a11y-ico">' + ICON + "</span>";
+
+    // כפתור תאורת יום / לילה: כל לחיצה עוברת לפי הטלפון → בהיר → כהה, ובועה קטנה אומרת מה נבחר
+    var th = window.kbTheme || null;
+    var tbtn = null, tip = null, tipT = 0;
+    function tMode() { return th ? th.get() : "auto"; }
+    function tRefresh() {
+      if (!tbtn) return;
+      var m = tMode();
+      tbtn.innerHTML = '<span class="kb-a11y-ico">' + T_ICONS[m] + "</span>";
+      var lbl = "תאורה: " + T_NAMES[m] + " (לחיצה: " + T_NAMES[T_NEXT[m]] + ")";
+      tbtn.setAttribute("aria-label", lbl);
+      tbtn.title = lbl;
+    }
+    function tTip() {
+      if (!tip) return;
+      tip.textContent = "תאורה: " + T_NAMES[tMode()];
+      tip.hidden = false;
+      var r = tbtn.getBoundingClientRect(), vw = document.documentElement.clientWidth || innerWidth;
+      var w = tip.offsetWidth;
+      var left = Math.min(vw - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
+      tip.style.left = left + "px";
+      tip.style.top = Math.max(8, r.bottom + 6) + "px";
+      clearTimeout(tipT);
+      tipT = setTimeout(function () { tip.hidden = true; }, 1800);
+    }
+    if (th) {
+      tbtn = document.createElement("button");
+      tbtn.type = "button";
+      tbtn.id = "kb-theme-btn";
+      tRefresh();
+      tbtn.onclick = function () { th.set(T_NEXT[tMode()]); tRefresh(); tTip(); };
+      tip = document.createElement("div");
+      tip.id = "kb-theme-tip";
+      tip.setAttribute("role", "status");
+      tip.setAttribute("aria-live", "polite");
+      tip.hidden = true;
+      window.addEventListener("kb-theme", tRefresh);
+      window.addEventListener("scroll", function () { if (tip) tip.hidden = true; }, { passive: true, capture: true });
+    }
 
     var panel = document.createElement("div");
     panel.id = "kb-a11y-panel";
@@ -210,12 +286,17 @@
     panel.appendChild(links);
 
     document.body.appendChild(panel);
+    if (tip) document.body.appendChild(tip);
 
     // הכפתור נכנס למקום שלו בפס העליון. אם הפס נבנה מחדש (React) או שהעמוד עבר
     // לכלי אחר באותה אפליקציה — הכפתור עובר למקום החדש לפני הציור הבא (rAF),
     // כך שלא רואים אותו נעלם או קופץ.
     var top = null;
-    function place() {
+    function pair() {
+      if (tbtn && btn.parentNode && (tbtn.parentNode !== btn.parentNode || tbtn.nextSibling !== btn)) btn.parentNode.insertBefore(tbtn, btn);
+    }
+    function place() { place0(); pair(); }
+    function place0() {
       var cur = btn.parentNode;
       if (cur && cur !== top && cur.hasAttribute && cur.hasAttribute("data-a11y-slot") && shown(cur)) return;
       var slot = findSlot();
@@ -247,7 +328,7 @@
       var mo = new MutationObserver(function (ms) {
         for (var i = 0; i < ms.length; i++) {
           var t = ms[i].target;
-          if (t === panel || panel.contains(t) || t === btn || btn.contains(t)) continue;
+          if (t === panel || panel.contains(t) || t === btn || btn.contains(t) || (tbtn && (t === tbtn || tbtn.contains(t))) || t === tip) continue;
           if (!btn.isConnected) { place(); return; } // מיד, בלי לחכות לפריים
           soon(); return;
         }
@@ -320,8 +401,7 @@
     var p = document.createElement("p");
     p.setAttribute("data-copyright", "");
     p.className = "kb-copyright";
-    p.setAttribute("style", "margin:28px 16px 72px;text-align:center;font-size:12px;line-height:1.7;color:#596779;font-family:Arial,sans-serif;direction:rtl");
-    p.innerHTML = '© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="' + base + 'terms.html#copyright" style="color:#596779">זכויות יוצרים ותנאי שימוש</a>';
+    p.innerHTML = '© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="' + base + 'terms.html#copyright">זכויות יוצרים ותנאי שימוש</a>';
     document.body.appendChild(p);
   }
   function start() { build(); copyright(); }

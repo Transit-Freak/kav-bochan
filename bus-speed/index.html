@@ -2,6 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<script src="../theme-boot.js?v=20261119" data-inline="off"></script>
+<link rel="stylesheet" href="../dark/bus-speed.css?v=20261119">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script src="../nav-restore.js"></script><script src="../home-link.js"></script>
 <meta name="theme-color" content="#ffffff">
@@ -13,7 +15,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <script src="../version.js" defer></script>
-<script src="../a11y.js?v=20261118h" defer></script>
+<script src="../a11y.js?v=20261119" defer></script>
 <script src="../hagim.js?v=20261118" defer></script>
 <title>איפה האוטובוס נתקע</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -22,7 +24,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<script>document.write('<link rel="stylesheet" href="style.css?v='+Date.now()+'">');try{if(localStorage.getItem('spd.theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+<script>document.write('<link rel="stylesheet" href="style.css?v='+Date.now()+'">');</script>
 </head>
 <body>
 <!-- אב-טיפוס לעיצוב חדש: בהיר, תכלת של הקו הבוחן, כותרת זכוכית וסמל הכלי מדף הבית -->
@@ -40,7 +42,6 @@
       <div id="qres" class="qres" role="listbox" hidden></div>
     </div>
     <button id="q-btn" class="hbtn" title="חיפוש" aria-label="חיפוש"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
-    <button id="theme" class="hbtn" title="ערכה כהה / בהירה" aria-label="החלפת ערכת צבעים"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
     <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px"></span>
   </header>
 
