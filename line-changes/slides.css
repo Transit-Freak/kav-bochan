@@ -938,3 +938,7 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
   body.editing .deck .s-bd .bdr{font-size:1.6em;padding:.1em .7em}
   body.editing .deck .s-bd tr.boff td{font-size:1.15em;padding:.35em .5em}
 }
+/* מספר טלפון ארוך (073-796-8430) — בשורה אחת, משמאל לימין, ובגופן קטן יותר */
+.s-close .ph .v{white-space:nowrap;direction:ltr;unicode-bidi:isolate}
+.s-close .ph .v.lg{font-size:30px;line-height:48px}
+.s-bd .bd-ph b.ltr{white-space:nowrap}

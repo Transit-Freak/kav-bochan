@@ -14,7 +14,7 @@
   var KIND_TXT = { route: 'דרך אחרת ותחנות אחרות', stops: 'שינוי בתחנות', 'stops-add': 'נוספו תחנות', 'stops-del': 'בוטלו תחנות',
     extend: 'הקו הוארך', shorten: 'הקו קוצר', terminal: 'שינוי בתחנה הראשונה או האחרונה' };
 
-  var LINES = [], OPS = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
+  var LINES = [], OPS = [], OP_PHONES = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
   var cache = {}, lhCache = {}, picks = [], cur = null, step = 1, q = '';
   /* מה מכינים: 'chg' — הודעה על שינוי · 'tt' — לו"ז עדכני לכל קו (גם בלי שינוי). לכל אחד רשימת קווים משלו */
   var mode = new URLSearchParams(location.search).get('m') === 'tt' ? 'tt' : 'chg', picksBy = { chg: [], tt: [] };
@@ -40,6 +40,7 @@
     var li = r[0]; idx = r[1];
     OPS = li.ops; CITIES = li.cities;
     var OPIDS = li.op_ids || [];
+    OP_PHONES = li.op_phones || [];   // agency_phone מ-GTFS, לפי הסדר של ops
     LINES = li.lines.map(function (a) {
       return { makat: a[0], line: a[1], op: OPS[a[2]], ag: OPIDS[a[2]] || '', from: a[3], to: a[4], cities: a[5].map(function (i) { return CITIES[i]; }),
         rds: a[6], ty: a[7], past: (a[8] || []).slice().reverse() };
@@ -1003,6 +1004,7 @@
   var wantBoard = null;
   function render(pages) {
     if (!deckOk()) return;
+    if (LCDeck.setPhones) LCDeck.setPhones(OPS, OP_PHONES);
     curPages = pages;
     dropMaps();
     var sig = pages.map(function (p) { return p.id; }).join(',');

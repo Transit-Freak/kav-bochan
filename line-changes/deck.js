@@ -5,10 +5,30 @@
 var LCDeck = (function () {
   var E = LC.esc;
   // מוקדי המידע של החברות — רק מספרים שבדקנו. חברה שאין לה מספר כאן מופיעה בלי מספר.
-  /* מוקדי המידע של החברות — טבלה אחת לכל המקומות בכלי. השם צריך להיות זהה לשם החברה בנתונים ("דן בדרום" אינו "דן").
-     חברה שאין לה כאן מספר שבדקנו באתר הרשמי שלה — לא מופיעה (רק משרד התחבורה) */
-  var PHONES = { 'נתיב אקספרס': '*3553', 'אגד': '*2800', 'דן': '*3456', 'מטרופולין': '*5900', 'קווים': '*2456', 'בית שמש אקספרס': '*3343', 'אלקטרה אפיקים': '*6686' };
-  function phoneOf(op) { var k = String(op || '').replace(/''/g, '"').replace(/\s+/g, ' ').trim(); return PHONES[k] || ''; }
+  /* מוקדי המידע של החברות: מ-agency_phone ב-GTFS (data/lines.json → op_phones, דרך LCDeck.setPhones), ואם אין — מהטבלה כאן
+     (agency.txt מ-19.11.2026). ההתאמה לפי השם המדויק של החברה ("דן בדרום" אינו "דן").
+     חברה שהמוקד שלה הוא 8787 (של משרד התחבורה) — לא מופיעה לחוד, רק "משרד התחבורה *8787" */
+  var PHONES = { 'אגד': '2800', 'אלקטרה אפיקים': '6686', 'אלקטרה אפיקים תחבורה': '6686', 'דן': '3456', 'דן בדרום': '5467', 'דן באר שבע': '3527',
+    'מטרופולין': '5900', 'קווים': '2060', 'גלים': '0737968430', 'סופרבוס': '1-700-700-181', 'בית שמש אקספרס': '3343', 'אקסטרה': '6747',
+    'אקסטרה ירושלים': '6747', 'תנופה': '8797', 'נתיב אקספרס': '3553', 'נסיעות ותיירות': '3553', 'ש.א.מ': '3553', 'גי.בי.טורס': '046036100',
+    'מוניות מטרו קו': '0737801500', 'רכבת ישראל': '5770' };
+  var OP_PH = {};
+  function setPhones(ops, phones) { OP_PH = {}; (ops || []).forEach(function (o, i) { if (phones && phones[i]) OP_PH[phKey(o)] = String(phones[i]); }); }
+  function phKey(op) { return String(op || '').replace(/''/g, '"').replace(/\s+/g, ' ').trim(); }
+  /* 2800 → *2800 · 0737968430 → 073-796-8430 · 046036100 → 04-603-6100 · 1700700181 → 1-700-700-181 */
+  function fmtPhone(v) {
+    var d = String(v || '').replace(/\D/g, '');
+    if (!d) return '';
+    if (d.length === 4) return '*' + d;
+    if (/^1[5-9]00\d{6}$/.test(d)) return d.slice(0, 1) + '-' + d.slice(1, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7);
+    if (/^0[5-7]\d{8}$/.test(d)) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+    if (/^0[2-489]\d{7}$/.test(d)) return d.slice(0, 2) + '-' + d.slice(2, 5) + '-' + d.slice(5);
+    return String(v).trim();
+  }
+  function phoneOf(op) {
+    var k = phKey(op), raw = OP_PH[k] || PHONES[k] || '';
+    return String(raw).replace(/\D/g, '') === '8787' ? '' : fmtPhone(raw);
+  }
   var MOT = '*8787';
 
   /* תאריך עברי באותיות: "ז׳ בכסלו תשפ״ז" (Intl נותן רק ספרות: "7 בכסלו 5787") */
@@ -416,7 +436,8 @@ var LCDeck = (function () {
     var ops = []; pages.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
     // כל החברות שבמצגת שיש להן מוקד (בלי חיתוך לשלוש)
     var ph = ops.filter(function (o) { return phoneOf(o); }).map(function (o) {
-      return '<div class="ph"><span class="l">' + E(o) + '</span><span class="v">' + phoneOf(o) + '</span></div>';
+      var v = phoneOf(o);
+      return '<div class="ph"><span class="l">' + E(o) + '</span><span class="v' + (v.length > 6 ? ' lg' : '') + '">' + E(v) + '</span></div>';
     }).join('');
     return '<div class="s-close"><div class="seam"><i></i></div><h2 class="hd">לפני הנסיעה בדקו</h2>' +
       '<div class="phones">' + ph + '<div class="ph"><span class="l">משרד התחבורה</span><span class="v">' + MOT + '</span></div></div>' +
@@ -3164,5 +3185,5 @@ var LCDeck = (function () {
     } finally { ED = keep; }
   }
   function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
-  return { boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

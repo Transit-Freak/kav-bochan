@@ -149,7 +149,10 @@ class Feed:
 
     def _read_small(self):
         h, rd = self.rows('agency.txt')
+        rd = [r for r in rd if r]
         self.agency = {r[h['agency_id']]: r[h['agency_name']] for r in rd if r}
+        # הטלפון של מוקד המידע של כל חברה (agency_phone) — לרשימת מוקדי המידע במצגות
+        self.agency_phone = {r[h['agency_id']]: r[h['agency_phone']].strip() for r in rd if r and 'agency_phone' in h}
         h, rd = self.rows('routes.txt')
         self.routes = {}
         for r in rd:
@@ -1614,13 +1617,14 @@ def lines_index(feed, variants, extra=None):
                 st = fd.stops.get(sid)
                 if st and st['city']:
                     e['cities'][st['city']] = e['cities'].get(st['city'], 0) + x['td']
-    ops, cities, op_ids = [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת)
+    ops, cities, op_ids, op_phones = [], [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת); op_phones: הטלפון מ-agency.txt
     oi, ci = {}, {}
     out = []
     for (ag, makat), e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1])):
         op = feed.agency.get(ag, '') or e['opn']
         if op not in oi:
             oi[op] = len(ops); ops.append(op); op_ids.append(ag)
+            op_phones.append(getattr(feed, 'agency_phone', {}).get(ag, ''))
         cl = []
         for c, _ in sorted(e['cities'].items(), key=lambda kv: -kv[1]):
             if c not in ci:
@@ -1629,7 +1633,7 @@ def lines_index(feed, variants, extra=None):
         out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
     print(f'{len(out)} קווים באינדקס', flush=True)
     places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
-    return {'ops': ops, 'op_ids': op_ids, 'cities': cities, 'lines': out, '_places': places}
+    return {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, '_places': places}
 
 
 def load_hoods(d):
