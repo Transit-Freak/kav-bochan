@@ -38,6 +38,7 @@ jobs:
             /line-history/data/changes/
             /line-history/data/neighborhoods/
             /line-history/data/sched/
+            /data-main.json
 
       - name: כבישים מ-OSM (roads.json מהענף osm-roads)
         # לזיהוי קטע שרק צויר מחדש על אותו כביש (rdr ב-data/l). בלי הקובץ — הדף מחליט לפי המרחק

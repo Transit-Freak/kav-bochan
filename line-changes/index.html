@@ -46,11 +46,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=36'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=38'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=36'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=38'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -81,8 +81,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" id="leafcss" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=27">
-<link rel="stylesheet" id="slidecss" href="slides.css?v=29" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" id="slidecss" href="slides.css?v=31" media="print" onload="this.media='all'">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -210,6 +210,24 @@
               <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
               <button type="button" role="radio" data-bsp="no"><b>לא</b></button>
             </div>
+            <span class="flabel sm">סדר הקווים</span>
+            <div class="seg2 tvseg bor" id="borseg" role="radiogroup" aria-label="סדר הקווים">
+              <button type="button" role="radio" data-bor="type"><b>לפי סוג קו</b></button>
+              <button type="button" role="radio" data-bor="add"><b>לפי הסדר שהוספתם</b></button>
+              <button type="button" role="radio" data-bor="dest"><b>לפי יעד</b></button>
+              <button type="button" role="radio" data-bor="op"><b>לפי מפעיל</b></button>
+              <button type="button" role="radio" data-bor="num"><b>לפי מספר קו</b></button>
+              <button type="button" role="radio" data-bor="man"><b>ידני</b></button>
+            </div>
+            <p class="hint" id="bmanh" hidden>במצב עריכה: לוחצים על קו או על פס בלוח, ומזיזים עם "העברה למעלה ↑" / "העברה למטה ↓".</p>
+            <div class="btyw" id="btyw" hidden>
+              <ol class="btyl" id="btyl" aria-label="סדר הסוגים"></ol>
+              <span class="flabel sm">בתוך כל סוג</span>
+              <div class="seg2 tvseg" id="bsubseg" role="radiogroup" aria-label="הסדר בתוך כל סוג">
+                <button type="button" role="radio" data-bsub="add"><b>לפי הסדר שהוספתם</b></button>
+                <button type="button" role="radio" data-bsub="num"><b>לפי מספר קו</b></button>
+              </div>
+            </div>
           </div>
           <div id="ttow" hidden>
             <span class="flabel sm">סדר השעות</span>
@@ -321,7 +339,7 @@
 </footer>
 
 <script src="common.js?v=7"></script>
-<script src="app.js?v=39"></script>
+<script src="app.js?v=40"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

@@ -460,3 +460,16 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .seg2.tvseg{display:flex;flex-wrap:wrap}
 .seg2.tvseg button{flex:0 1 auto;min-width:88px;padding:7px 14px}
 #ttow[hidden]{display:none}
+/* לוח מודעות · סדר הקווים לפי סוג: רשימה קטנה — עירוני / בין-עירוני / אזורי, עם ↑↓ ו"להציג" */
+.btyl{list-style:none;margin:6px 0 10px;padding:0;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;max-width:420px}
+.btyl li{display:flex;align-items:center;gap:8px;padding:6px 10px;border-top:1px solid var(--line)}
+.btyl li:first-child{border-top:0}
+.btyl li b{flex:1 1 auto;font-weight:800}
+.btyl li small{color:var(--sub);font-weight:600}
+.btyl li.empty b,.btyl li.empty small,.btyl li.empty label{opacity:.45}
+.btyl .mv{min-width:40px;min-height:36px;border:1.5px solid var(--line);border-radius:8px;background:transparent;color:inherit;font:800 16px Arial,sans-serif;cursor:pointer}
+.btyl .mv:disabled{opacity:.3;cursor:default}
+.btyl label{display:inline-flex;align-items:center;gap:4px;font-weight:700;font-size:14px;white-space:nowrap}
+.pk .pkmv{border:0;background:transparent;color:inherit;font:800 14px Arial,sans-serif;padding:0 3px;cursor:pointer;min-width:24px;min-height:28px}
+.pk .pkmv:disabled{opacity:.3;cursor:default}
+.s-bd tr.bband.bsel td{outline:3px solid #1f5fd1;outline-offset:-3px}
