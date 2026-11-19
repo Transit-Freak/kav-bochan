@@ -39,8 +39,13 @@ jobs:
             /line-history/data/neighborhoods/
             /line-history/data/sched/
 
+      - name: כבישים מ-OSM (roads.json מהענף osm-roads)
+        # לזיהוי קטע שרק צויר מחדש על אותו כביש (rdr ב-data/l). בלי הקובץ — הדף מחליט לפי המרחק
+        run: git fetch -q --depth 1 origin osm-roads && git show origin/osm-roads:roads.json > /tmp/roads.json || echo "אין roads.json"
+
       - name: השינויים בקווים
         env:
+          ROADS_JSON: /tmp/roads.json
           TZ: Asia/Jerusalem
           LH_CHANGES: line-history/data/changes
           NBR_DIR: line-history/data/neighborhoods

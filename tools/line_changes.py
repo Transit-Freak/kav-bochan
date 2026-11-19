@@ -1800,6 +1800,29 @@ def walk_table(src, dests):
     return [None if v is None else int(round(v)) for v in r['distances'][0][1:]]
 
 
+def add_road_flags(found):
+    """לכל כיוון ששרטוט המסלול שלו השתנה: לכל קטע שונה — האם הישן והחדש עוברים על אותם כבישים ב-OSM ('same', שרטוט מחדש)
+    או על כבישים אחרים ('diff'). נשמר ב-rdr = [[lat, lon, 'same'|'diff'], ...] (נקודת אמצע של כל קטע), והדף משתמש בו
+    במקום כלל המרחק. הכבישים: ROADS_JSON (roads.json מהענף osm-roads); בלי הקובץ — בלי סימון (הדף לפי המרחק)"""
+    path = os.environ.get('ROADS_JSON', '')
+    if not path or not os.path.exists(path):
+        print('אין roads.json — בלי סימון כבישים לקטעים (הדף יחליט לפי המרחק)', flush=True)
+        return
+    import road_match as rm
+    roads = rm.Roads(json.load(open(path, encoding='utf-8'))['roads'])
+    n = k = 0
+    for f in found:
+        o, nw = rm.decode_poly(f.get('old', {}).get('shp', '')), rm.decode_poly(f.get('new', {}).get('shp', ''))
+        if len(o) < 2 or len(nw) < 2:
+            continue
+        fl = rm.road_flags(o, nw, roads)
+        if fl:
+            f['rdr'] = fl
+            n += 1
+            k += sum(1 for x in fl if x[2] == 'same')
+    print(f'סימון כבישים: {n} כיוונים, {k} קטעים שהם שרטוט מחדש של אותו כביש', flush=True)
+
+
 def add_walks(found, data):
     if os.environ.get('WALK', '1') == '0':
         return
@@ -1970,6 +1993,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
     add_walks(found + splits, data)
+    add_road_flags(found + splits)
     if lines is not None:
         places = lines.pop('_places', None)
         json.dump(dict(gen=t0, feed=new_day.isoformat(), **lines), open(os.path.join(data, 'lines.json'), 'w', encoding='utf-8'),
