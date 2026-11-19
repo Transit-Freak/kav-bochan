@@ -1050,6 +1050,9 @@
           '<button type="button" data-act="box">+ תיבת טקסט</button>' +
           '<button type="button" data-act="img" aria-label="הוספת תמונה לשקף הזה">+ תמונה</button>' +
           '<button type="button" data-act="ximg" aria-label="שקף חדש עם תמונה על כל השקף, אחרי השקף הזה">+ שקף תמונה</button>' +
+          // מפה: הגדלה, הקטנה ואיפוס — בשורה הזו, לא על המפה (גרירה וצביטה — על המפה עצמה)
+          (s.map ? '<button type="button" data-act="mzin" aria-label="הגדלת המפה">הגדלה +</button><button type="button" data-act="mzout" aria-label="הקטנת המפה">הקטנה −</button>' +
+            '<button type="button" data-act="mreset">איפוס מפה</button>' : '') +
           (s.img ? '<button type="button" data-act="fit" aria-pressed="' + (s.fit === 'contain' ? 'true' : 'false') + '">' + (s.fit === 'contain' ? 'כל התמונה בשקף' : 'התמונה ממלאת את השקף') + '</button>' : '') +
           '<button type="button" data-act="' + (s.custom ? 'xdel' : 'off') + '">' + (s.custom ? 'מחיקת השקף' : off ? 'להחזיר את השקף' : 'לא לכלול את השקף') + '</button></div>' +
         '<div class="sframe" data-id="' + E(s.id) + '"><div class="slide" aria-label="' + E(s.label) + '">' + s.html + '</div>' +
@@ -1090,7 +1093,8 @@
     catch (e) { if (window.console) console.error('map', e); m.ready = Promise.resolve(); }
     return m;
   }
-  /* מפה במצב עריכה: גרירה, צביטה בטלפון, גלגלת, ‎+/−‎ ו"איפוס מפה". התצוגה (מרכז וזום) נשמרת לשקף ב-edits.mv,
+  /* מפה במצב עריכה: גרירה, צביטה בטלפון וגלגלת על המפה; "הגדלה +", "הקטנה −" ו"איפוס מפה" — בשורת העריכה של השקף.
+     התצוגה (מרכז וזום) נשמרת לשקף ב-edits.mv,
      והיא זו שבהורדה (PDF, שלט, סטטוס). מחוץ לעריכה המפה קבועה, כמו קודם */
   function mapView(m) {
     var v = edits.mv[m.id];
@@ -1101,24 +1105,10 @@
     var mp = m.map; if (!mp || !window.L) return;
     MAP_H.forEach(function (h) { if (mp[h]) { if (on) mp[h].enable(); else mp[h].disable(); } });
     mp.getContainer().classList.toggle('mapedit', on);
-    // הכפתורים: 40 פיקסלים על המסך, כמה שהשקף מוקטן
-    var sl = mp.getContainer().closest('.slide'), k = sl && sl.offsetWidth ? sl.getBoundingClientRect().width / sl.offsetWidth : 1;
-    mp.getContainer().style.setProperty('--ctl', Math.round(40 / Math.max(0.15, Math.min(1, k || 1))) + 'px');
-    if (on && !m.ctl) {
-      m.ctl = L.control.zoom({ position: 'bottomleft', zoomInTitle: 'הגדלה', zoomOutTitle: 'הקטנה' }).addTo(mp);
-      var Reset = L.Control.extend({ options: { position: 'bottomleft' }, onAdd: function () {
-        var b = L.DomUtil.create('button', 'lc-mreset noprint');
-        b.type = 'button'; b.textContent = 'איפוס מפה';
-        L.DomEvent.disableClickPropagation(b);
-        L.DomEvent.on(b, 'click', function (ev) { L.DomEvent.stop(ev); delete edits.mv[m.id]; saveEdits(); keepScroll(function () { render(curPages); }); });
-        return b;
-      } });
-      m.rst = new Reset().addTo(mp);
+    if (on && !m.save) {
       m.save = function () { var c = mp.getCenter(); edits.mv[m.id] = [+c.lat.toFixed(6), +c.lng.toFixed(6), +mp.getZoom().toFixed(2)]; saveEdits(); };
       mp.on('moveend', m.save);
-    } else if (!on && m.ctl) {
-      m.ctl.remove(); m.rst.remove(); mp.off('moveend', m.save); m.ctl = m.rst = m.save = null;
-    }
+    } else if (!on && m.save) { mp.off('moveend', m.save); m.save = null; }
   }
   function dropMaps() {
     maps.forEach(function (m) { if (mapIO) mapIO.unobserve(m.fr); if (m.map) m.map.remove(); });
@@ -1542,6 +1532,11 @@
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var sid = b.closest('.sitem').getAttribute('data-id'), act = b.getAttribute('data-act');
     if (imgAct(act, sid, b)) return;
+    if (act === 'mzin' || act === 'mzout' || act === 'mreset') {
+      if (act === 'mreset') { delete edits.mv[sid]; saveEdits(); keepScroll(function () { render(curPages); }); return; }
+      maps.forEach(function (m) { if (m.id === sid && m.map) { if (act === 'mzin') m.map.zoomIn(0.5); else m.map.zoomOut(0.5); } });
+      return;
+    }
     if (act === 'box') {
       var D0 = dims(), box = { id: 'b' + Date.now().toString(36), x: 80, y: Math.round(D0.h * 0.72), w: Math.min(520, D0.w - 160), text: 'טקסט חדש' };
       (edits.boxes[sid] = edits.boxes[sid] || []).push(box);

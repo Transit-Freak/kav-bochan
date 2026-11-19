@@ -948,8 +948,5 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
 .deck[data-tord="ltr"] .s-cur .cu-grid{direction:ltr}
 .deck[data-tord="ltr"] .s-cur .cu-grid > li{direction:rtl}
 .deck[data-tord="ltr"] .s-cur .ttc li.hr{flex-direction:row-reverse;justify-content:flex-start}
-/* מפה במצב עריכה: אפשר לגרור ולהגדיל; הכפתורים לא נכנסים להורדה */
+/* מפה במצב עריכה: אפשר לגרור ולהגדיל (הכפתורים — בשורת העריכה של השקף, לא על המפה) */
 .slide .leaflet-container.mapedit{cursor:grab}
-/* השקף מוקטן במסך (בטלפון לרבע מהגודל) — --ctl (מ-app.js) הוא 40 פיקסלים של המסך בפיקסלים של השקף, כדי שאפשר יהיה ללחוץ באצבע */
-.slide .lc-mreset{background:#fff;color:#13201b;border:2px solid rgba(0,0,0,.3);border-radius:8px;font:800 calc(var(--ctl,40px) * .42) Arial,sans-serif;height:var(--ctl,40px);padding:0 calc(var(--ctl,40px) * .3);cursor:pointer;margin-bottom:8px!important}
-.slide .leaflet-container.mapedit .leaflet-control-zoom a{width:var(--ctl,40px);height:var(--ctl,40px);line-height:var(--ctl,40px);font-size:calc(var(--ctl,40px) * .6)}
