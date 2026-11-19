@@ -942,6 +942,7 @@
     e = e && typeof e === 'object' ? e : {};
     e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {}; e.inset = e.inset || {};
     // "טבלה לפי יעד": טקסט שנערך בלוח, שורות וקווים שהוסרו (ראו bdT ב-deck.js)
+    e.mv = e.mv && typeof e.mv === 'object' ? e.mv : {};   // התצוגה של כל מפה (מרכז וזום), לפי שקף — מהזזה והגדלה במצב עריכה
     e.bd = e.bd && typeof e.bd === 'object' ? e.bd : {}; e.bd.t = e.bd.t || {}; e.bd.offR = e.bd.offR || {}; e.bd.offL = e.bd.offL || {};
     return e;
   }
@@ -997,9 +998,10 @@
   function xSlide(x, pages) { return x.img ? imgSlide(x) : textSlide(x, pages); }
   // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
+  function tordOf() { return edits.tord === 'ltr' || edits.tord === 'rtl' ? edits.tord : edits.ttc === 'board' ? 'ltr' : 'rtl'; }
   function edOpts(form) {
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
-      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode };
+      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf() };
   }
   var wantBoard = null;
   function render(pages) {
@@ -1035,6 +1037,7 @@
     deck.setAttribute('data-look', look);
     $('decktitle').textContent = LCDeck.deckTitle(pages);
     deck.setAttribute('data-form', form);
+    deck.setAttribute('data-tord', tordOf());   // סדר השעות ברשימות (CSS ב-slides.css)
     formUi(form);
     deck.style.cssText = LCDeck.lookVars(look, pages);
     $('looks').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-look') === look ? 'true' : 'false'); });
@@ -1083,9 +1086,39 @@
   function buildMap(m) {
     if (m.map || m.ready) return m;
     if (mapIO) mapIO.unobserve(m.fr);
-    try { var r = LCDeck.drawMap(m.fr, m.spec); m.map = r.map; m.ready = r.ready; }
+    try { var r = LCDeck.drawMap(m.fr, m.spec); m.map = r.map; m.ready = r.ready; mapView(m); if (editMode) mapEdit(m, true); }
     catch (e) { if (window.console) console.error('map', e); m.ready = Promise.resolve(); }
     return m;
+  }
+  /* מפה במצב עריכה: גרירה, צביטה בטלפון, גלגלת, ‎+/−‎ ו"איפוס מפה". התצוגה (מרכז וזום) נשמרת לשקף ב-edits.mv,
+     והיא זו שבהורדה (PDF, שלט, סטטוס). מחוץ לעריכה המפה קבועה, כמו קודם */
+  function mapView(m) {
+    var v = edits.mv[m.id];
+    if (v && m.map) m.map.setView([v[0], v[1]], v[2], { animate: false });
+  }
+  var MAP_H = ['dragging', 'touchZoom', 'scrollWheelZoom', 'doubleClickZoom'];
+  function mapEdit(m, on) {
+    var mp = m.map; if (!mp || !window.L) return;
+    MAP_H.forEach(function (h) { if (mp[h]) { if (on) mp[h].enable(); else mp[h].disable(); } });
+    mp.getContainer().classList.toggle('mapedit', on);
+    // הכפתורים: 40 פיקסלים על המסך, כמה שהשקף מוקטן
+    var sl = mp.getContainer().closest('.slide'), k = sl && sl.offsetWidth ? sl.getBoundingClientRect().width / sl.offsetWidth : 1;
+    mp.getContainer().style.setProperty('--ctl', Math.round(40 / Math.max(0.15, Math.min(1, k || 1))) + 'px');
+    if (on && !m.ctl) {
+      m.ctl = L.control.zoom({ position: 'bottomleft', zoomInTitle: 'הגדלה', zoomOutTitle: 'הקטנה' }).addTo(mp);
+      var Reset = L.Control.extend({ options: { position: 'bottomleft' }, onAdd: function () {
+        var b = L.DomUtil.create('button', 'lc-mreset noprint');
+        b.type = 'button'; b.textContent = 'איפוס מפה';
+        L.DomEvent.disableClickPropagation(b);
+        L.DomEvent.on(b, 'click', function (ev) { L.DomEvent.stop(ev); delete edits.mv[m.id]; saveEdits(); keepScroll(function () { render(curPages); }); });
+        return b;
+      } });
+      m.rst = new Reset().addTo(mp);
+      m.save = function () { var c = mp.getCenter(); edits.mv[m.id] = [+c.lat.toFixed(6), +c.lng.toFixed(6), +mp.getZoom().toFixed(2)]; saveEdits(); };
+      mp.on('moveend', m.save);
+    } else if (!on && m.ctl) {
+      m.ctl.remove(); m.rst.remove(); mp.off('moveend', m.save); m.ctl = m.rst = m.save = null;
+    }
   }
   function dropMaps() {
     maps.forEach(function (m) { if (mapIO) mapIO.unobserve(m.fr); if (m.map) m.map.remove(); });
@@ -1186,6 +1219,7 @@
     $('ttperw').hidden = !multi;
     $('ttper').checked = edits.ttper !== false;
     $('ttgrp').querySelectorAll('[data-ttv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttv') === o.v ? 'true' : 'false'); });
+    $('ttgrp').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === tordOf() ? 'true' : 'false'); });
     $('ttgrp').querySelectorAll('[data-ttf]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttf') === o.f ? 'true' : 'false'); });
   }
   /* הכותרת וההערות של "טבלה לפי יעד" — נשמרות עם המצגת; הלוח נבנה מחדש אחרי הפסקה קצרה בהקלדה */
@@ -1200,6 +1234,8 @@
   });
   $('ttper').addEventListener('change', function () { edits.ttper = this.checked; saveEdits(); keepScroll(function () { render(curPages); }); });
   $('ttgrp').addEventListener('click', function (ev) {
+    var to = ev.target.closest('[data-tto]');
+    if (to) { edits.tord = to.getAttribute('data-tto'); saveEdits(); keepScroll(function () { render(curPages); }); return; }
     var c = ev.target.closest('[data-ttc]');
     if (c) { var v = c.getAttribute('data-ttc'); edits.ttc = v === 'sep' || v === 'board' ? v : undefined; saveEdits(); keepScroll(function () { render(curPages); }); return; }
     var b = ev.target.closest('[data-ttv],[data-ttf]'); if (!b) return;
@@ -1282,6 +1318,7 @@
     });
     $('deck').querySelectorAll('.ibox').forEach(function (el) { if (on) el.setAttribute('tabindex', '0'); else el.removeAttribute('tabindex'); });
     $('deck').querySelectorAll('.sitem.off').forEach(function (it) { it.hidden = !on; });
+    maps.forEach(function (m) { mapEdit(m, on); });
     if (!on) hideBar();
   }
   ['editbtn', 'editbtn2'].forEach(function (id) {
@@ -1958,7 +1995,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=5'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=6'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
