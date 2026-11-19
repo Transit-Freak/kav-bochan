@@ -1,0 +1,63 @@
+name: line-changes-tests
+
+# בדיקות קבועות ל"מצגת לשינוי בקו": בדיקות יחידה (הבונה בפייתון ו-deck.js), ובניית מצגות קבועות בדפדפן
+# מול תמונה-במילים (tests/line-changes/snapshots.json). רץ על PR שנוגע בקוד של הכלי או בבונה — לא על עדכוני הנתונים.
+# עדכון התמונה-במילים אחרי שינוי מכוון: tests/line-changes/README.md
+
+on:
+  pull_request:
+    paths:
+      - 'line-changes/**'
+      - '!line-changes/data/**'
+      - 'tools/line_changes.py'
+      - 'tools/road_match.py'
+      - 'tools/test_line_changes_renamed.py'
+      - 'tools/test_road_match.py'
+      - 'tests/line-changes/**'
+      - 'tests/fixtures/line-changes/**'
+      - 'tests/line-changes-units.test.mjs'
+      - 'tests/test_line_changes_units.py'
+      - '.github/workflows/line-changes-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none   # בלי קבצי הנתונים הכבדים של האתר
+          sparse-checkout: |
+            /*
+            !/*/data/
+            !/*/*/data/
+            /tests/fixtures/line-changes/data/
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: בדיקות יחידה — הבונה (פייתון)
+        run: |
+          python3 -m pip install -q pytest
+          python3 -m pytest -q tests/test_line_changes_units.py tools/test_line_changes_renamed.py tools/test_road_match.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: בדיקות יחידה — deck.js
+        run: node --test tests/line-changes-units.test.mjs
+
+      - name: המצגות הקבועות בדפדפן מול התמונה-במילים
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          CHROME: /usr/bin/google-chrome
+        run: |
+          npm i --no-save --no-package-lock --prefix "$RUNNER_TEMP/lc" playwright@1.49.1 leaflet@1.9.4 >/dev/null
+          NODE_PATH="$RUNNER_TEMP/lc/node_modules" node tests/line-changes/decks.mjs

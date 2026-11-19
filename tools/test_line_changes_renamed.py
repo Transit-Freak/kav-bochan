@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """בדיקה: חלופה שהוחלפה (find_renamed / rename_records) — החלפת מספר בלבד לא מופיעה כשינוי.
-הרצה: python3 tools/test_line_changes_renamed.py"""
+הרצה: python3 -m pytest tools/test_line_changes_renamed.py (או python3 tools/test_line_changes_renamed.py)"""
 import datetime
 import os
 import sys
@@ -49,24 +49,38 @@ def run_case(new_pat, new_shp):
     return L.rename_records(ren, old_v, new_v, old, new, {'s1': SHP}, {'s2': new_shp}, T0, stats), stats
 
 
-# 1. רק המספר השתנה (אותן תחנות, אותה דרך) — אין רשומה
-recs, st = run_case(list('abcdefgh'), SHP)
-assert recs == [] and st.get('renamed_same') == 1, (recs, st)
+def test_number_only_changed():
+    """1. רק המספר השתנה (אותן תחנות, אותה דרך) — אין רשומה"""
+    recs, st = run_case(list('abcdefgh'), SHP)
+    assert recs == [] and st.get('renamed_same') == 1, (recs, st)
 
-# 2. התחנות והדרך השתנו — שינוי מסלול מ-17.11
-recs, st = run_case(list('abcd') + ['x'] + list('gh'), SHP_X)
-assert len(recs) == 1 and recs[0]['eff'] == '2026-11-17' and set(recs[0]['removed']) == {'e', 'f'} and recs[0]['added'] == ['x'], recs
 
-# 3. חלופה שנוסעת רק בשישי ופשוט עוד לא היה שישי בשבוע שעבר — לא "הוחלפה"
-old_v = {'1-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 12))),   # נגמרה ב-12.11 (חמישי)
-         '1-1-5': var(2, 's', {D(2026, 11, 13)})}                          # שישי בלבד
-new_v = {'1-1-5': var(2, 's', {D(2026, 11, 20), D(2026, 11, 27)})}
-assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, Feed(D(2026, 11, 11), {}, {}), T0) == {}
-# 4. מסלול אחר לגמרי (אין תחנות משותפות) — לא "הוחלפה"
-far = {c: stop(c, 31.9, 34.7 + i * 0.01) for i, c in enumerate('pqrs')}
-o4 = Feed(D(2026, 11, 11), {1: list('abcdefgh')}, STOPS)
-n4 = Feed(T0, {2: list('pqrs')}, far)
-old_v = {'5-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 16)))}
-new_v = {'5-1-0': var(2, 's', days(T0, D(2026, 12, 8)))}
-assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, o4, T0, n4) == {}
-print('ok')
+def test_stops_and_route_changed():
+    """2. התחנות והדרך השתנו — שינוי מסלול מ-17.11"""
+    recs, st = run_case(list('abcd') + ['x'] + list('gh'), SHP_X)
+    assert len(recs) == 1 and recs[0]['eff'] == '2026-11-17' and set(recs[0]['removed']) == {'e', 'f'} and recs[0]['added'] == ['x'], recs
+
+
+def test_friday_only_not_renamed():
+    """3. חלופה שנוסעת רק בשישי ופשוט עוד לא היה שישי בשבוע שעבר — לא הוחלפה"""
+    old_v = {'1-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 12))),   # נגמרה ב-12.11 (חמישי)
+             '1-1-5': var(2, 's', {D(2026, 11, 13)})}                          # שישי בלבד
+    new_v = {'1-1-5': var(2, 's', {D(2026, 11, 20), D(2026, 11, 27)})}
+    assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, Feed(D(2026, 11, 11), {}, {}), T0) == {}
+
+
+def test_other_route_not_renamed():
+    """4. מסלול אחר לגמרי (אין תחנות משותפות) — לא הוחלפה"""
+    far = {c: stop(c, 31.9, 34.7 + i * 0.01) for i, c in enumerate('pqrs')}
+    o4 = Feed(D(2026, 11, 11), {1: list('abcdefgh')}, STOPS)
+    n4 = Feed(T0, {2: list('pqrs')}, far)
+    old_v = {'5-1-#': var(1, 's', days(D(2026, 11, 11), D(2026, 11, 16)))}
+    new_v = {'5-1-0': var(2, 's', days(T0, D(2026, 12, 8)))}
+    assert L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, o4, T0, n4) == {}
+
+
+if __name__ == '__main__':
+    for k, f in list(globals().items()):
+        if k.startswith('test_'):
+            f()
+    print('ok')
