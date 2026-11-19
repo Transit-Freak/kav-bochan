@@ -149,7 +149,10 @@ class Feed:
 
     def _read_small(self):
         h, rd = self.rows('agency.txt')
+        rd = [r for r in rd if r]
         self.agency = {r[h['agency_id']]: r[h['agency_name']] for r in rd if r}
+        # הטלפון של מוקד המידע של כל חברה (agency_phone) — לרשימת מוקדי המידע במצגות
+        self.agency_phone = {r[h['agency_id']]: r[h['agency_phone']].strip() for r in rd if r and 'agency_phone' in h}
         h, rd = self.rows('routes.txt')
         self.routes = {}
         for r in rd:
@@ -1390,9 +1393,24 @@ def alt_via(main, st):
     return 'לא דרך ' + two(gone) if gone else 'מסלול מקוצר'
 
 
-def alt_labels(feed, pw):
+def scode(st):
+    """קוד תחנה בפלט: מספר כשאפשר (קצר יותר ב-JSON)"""
+    c = st['code']
+    return int(c) if str(c).isdigit() else c
+
+
+def stop_cities(st):
+    cs = []
+    for s0 in st:
+        if s0['city'] and (not cs or cs[-1] != s0['city']):
+            cs.append(s0['city'])
+    return cs
+
+
+def alt_labels(feed, pw, stops=None):
     """החלופות של מק"ט-כיוון: (תיאורים לחלופות שאינן הראשית, {חלופה: אינדקס}) — 0 = ראשית.
-    pw = {(רצף, route_id): נסיעות×ימים}"""
+    pw = {(רצף, route_id): נסיעות×ימים}. stops (רשימה) — מתמלאת לכל תיאור בתחנות של כל החלופות שקיבלו אותו
+    (כדי שבלוח של מקום אפשר יהיה להשאיר רק נסיעות של חלופות שעוצרות בו)"""
     by = defaultdict(lambda: defaultdict(int))
     for (pid, rid), n in pw.items():
         if pid is not None:
@@ -1405,7 +1423,8 @@ def alt_labels(feed, pw):
     main = stops_of(feed, max(by[order[0]].items(), key=lambda kv: kv[1])[0])
     V, ai = [], {}
     for a in order[1:]:
-        lbl = alt_via(main, stops_of(feed, max(by[a].items(), key=lambda kv: kv[1])[0]))
+        ast = stops_of(feed, max(by[a].items(), key=lambda kv: kv[1])[0])
+        lbl = alt_via(main, ast)
         if not lbl:
             continue
         if lbl not in V:
@@ -1414,6 +1433,10 @@ def alt_labels(feed, pw):
             else:   # יותר מדי חלופות — האות האחרונה לכל השאר
                 V[-1] = lbl = 'במסלול אחר'
         ai[a] = V.index(lbl) + 1
+        if stops is not None:
+            while len(stops) < len(V):
+                stops.append([])
+            stops[ai[a] - 1].extend(x for x in ast if x not in stops[ai[a] - 1])
     return V, ai
 
 
@@ -1501,7 +1524,8 @@ def current_tts(feed, t0):
     for key in sorted(trips):
         ag, mk, dr = key
         svcs = trips[key]
-        V, ai = alt_labels(feed, pats[key])
+        VS = []
+        V, ai = alt_labels(feed, pats[key], VS)
         pre = f'{mk}-{dr}-'
         usual = {}
         for d in week:
@@ -1528,17 +1552,19 @@ def current_tts(feed, t0):
         (pid, rid), _n = max(pats[key].items(), key=lambda kv: kv[1])
         r = feed.routes[rid]
         st = stops_of(feed, pid) if pid is not None else []
-        cs = []
-        for s0 in st:
-            if s0['city'] and (not cs or cs[-1] != s0['city']):
-                cs.append(s0['city'])
+        cs = stop_cities(st)
         durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
         rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
                    du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
+        # התחנות של הנסיעות: sc — של החלופה הראשית; vs / vc — התחנות והערים של כל חלופה (לפי הסדר של v).
+        # בלוח של מקום (עיר, שכונה, רחוב) מוצגים רק כיוונים וחלופות שעוצרים בו
+        rec['sc'] = [scode(s0) for s0 in st]
         if any(A):
             rec['v'], rec['A'] = V, A
+            rec['vs'] = [[scode(s0) for s0 in (VS[i] if i < len(VS) else [])] for i in range(len(V))]
+            rec['vc'] = [stop_cities(VS[i] if i < len(VS) else []) for i in range(len(V))]
         if any(N):
             rec['N'] = N
         sh = shards[tt_shard(mk)]
@@ -1591,13 +1617,14 @@ def lines_index(feed, variants, extra=None):
                 st = fd.stops.get(sid)
                 if st and st['city']:
                     e['cities'][st['city']] = e['cities'].get(st['city'], 0) + x['td']
-    ops, cities, op_ids = [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת)
+    ops, cities, op_ids, op_phones = [], [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת); op_phones: הטלפון מ-agency.txt
     oi, ci = {}, {}
     out = []
     for (ag, makat), e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1])):
         op = feed.agency.get(ag, '') or e['opn']
         if op not in oi:
             oi[op] = len(ops); ops.append(op); op_ids.append(ag)
+            op_phones.append(getattr(feed, 'agency_phone', {}).get(ag, ''))
         cl = []
         for c, _ in sorted(e['cities'].items(), key=lambda kv: -kv[1]):
             if c not in ci:
@@ -1606,7 +1633,7 @@ def lines_index(feed, variants, extra=None):
         out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
     print(f'{len(out)} קווים באינדקס', flush=True)
     places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
-    return {'ops': ops, 'op_ids': op_ids, 'cities': cities, 'lines': out, '_places': places}
+    return {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, '_places': places}
 
 
 def load_hoods(d):
@@ -1662,6 +1689,7 @@ def places_index(feed, entries, cities, ci):
         return res
 
     streets, hds = defaultdict(set), defaultdict(set)
+    s_st, h_st = defaultdict(set), defaultdict(set)   # התחנות בכל רחוב ושכונה — לבדוק בלוח איזו חלופה עוצרת במקום
     for li, e in enumerate(entries):
         for sid in e['sids']:
             st = feed.stops.get(sid)
@@ -1669,16 +1697,19 @@ def places_index(feed, entries, cities, ci):
                 continue
             if st['street']:
                 streets[(st['street'], st['city'])].add(li)
+                s_st[(st['street'], st['city'])].add(scode(st))
             hi = hood(sid)
             if hi is not None and hoods[hi][1].strip():
                 hds[(hoods[hi][1].strip(), st['city'])].add(li)
+                h_st[(hoods[hi][1].strip(), st['city'])].add(scode(st))
 
     def cidx(c):
         if c not in ci:
             ci[c] = len(cities); cities.append(c)
         return ci[c]
-    out_s = [[n, cidx(c), sorted(v)] for (n, c), v in sorted(streets.items())]
-    out_h = [[n, cidx(c), sorted(v)] for (n, c), v in sorted(hds.items())]
+    key = lambda x: (isinstance(x, str), x)
+    out_s = [[n, cidx(c), sorted(v), sorted(s_st[(n, c)], key=key)] for (n, c), v in sorted(streets.items())]
+    out_h = [[n, cidx(c), sorted(v), sorted(h_st[(n, c)], key=key)] for (n, c), v in sorted(hds.items())]
     print(f'{len(out_s)} רחובות · {len(out_h)} שכונות ({len(hoods)} פוליגונים)', flush=True)
     return {'streets': out_s, 'hoods': out_h}
 
