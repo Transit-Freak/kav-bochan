@@ -71,7 +71,17 @@ var LCXlsx = (function () {
     var TH = M.th || {}, LB = M.lbl || {};   // כותרות ותוויות שנערכו בלוח
     if (M.credit !== false) { cell(R, 0, CR, st.get({ b: 1, sz: 10, color: '1F9152', fill: 'D9DEDC', h: 'center' })); merges.push('A' + R + ':' + ref(last, R)); links.push(ref(0, R)); R++; }
     var sH = st.get({ b: 1, sz: 11, fill: '9BCB3B', h: 'center' });
-    ['מפעיל', TH.line != null && TH.line !== 'קו' ? TH.line : 'מס\' קו', TH.orig != null ? TH.orig : 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']).forEach(function (t, c) { cell(R, c, t, sH); });
+    var hd = ['מפעיל', TH.line != null && TH.line !== 'קו' ? TH.line : 'מס\' קו', TH.orig != null ? TH.orig : 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']);
+    // ימי חול מפוצלים (א׳–ד׳ · יום ה׳): שתי שורות כותרת — "יום חול" ממוזג מעל העמודות שלהם, והשאר ממוזגים לגובה
+    var headTop = R, wkc = M.cols.map(function (c, i) { return c.wk ? 3 + i : -1; }).filter(function (i) { return i >= 0; });
+    if (wkc.length > 1) {
+      hd.forEach(function (t, c) {
+        if (wkc.indexOf(c) >= 0) { cell(R + 1, c, t, sH); if (c === wkc[0]) cell(R, c, TH.wk || 'יום חול', sH); else cell(R, c, '', sH); }
+        else { cell(R, c, t, sH); cell(R + 1, c, '', sH); merges.push(ref(c, R) + ':' + ref(c, R + 1)); }
+      });
+      merges.push(ref(wkc[0], R) + ':' + ref(wkc[wkc.length - 1], R));
+      R++;
+    } else hd.forEach(function (t, c) { cell(R, c, t, sH); });
     var head = R; R++;
     // התאים בשורות — מיושרים למעלה (כמו בלוח)
     var sOp = st.get({ b: 1, sz: 10, h: 'center', v: 'top' }), sLn = st.get({ b: 1, sz: 20, h: 'center', v: 'top' }), sOr = st.get({ b: 1, sz: 10, h: 'center', v: 'top' });
@@ -96,7 +106,9 @@ var LCXlsx = (function () {
           comments.push({ ref: ref(2, rr), t: r.comment });
           var notes = [];
           r.cells.forEach(function (x, ci) {
-            var pre = M.cols.length > 1 ? M.cols[ci].label + ': ' : '';
+            if (x.skip) return;   // חלק מתא ממוזג (ימי חול זהים בשורה הזו)
+            if (x.span) merges.push(ref(3 + ci, rr) + ':' + ref(3 + ci + x.span - 1, rr));
+            var pre = M.cols.length > 1 ? (x.span ? M.cols.slice(ci, ci + x.span).map(function (c) { return c.label; }).join(' + ') : M.cols[ci].label) + ': ' : '';
             if (x.ntxt) notes.push(pre + x.ntxt);
             if (x.txt != null) { cell(rr, 3 + ci, x.txt, sTm); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
             if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', sOff); return; }
@@ -187,7 +199,7 @@ var LCXlsx = (function () {
           '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/><v:textbox style="mso-direction-alt:auto"><div style="text-align:right"></div></v:textbox>' +
           '<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>' + (col + 1) + ', 15, ' + row + ', 2, ' + (col + 4) + ', 15, ' + (row + 4) + ', 2</x:Anchor><x:AutoFill>False</x:AutoFill><x:Row>' + row + '</x:Row><x:Column>' + col + '</x:Column></x:ClientData></v:shape>';
       }).join('') + '</xml>';
-    return { sheet: sheet, cmt: cmt, vml: vml, links: links, head: head };
+    return { sheet: sheet, cmt: cmt, vml: vml, links: links, head: head, headTop: headTop };
   }
   /* קובץ עם כמה גיליונות: list = [[M, 'שם הגיליון'], ...] */
   function book(list) {
@@ -205,7 +217,7 @@ var LCXlsx = (function () {
       ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + R + 'officeDocument" Target="xl/workbook.xml"/></Relationships>'],
       ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + R.slice(0, -1) + '">' +
         '<bookViews><workbookView/></bookViews><sheets>' + sh.map(function (o, i) { return '<sheet name="' + x(o.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets>' +
-        '<definedNames>' + sh.map(function (o, i) { return '<definedName name="_xlnm.Print_Titles" localSheetId="' + i + '">' + x(q(o.name)) + '!$' + o.head + ':$' + o.head + '</definedName>'; }).join('') + '</definedNames></workbook>'],
+        '<definedNames>' + sh.map(function (o, i) { return '<definedName name="_xlnm.Print_Titles" localSheetId="' + i + '">' + x(q(o.name)) + '!$' + (o.headTop || o.head) + ':$' + o.head + '</definedName>'; }).join('') + '</definedNames></workbook>'],
       ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         sh.map(function (o, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="' + R + 'worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
         '<Relationship Id="rId' + (sh.length + 1) + '" Type="' + R + 'styles" Target="styles.xml"/></Relationships>'],

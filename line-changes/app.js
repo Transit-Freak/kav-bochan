@@ -1002,7 +1002,8 @@
   function tordOf() { return edits.tord === 'ltr' || edits.tord === 'rtl' ? edits.tord : edits.ttc === 'board' || (edits.tt && edits.tt.v === 'board') ? 'ltr' : 'rtl'; }
   function edOpts(form) {
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
-      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf() };
+      btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
+      bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages };
   }
   var wantBoard = null;
   function render(pages) {
@@ -1212,6 +1213,16 @@
         $('bdnote').placeholder = edits.bnote ? '' : M.note;
       }
     }
+    if (bd) {
+      // "להכניס ל-N עמודים" — רק בשלט A4; צפיפות ופיצול ימי חול — בכל הצורות
+      $('bpgw').hidden = formOf() !== 'sign';
+      var bpg = String(+edits.bpages || 0), fit = LCDeck.boardFit && LCDeck.boardFit();
+      $('bpgseg').querySelectorAll('[data-bpg]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bpg') === bpg ? 'true' : 'false'); });
+      $('bdneed').hidden = !(fit && fit.need);
+      if (fit && fit.need) $('bdneed').textContent = 'גם באותיות הקטנות ביותר שעוד אפשר לקרוא, הלוח לא נכנס — צריך לפחות ' + fit.need + ' עמודים.';
+      $('bdnseg').querySelectorAll('[data-bdn]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bdn') === (edits.bdense ? '1' : '0') ? 'true' : 'false'); });
+      $('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
+    }
     var multi = !cu && formOf() === 'deck' && pages.filter(function (p) { return (p.kind === 'timetable' || p.kind === 'new') && p.dirs.some(function (d) { return d.tt && d.tt.length; }); }).length > 1;
     $('ttperw').hidden = !multi || cbd;
     $('ttper').checked = edits.ttper !== false;
@@ -1233,6 +1244,13 @@
   $('ttgrp').addEventListener('click', function (ev) {
     var to = ev.target.closest('[data-tto]');
     if (to) { edits.tord = to.getAttribute('data-tto'); saveEdits(); keepScroll(function () { render(curPages); }); return; }
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp]');
+    if (bo) {
+      if (bo.hasAttribute('data-bpg')) edits.bpages = +bo.getAttribute('data-bpg') || undefined;
+      else if (bo.hasAttribute('data-bdn')) edits.bdense = bo.getAttribute('data-bdn') === '1' || undefined;
+      else edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
+      saveEdits(); keepScroll(function () { render(curPages); }); return;
+    }
     var c = ev.target.closest('[data-ttc]');
     if (c) { var v = c.getAttribute('data-ttc'); edits.ttc = v === 'sep' || v === 'board' ? v : undefined; saveEdits(); keepScroll(function () { render(curPages); }); return; }
     var b = ev.target.closest('[data-ttv],[data-ttf]'); if (!b) return;

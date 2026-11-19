@@ -971,3 +971,29 @@ body.editing .s-bd tr.badd td{background:#fbfdf9}
 .s-bd .bd-t td.bt.same{color:var(--s-sub);font-weight:700}
 .s-bd .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .s-bd .nwt{color:#137a3f;font-weight:800}
+/* לוח לפי יעד: ימי חול מפוצלים — "יום חול" מעל א׳–ד׳ · יום ה׳ */
+.s-bd .bd-t th.wkh{border-bottom:1px solid rgba(255,255,255,.4)}
+.s-bd .bd-t tr.wk2 th{font-size:.9em;padding-top:.12em;padding-bottom:.12em}
+/* "צפוף": שורות צרות, פחות רווח בין השעות, פס דק, עמודות הקו והמוצא צרות יותר */
+.s-bd.dense .bd-t{line-height:1.15}
+.s-bd.dense .bd-t td{padding:.1em .25em}
+.s-bd.dense .bd-t th{padding:.15em .25em}
+.s-bd.dense .tl{word-spacing:.04em}
+.s-bd.dense .bd-t tr.bband td{padding:.04em .4em;font-size:.95em;line-height:1.2}
+.s-bd.dense .bd-t td.bl .badge.sm{font-size:1.2em;padding:.05em .25em .02em}
+.s-bd.dense .bd-t td.bl small{font-size:.68em;margin-top:.05em;line-height:1.05}
+.s-bd.dense .bd-t td.bo{line-height:1.08}
+.s-bd.dense .bd-t td.bo small{font-size:.7em;margin-top:0}
+.s-bd.dense .bnote{font-size:.74em;margin-top:.05em;line-height:1.15}
+.s-bd.dense.f-sign .bd-t col.cl{width:40px}.s-bd.dense.f-sign .bd-t col.co{width:82px}
+.s-bd.dense.f-deck .bd-t col.cl{width:60px}.s-bd.dense.f-deck .bd-t col.co{width:118px}
+.s-bd.dense.f-status .bd-t col.cl{width:78px}.s-bd.dense.f-status .bd-t col.co{width:140px}
+/* צפוף: בעמודת המוצא — רק מאיפה ולאן (שם התחנה וקוד התחנה — בהערה בקובץ האקסל ובמצב עריכה), כותרת קטנה יותר */
+.s-bd.dense .bd-t td.bo small:not(.tw){display:none}
+body.editing .s-bd.dense .bd-t td.bo small:not(.tw){display:block}
+.s-bd.dense.f-sign .cu-head h1{font-size:22px}
+.s-bd.dense.f-sign .cu-head .sub{font-size:11px}
+.s-bd.dense.f-sign .bd-head{padding-bottom:.25em}
+.s-bd.dense.f-sign .cu-body{padding-top:4px}
+.s-bd.dense .bd-ph{margin-top:.2em}
+.s-bd.dense .bd-upd{margin-top:.25em;padding:.1em .5em}

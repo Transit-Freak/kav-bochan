@@ -39,7 +39,13 @@ const DECKS = {
   '45009-20261115-n': 'קו חדש',
   '71011-20261113-e': 'קו שמבוטל'
 };
-const BOARDS = { 'board-ltr': 'ltr', 'board-rtl': 'rtl' };   // לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות
+// לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות — עם פיצול ימי חול אוטומטי (יום א׳ · ב׳–ד׳ · יום ה׳); בלי פיצול;
+// ו"צפוף" + "להכניס לעמוד אחד" בשלט A4 (נבדק שהלוח נכנס, או שמופיע כמה עמודים צריך, ושבכל עמוד יש "לא פרסום רשמי" והקרדיט)
+const BOARDS = {
+  'board-ltr': { tord: 'ltr' }, 'board-rtl': { tord: 'rtl' },
+  'board-nosplit': { tord: 'ltr', opts: ['bsp=no'], forms: ['sign'] },
+  'board-dense-1': { tord: 'ltr', opts: ['bdn=1', 'bpg=1'], forms: ['sign'] }
+};
 // הודעה על שינוי בתצוגת "טבלה לפי יעד": שינוי בלו"ז (436) וקו חדש (9), עם סימון מה שמשתנה
 const CHG_BOARDS = { 'chg-board': '10436-20261119-t,45009-20261115-n' };
 const FORMS = ['deck', 'sign', 'status'];
@@ -181,7 +187,8 @@ async function main() {
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();
   }
-  for (const [key, tord] of Object.entries(BOARDS)) {
+  for (const [key, bo] of Object.entries(BOARDS)) {
+    const tord = bo.tord;
     if (only && only !== key) continue;
     const pg = await ctx.newPage(), errs = [];
     pg.on('pageerror', (e) => errs.push(e.message));
@@ -193,13 +200,25 @@ async function main() {
     await pg.waitForSelector('.s-bd', { timeout: 30000 });
     await pg.click('[data-tto="' + tord + '"]', { force: true });
     got[key] = {};
-    for (const form of FORMS) {
+    for (const form of bo.forms || FORMS) {
       await pg.click('[data-form="' + form + '"]', { force: true });
       await pg.waitForTimeout(800);
-      // הלוח: כל השורות מכל העמודים יחד (החלוקה לעמודים תלויה בגופן — לא נבדקת), בלי שורות "(המשך)"
+      for (const kv of bo.opts || []) { const [k, v] = kv.split('='); await pg.evaluate(([k, v]) => document.querySelector('[data-' + k + '="' + v + '"]').click(), [k, v]); await pg.waitForTimeout(800); }
+      // הלוח: כל השורות מכל העמודים יחד (החלוקה לעמודים תלויה בגופן — לא נבדקת), בלי שורות "(המשך)"; והכותרות של העמודות
       const pages = await collect(pg, true), rows = [];
       Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
-      got[key][form] = { rows: rows };
+      const fit = await pg.evaluate(() => {
+        const fr = Array.from(document.querySelectorAll('.sitem:not(.off) .sframe')).filter((f) => f.querySelector('.s-bd'));
+        const heads = fr[0] ? Array.from(fr[0].querySelectorAll('thead th')).map((t) => t.textContent.trim() + (t.colSpan > 1 ? ' [' + t.colSpan + ']' : '')) : [];
+        const spans = fr.reduce((t, f) => t + f.querySelectorAll('tbody td.bt[colspan]').length, 0);
+        const foot = fr.every((f) => { const sl = f.querySelector('.slide').getBoundingClientRect(), cr = f.querySelector('.bd-cr'), lg = f.querySelector('.cu-foot');
+          return cr && lg && /לא פרסום רשמי/.test(lg.textContent) && /הוכן על ידי אדם פרטי/.test(lg.textContent) && /kavbochan\.app/.test(cr.textContent) && cr.getBoundingClientRect().bottom <= sl.bottom + 1 && lg.getBoundingClientRect().bottom <= sl.bottom + 1; });
+        const f0 = window.LCDeck && LCDeck.boardFit ? LCDeck.boardFit() : null;
+        return { heads, spans, foot, pages: fr.length, need: f0 ? f0.need : 0, want: f0 ? f0.want : 0 };
+      });
+      got[key][form] = { heads: fit.heads, spans: fit.spans, rows: rows };
+      if (!fit.foot) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
+      if (fit.want && fit.pages > fit.want && fit.need !== fit.pages) problems.push(key + ' ' + form + ': ' + fit.pages + ' עמודים במקום ' + fit.want + ', בלי "צריך לפחות"');
       for (const x of await orderCheck(pg, tord)) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
     }
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
