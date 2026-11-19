@@ -97,3 +97,63 @@ test('פיצול ימי חול: יום ה׳ שונה בכמה קווים — ע�
   const one = Array.from({ length: 6 }, (_, i) => row(i === 0 ? wkday.concat([1300]) : wkday));
   assert.deepEqual(JSON.parse(JSON.stringify(T.bdWkSplit(one))), [[0, 1, 2, 3, 4]]);
 });
+
+// ---------- לוח לפי יעד: סוג הקו, סדר הקווים וצבע/אות לכל חלופה (מהנתונים הקבועים של לוד) ----------
+const FIXD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'line-changes', 'data');
+const LINES_FX = JSON.parse(fs.readFileSync(path.join(FIXD, 'lines.json'), 'utf8'));
+// כמו ttPick ב-app.js: עמוד "לו"ז עדכני" לקו מתוך tt/<מק"ט % 64>.json
+function ttPage(mk) {
+  const e = JSON.parse(fs.readFileSync(path.join(FIXD, 'tt', (+mk % 64) + '.json'), 'utf8')).lines[mk];
+  const dirs = Object.keys(e.d).sort().map((k) => {
+    const r = e.d[k], A = r.A || [], N = r.N || [];
+    return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, cn: r.cn || null, sc: r.sc || null, du: r.du, days: r.w.map((i) => r.L[i] || []), x: {},
+      v: r.v || [], da: r.w.map((i) => A[i] || 0), dn: r.w.map((i) => N[i] || 0) };
+  });
+  return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: dirs[0].od, eff: '2026-11-19', valid: '2026-11-19', until: '', hol: [], dirs };
+}
+const LOD_MK = ['36011', '68005', '53009', '32012', '31019', '14384', '12408', '11251', '15174', '21134', '36081', '11464', '12509', '11884'];
+const lodPages = () => LOD_MK.map(ttPage);
+const J = (x) => JSON.parse(JSON.stringify(x));   // מערכים מה-vm — להשוואה
+const seq = (M) => J(M.bands.map((b) => (b.sec ? '§' + b.sec + ' ' : '') + b.label + ': ' + b.rows.map((r) => r.line).filter((x, i, a) => a.indexOf(x) === i).join(' ')));
+const bandOf = (M, line) => M.bands.find((b) => b.rows.some((r) => r.line === line));
+
+test('סוג קו לפי משרד התחבורה: פרקים עירוני / בין-עירוני / אזורי, בסדר שנבחר; סוג מוסתר — לא בלוח', () => {
+  const M = ctx.LCDeck.boardModel(lodPages(), { ltype: LINES_FX.lt, pord: LOD_MK });
+  assert.equal(M.ord, 'type');
+  assert.deepEqual(J(M.bands.filter((b) => b.sec).map((b) => b.secLabel)), ['קווים עירוניים', 'קווים בין-עירוניים', 'קווים אזוריים']);
+  assert.deepEqual(J(M.tcount), { u: 4, i: 7, r: 3 });
+  assert.match(bandOf(M, '11').label, /^הקווים העירוניים/);
+  const R = ctx.LCDeck.boardModel(lodPages(), { ltype: LINES_FX.lt, pord: LOD_MK, btypes: ['r', 'u', 'i'], bthide: { i: 1 } });
+  assert.deepEqual(J(R.bands.filter((b) => b.sec).map((b) => b.sec)), ['r', 'u']);
+  assert.ok(!bandOf(R, '464'));
+});
+
+test('בלי סוג בנתונים: קו בין ערים סמוכות שרוב התחנות שלו בעיר אחת (11, 5) — עירוני; לוד–תל אביב (464) ובית שמש–לוד (509) — לא', () => {
+  const ps = ['14384', '11464', '12509', '53009', '36011', '68005'].map(ttPage);
+  const M = ctx.LCDeck.boardModel(ps, { bord: 'add', pord: ps.map((p) => p.makat) });
+  for (const l of ['11', '5', '9']) assert.ok(bandOf(M, l).local, l);
+  for (const l of ['464', '509', '384']) assert.ok(!bandOf(M, l).local, l);
+  // בלי מספר התחנות בכל עיר (נתונים ישנים) — כמו קודם: 11 ו-5 בפס "לוד – רמלה"
+  const old = ps.map((p) => ({ ...p, dirs: p.dirs.map((d) => ({ ...d, cn: null })) }));
+  assert.ok(!bandOf(ctx.LCDeck.boardModel(old, { bord: 'add' }), '11').local);
+});
+
+test('סדר הקווים: לפי הסדר שהוספתם, לפי יעד, לפי מספר, ידני', () => {
+  const o = { ltype: LINES_FX.lt, pord: ['11464', '53009', '36011', '14384'] };
+  const ps = ['36011', '53009', '11464', '14384'].map(ttPage);
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'add' })), ['לוד – תל אביב יפו: 464', 'הקווים העירוניים · לוד, רמלה: 9 11', 'לוד – בני ברק: 384']);
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'dest' })), ['לוד – בני ברק: 384', 'לוד – תל אביב יפו: 464', 'הקווים העירוניים · לוד, רמלה: 9 11']);
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'num' })), ['הקווים העירוניים · לוד, רמלה: 9 11', 'לוד – בני ברק: 384', 'לוד – תל אביב יפו: 464']);
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'man', bman: ['14384', '36011', '53009', '11464'] })), ['לוד – בני ברק: 384', 'הקווים העירוניים · לוד, רמלה: 11 9', 'לוד – תל אביב יפו: 464']);
+});
+
+test('חלופות: לכל חלופה בשורה אות וצבע משלה, וההערה מתחת לתא — עם האות', () => {
+  const M = ctx.LCDeck.boardModel([ttPage('36011')], { ltype: LINES_FX.lt });
+  const r = M.bands[0].rows.find((x) => x.alts && x.alts.length === 2);
+  assert.deepEqual(J(r.alts.map((a) => a.L)), ['א׳', 'ב׳']);
+  assert.notEqual(r.alts[0].c, r.alts[1].c);
+  const e = r.cells.flatMap((x) => x.ents).find((x) => x.a);
+  assert.equal(e.ac, r.alts.find((a) => a.a === e.a).c);
+  const nt = r.cells.flatMap((x) => x.notes).find((x) => x.L);
+  assert.ok(nt && nt.c);
+});

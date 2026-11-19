@@ -892,6 +892,25 @@ body.editing .slide .inset-x{display:block}
 .s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-left:.1em}
 .s-bd .t sup{font-size:.68em;color:#b45309;font-weight:800;margin-left:.15em;line-height:0;unicode-bidi:isolate}
 .s-bd .bnote{display:block;color:#c81e1e;font-weight:700;font-size:.8em;line-height:1.25;margin-top:.2em}
+/* לפי סוג קו: כותרת פרק מעל הפסים של כל סוג (עירוני / בין-עירוני / אזורי) */
+.s-bd .bd-t tr.bsec td{background:var(--s-paper);color:var(--s-fg);font-weight:900;font-family:'Heebo',Arial,sans-serif;font-size:1.22em;text-align:right;padding:.45em .2em .15em;border:0;border-bottom:3px solid var(--s-fg);letter-spacing:.01em}
+.s-bd .bd-t tr.bsec:first-child td{padding-top:.1em}
+.s-bd.dense .bd-t tr.bsec td{font-size:1.05em;padding:.2em .2em .05em;border-bottom-width:2px}
+.s-bd tr.bsec0{display:none}
+body.editing .s-bd tr.bsec0{display:table-row}
+body.editing .s-bd tr.bsec0 td{min-height:1em;opacity:.6}
+/* חלופות: לכל חלופה בשורה צבע ואות משלה (א׳, ב׳…) — האות צמודה לשעה, באותה יחידה; מקרא בתחתית העמוד */
+.s-bd .t .al,.s-bd .bd-ali .al{display:inline;width:auto;height:auto;border:0;border-radius:0;font-style:normal;line-height:inherit;font-family:'Heebo',Arial,sans-serif;font-variant-numeric:normal}
+.s-bd .t .al{font-size:.66em;font-weight:900;margin-left:.04em;vertical-align:.38em;line-height:0}
+.s-bd .bnote .bna{font-weight:800}
+.s-bd .bd-alts{margin-top:.45em;border:2px solid var(--s-line);border-radius:6px;padding:.2em .6em;line-height:1.3}
+.s-bd .bd-al{margin:.08em 0;font-weight:700}
+.s-bd .bd-aln{color:var(--s-fg);font-weight:800;margin-inline-end:.15em}
+.s-bd .bd-ali{font-weight:800}
+.s-bd .bd-ali .al{font-weight:900;font-size:1em}
+.s-bd .bd-als{color:var(--s-sub)}
+.s-bd.f-sign .bd-alts{font-size:11px}.s-bd.f-deck .bd-alts{font-size:14px}.s-bd.f-status .bd-alts{font-size:21px}
+.s-bd.dense .bd-alts{margin-top:.3em;padding:.1em .5em;line-height:1.2}
 .s-bd .bd-foot{flex:none}
 .s-bd .bd-upd{font-weight:700;color:#c81e1e;border:2px solid var(--s-line);border-radius:6px;padding:.25em .6em;margin-top:.5em}
 .s-bd .bd-upd b{color:var(--s-fg);margin-inline-end:.4em}
@@ -1033,4 +1052,10 @@ body.editing .s-bd.dense .bd-t td.bo small:not(.tw),body.editing .s-bd.dense .bd
 /* "צבעי המפעיל": בתא של מספר הקו בלוח — מסגרת שהיא חלק מהתגית (border), לא טבעת מבחוץ (box-shadow) שעולה על שם המפעיל מתחתיה */
 .deck[data-look="op"] .s-bd .bd-t td.bl .badge{box-shadow:none;border:max(2px,.1em) solid var(--s-brand2)}
 .s-bd .bd-t td.bl .badge{vertical-align:middle}
+/* מספר הקו באמצע התא, גם כשהוא רחב מהתא (384, 10א ברגיל): בלוק ברוחב התוכן, שהמרכז שלו במרכז התא — ולא צמוד לצד אחד.
+   (בתא מימין לשמאל דפדפן מתעלם מ-margin-left של בלוק רחב מדי — לכן התא עצמו משמאל לימין, והתוכן בתוכו מימין לשמאל) */
+.s-bd .bd-t td.bl{padding-left:.15em;padding-right:.15em;direction:ltr}
+.s-bd .bd-t td.bl > *{direction:rtl}
+.s-bd .bd-t td.bl > .badge{display:flex;width:max-content;margin-left:50%;margin-right:0;transform:translateX(-50%)}
+.s-bd .bd-t td.bl > .badge.bdt:empty{display:flex}
 .s-bd.dense .bd-t td.bl small{margin-top:.08em}

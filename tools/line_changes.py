@@ -1407,6 +1407,22 @@ def stop_cities(st):
     return cs
 
 
+def stop_city_counts(st):
+    """כמה תחנות בכל עיר לאורך הדרך — מקביל ל-stop_cities (תחנה בלי עיר לא נספרת).
+    בלוח לפי יעד: קו בין שתי ערים סמוכות (לוד–רמלה), שרוב התחנות שלו בעיר אחת — קו עירוני"""
+    cn = []
+    last = None
+    for s0 in st:
+        if not s0['city']:
+            continue
+        if s0['city'] == last:
+            cn[-1] += 1
+        else:
+            cn.append(1)
+            last = s0['city']
+    return cn
+
+
 def alt_labels(feed, pw, stops=None):
     """החלופות של מק"ט-כיוון: (תיאורים לחלופות שאינן הראשית, {חלופה: אינדקס}) — 0 = ראשית.
     pw = {(רצף, route_id): נסיעות×ימים}. stops (רשימה) — מתמלאת לכל תיאור בתחנות של כל החלופות שקיבלו אותו
@@ -1479,7 +1495,7 @@ def current_tts(feed, t0):
     """הלו"ז העדכני של כל קווי האוטובוס, לשבוע הקרוב: לכל מק"ט ולכל כיוון — היציאות מהתחנה הראשונה לכל יום בשבוע
     (יום רגיל: התאריך הקרוב שאינו חג או ערב חג), ובתאריכי חג בשבוע הקרוב — רק אם השעות שונות מהיום הרגיל.
     נכתב ל-data/tt/NN.json (מק"ט % 64). קו = {l: מספר, a: agency_id, o: חברה, d: {כיוון: {...}}}
-    כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, du: משך נסיעה טיפוסי (דק'),
+    כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, cn: כמה תחנות בכל אחת מהן (מקביל ל-cs), du: משך נסיעה טיפוסי (דק'),
              w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+),
              v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
              אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...),
@@ -1555,7 +1571,7 @@ def current_tts(feed, t0):
         cs = stop_cities(st)
         durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
         rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
-                   du=durs[len(durs) // 2] if durs else None, w=w, L=L)
+                   cn=stop_city_counts(st), du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
         # התחנות של הנסיעות: sc — של החלופה הראשית; vs / vc — התחנות והערים של כל חלופה (לפי הסדר של v).
@@ -1591,11 +1607,31 @@ def current_tts(feed, t0):
     print(f'לו"ז עדכני: {sum(len(v) for v in shards.values())} קווים · {n_dirs} כיוונים · {size // 1024} KB ב-{TT_SHARDS} קבצים', flush=True)
 
 
+LINE_TYPES = {'עירוני': 'u', 'בינעירוני': 'i', 'אזורי': 'r'}
+
+
+def load_line_types(path=None):
+    """סוג הקו לפי משרד התחבורה — עירוני (u), בינעירוני (i) או אזורי (r) — לפי מק"ט, מהעמודה "סוג קו" בנתונים של קו פח
+    (data-main.json: [מק"ט, מספר, כיוון, מוצא, יעד, מחוז, סוג קו, ...]). בלוח לפי יעד: "לפי סוג קו". בלי הקובץ — {}"""
+    path = path or os.environ.get('LC_LINE_TYPES', 'data-main.json')
+    try:
+        rows = json.load(open(path, encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    cnt = defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        k = LINE_TYPES.get(r[6]) if isinstance(r, list) and len(r) > 6 else None
+        if k:
+            cnt[str(r[0])][k] += 1
+    return {m: max(c.items(), key=lambda kv: kv[1])[0] for m, c in cnt.items()}
+
+
 def lines_index(feed, variants, extra=None):
     """כל הקווים שפועלים בימים הקרובים — לחיפוש בדף (מספר, חברה, מוצא, יעד, ערים).
     extra = (GTFS של השבוע שעבר, הווריאנטים של הקווים שמבוטלים) — כדי שגם אותם אפשר למצוא.
     פורמט דחוס: ops/cities הן רשימות, ובכל קו אינדקסים אליהן.
-    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבועיים האחרונים — add_past)]"""
+    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבועיים האחרונים — add_past)]
+    lt = {מק"ט: u / i / r} — סוג הקו לפי משרד התחבורה (עירוני / בינעירוני / אזורי)"""
     by = {}
     for fd, vmap in [(feed, variants)] + ([extra] if extra else []):
       for rd, vs in vmap.items():
@@ -1633,7 +1669,9 @@ def lines_index(feed, variants, extra=None):
         out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
     print(f'{len(out)} קווים באינדקס', flush=True)
     places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
-    return {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, '_places': places}
+    lt = load_line_types()
+    lt = {ln[0]: lt[ln[0]] for ln in out if ln[0] in lt}   # lt — סוג הקו לפי משרד התחבורה (load_line_types)
+    return {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, 'lt': lt, '_places': places}
 
 
 def load_hoods(d):

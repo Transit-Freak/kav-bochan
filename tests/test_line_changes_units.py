@@ -105,3 +105,19 @@ def test_walk_partial_cache_keeps_known(tmp_path, monkeypatch):
     monkeypatch.setattr(L, 'walk_table', lambda a, b: (_ for _ in ()).throw(AssertionError('no calls')))
     L.add_walks([f], str(tmp_path))
     assert f['walk']['r']['m'] == 300
+
+
+def test_stop_city_counts_parallel_to_cities():
+    st = [{'city': c} for c in ['רמלה', 'רמלה', '', 'לוד', 'לוד', 'לוד', 'רמלה']]
+    assert L.stop_cities(st) == ['רמלה', 'לוד', 'רמלה']
+    assert L.stop_city_counts(st) == [2, 3, 1]
+    assert L.stop_city_counts([]) == []
+
+
+def test_load_line_types(tmp_path):
+    p = tmp_path / 'data-main.json'
+    p.write_text('[["36011","11","1","רמלה","לוד","מרכז","עירוני"],["36011","11","2","לוד","רמלה","מרכז","עירוני"],'
+                 '["32012","12","3","רמלה","רמלה","מרכז","אזורי"],["11464","464","1","לוד","תל אביב יפו","מרכז","בינעירוני"],["9","9","1","","","",""]]',
+                 encoding='utf-8')
+    assert L.load_line_types(str(p)) == {'36011': 'u', '32012': 'r', '11464': 'i'}
+    assert L.load_line_types(str(tmp_path / 'none.json')) == {}

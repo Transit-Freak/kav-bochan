@@ -58,6 +58,83 @@ const BOARDS = {
   'board-dense-1': { tord: 'ltr', opts: ['bdn=1', 'bpg=1'], forms: ['sign'] },
   'board-1p': { tord: 'ltr', del: 100, opts: ['bdn=1', 'bpg=1'], forms: ['sign'], pages: 1, xlsx: true }
 };
+// לוח לפי יעד בלוד (14 קווים, לפי הסדר שבו נוספו): קו 11 (רמלה–לוד) עם שלוש חלופות — לכל חלופה בשורה צבע ואות משלה (בתא,
+// בהערה מתחת לתא, במקרא בתחתית העמוד ובאקסל), בשני סדרי השעות; וכל אחת מאפשרויות "סדר הקווים" (נשמרת עם הלוח).
+// board-lod-adj — קודם קווים בינעירוניים ואחר כך קווים בעיר: 11 ו-5 (בין לוד לרמלה, רוב התחנות בעיר אחת) — בפס הקווים העירוניים.
+// board-hood — לוח של מקום: שכונת גני איילון בלוד
+const LOD = '36011,68005,53009,32012,31019,14384,12408,11251,15174,21134,36081,11464,12509,11884';
+const LOD_BOARDS = {
+  'board-lod': { url: '?m=tt&c=' + LOD, orders: ['type', 'add', 'dest', 'op', 'num'], alts: '11', xlsx: true, types: true, manual: true },
+  'board-lod-adj': { url: '?m=tt&c=14384,11464,12408,53009,36011,68005' },
+  'board-hood': { place: 'גני איילון', alts: '11' }
+};
+// הפסים והקווים בלוח לפי הסדר: "פס: קו קו …"
+async function bandSeq(pg) {
+  return pg.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('.sitem:not(.off) .s-bd tbody tr').forEach((tr) => {
+      if (tr.classList.contains('bband')) { if (!/\(המשך\)/.test(tr.textContent)) out.push([tr.textContent.trim()]); return; }
+      const ln = tr.getAttribute('data-ln'), L = out[out.length - 1];
+      if (tr.classList.contains('bsec')) { if (getComputedStyle(tr).display !== 'none') out.push(['§ ' + tr.textContent.trim()]); return; }
+      if (L && ln && L[L.length - 1] !== ln) L.push(ln);
+    });
+    return out.map((L) => L.length > 1 ? L[0] + ': ' + L.slice(1).join(' ') : L[0]);
+  });
+}
+// חלופות בלוח: בכל שורה — לכל אות צבע אחד, ואותיות שונות בצבעים שונים; ניגודיות 4.5 לפחות על לבן; ההערה מתחת לתא באותו צבע
+// ועם אותה אות; ובמקרא — אותן אותיות באותם צבעים. מחזיר תיאור לתמונה-במילים ורשימת בעיות
+async function altCheck(pg, line) {
+  return pg.evaluate((line) => {
+    const lum = (c) => { const v = c.match(/\d+/g).slice(0, 3).map((x) => { x = x / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    const con = (c) => 1.05 / (lum(c) + 0.05);
+    const bad = [], rows = {}, leg = [];
+    document.querySelectorAll('.sitem:not(.off) .s-bd tr.br').forEach((tr) => {
+      const map = {};
+      tr.querySelectorAll('td.bt .t.alt').forEach((t) => {
+        const al = t.querySelector('.al'), c = getComputedStyle(t).color;
+        if (!al) { bad.push(tr.getAttribute('data-ln') + ': שעה בחלופה בלי אות — ' + t.firstChild.nodeValue); return; }
+        if (getComputedStyle(al).color !== c) bad.push(tr.getAttribute('data-ln') + ': האות בצבע אחר מהשעה');
+        const L = al.textContent;
+        if (map[L] && map[L].c !== c) bad.push(tr.getAttribute('data-ln') + ': ' + L + ' בשני צבעים');
+        (map[L] = map[L] || { c, n: 0 }).n++;
+        if (con(c) < 4.5) bad.push(tr.getAttribute('data-ln') + ': ניגודיות ' + con(c).toFixed(2) + ' ל-' + L);
+      });
+      const cs = Object.values(map).map((x) => x.c);
+      if (new Set(cs).size !== cs.length) bad.push(tr.getAttribute('data-ln') + ': שתי חלופות באותו צבע');
+      tr.querySelectorAll('td.bt .bna').forEach((n) => { const L = Object.keys(map).find((k) => n.textContent.startsWith(k + ' ')); if (!L) bad.push(tr.getAttribute('data-ln') + ': הערה בלי אות — ' + n.textContent); else if (getComputedStyle(n).color !== map[L].c) bad.push(tr.getAttribute('data-ln') + ': הערה בצבע אחר — ' + n.textContent); });
+      if (Object.keys(map).length) {
+        const k = tr.getAttribute('data-rk'), e = document.querySelector('.sitem:not(.off) .bd-al[data-ak="' + k + '"]');
+        if (!e) bad.push(tr.getAttribute('data-ln') + ': אין שורה במקרא');
+        else e.querySelectorAll('.bd-ali').forEach((x) => { const L = x.querySelector('.al').textContent; if (!map[L] || getComputedStyle(x).color !== map[L].c) bad.push(tr.getAttribute('data-ln') + ': במקרא ' + L + ' בצבע אחר'); });
+        if (tr.getAttribute('data-ln') === line) rows[k] = Object.keys(map).sort().map((L) => L + ' ' + map[L].c + ' ×' + map[L].n).join(' · ');
+      }
+    });
+    document.querySelectorAll('.sitem:not(.off) .bd-al').forEach((e) => { if (e.textContent.indexOf('קו ' + line + ' ') === 0 || e.textContent.indexOf('קו ' + line + ':') === 0) leg.push(e.textContent.replace(/\s+/g, ' ').trim()); });
+    return { rows, legend: leg, bad };
+  }, line);
+}
+// באקסל: השעות של חלופה — באותו צבע ועם האות (rich text), ושורה במקרא לכל קו וכיוון עם חלופות
+async function xlsxAlts(pg) {
+  const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.click('#xl', { force: true })]);
+  const s = fs.readFileSync(await dl.path()).toString('utf8');
+  const sheet = s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
+  const pairs = new Set();
+  for (const m of sheet.matchAll(/<r><rPr>(?:(?!<\/rPr>).)*<color rgb="FF([0-9A-F]{6})"\/>(?:(?!<\/rPr>).)*<\/rPr><t xml:space="preserve">([^<]*)<\/t><\/r>/g)) {
+    const L = (m[2].match(/\d\d:\d\d\u200e?([א-ת]׳)/) || [])[1];   // האות מיד אחרי השעה
+    if (L) pairs.add(L + ' ' + m[1]);
+  }
+  const legend = [...sheet.matchAll(/<c r="A(\d+)"[^>]*><is><t[^>]*>(קו [^<]*)<\/t>/g)].map((m) => m[2]);
+  return { cells: [...pairs].sort(), legend };
+}
+// באקסל: כותרות הפרקים (לפי סוג קו) ומספרי הקווים בעמודה B — לפי הסדר
+async function xlsxSecs(pg) {
+  const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.click('#xl', { force: true })]);
+  const s = fs.readFileSync(await dl.path()).toString('utf8');
+  const sheet = s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
+  const secs = [...sheet.matchAll(/<c r="A\d+"[^>]*><is><t[^>]*>(קווים [^<]*)<\/t>/g)].map((m) => m[1]);
+  const lines = [...sheet.matchAll(/<c r="B\d+"[^>]*><is><t[^>]*>(\d+[^<]*)<\/t>/g)].map((m) => m[1]);
+  return { secs, lines };
+}
 // הודעה על שינוי בתצוגת "טבלה לפי יעד": שינוי בלו"ז (436, רק ביום חמישי — עמודה משלו) וקו חדש (9), עם סימון מה שמשתנה
 const CHG_BOARDS = { 'chg-board': '10436-20261119-t,45009-20261115-n' };
 // בכל עמוד של לוח: שורת "אדם פרטי" והקרדיט, בתוך השקף
@@ -81,6 +158,9 @@ async function lineCellCheck(pg) {
         return { e, r: { top: r.top - sp, bottom: r.bottom + sp, left: r.left - sp, right: r.right + sp } };
       });
       const ln = td.closest('tr').getAttribute('data-ln') || '?';
+      // המספר באמצע התא (לרוחב), בכל אורך — 1, 15, 384, 10א (עד פיקסל)
+      const bg = td.querySelector('.badge');
+      if (bg && bg.getClientRects().length) { const r = bg.getBoundingClientRect(), d = (r.left + r.right) / 2 - (tr.left + tr.right) / 2; if (Math.abs(d) > 1) bad.push(ln + ': המספר לא באמצע התא (' + d.toFixed(1) + 'px)'); }
       kids.forEach((a, i) => {
         if (a.r.top < tr.top - 0.5 || a.r.bottom > tr.bottom + 0.5) bad.push(ln + ': ' + (a.e.className || a.e.tagName) + ' יוצא מהתא');
         kids.slice(i + 1).forEach((b) => {
@@ -144,7 +224,7 @@ const INIT = `;(function(){
   var T0 = new Date('2026-11-19T10:00:00+02:00').getTime(), RD = Date, off = T0 - RD.now();
   function D(a,b,c,d,e,f,g){ if (!(this instanceof D)) return new RD(RD.now() + off).toString(); var x = arguments.length ? new (Function.prototype.bind.apply(RD, [null].concat([].slice.call(arguments))))() : new RD(RD.now() + off); Object.setPrototypeOf(x, D.prototype); return x; }
   D.prototype = RD.prototype; D.now = function(){ return RD.now() + off; }; D.UTC = RD.UTC; D.parse = RD.parse; window.Date = D;
-  try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+  try { if (window.name !== 'keep') { localStorage.clear(); sessionStorage.clear(); } } catch (e) {}   // keep — טעינה מחדש באמצע בדיקה (מה שנשמר נשאר)
   var W = window; W.__lc = { fb: [], pl: [], mk: [] };
   Object.defineProperty(W, 'L', { configurable: true, enumerable: true, get: function(){ return W.__Lv; }, set: function(v){ W.__Lv = v; if (v && v.Map && v.Layer && !v.__hk) { v.__hk = 1; hook(v); } } });
   function hook(L) {
@@ -197,13 +277,13 @@ async function orderCheck(pg, tord) {
   return pg.evaluate((tord) => {
     const bad = [];
     document.querySelectorAll('.sitem:not(.off) .s-bd td.bt').forEach((td) => {
-      const u = Array.from(td.querySelectorAll('.t')).map((t) => { const rg = document.createRange(); rg.selectNodeContents(t.firstChild); const r = rg.getBoundingClientRect(); return { t: t.firstChild.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }) }; });
+      const u = Array.from(td.querySelectorAll('.t')).map((t) => { const rg = document.createRange(); rg.selectNodeContents(t.firstChild); const r = rg.getBoundingClientRect(); return { t: t.firstChild.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('.al,sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }) }; });
       if (!u.length) return;
       const lns = [];
       u.slice().sort((a, b) => a.y - b.y).forEach((v) => { const L = lns[lns.length - 1]; if (L && v.y - L[0].y <= u[0].h * 0.5) L.push(v); else lns.push([v]); });
       const vis = [].concat(...lns.map((L) => L.sort((a, b) => (tord === 'ltr' ? a.x - b.x : b.x - a.x))));
       if (!vis.every((v, i) => v === u[i])) bad.push(td.closest('tr').getAttribute('data-ln') + ': ' + vis.map((v) => v.t).join(' '));
-      // כל סימן (×N, ימים) מיד אחרי מה שלפניו — השעה או הסימן הקודם
+      // כל סימן (אות החלופה, ×N, ימים) מיד אחרי מה שלפניו — השעה או הסימן הקודם
       u.forEach((v) => { let prev = v.xr; v.mk.forEach(([l, r]) => { const g = l - prev; if (g < -0.1 * v.h || g > 0.8 * v.h) bad.push(td.closest('tr').getAttribute('data-ln') + ': סימן רחוק מ-' + v.t); prev = r; }); });
     });
     return bad;
@@ -382,6 +462,112 @@ async function main() {
     if (bo.xlsx) {
       got[key].xlsx = await xlsxCheck(pg);
       if (!got[key].xlsx.priv || !got[key].xlsx.link) problems.push(key + ': באקסל חסרה שורת "אדם פרטי" או הקישור בקרדיט');
+    }
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
+  for (const [key, lo] of Object.entries(LOD_BOARDS)) {
+    if (only && only !== key) continue;
+    const pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    if (lo.place) {
+      await pg.goto(base + '/line-changes/?m=tt');
+      await pg.fill('#q', lo.place);
+      await pg.waitForSelector('.res.place', { timeout: 30000 });
+      await pg.click('.res.place');
+      await pg.waitForSelector('#plall'); await pg.click('#plall');
+    } else await pg.goto(base + '/line-changes/' + lo.url);
+    await pg.waitForSelector('.s-bd', { timeout: 30000 });
+    got[key] = {};
+    const ui = await pg.evaluate(() => ({ shown: !document.getElementById('borseg').closest('[hidden]'), on: (document.querySelector('#borseg [aria-checked="true"]') || {}).getAttribute?.('data-bor') }));
+    if (!ui.shown || ui.on !== 'type') problems.push(key + ': "סדר הקווים" לא מופיע, או שברירת המחדל ' + ui.on + ' ולא "לפי סוג קו"');
+    for (const form of FORMS) {
+      await pg.click('[data-form="' + form + '"]', { force: true });
+      await pg.waitForTimeout(800);
+      const pages = await collect(pg, true), rows = [];
+      Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
+      got[key][form] = { bands: await bandSeq(pg), rows };
+      if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
+      for (const x of await orderCheck(pg, 'ltr')) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+      for (const x of await lineCellCheck(pg)) problems.push(key + ' ' + form + ': תא הקו — ' + x);
+      if (lo.alts) {
+        const a = await altCheck(pg, lo.alts);
+        for (const x of a.bad) problems.push(key + ' ' + form + ': חלופות — ' + x);
+        if (form === 'sign') got[key].alts = { rows: a.rows, legend: a.legend };
+        if (!Object.keys(a.rows).length) problems.push(key + ' ' + form + ': אין חלופות בקו ' + lo.alts);
+      }
+    }
+    if (lo.alts) {
+      // מימין לשמאל: אותן אותיות וצבעים, וכל אות צמודה לשעה שלה
+      await pg.click('[data-form="sign"]', { force: true });
+      await pg.click('[data-tto="rtl"]', { force: true }); await pg.waitForTimeout(800);
+      for (const x of await orderCheck(pg, 'rtl')) problems.push(key + ' rtl: סדר השעות — ' + x);
+      const a = await altCheck(pg, lo.alts);
+      for (const x of a.bad) problems.push(key + ' rtl: חלופות — ' + x);
+      if (JSON.stringify(a.rows) !== JSON.stringify(got[key].alts.rows)) problems.push(key + ' rtl: החלופות שונות משמאל לימין');
+      await pg.click('[data-tto="ltr"]', { force: true }); await pg.waitForTimeout(500);
+    }
+    if (lo.xlsx) got[key].xlsx = await xlsxAlts(pg);
+    if (lo.orders) {
+      // "סדר הקווים": כל אפשרות — הפסים והקווים בשלט, בעמודי המצגת ובסטטוס (אותו סדר), והבחירה נשמרת עם הלוח
+      got[key].orders = {};
+      for (const o of lo.orders) {
+        await pg.click('[data-bor="' + o + '"]', { force: true }); await pg.waitForTimeout(900);
+        const seq = {};
+        for (const form of FORMS) { await pg.click('[data-form="' + form + '"]', { force: true }); await pg.waitForTimeout(700); seq[form] = await bandSeq(pg); }
+        got[key].orders[o] = seq.sign;
+        const flat = (L) => L.map((x) => x.split(': ')[0]).join('|');   // החלוקה לעמודים שונה בין הצורות — משווים רק את סדר הפסים
+        if (flat(seq.deck) !== flat(seq.sign) || flat(seq.status) !== flat(seq.sign)) problems.push(key + ' ' + o + ': סדר הפסים שונה בין הצורות');
+        const saved = await pg.evaluate(() => { const k = Object.keys(localStorage).find((x) => x.startsWith('lc-ed2:')); return k ? JSON.parse(localStorage.getItem(k)).bord : null; });
+        if ((saved || 'type') !== o) problems.push(key + ': "' + o + '" לא נשמר (' + saved + ')');
+        const on = await pg.evaluate(() => (document.querySelector('#borseg [aria-checked="true"]') || {}).getAttribute?.('data-bor'));
+        if (on !== o) problems.push(key + ': הכפתור של "' + o + '" לא מסומן');
+      }
+    }
+    if (lo.types) {
+      // לפי סוג קו: הרשימה הקטנה (עירוני / בין-עירוני / אזורי) — "אזורי" למעלה פעמיים, ואז בלי "בין-עירוני"; כותרות הפרקים בשלט ובאקסל
+      await pg.click('[data-bor="type"]', { force: true }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(800);
+      const list = async () => pg.evaluate(() => Array.from(document.querySelectorAll('#btyl li')).map((li) => li.querySelector('b').textContent + ' ' + li.querySelector('small').textContent + (li.querySelector('input').checked ? '' : ' (מוסתר)')).join(' | '));
+      const t = { list0: await list() };
+      for (let k = 0; k < 2; k++) { await pg.click('#btyl [data-bty="r"] [data-bty-mv="-1"]', { force: true }); await pg.waitForTimeout(700); }
+      t.list1 = await list(); t.rUp = await bandSeq(pg);
+      await pg.click('#btyl [data-bty="i"] input', { force: true }); await pg.waitForTimeout(800);
+      t.list2 = await list(); t.noI = await bandSeq(pg);
+      const xl = await xlsxSecs(pg); t.xlsx = xl;
+      await pg.click('#btyl [data-bty="i"] input', { force: true }); await pg.waitForTimeout(500);
+      for (let k = 0; k < 2; k++) { await pg.click('#btyl [data-bty="r"] [data-bty-mv="1"]', { force: true }); await pg.waitForTimeout(500); }
+      await pg.click('[data-bsub="num"]', { force: true }); await pg.waitForTimeout(700);
+      t.byNum = await bandSeq(pg);
+      await pg.click('[data-bsub="add"]', { force: true }); await pg.waitForTimeout(500);
+      got[key].types = t;
+      if (!/^אזורי/.test(t.list1)) problems.push(key + ': "אזורי" לא עלה לראש הרשימה — ' + t.list1);
+      if (t.noI.some((x) => /בין-עירוניים/.test(x))) problems.push(key + ': "בין-עירוני" מוסתר ועדיין בלוח');
+    }
+    if (lo.manual) {
+      // ידני: במצב עריכה בוחרים את קו 9 ומזיזים למעלה (בסרגל), ואת הפס של לוד – תל אביב למעלה; הסדר עובר ל"ידני", נשמר אחרי טעינה מחדש ומגיע לאקסל
+      await pg.click('[data-bor="type"]', { force: true }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(700);
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(400);
+      const pick = async (sel) => pg.evaluate((sel) => { const e = document.querySelector('.sitem:not(.off) ' + sel); e.scrollIntoView({ block: 'center' }); e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); e.click(); return !!e; }, sel);
+      await pick('.s-bd tr.br[data-ln="9"] td.bo'); await pg.waitForTimeout(300);
+      const tb = await pg.evaluate(() => { const b = document.getElementById('etb'); return b && !b.hidden ? Array.from(b.querySelectorAll('button')).filter((x) => !x.hidden).map((x) => x.textContent + (x.disabled ? ' (כבוי)' : '')) : []; });
+      const up = async () => { await pg.evaluate(() => document.querySelector('#etb [data-t="mvup"]').click()); await pg.waitForTimeout(900); };
+      await up(); await up();
+      await pick('.s-bd tr.bband[data-bkey*="תל אביב"] td'); await pg.waitForTimeout(300);
+      await up();
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(600);
+      const m = { toolbar: tb, on: await pg.evaluate(() => (document.querySelector('#borseg [aria-checked="true"]') || {}).getAttribute?.('data-bor')), seq: await bandSeq(pg) };
+      await pg.waitForTimeout(400);
+      await pg.evaluate(() => { window.name = 'keep'; });
+      await pg.reload(); await pg.waitForSelector('.s-bd', { timeout: 30000 }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(900);
+      m.afterReload = await bandSeq(pg);
+      m.onAfterReload = await pg.evaluate(() => (document.querySelector('#borseg [aria-checked="true"]') || {}).getAttribute?.('data-bor'));
+      m.xlsx = (await xlsxSecs(pg)).lines;
+      await pg.evaluate(() => { window.name = ''; });
+      got[key].manual = m;
+      if (m.on !== 'man' || m.onAfterReload !== 'man') problems.push(key + ': אחרי הזזה הסדר לא עבר ל"ידני" (' + m.on + ', ' + m.onAfterReload + ')');
+      if (JSON.stringify(m.seq) !== JSON.stringify(m.afterReload)) problems.push(key + ': הסדר הידני לא נשמר אחרי טעינה מחדש');
+      const flatSeq = m.seq.filter((x) => !/^§/.test(x)).map((x) => x.split(': ')[1]).join(' ').split(' ');
+      if (flatSeq.join(' ') !== m.xlsx.join(' ')) problems.push(key + ': הסדר באקסל שונה מהלוח — ' + m.xlsx.join(' '));
     }
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();

@@ -88,6 +88,8 @@ var LCXlsx = (function () {
     // סדר השעות: משמאל לימין — תא בכיוון LTR, צמוד לשמאל
     var sTm = M.tord === 'ltr' ? st.get({ sz: 10, h: 'left', ltr: 1, v: 'top' }) : st.get({ sz: 10, v: 'top' }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center', v: 'top' }), sNt = st.get({ sz: 9, color: 'C81E1E', v: 'top' });
     M.bands.forEach(function (b0) {
+      // לפי סוג קו: כותרת הפרק (קווים עירוניים / בין-עירוניים / אזוריים) — שורה מודגשת מעל הפסים שלו
+      if (b0.sec && !b0.secOff && b0.secLabel) { cell(R, 0, b0.secLabel, st.get({ b: 1, sz: 14, fill: 'EEF2F0', h: 'right' })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 24; R++; }
       // שורות וקווים שהוסרו בעריכה — לא בקובץ; פס בלי שורות — לא בקובץ
       var b = { label: b0.label, color: b0.color, rows: b0.rows.filter(function (r) { return !r.off; }) };
       if (!b.rows.length) return;
@@ -118,10 +120,12 @@ var LCXlsx = (function () {
             var LRM = '\u200e';
             // הודעה על שינוי (טבלה לפי יעד): חדשה או בשעה חדשה — ירוק; שבוטלה — אדום מחוק, בשעה הקודמת שלה
             var toks = x.rm && x.rm.length && x.rm.length <= 6 ? x.ents.concat(x.rm).sort(function (a, b) { return a.m - b.m || (a.rm ? 1 : 0) - (b.rm ? 1 : 0); }) : x.ents;
+            // חלופה: השעה בצבע של החלופה ואחריה האות שלה (א׳, ב׳…) — כמו בלוח
             var runs = toks.map(function (e) {
-              var t = M.tord === 'ltr' ? LRM + e.t + (e.n > 1 ? '×' + e.n : '') + (e.part ? LRM + '(' + e.part + ')' : '') + LRM
-                : (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : '');
-              return { t: t, red: !!e.a || !!e.rm, strike: !!e.rm, color: e.k ? '1F9152' : e.c || '' };
+              var al = e.al && !e.rm ? e.al : '';
+              var t = M.tord === 'ltr' ? LRM + e.t + (al ? LRM + al + LRM : '') + (e.n > 1 ? '×' + e.n : '') + (e.part ? LRM + '(' + e.part + ')' : '') + LRM
+                : (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + al + (e.part ? '(' + e.part + ')' : '');
+              return { t: t, red: !!e.rm, strike: !!e.rm, b: !!al, color: e.k ? '1F9152' : al && e.ac ? hexOf(e.ac) : e.c || '' };
             });
             if (x.rm && x.rm.length > 6) notes.push(pre + 'בוטלו: ' + x.rm.map(function (e) { return e.t + (e.part ? ' (' + e.part + ')' : ''); }).join(', '));
             x.ents.forEach(function (e) {
@@ -132,14 +136,16 @@ var LCXlsx = (function () {
             cell(rr, 3 + ci, { runs: runs }, sTm);
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push(pre + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)'); });
+            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.L ? nt.L + ' ' : '') + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
             var pt = x.ents.filter(function (e) { return e.part; });
             if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });
           if (!k && r.until) notes.push('הלו״ז בתוקף עד ' + dmy(r.until));
           if (!k && r.from) notes.push('הלו״ז החדש ' + r.from);
-          cell(rr, last, notes.join('\n'), sNt);
-          var nl = notes.reduce(function (t, s) { return t + Math.ceil(s.length / (W[last] * 1.15)); }, 0);
+          // ההערות: כל אחת בשורה; הערה על חלופה — בצבע של החלופה
+          var ntx = notes.map(function (n0) { return typeof n0 === 'string' ? { t: n0 } : n0; });
+          cell(rr, last, ntx.some(function (n0) { return n0.c; }) ? { runs: ntx.map(function (n0) { return { t: n0.t, color: n0.c || 'C81E1E', b: !!n0.c, sz: 9 }; }), sep: '\n' } : ntx.map(function (n0) { return n0.t; }).join('\n'), sNt);
+          var nl = ntx.reduce(function (t, s) { return t + Math.ceil(s.t.length / (W[last] * 1.15)); }, 0);
           heights[rr] = Math.max(32, lines * 13.5 + 6, nl * 12 + 6);
         }
         R += n; i += n;
@@ -147,6 +153,15 @@ var LCXlsx = (function () {
     });
     // עדכונים, מוקדי מידע וקרדיט
     var sL = st.get({ b: 1, sz: 10, fill: 'EEF2F0', h: 'center' }), sU = st.get({ b: 1, sz: 10, color: 'C81E1E' }), sP = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center' }), sPb = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center', ltr: 1 });   // טלפון (*2456) — משמאל לימין
+    // מקרא החלופות: שורה לכל קו וכיוון שיש בו נסיעות בדרך אחרת — האות והצבע של כל חלופה, ומה הדרך
+    M.bands.forEach(function (b0) {
+      b0.rows.forEach(function (r) {
+        if (r.off || !r.alts || !r.alts.length) return;
+        cell(R, 0, 'קו ' + r.line + (r.n > 1 && r.toward ? ' ' + r.toward : ''), sL); merges.push('A' + R + ':C' + R);
+        cell(R, 3, { runs: r.alts.map(function (a, i) { return { t: a.L + ' ' + a.txt + (i < r.alts.length - 1 ? ' ·' : ''), color: hexOf(a.c), b: true }; }) }, st.get({ sz: 10 }));
+        merges.push(ref(3, R) + ':' + ref(last, R)); heights[R] = 20; R++;
+      });
+    });
     if (M.note) { cell(R, 0, LB.upd != null ? LB.upd : 'עדכונים', sL); cell(R, 1, M.note, sU); merges.push('B' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
     // מוקדי מידע: טבלה אחת — חברה | טלפון (המסגרת והרקע גם בתאים הממוזגים, ראו fillMerged)
     var c0 = R;
@@ -154,7 +169,7 @@ var LCXlsx = (function () {
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'באדום — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה', sC);
+    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'באות ובצבע — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
     R++; cell(R, 0, 'המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }
@@ -175,7 +190,7 @@ var LCXlsx = (function () {
         var v = o.v, a = ' r="' + ref(c, r) + '" s="' + o.s + '"';
         if (v && v.runs) {
           out += '<c' + a + ' t="inlineStr"><is>' + v.runs.map(function (u, i) {
-            return '<r><rPr>' + (u.red || u.color ? '<b/>' : '') + (u.strike ? '<strike/>' : '') + '<sz val="10"/><color rgb="FF' + (u.red ? 'C81E1E' : u.color || '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? ' ' : '')) + '</t></r>';
+            return '<r><rPr>' + (u.red || u.color || u.b ? '<b/>' : '') + (u.strike ? '<strike/>' : '') + '<sz val="' + (u.sz || 10) + '"/><color rgb="FF' + (u.red ? 'C81E1E' : u.color || '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? v.sep || ' ' : '')) + '</t></r>';
           }).join('') + '</is></c>';
         } else out += '<c' + a + ' t="inlineStr"><is><t xml:space="preserve">' + x(v) + '</t></is></c>';
       }
