@@ -64,7 +64,7 @@ const BOARDS = {
 // board-hood — לוח של מקום: שכונת גני איילון בלוד
 const LOD = '36011,68005,53009,32012,31019,14384,12408,11251,15174,21134,36081,11464,12509,11884';
 const LOD_BOARDS = {
-  'board-lod': { url: '?m=tt&c=' + LOD, orders: ['type', 'add', 'dest', 'op', 'num'], alts: '11', xlsx: true, types: true, manual: true },
+  'board-lod': { url: '?m=tt&c=' + LOD, orders: ['type', 'add', 'dest', 'op', 'num'], alts: '11', xlsx: true, types: true, manual: true, fill: 0.85 },
   'board-lod-adj': { url: '?m=tt&c=14384,11464,12408,53009,36011,68005' },
   'board-hood': { place: 'גני איילון', alts: '11' }
 };
@@ -125,6 +125,14 @@ async function xlsxAlts(pg) {
   }
   const legend = [...sheet.matchAll(/<c r="A(\d+)"[^>]*><is><t[^>]*>(קו [^<]*)<\/t>/g)].map((m) => m[2]);
   return { cells: [...pairs].sort(), legend };
+}
+// כמה מלא כל עמוד של הלוח: גובה השורות בטבלה מתוך המקום שיש לטבלה בעמוד (בלי הכותרות של העמודות)
+async function pageFill(pg) {
+  return pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .sframe')).filter((f) => f.querySelector('.s-bd')).map((f) => {
+    const body = f.querySelector('.cu-body'), th = f.querySelector('thead'), tb = f.querySelector('tbody');
+    const avail = body.getBoundingClientRect().bottom - th.getBoundingClientRect().bottom, used = tb.getBoundingClientRect().height;
+    return Math.round(used / avail * 100) / 100;
+  }));
 }
 // באקסל: כותרות הפרקים (לפי סוג קו) ומספרי הקווים בעמודה B — לפי הסדר
 async function xlsxSecs(pg) {
@@ -277,14 +285,30 @@ async function orderCheck(pg, tord) {
   return pg.evaluate((tord) => {
     const bad = [];
     document.querySelectorAll('.sitem:not(.off) .s-bd td.bt').forEach((td) => {
-      const u = Array.from(td.querySelectorAll('.t')).map((t) => { const rg = document.createRange(); rg.selectNodeContents(t.firstChild); const r = rg.getBoundingClientRect(); return { t: t.firstChild.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('.al,sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }) }; });
+      const u = Array.from(td.querySelectorAll('.t')).map((t) => { const rg = document.createRange(); rg.selectNodeContents(t.firstChild); const r = rg.getBoundingClientRect(); return { t: t.firstChild.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('.al,sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }), al: !!t.querySelector('.al') }; });
       if (!u.length) return;
       const lns = [];
       u.slice().sort((a, b) => a.y - b.y).forEach((v) => { const L = lns[lns.length - 1]; if (L && v.y - L[0].y <= u[0].h * 0.5) L.push(v); else lns.push([v]); });
       const vis = [].concat(...lns.map((L) => L.sort((a, b) => (tord === 'ltr' ? a.x - b.x : b.x - a.x))));
       if (!vis.every((v, i) => v === u[i])) bad.push(td.closest('tr').getAttribute('data-ln') + ': ' + vis.map((v) => v.t).join(' '));
-      // כל סימן (אות החלופה, ×N, ימים) מיד אחרי מה שלפניו — השעה או הסימן הקודם
-      u.forEach((v) => { let prev = v.xr; v.mk.forEach(([l, r]) => { const g = l - prev; if (g < -0.1 * v.h || g > 0.8 * v.h) bad.push(td.closest('tr').getAttribute('data-ln') + ': סימן רחוק מ-' + v.t); prev = r; }); });
+      // כל סימן (אות החלופה, ×N, ימים) מיד אחרי מה שלפניו בכיוון הקריאה — השעה או הסימן הקודם (משמאל לימין — מימין לה,
+      // מימין לשמאל — משמאל לה). האות של חלופה — צמודה לשעה שלה, וקרובה אליה יותר מאשר לשעה הבאה באותה שורה
+      const ln = td.closest('tr').getAttribute('data-ln');
+      u.forEach((v, i) => {
+        let prev = tord === 'ltr' ? v.xr : v.x;
+        v.mk.forEach(([l, r], j) => {
+          const g = tord === 'ltr' ? l - prev : prev - r;
+          if (g < -0.1 * v.h || g > 0.8 * v.h) bad.push(ln + ': סימן רחוק מ-' + v.t);
+          if (j === 0 && v.al && g > 0.25 * v.h) bad.push(ln + ': האות לא צמודה ל-' + v.t);
+          prev = tord === 'ltr' ? r : l;
+        });
+        const nx = vis[vis.indexOf(v) + 1];
+        if (v.al && nx && Math.abs(nx.y - v.y) < v.h * 0.5) {
+          const end = tord === 'ltr' ? Math.max(...v.mk.map((m) => m[1]), v.xr) : Math.min(...v.mk.map((m) => m[0]), v.x);
+          const gNext = tord === 'ltr' ? nx.x - end : end - nx.xr, gOwn = tord === 'ltr' ? v.mk[0][0] - v.xr : v.x - v.mk[0][1];
+          if (gNext <= gOwn + 1) bad.push(ln + ': האות של ' + v.t + ' קרובה לשעה הבאה (' + gOwn.toFixed(1) + ' / ' + gNext.toFixed(1) + ')');
+        }
+      });
     });
     return bad;
   }, tord);
@@ -490,6 +514,13 @@ async function main() {
       if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
       for (const x of await orderCheck(pg, 'ltr')) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
       for (const x of await lineCellCheck(pg)) problems.push(key + ' ' + form + ': תא הקו — ' + x);
+      if (lo.fill && form === 'sign') {
+        // שלט A4: כל עמוד חוץ מהאחרון מלא לפחות ב-85% — פס או פרק מתחילים גם בתחתית העמוד, ופס ארוך ממשיך בעמוד הבא
+        const fl = await pageFill(pg);
+        got[key].pages = fl.length;
+        console.log(key + ' ' + form + ' מילוי העמודים: ' + fl.join(' '));
+        fl.slice(0, -1).forEach((x, i) => { if (x < lo.fill) problems.push(key + ' ' + form + ': עמוד ' + (i + 1) + ' מלא רק ב-' + Math.round(x * 100) + '%'); });
+      }
       if (lo.alts) {
         const a = await altCheck(pg, lo.alts);
         for (const x of a.bad) problems.push(key + ' ' + form + ': חלופות — ' + x);

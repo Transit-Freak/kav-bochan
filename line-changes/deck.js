@@ -2683,7 +2683,8 @@ var LCDeck = (function () {
       var was = e.k === 'sh' ? '<small class="was" dir="rtl">' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) + '</small>' :
         e.nwp ? '<small class="was" dir="rtl">' + (e.was != null ? e.nwp + ': ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) : 'חדש ב-' + e.nwp) + '</small>' : '';
       // חלופה: השעה בצבע של החלופה, ואחריה האות שלה (א׳, ב׳…) — בתוך אותה יחידה
-      return '<span class="t num' + (e.a ? ' alt' : '') + k + '" dir="ltr"' + (e.ac && !e.rm ? ' style="color:' + e.ac + '"' : '') + '>' + e.t + (e.al ? '<bdi dir="rtl" class="al">' + e.al + '</bdi>' : '') +
+      // היחידה בכיוון של סדר השעות: השעה, ואחריה (בכיוון הקריאה) האות, ×N והימים — משמאל לימין מימין לשעה, מימין לשמאל משמאל לה
+      return '<span class="t num' + (e.a ? ' alt' : '') + k + '" dir="' + (ED.tord === 'rtl' ? 'rtl' : 'ltr') + '"' + (e.ac && !e.rm ? ' style="color:' + e.ac + '"' : '') + '>' + e.t + (e.al ? '<bdi dir="rtl" class="al">' + e.al + '</bdi>' : '') +
         (sr ? '<span class="vh"> (' + sr + ')</span>' : '') + (e.n > 1 ? '<bdi dir="ltr" class="xn">×' + e.n + '</bdi>' : '') +
         (e.part ? '<sup dir="rtl">' + E(e.part) + '</sup>' : '') + was + '</span>';
     }).join(' ') + '</span>' + rmLine + nh + '</td>';
@@ -2869,13 +2870,13 @@ var LCDeck = (function () {
     // שורה עם חלופות — גם השורה שלה במקרא החלופות בתחתית העמוד (והריווח של המקרא, בשורה הראשונה כזו בעמוד)
     var alOn = false;
     ms.hs = ms.hs.map(function (h, i) { return h + (items[i] && items[i].r && ms.al.h[items[i].r.key] || 0); });
-    var lineH = function (i) { var t = 0, p = items[i].r.p; for (var k = i; k < items.length && items[k].r && items[k].r.p === p; k++) t += ms.hs[k] || 0; return t; };
     items.forEach(function (it, i) {
-      var h = ms.hs[i] || 0, first = it.r && !(items[i - 1] && items[i - 1].r && items[i - 1].r.p === it.r.p);
+      var h = ms.hs[i] || 0;
       var ab = it.r && ms.al.h[it.r.key] && !alOn ? ms.al.base : 0;
-      var bandNeed = function (j) { return (ms.hs[j] || 0) + (items[j + 1] && items[j + 1].r ? Math.min(lineH(j + 1), H * 0.6) : 0); };
-      // כותרת פרק — יחד עם הפס והקו הראשון אחריה; פס — יחד עם הקו הראשון אחריו
-      var need = (it.sec ? h + (items[i + 1] && items[i + 1].band ? bandNeed(i + 1) : 0) : it.band ? bandNeed(i) : first ? Math.min(lineH(i), H * 0.6) : h) + ab;
+      // כדי לא לבזבז נייר: פס (או כותרת פרק) מתחיל גם בתחתית העמוד, אם נכנסת אחריו לפחות השורה הראשונה; פס ארוך — ממשיך
+      // בעמוד הבא עם "(המשך)", וגם הכיוונים של קו אחד יכולים להתחלק בין עמודים. רק שורה אחת (קו וכיוון) לא נחתכת אף פעם
+      var bandNeed = function (j) { return (ms.hs[j] || 0) + (items[j + 1] && items[j + 1].r ? ms.hs[j + 1] || 0 : 0); };
+      var need = (it.sec ? h + (items[i + 1] && items[i + 1].band ? bandNeed(i + 1) : 0) : it.band ? bandNeed(i) : h) + ab;
       if (cur.length && used + need > H) {
         pgs.push(cur); cur = []; used = 0; alOn = false; ab = it.r && ms.al.h[it.r.key] ? ms.al.base : 0;
         if (!it.band && !it.sec) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
