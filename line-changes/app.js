@@ -944,6 +944,7 @@
     // "טבלה לפי יעד": טקסט שנערך בלוח, שורות וקווים שהוסרו (ראו bdT ב-deck.js)
     e.mv = e.mv && typeof e.mv === 'object' ? e.mv : {};   // התצוגה של כל מפה (מרכז וזום), לפי שקף — מהזזה והגדלה במצב עריכה
     e.bd = e.bd && typeof e.bd === 'object' ? e.bd : {}; e.bd.t = e.bd.t || {}; e.bd.offR = e.bd.offR || {}; e.bd.offL = e.bd.offL || {};
+    e.bd.nr = Array.isArray(e.bd.nr) ? e.bd.nr : [];   // שורות שהמשתמש הוסיף ללוח: [{id, after: מפתח השורה שמעליה}]
     return e;
   }
   function textSlide(x, pages) {
@@ -1279,7 +1280,10 @@
 
   function number() {
     var vis = Array.prototype.filter.call(document.querySelectorAll('.sitem'), function (f) { return !f.classList.contains('off'); });
-    vis.forEach(function (f, i) { f.classList.toggle('lastvis', i === vis.length - 1); f.querySelectorAll('.pg').forEach(function (p) { p.textContent = (i + 1) + ' / ' + vis.length; }); });
+    vis.forEach(function (f, i) { f.classList.toggle('lastvis', i === vis.length - 1); f.querySelectorAll('.pg').forEach(function (p) {
+      var k = p.getAttribute('data-bk');   // מספר העמוד בלוח — אפשר לערוך (טקסט שנערך נשאר, "" — בלי מספר)
+      p.textContent = k && edits.bd.t[k] != null ? edits.bd.t[k] : (i + 1) + ' / ' + vis.length;
+    }); });
     var ft = FORM_TXT[formOf()];
     $('pcount').textContent = vis.length === 1 ? ft.one : vis.length + ft.many;
     if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = dlText(); });
@@ -1371,14 +1375,16 @@
   var bar = document.createElement('div');
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
   bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
-    '<button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
+    '<button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
     curEl = el;
     var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t'), isBd = el.classList.contains('bdt'), isRow = el.tagName === 'TR';
     bar.querySelector('[data-t="add"]').hidden = isBox || isBd || isRow;
-    bar.querySelector('[data-t="del"]').hidden = isRow;
+    // הקרדיט בלוח — אפשר לשנות, לא למחוק (מורידים אותו רק ב"להוסיף קרדיט")
+    bar.querySelector('[data-t="del"]').hidden = isRow || (isBd && el.getAttribute('data-bk') === 'credit');
+    bar.querySelector('[data-t="rowadd"]').hidden = !bdSel;
     bar.querySelector('[data-t="reset"]').hidden = isRow || isBox || !(isBd ? bdEdited(el.getAttribute('data-bk')) : el.classList.contains('edited'));
     bar.querySelector('[data-t="del"]').textContent = isBox ? 'מחיקת התיבה' : 'מחיקה';
     // שורה שנבחרה בלוח: "מחיקת השורה" / "מחיקת הקו", והסרגל מעל השורה או מתחתיה — לא עליה
@@ -1404,6 +1410,16 @@
     var trs = slide.querySelectorAll('tr.bsel'); if (!trs.length) return null;
     var a = trs[0].getBoundingClientRect(), b = trs[trs.length - 1].getBoundingClientRect();
     return { top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom), left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), width: Math.max(a.right, b.right) - Math.min(a.left, b.left) };
+  }
+  /* "הוספת שורה מתחת": שורה ריקה (קו, מוצא, שעות) מתחת לשורה שנבחרה — באותו פס; כשנבחר קו שלם — מתחת לשורה האחרונה שלו */
+  function bdAddRow() {
+    if (!bdSel) return;
+    var trs = $('deck').querySelectorAll('.s-bd tr.bsel'), after = trs.length ? trs[trs.length - 1].getAttribute('data-rk') : bdSel.rk;
+    var id = Date.now().toString(36);
+    edits.bd.nr.push({ id: id, after: after });
+    saveEdits(); hideBar();
+    keepScroll(function () { render(curPages); });
+    setTimeout(function () { var c = $('deck').querySelector('.s-bd tr.br[data-rk="n' + id + '"] [data-bk="ln:n' + id + '"]'); if (c) c.focus(); }, 60);
   }
   function bdDelSel(line) {
     if (!bdSel) return;
@@ -1451,7 +1467,7 @@
       var f = k === 'title' ? 'btitle' : 'bnote';
       delete t[k];
       if (v === null) edits[f] = undefined; else if (v.trim()) edits[f] = v.trim(); else { edits[f] = undefined; t[k] = ''; }
-    } else if (v === null) delete t[k]; else t[k] = v.replace(/\s+$/, '');
+    } else if (v === null || (k === 'credit' && !v.trim())) delete t[k]; else t[k] = v.replace(/\s+$/, '');
     saveEdits();
   }
   $('deck').addEventListener('focusout', function (ev) {
@@ -1500,6 +1516,7 @@
     var b = ev.target.closest('button'); if (!b || !curEl) return;
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
     if (t === 'rowdel' || t === 'linedel') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdDelSel(t === 'linedel'); return; }
+    if (t === 'rowadd') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdAddRow(); return; }
     if (el.classList.contains('bdt')) {   // טקסט בלוח: מחיקה — ריק, שחזור — הטקסט מהנתונים
       el.removeAttribute('data-o');
       bdSet(el.getAttribute('data-bk'), t === 'reset' ? null : '');
@@ -1567,11 +1584,11 @@
       box.style.left = nx + 'px'; box.style.top = ny + 'px';
     }
     function up() {
-      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
-      (edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) { b.x = parseFloat(box.style.left); b.y = parseFloat(box.style.top); } });
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      (edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) { b.x = Math.round(parseFloat(box.style.left)); b.y = Math.round(parseFloat(box.style.top)); } });
       saveEdits();
     }
-    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
   });
   // שחזור הכול — לחיצה שנייה מאשרת (אין חלון אישור)
   var resetArm = 0;
@@ -1990,7 +2007,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=6'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=7'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }

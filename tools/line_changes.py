@@ -1780,7 +1780,7 @@ def summary_line(t):
 WALK_URL = os.environ.get('WALK_URL', 'https://routing.openstreetmap.de/routed-foot')
 WALK_CANDS = 4
 WALK_AIR_MAX = 1000   # מ' — מועמדת רחוקה יותר בקו אווירי לא נבדקת
-WALK_MAX = 900        # מ' הליכה — מעבר לזה: "אין תחנה קרובה במסלול החדש"
+WALK_MAX = 900        # מ' הליכה — מעבר לזה: "לא נמצאה תחנה חלופית קרובה של קו N במסלול החדש"
 WALK_BUDGET = int(os.environ.get('WALK_BUDGET', '1200'))   # שניות לכל הבקשות בריצה אחת (בקשה לוקחת כ-10 שניות); מה שלא הספיק — בלילה הבא
 
 

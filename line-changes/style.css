@@ -418,3 +418,4 @@ details.group summary span{font-weight:600;color:var(--sub)}
 /* הסרגל בטלפון: הכפתורים יורדים לשורה שנייה במקום לצאת מהמסך; מחיקת שורה/קו בלוח — באדום */
 .etb{flex-wrap:wrap;max-width:calc(100vw - 16px)}
 .etb button.rowdel{color:#ffb4a8}
+.etb button[data-t="rowadd"]{color:#b9f0cd}

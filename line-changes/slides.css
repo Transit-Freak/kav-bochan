@@ -241,7 +241,7 @@
 .tbox{position:absolute;z-index:700;background:rgba(255,255,255,.94);color:var(--s-fg);border-radius:10px;padding:10px 14px;font-size:22px;line-height:1.4;font-weight:700;
   box-shadow:0 2px 10px rgba(0,0,0,.18);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .tbox-t{min-height:1.4em;outline:none}
-.tbox-h{position:absolute;top:-14px;left:-14px;width:28px;height:28px;border-radius:50%;background:#1f5fd1;color:#fff;font-size:16px;line-height:28px;text-align:center;cursor:grab;display:none;touch-action:none}
+.tbox-h{position:absolute;top:-16px;left:-16px;width:32px;height:32px;border-radius:50%;background:#1f5fd1;color:#fff;font-size:18px;line-height:32px;text-align:center;cursor:grab;display:none;touch-action:none;transform:scale(var(--ik,1))}
 .editing .tbox-h{display:block}
 
 
@@ -870,7 +870,7 @@ body.editing .slide .inset-x{display:block}
 .s-bd{--fs:13px}
 .s-bd .bd-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:calc(var(--fs) * var(--bd,1));line-height:1.35}
 .s-bd .bd-t th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;text-align:center;padding:.3em .3em;border:1px solid var(--s-band)}
-.s-bd .bd-t td{border:1px solid var(--s-line);vertical-align:middle;padding:.28em .4em}
+.s-bd .bd-t td{border:1px solid var(--s-line);vertical-align:top;padding:.28em .4em}
 .s-bd .bd-t tr.bband td{color:#fff;font-weight:900;font-family:'Heebo',Arial,sans-serif;text-align:center;padding:.22em .5em;font-size:1.08em;border-color:transparent}
 .s-bd .bd-t td.bl{text-align:center;background:var(--s-paper)}
 .s-bd .bd-t td.bl .badge.sm{min-width:0;font-size:1.55em;padding:.12em .35em .06em;border-radius:.3em}
@@ -883,10 +883,10 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-t td.bt{text-align:right}
 .s-bd .bd-t td.bt.off{text-align:center;color:var(--s-sub);font-weight:700}
 .s-bd .tl{display:block;word-spacing:.18em}
-.s-bd .t{font-weight:700;white-space:nowrap}
+.s-bd .t{font-weight:700;white-space:nowrap;unicode-bidi:isolate}
 .s-bd .t.alt,.s-bd .alt{color:#c81e1e;font-weight:900}
-.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}
-.s-bd .t sup{font-size:.68em;color:#b45309;font-weight:800;margin-inline-start:.1em;line-height:0}
+.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-left:.1em}
+.s-bd .t sup{font-size:.68em;color:#b45309;font-weight:800;margin-left:.15em;line-height:0;unicode-bidi:isolate}
 .s-bd .bnote{display:block;color:#c81e1e;font-weight:700;font-size:.8em;line-height:1.25;margin-top:.2em}
 .s-bd .bd-foot{flex:none}
 .s-bd .bd-upd{font-weight:700;color:#c81e1e;border:2px solid var(--s-line);border-radius:6px;padding:.25em .6em;margin-top:.5em}
@@ -918,7 +918,7 @@ body.editing .slide .inset-x{display:block}
 .s-bd.f-status .bd-upd,.s-bd.f-status .bd-ph{font-size:21px}
 .s-bd.f-status .cu-foot{font-size:17px;padding-top:6px;margin-top:6px}
 .s-bd .t bdi{unicode-bidi:isolate}
-.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}
+.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-left:.1em}
 /* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
 .s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
 .s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
@@ -950,3 +950,8 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
 .deck[data-tord="ltr"] .s-cur .ttc li.hr{flex-direction:row-reverse;justify-content:flex-start}
 /* מפה במצב עריכה: אפשר לגרור ולהגדיל (הכפתורים — בשורת העריכה של השקף, לא על המפה) */
 .slide .leaflet-container.mapedit{cursor:grab}
+/* לוח לפי יעד: שדה ריק עם רמז (שורה שנוספה) — רק במצב עריכה */
+body.editing .s-bd .bdt[data-ph]:empty::before{content:attr(data-ph);color:#8a9792;font-weight:600}
+body.editing .s-bd .badge.bdt[data-ph]:empty::before{color:rgba(255,255,255,.75)}
+body.editing .s-bd tr.badd td{background:#fbfdf9}
+.s-bd .bd-t td.bl .badge.bdt:empty{min-width:1.6em;min-height:1em;display:inline-block}
