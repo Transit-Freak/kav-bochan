@@ -287,8 +287,10 @@ var LCDeck = (function () {
      הקטע נחשב רק אם הוא רחוק מהמסלול השני יותר מ-NOISE_DEV מ' לאורך יותר מ-NOISE_LEN מ' ברצף, או שיש בו תחנה שנוספה /
      שבוטלה (עד STOP_NEAR מ' ממנו). השאר — אפור כמו המסלול שלא השתנה, ולא נכנס לגבולות המפה ולמקום שבו "כאן המסלול משתנה".
      קטע שמתחיל ונגמר ליד קטע אמיתי בצד השני (עד PAIR_M מ') — גם אמיתי (הדרך הישנה מול החדשה). בחלופה חדשה / שבוטלה — בלי סינון.
-     d.rdr (מהבונה, כשיש) — לכל קטע: 'same' (אותם כבישים ב-OSM) או 'diff'; כשיש — הוא קובע (ותחנה שנוספה או בוטלה תמיד שינוי) */
-  var NOISE_DEV = 80, NOISE_LEN = 300, STOP_NEAR = 60, PAIR_M = 250;   // PAIR_M — קצוות של קטע ישן וחדש שהם אותו שינוי
+     d.rdr (מהבונה, כשיש) — לכל קטע: 'same' (אותם כבישים ב-OSM) או 'diff'. 'diff' — שינוי, אם הקטע ארוך מ-NOISE_LEN ומתרחק NOISE_DEV;
+     'same' — רעש רק עד SAME_MAX מ' סטייה.
+     תחנה שנוספה או בוטלה — תמיד שינוי */
+  var NOISE_DEV = 80, NOISE_LEN = 300, STOP_NEAR = 60, PAIR_M = 250, SAME_MAX = 150;   // PAIR_M — קצוות של קטע ישן וחדש שהם אותו שינוי
   function realRuns(d, side) {
     if (!d._rr) {
       var raw = { old: offRuns(d.old.shape, d.new.shape), 'new': offRuns(d.new.shape, d.old.shape) };
@@ -303,8 +305,16 @@ var LCDeck = (function () {
               var lat0 = r[0][0], rxy = r.map(function (p) { return xy(p, lat0); });
               if (st.some(function (x) { return distToLine(xy(x.ll, lat0), rxy) <= STOP_NEAR; })) return true;
             }
+            // הסימון מהבונה (כבישים ב-OSM), בזהירות: 'diff' — שינוי רק בקטע ארוך שמתרחק; 'same' — רעש רק כשהקטע לא מתרחק
+            // יותר מ-SAME_MAX מ' מהמסלול השני. אחרת — כלל המרחק
             var flag = rdFlag(d, r);
-            if (flag) return flag === 'diff';
+            if (flag) {
+              var lat1 = r[0][0], bxy = b.map(function (p) { return xy(p, lat1); });
+              var mx = Math.max.apply(null, r.map(function (p) { return distToLine(xy(p, lat1), bxy); }));
+              // 'diff' — רק קטע של NOISE_LEN מ' לפחות שמתרחק NOISE_DEV מ' לפחות (קטעים קצרים ליד כביש עם שם אחר הם בדרך כלל רעש)
+              if (flag === 'diff' && mx >= NOISE_DEV && runLen(r) >= NOISE_LEN) return true;
+              if (flag === 'same' && mx <= SAME_MAX) return false;
+            }
             return devRuns(r, b, NOISE_DEV).some(function (m) { return m > NOISE_LEN; });
           });
         };
