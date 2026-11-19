@@ -5,8 +5,17 @@ import datetime
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import line_changes as L  # noqa: E402
+import importlib.util  # noqa: E402
+
+# נטען בשם ייחודי: גם בכלי המכרזים יש מודול בשם line_changes, וכשכל הבדיקות רצות יחד
+# השם הכפול גרם לבדיקות של המכרזים לקבל את המודול הזה
+_TOOLS = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS not in sys.path:
+    sys.path.append(_TOOLS)
+_spec = importlib.util.spec_from_file_location('lc_builder', os.path.join(_TOOLS, 'line_changes.py'))
+L = importlib.util.module_from_spec(_spec)
+sys.modules['lc_builder'] = L
+_spec.loader.exec_module(L)
 
 D = datetime.date
 T0 = D(2026, 11, 18)

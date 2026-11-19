@@ -4,8 +4,17 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools'))
-import line_changes as L  # noqa: E402
+import importlib.util  # noqa: E402
+
+# נטען בשם ייחודי: גם בכלי המכרזים יש מודול בשם line_changes, וכשכל הבדיקות רצות יחד
+# השם הכפול גרם לבדיקות של המכרזים לקבל את המודול הזה
+_TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools')
+if _TOOLS not in sys.path:
+    sys.path.append(_TOOLS)
+_spec = importlib.util.spec_from_file_location('lc_builder', os.path.join(_TOOLS, 'line_changes.py'))
+L = importlib.util.module_from_spec(_spec)
+sys.modules['lc_builder'] = L
+_spec.loader.exec_module(L)
 
 WD = ['d0', 'd1', 'd2', 'd3', 'd4']
 
