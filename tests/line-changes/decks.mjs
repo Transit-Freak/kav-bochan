@@ -38,7 +38,15 @@ const DECKS = {
   '10436-20261119-t': 'שינוי בלוח הזמנים (קו 436, רק ביום חמישי)',
   '45009-20261115-n': 'קו חדש',
   '11827-20261120-n': 'קו חדש בין ערים, הלוך וחזור: בשקף המפה, בשלט ובסטטוס — בלוק לכל כיוון (תחנות ושעות), סימן לכל כיוון במפה',
-  '71011-20261113-e': 'קו שמבוטל'
+  '71011-20261113-e': 'קו שמבוטל',
+  '72001-20261120-t': 'שינוי קטן בלו"ז (נסיעה אחת בשישי בוטלה) — עמוד אחד בתקציר'
+};
+// "איך להציג את לוח הזמנים": כל כרטיס משנה את מה שיוצא (השקפים בכל צורה) ואת קובץ האקסל — בהודעה על שינוי (שני קווים לאותו
+// יעד — יש גם "טבלה משולבת"), בשינוי קטן של נסיעה אחת (קו 1 ביתר עילית — בלי "טבלה משולבת", עם הסבר) ובלו"ז עדכני (436 ו-437)
+const CARDS = {
+  'cards-chg': { url: '?c=70001-20261118-t,45009-20261115-n', comb: true },
+  'cards-small': { url: '?c=72001-20261120-t', comb: false, rm: '14:36' },
+  'cards-cu': { url: '?m=tt&c=10436,10437', comb: true }
 };
 // לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות — עם פיצול ימי חול אוטומטי (יום א׳ · ב׳–ד׳ · יום ה׳, וקובץ אקסל
 // עם כותרת "יום חול" ממוזגת ותאים ממוזגים); בלי פיצול; "צפוף" + "להכניס לעמוד אחד" — כל הקווים (לא נכנס: נבדק שמופיע
@@ -59,6 +67,48 @@ async function footCheck(pg) {
     return cr && pv && /המידע הוכן על ידי אדם פרטי · לא פרסום רשמי/.test(pv.textContent) && /kavbochan\.app/.test(cr.textContent) &&
       cr.getBoundingClientRect().bottom <= sl.bottom + 1 && pv.getBoundingClientRect().bottom <= sl.bottom + 1;
   }));
+}
+// בתא של מספר הקו בלוח: המספר, שם המפעיל וההערות הקטנות ("קו חדש", "עד…", "מ-…") — אחד מתחת לשני, בלי לעלות זה על זה
+// ובלי לצאת מהתא (לפי המלבן של כל אחד על המסך)
+async function lineCellCheck(pg) {
+  return pg.evaluate(() => {
+    const bad = [];
+    document.querySelectorAll('.sitem:not(.off) .s-bd td.bl').forEach((td) => {
+      const tr = td.getBoundingClientRect(), kids = Array.from(td.children).filter((e) => e.getClientRects().length).map((e) => {
+        // עם המסגרת שמסביב למספר (box-shadow בעיצוב "צבעי המפעיל") — היא חלק ממה שרואים
+        const r = e.getBoundingClientRect(), sh = getComputedStyle(e).boxShadow, k = r.width / (e.offsetWidth || r.width || 1);
+        const sp = sh && sh !== 'none' ? Math.max(0, ...(sh.match(/-?[\d.]+px/g) || []).slice(0, 4).map((x, i, a) => i === 3 ? parseFloat(x) + Math.max(Math.abs(parseFloat(a[0])), Math.abs(parseFloat(a[1]))) : 0)) * k : 0;
+        return { e, r: { top: r.top - sp, bottom: r.bottom + sp, left: r.left - sp, right: r.right + sp } };
+      });
+      const ln = td.closest('tr').getAttribute('data-ln') || '?';
+      kids.forEach((a, i) => {
+        if (a.r.top < tr.top - 0.5 || a.r.bottom > tr.bottom + 0.5) bad.push(ln + ': ' + (a.e.className || a.e.tagName) + ' יוצא מהתא');
+        kids.slice(i + 1).forEach((b) => {
+          const ov = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top), oh = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+          if (ov > 0.5 && oh > 0.5) bad.push(ln + ': ' + (a.e.className || a.e.tagName) + ' עולה על ' + (b.e.className || b.e.tagName) + ' (' + ov.toFixed(1) + 'px)');
+        });
+      });
+    });
+    return bad;
+  });
+}
+// מה יצא בכל הצורות (הטקסט של כל השקפים) ואיזה קובץ אקסל (שמות הגיליונות, וכמה שעות מחוקות)
+async function cardRun(pg, tv, tall) {
+  await pg.evaluate(([tv, tall]) => { document.querySelector('[data-tv="' + tv + '"]').click(); const t = document.getElementById('tall'); if (tv === 'sum' && t.checked !== tall) t.click(); }, [tv, !!tall]);
+  await pg.waitForTimeout(700);
+  const out = { checked: await pg.evaluate(() => (document.querySelector('#tvcards [aria-checked="true"]') || {}).getAttribute?.('data-tv')) };
+  for (const form of FORMS) {
+    await pg.evaluate((f) => document.querySelector('[data-form="' + f + '"]').click(), form);
+    await pg.waitForTimeout(700);
+    out[form] = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .slide')).map((x) => x.innerText.replace(/\s+/g, ' ')).join(' ¶ '));
+  }
+  out.rm = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd td.bt .t.rm')).map((x) => x.firstChild.nodeValue.trim()));
+  await pg.evaluate(() => document.querySelector('[data-form="deck"]').click());
+  await pg.waitForTimeout(500);
+  const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.evaluate(() => document.getElementById('xl').click())]);
+  const x = fs.readFileSync(await dl.path()).toString('utf8');
+  out.xlsx = (x.match(/<sheet name="[^"]+"/g) || []).map((m) => m.slice(13, -1)).join(' + ') + ' · מחוקות: ' + (x.match(/<strike\/>/g) || []).length;
+  return out;
 }
 // קובץ האקסל (בלי דחיסה — אפשר לקרוא את ה-XML ישר): הכותרות, התאים הממוזגים בשורות, שורת "אדם פרטי" והקישור בקרדיט
 async function xlsxCheck(pg) {
@@ -177,6 +227,10 @@ async function main() {
     pg.on('pageerror', (e) => errs.push(e.message));
     await pg.goto(base + '/line-changes/?c=' + id);
     await pg.waitForSelector('.sframe', { timeout: 30000 });
+    // מצגת עם לוח זמנים: התצוגה "תקציר" (הלוח — בבדיקות של לוח המודעות למטה)
+    await pg.evaluate(() => { const b = document.querySelector('#ttgrp:not([hidden]) [data-tv="sum"]'); if (b) b.click(); });
+    await pg.waitForTimeout(800);
+    await pg.evaluate(() => window.LCApp && window.LCApp.ready && window.LCApp.ready());
     got[id] = {};
     for (const form of FORMS) {
       await pg.evaluate(() => { window.__lc.fb = []; window.__lc.pl = []; window.__lc.mk = []; });
@@ -206,7 +260,7 @@ async function main() {
     pg.on('pageerror', (e) => errs.push(e.message));
     await pg.goto(base + '/line-changes/?c=' + ids);
     await pg.waitForSelector('.sframe', { timeout: 30000 });
-    await pg.click('[data-ttv="board"]', { force: true });
+    await pg.evaluate(() => document.querySelector('[data-tv="board"]').click());
     await pg.waitForSelector('.s-bd', { timeout: 30000 });
     got[key] = {};
     for (const form of FORMS) {
@@ -220,10 +274,58 @@ async function main() {
       got[key][form] = { heads: heads, rows: rows, marks: marks, slides: Object.keys(pages).length };
       if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
       for (const x of await orderCheck(pg, 'ltr')) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+      for (const x of await lineCellCheck(pg)) problems.push(key + ' ' + form + ': תא הקו — ' + x);
     }
     // אקסל: הלוח החדש עם אותם סימונים, שורת "אדם פרטי" והקישור
     got[key].xlsx = await xlsxCheck(pg);
+    // תא מספר הקו: בכל עיצוב, רגיל וצפוף, בשלוש הצורות — במחשב ובטלפון (המספר לא עולה על שם המפעיל)
+    for (const vp of [[1440, 1000], [390, 844]]) {
+      await pg.setViewportSize({ width: vp[0], height: vp[1] });
+      for (const look of ['kav', 'light', 'op', 'large']) {
+        await pg.evaluate((l) => document.querySelector('[data-look="' + l + '"]').click(), look);
+        for (const dn of ['0', '1']) {
+          await pg.evaluate((d) => document.querySelector('[data-bdn="' + d + '"]').click(), dn);
+          for (const form of FORMS) {
+            await pg.evaluate((f) => document.querySelector('[data-form="' + f + '"]').click(), form);
+            await pg.waitForTimeout(400);
+            for (const x of await lineCellCheck(pg)) problems.push(key + ' ' + vp[0] + 'px ' + look + (dn === '1' ? ' צפוף' : '') + ' ' + form + ': תא הקו — ' + x);
+          }
+        }
+      }
+    }
     if (!got[key].xlsx.priv || !got[key].xlsx.link) problems.push(key + ': באקסל חסרה שורת "אדם פרטי" או הקישור בקרדיט');
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
+  for (const [key, cs] of Object.entries(CARDS)) {
+    if (only && only !== key) continue;
+    const pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    await pg.goto(base + '/line-changes/' + cs.url);
+    await pg.waitForSelector('.sframe', { timeout: 30000 });
+    const ui = await pg.evaluate(() => ({ shown: !document.getElementById('ttgrp').hidden, dflt: (document.querySelector('#tvcards [aria-checked="true"]') || {}).getAttribute?.('data-tv'),
+      comb: !document.querySelector('[data-tv="comb"]').disabled, why: document.getElementById('tvcsub').textContent }));
+    if (!ui.shown) problems.push(key + ': אין בחירה של תצוגת לוח הזמנים');
+    if (ui.dflt !== 'board') problems.push(key + ': ברירת המחדל ' + ui.dflt + ' במקום לוח מודעות');
+    if (ui.comb !== cs.comb) problems.push(key + ': "טבלה משולבת" ' + (ui.comb ? 'פעילה' : 'כבויה') + ' במקום ' + (cs.comb ? 'פעילה' : 'כבויה'));
+    if (!ui.comb && !/מופיע כשיש כמה קווים לאותו יעד/.test(ui.why)) problems.push(key + ': "טבלה משולבת" כבויה בלי הסבר');
+    const views = [['board'], ['sum'], ['sum', true], ['sep']].concat(cs.comb ? [['comb']] : []), res = {};
+    for (const [tv, tall] of views) {
+      const k = tv + (tall ? '+all' : '');
+      res[k] = await cardRun(pg, tv, tall);
+      if (res[k].checked !== tv) problems.push(key + ' ' + k + ': הכרטיס לא נבחר');
+    }
+    // לוח המודעות שונה מכל השאר בכל הצורות, וכל כרטיס שונה מהאחרים במצגת
+    for (const k of Object.keys(res)) {
+      if (k === 'board') continue;
+      for (const form of FORMS) if (res[k][form] === res.board[form]) problems.push(key + ' ' + form + ': "' + k + '" נראה בדיוק כמו לוח המודעות');
+      if (res[k].xlsx === res.board.xlsx) problems.push(key + ': האקסל של "' + k + '" כמו של לוח המודעות (' + res.board.xlsx + ')');
+    }
+    const ks = Object.keys(res).filter((k) => !(key === 'cards-small' || key === 'cards-cu') || k !== 'sum+all');   // קו אחד: "כל השעות" = טבלה לכל קו
+    ks.forEach((a, i) => ks.slice(i + 1).forEach((b) => { if (res[a].deck === res[b].deck && !(a === 'sum+all' && b === 'sep')) problems.push(key + ': "' + a + '" ו-"' + b + '" נראים אותו דבר'); }));
+    if (cs.rm && !res.board.rm.includes(cs.rm)) problems.push(key + ': בלוח המודעות אין סימון שבוטלה ל-' + cs.rm + ' (' + res.board.rm.join(', ') + ')');
+    if (cs.rm && !/מחוקות: [1-9]/.test(res.board.xlsx)) problems.push(key + ': באקסל של לוח המודעות אין שעה מחוקה');
+    got[key] = { xlsx: Object.fromEntries(Object.entries(res).map(([k, v]) => [k, v.xlsx])) };
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();
   }
@@ -275,6 +377,7 @@ async function main() {
       if (fit.want && fit.pages > fit.want && (fit.need !== fit.pages || fit.needTxt.indexOf('צריך לפחות ' + fit.pages + ' עמודים') < 0)) problems.push(key + ' ' + form + ': ' + fit.pages + ' עמודים במקום ' + fit.want + ', בלי "צריך לפחות"');
       if (bo.pages && fit.pages !== bo.pages) problems.push(key + ' ' + form + ': ' + fit.pages + ' עמודים במקום ' + bo.pages);
       for (const x of await orderCheck(pg, tord)) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+      for (const x of await lineCellCheck(pg)) problems.push(key + ' ' + form + ': תא הקו — ' + x);
     }
     if (bo.xlsx) {
       got[key].xlsx = await xlsxCheck(pg);

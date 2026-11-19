@@ -1286,7 +1286,9 @@ var LCDeck = (function () {
   }
   /* שינוי קטן מאוד בלו"ז (עד 3 נסיעות): עמוד אחד — כותרת, "מה השתנה?" עם השעות במילים, והבהרות. בלי שער ובלי טבלה */
   var TT_ONE = 3;
-  function ttOne(p) { return ttSmall(p) && ttCount(p) <= TT_ONE; }
+  // "להציג את כל השעות" (ttOpt().v === 'det') — גם שינוי קטן מוצג בטבלה עם כל השעות, לא במילים
+  function ttOne(p) { return ttSmall(p) && ttCount(p) <= TT_ONE && ttOpt().v !== 'det'; }
+  function ttWords(p) { return ttSmall(p) && ttOpt().v !== 'det'; }
   function ttSmall(p) {
     if (p.kind !== 'timetable') return false;
     var n = 0, big = false;
@@ -1373,7 +1375,7 @@ var LCDeck = (function () {
 
   /* מחזיר רשימת בלוקים: {h, html} (לא מתחלק) או {rows: [{h, html}], open(cont), close, th} (טבלה שמתחלקת בין עמודים) */
   function ttBlocks(p, form) {
-    var M = TTM[form], o = ttSmall(p) ? { v: 'gen', f: 'text' } : ttOpt(), blocks = [], ds = p.kind === 'timetable' ? ttDirs(p) : kDirs(p).filter(function (d) { return d.tt && d.tt.length; });
+    var M = TTM[form], o = ttWords(p) ? { v: 'gen', f: 'text' } : ttOpt(), blocks = [], ds = p.kind === 'timetable' ? ttDirs(p) : kDirs(p).filter(function (d) { return d.tt && d.tt.length; });
     var effTxt = 'מ-' + LC.dm(start(p));
     // שני כיוונים עם בדיוק אותו לוח זמנים — פעם אחת, "בשני הכיוונים"
     var sig2 = function (d) { return JSON.stringify([o.v === 'gen' ? (d.tt || []).map(function (e) { return [e.t, e.so, e.sn]; }) : d.tt, d.same]); };
@@ -1506,7 +1508,7 @@ var LCDeck = (function () {
   }
   function ttKey(p) {
     var o = ttOpt();
-    if (o.v !== 'det' || p.kind !== 'timetable' || ttSmall(p)) return '';
+    if (o.v !== 'det' || p.kind !== 'timetable' || ttWords(p)) return '';
     return o.f === 'table'
       ? '<p class="tt-key"><span><i class="m">20</i>ללא שינוי</span><span><i class="m ad">20<small>חדש</small></i>נסיעה חדשה</span><span><i class="m rm">20<small>בוטלה</small></i>נסיעה שבוטלה</span><span><i class="m sh">30<small>היה 14:31</small></i>נסיעה שהוזזה</span></p>'
       : '<p class="tt-key"><span class="tm ad">14:20</span> נסיעה חדשה <span class="tm rm">14:20</span> נסיעה שבוטלה <span class="tm sh">14:30</span> נסיעה שהוזזה</p>';
@@ -1672,12 +1674,12 @@ var LCDeck = (function () {
           '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>' };
     });
   }
-  function kindSlides(p, pre) {
+  function kindSlides(p, pre, noTt) {
     var out = [];
     if (p.kind === 'new' || p.kind === 'ended') { out.push(kindMapSlide(p, pre)); zoomSlides(p, pre).forEach(function (s) { out.push(s); }); }
     if (p.kind === 'new') kDirs(p).forEach(function (d) { routeStopsSlides(p, d, pre, ED.look === 'large' ? 9 : 12).forEach(function (s) { out.push(s); }); });
     if (p.kind === 'ended' && altsOf(p).length > 3) out.push(altsSlide(p, pre));
-    if (p.kind !== 'ended') ttSlides(p, pre).forEach(function (s) { out.push(s); });
+    if (p.kind !== 'ended' && !noTt) ttSlides(p, pre).forEach(function (s) { out.push(s); });
     return out;
   }
 
@@ -3070,8 +3072,9 @@ var LCDeck = (function () {
     if (ED.tt && ED.tt.v === 'board' && pages.some(ttCap)) return chgBoardBuild(pages, city, feed);
     // שניים או יותר עם לו"ז (שינוי בלו"ז, קו חדש): טבלה אחת לכל הקווים, ושורה קצרה לכל קו
     // שינוי קטן מאוד בלו"ז (ttOne) — לא נכנס לטבלת הלו"ז של כל הקווים, אלא אם ביקשו "גם שקף נפרד לכל קו"
-    var ttCapB = function (p) { return ttCap(p) && !(ttOne(p) && ED.ttper !== true && pages.length > 1); };
-    var mt = pages.filter(ttCapB).length > 1, rest = mt ? pages.filter(function (p) { return !ttCapB(p); }) : pages;
+    // ED.tv — הבחירה בשלב 3: 'sep' (טבלה לכל קו) — בלי טבלה משותפת; 'comb' (טבלה משולבת) — כל הקווים בטבלה המשותפת, גם שינוי קטן מאוד
+    var ttCapB = function (p) { return ttCap(p) && (ED.tv === 'comb' || !(ttOne(p) && ED.ttper !== true && pages.length > 1)); };
+    var mt = ED.tv !== 'sep' && pages.filter(ttCapB).length > 1, rest = mt ? pages.filter(function (p) { return !ttCapB(p); }) : pages;
     if (ED.form === 'sign') return signLimit(pages, mt ? mtSlides(pages.filter(ttCapB), 'sign').concat(rest.length ? signPages(rest, feed) : []) : signPages(pages, feed), feed);
     if (ED.form === 'status') return mt ? sumSlides(pages, 'status').concat(rest.length ? statusPages(rest) : []) : statusPages(pages);
     // קו אחד עם שינוי קטן — עמוד אחד (או שניים), בלי שער ובלי שקף סיום
@@ -3512,6 +3515,10 @@ var LCDeck = (function () {
     if (form === 'sign') return bs.concat(rest.length ? signPages(rest, feed) : []);
     if (form === 'status') return bs.concat(rest.length ? statusPages(rest) : []);
     var slides = [{ id: 'cover', label: 'שער', html: cover(pages, city) }].concat(bs);
+    // קו חדש: המפה, המפות הקרובות והתחנות נשארים במצגת — השעות שלו בלוח
+    pages.filter(function (p) { return p.kind === 'new' && ttCap(p); }).forEach(function (p) {
+      kindSlides(p, pages.length > 1 ? p.line + ' · ' : '', true).forEach(function (x) { slides.push(x); });
+    });
     rest.forEach(function (p) {
       var pre = pages.length > 1 ? p.line + ' · ' : '';
       (isKind(p) ? kindSlides(p, pre) : isOne(p) ? onePages(p, feed, pre) : fullSlides(p, pre)).forEach(function (x) { slides.push(x); });
@@ -3580,8 +3587,18 @@ var LCDeck = (function () {
         feed: ps.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', when: when, tord: ED.tord || 'rtl' };
     } finally { ED = keep; }
   }
+  /* "טבלה משולבת" אפשרית? רק כשיש לפחות שני קווים לאותו יעד (כמו הקיבוץ בטבלה: לו"ז עדכני — cuGroups, הודעה על שינוי — mtGroups) */
+  function combOk(pages) {
+    var cu = pages.length && pages.every(isCur), by = {};
+    return (cu ? pages : pages.filter(ttCap)).some(function (p) {
+      var o = p.od || [], k = o[0] && o[1] && (!cu || o[0] !== o[1]) ? [o[0], o[1]].sort().join('|') : '';
+      if (!k) return false;
+      by[k] = (by[k] || 0) + 1;
+      return by[k] > 1;
+    });
+  }
   function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
   // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
   var _test = { bdWkSplit: bdWkSplit, realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols };
-  return { boardFit: function () { return BOARD_FIT; }, chgBoardModel: chgBoardModel, _test: _test, tilesMissing: tilesMissing, setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { combOk: combOk, boardFit: function () { return BOARD_FIT; }, chgBoardModel: chgBoardModel, _test: _test, tilesMissing: tilesMissing, setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

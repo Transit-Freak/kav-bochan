@@ -1030,3 +1030,7 @@ body.editing .s-bd.dense .bd-t td.bo small:not(.tw),body.editing .s-bd.dense .bd
 .st-what .kdir ul li{font-size:28px;padding-right:0}
 .st-what .kdir ul li::before{display:none}
 .lc-mk.end.ab{background:linear-gradient(90deg,#1f5fd1 50%,#13201b 50%)}
+/* "צבעי המפעיל": בתא של מספר הקו בלוח — מסגרת שהיא חלק מהתגית (border), לא טבעת מבחוץ (box-shadow) שעולה על שם המפעיל מתחתיה */
+.deck[data-look="op"] .s-bd .bd-t td.bl .badge{box-shadow:none;border:max(2px,.1em) solid var(--s-brand2)}
+.s-bd .bd-t td.bl .badge{vertical-align:middle}
+.s-bd.dense .bd-t td.bl small{margin-top:.08em}
