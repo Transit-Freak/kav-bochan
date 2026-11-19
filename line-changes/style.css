@@ -433,3 +433,5 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .altdlg .tw-b{display:flex;gap:12px;align-items:center}
 .altdlg .tw-b .btn,.tilewarn .tw-b .btn,.tilewarn .tw-b .btn2{flex:none;width:auto;min-height:44px;font-size:16px}
 .altdlg .lnk,.tilewarn .lnk{white-space:nowrap}
+.flabel.sm{display:block;margin:12px 0 6px}
+.bdneed{color:var(--before,#b8361f);font-weight:700}

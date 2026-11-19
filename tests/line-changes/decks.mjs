@@ -35,11 +35,44 @@ const DECKS = {
   '10970-20261115-v': 'חלופה שבוטלה',
   '12285-20261129-v': 'חלופה חדשה',
   '70001-20261118-t': 'שינוי בלוח הזמנים',
+  '10436-20261119-t': 'שינוי בלוח הזמנים (קו 436, רק ביום חמישי)',
   '45009-20261115-n': 'קו חדש',
+  '11827-20261120-n': 'קו חדש בין ערים, הלוך וחזור: בשקף המפה, בשלט ובסטטוס — בלוק לכל כיוון (תחנות ושעות), סימן לכל כיוון במפה',
   '71011-20261113-e': 'קו שמבוטל'
 };
-const BOARDS = { 'board-ltr': 'ltr', 'board-rtl': 'rtl' };   // לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות
+// לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות — עם פיצול ימי חול אוטומטי (יום א׳ · ב׳–ד׳ · יום ה׳, וקובץ אקסל
+// עם כותרת "יום חול" ממוזגת ותאים ממוזגים); בלי פיצול; "צפוף" + "להכניס לעמוד אחד" — כל הקווים (לא נכנס: נבדק שמופיע
+// "צריך לפחות N עמודים"), ובלי הקווים העירוניים (מספר קטן מ-100, נמחקים במצב עריכה) — נבדק שנכנס בעמוד אחד.
+// בכל עמוד נבדקות שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" והקרדיט
+const BOARDS = {
+  'board-ltr': { tord: 'ltr', xlsx: true }, 'board-rtl': { tord: 'rtl' },
+  'board-nosplit': { tord: 'ltr', opts: ['bsp=no'], forms: ['sign'] },
+  'board-dense-1': { tord: 'ltr', opts: ['bdn=1', 'bpg=1'], forms: ['sign'] },
+  'board-1p': { tord: 'ltr', del: 100, opts: ['bdn=1', 'bpg=1'], forms: ['sign'], pages: 1, xlsx: true }
+};
+// הודעה על שינוי בתצוגת "טבלה לפי יעד": שינוי בלו"ז (436, רק ביום חמישי — עמודה משלו) וקו חדש (9), עם סימון מה שמשתנה
+const CHG_BOARDS = { 'chg-board': '10436-20261119-t,45009-20261115-n' };
+// בכל עמוד של לוח: שורת "אדם פרטי" והקרדיט, בתוך השקף
+async function footCheck(pg) {
+  return pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .sframe')).filter((f) => f.querySelector('.s-bd')).every((f) => {
+    const sl = f.querySelector('.slide').getBoundingClientRect(), cr = f.querySelector('.bd-cr'), pv = f.querySelector('.bd-priv');
+    return cr && pv && /המידע הוכן על ידי אדם פרטי · לא פרסום רשמי/.test(pv.textContent) && /kavbochan\.app/.test(cr.textContent) &&
+      cr.getBoundingClientRect().bottom <= sl.bottom + 1 && pv.getBoundingClientRect().bottom <= sl.bottom + 1;
+  }));
+}
+// קובץ האקסל (בלי דחיסה — אפשר לקרוא את ה-XML ישר): הכותרות, התאים הממוזגים בשורות, שורת "אדם פרטי" והקישור בקרדיט
+async function xlsxCheck(pg) {
+  const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.click('#xl', { force: true })]);
+  const s = fs.readFileSync(await dl.path()).toString('utf8');
+  const sheet = s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
+  const merges = (sheet.match(/<mergeCell ref="[^"]+"/g) || []).map((m) => m.slice(16, -1));
+  const v = (ref) => { const m = sheet.match(new RegExp('<c r="' + ref + '"[^>]*>(?:<is><t[^>]*>([^<]*)</t></is>)?')); return m ? m[1] || '' : null; };
+  const headRow = merges.some((m) => /^D\d+:[E-Z]\d+$/.test(m) && /יום חול/.test(v(m.split(':')[0]) || ''));
+  return { wkHead: headRow, rowSpans: merges.filter((m) => { const [a, b] = m.split(':'); return /^[D-H]/.test(a) && a.replace(/\D/g, '') === b.replace(/\D/g, '') && a[0] !== 'A'; }).length,
+    priv: /המידע הוכן על ידי אדם פרטי · לא פרסום רשמי/.test(sheet), link: /<hyperlink ref="A\d+"/.test(sheet) && /kavbochan\.app/.test(sheet) };
+}
 const FORMS = ['deck', 'sign', 'status'];
+const TWO_DIRS = ['11827-20261120-n', '45009-20261115-n'];
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 function serve() {
@@ -152,11 +185,50 @@ async function main() {
       await pg.evaluate(() => window.LCApp && window.LCApp.ready && window.LCApp.ready());
       await pg.waitForTimeout(400);
       got[id][form] = await collect(pg, false);
+      // קו חדש בשני כיוונים: הבלוקים של שני הכיוונים נכנסים בשקף, בלי לגלוש מעבר לתחתית
+      if (TWO_DIRS.includes(id)) {
+        const bad = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .sframe')).filter((f) => f.querySelector('.kdirs')).map((f) => {
+          const r = f.querySelector('.slide').getBoundingClientRect(), n = f.querySelectorAll('.kdir').length;
+          const over = Array.from(f.querySelectorAll('.side,.sg-what,.st-what')).some((e) => e.scrollHeight > e.clientHeight + 1) || Array.from(f.querySelectorAll('.kdir, .legend, .sfoot, .sg-foot, .st-foot')).some((e) => e.getBoundingClientRect().bottom > r.bottom + 1);
+          return n !== 2 || over ? f.getAttribute('data-id') + (n !== 2 ? ' (' + n + ' כיוונים)' : ' (גולש)') : '';
+        }).filter(Boolean));
+        const n2 = await pg.evaluate(() => document.querySelectorAll('.sitem:not(.off) .kdirs').length);
+        if (!n2) problems.push(id + ' ' + form + ': אין בלוק לכל כיוון');
+        for (const x of bad) problems.push(id + ' ' + form + ': ' + x);
+      }
     }
     if (errs.length) problems.push(id + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();
   }
-  for (const [key, tord] of Object.entries(BOARDS)) {
+  for (const [key, ids] of Object.entries(CHG_BOARDS)) {
+    if (only && only !== key) continue;
+    const pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    await pg.goto(base + '/line-changes/?c=' + ids);
+    await pg.waitForSelector('.sframe', { timeout: 30000 });
+    await pg.click('[data-ttv="board"]', { force: true });
+    await pg.waitForSelector('.s-bd', { timeout: 30000 });
+    got[key] = {};
+    for (const form of FORMS) {
+      await pg.click('[data-form="' + form + '"]', { force: true });
+      await pg.waitForTimeout(800);
+      const pages = await collect(pg, true), rows = [];
+      Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
+      // הסימונים: חדשה / בשעה חדשה (nw) ושבוטלה (rm), עם השעה
+      const marks = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd td.bt .t.nw, .sitem:not(.off) .s-bd td.bt .t.rm, .sitem:not(.off) .s-bd td.bt .was')).map((x) => (x.classList.contains('was') ? 'הערה ' : x.classList.contains('rm') ? 'בוטלה ' : 'חדשה ') + (x.classList.contains('was') ? x.textContent : x.firstChild.nodeValue)));
+      const heads = await pg.evaluate(() => { const f = document.querySelector('.sitem:not(.off) .s-bd'); return f ? Array.from(f.querySelectorAll('thead th')).map((t) => t.textContent.trim() + (t.colSpan > 1 ? ' [' + t.colSpan + ']' : '')) : []; });
+      got[key][form] = { heads: heads, rows: rows, marks: marks, slides: Object.keys(pages).length };
+      if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
+      for (const x of await orderCheck(pg, 'ltr')) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+    }
+    // אקסל: הלוח החדש עם אותם סימונים, שורת "אדם פרטי" והקישור
+    got[key].xlsx = await xlsxCheck(pg);
+    if (!got[key].xlsx.priv || !got[key].xlsx.link) problems.push(key + ': באקסל חסרה שורת "אדם פרטי" או הקישור בקרדיט');
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
+  for (const [key, bo] of Object.entries(BOARDS)) {
+    const tord = bo.tord;
     if (only && only !== key) continue;
     const pg = await ctx.newPage(), errs = [];
     pg.on('pageerror', (e) => errs.push(e.message));
@@ -167,15 +239,46 @@ async function main() {
     await pg.waitForSelector('#plall'); await pg.click('#plall');
     await pg.waitForSelector('.s-bd', { timeout: 30000 });
     await pg.click('[data-tto="' + tord + '"]', { force: true });
+    if (bo.del) {
+      // מחיקת קווים במצב עריכה (לוחצים על מספר הקו ואז Delete): כל קו שהמספר שלו קטן מ-bo.del
+      await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(500);
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(300);
+      for (let k = 0; k < 60; k++) {
+        const ln = await pg.evaluate((min) => {
+          const tr = Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd tr.br')).find((t) => !(parseInt(t.getAttribute('data-ln'), 10) >= min));
+          if (!tr) return null;
+          (tr.querySelector('td.bl') || tr.querySelector('td')).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+          return tr.getAttribute('data-ln');
+        }, bo.del);
+        if (!ln) break;
+        await pg.keyboard.press('Delete'); await pg.waitForTimeout(250);
+      }
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(500);
+    }
     got[key] = {};
-    for (const form of FORMS) {
+    for (const form of bo.forms || FORMS) {
       await pg.click('[data-form="' + form + '"]', { force: true });
       await pg.waitForTimeout(800);
-      // הלוח: כל השורות מכל העמודים יחד (החלוקה לעמודים תלויה בגופן — לא נבדקת), בלי שורות "(המשך)"
+      for (const kv of bo.opts || []) { const [k, v] = kv.split('='); await pg.evaluate(([k, v]) => document.querySelector('[data-' + k + '="' + v + '"]').click(), [k, v]); await pg.waitForTimeout(800); }
+      // הלוח: כל השורות מכל העמודים יחד (החלוקה לעמודים תלויה בגופן — לא נבדקת), בלי שורות "(המשך)"; והכותרות של העמודות
       const pages = await collect(pg, true), rows = [];
       Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
-      got[key][form] = { rows: rows };
+      const fit = await pg.evaluate(() => {
+        const fr = Array.from(document.querySelectorAll('.sitem:not(.off) .sframe')).filter((f) => f.querySelector('.s-bd'));
+        const heads = fr[0] ? Array.from(fr[0].querySelectorAll('thead th')).map((t) => t.textContent.trim() + (t.colSpan > 1 ? ' [' + t.colSpan + ']' : '')) : [];
+        const spans = fr.reduce((t, f) => t + f.querySelectorAll('tbody td.bt[colspan]').length, 0);
+        const f0 = window.LCDeck && LCDeck.boardFit ? LCDeck.boardFit() : null, nd = document.getElementById('bdneed');
+        return { heads, spans, pages: fr.length, need: f0 ? f0.need : 0, want: f0 ? f0.want : 0, needTxt: nd && !nd.hidden ? nd.textContent : '' };
+      });
+      got[key][form] = { heads: fit.heads, spans: fit.spans, rows: rows };
+      if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');
+      if (fit.want && fit.pages > fit.want && (fit.need !== fit.pages || fit.needTxt.indexOf('צריך לפחות ' + fit.pages + ' עמודים') < 0)) problems.push(key + ' ' + form + ': ' + fit.pages + ' עמודים במקום ' + fit.want + ', בלי "צריך לפחות"');
+      if (bo.pages && fit.pages !== bo.pages) problems.push(key + ' ' + form + ': ' + fit.pages + ' עמודים במקום ' + bo.pages);
       for (const x of await orderCheck(pg, tord)) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+    }
+    if (bo.xlsx) {
+      got[key].xlsx = await xlsxCheck(pg);
+      if (!got[key].xlsx.priv || !got[key].xlsx.link) problems.push(key + ': באקסל חסרה שורת "אדם פרטי" או הקישור בקרדיט');
     }
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();

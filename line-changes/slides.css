@@ -876,11 +876,11 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-t th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;text-align:center;padding:.3em .3em;border:1px solid var(--s-band)}
 .s-bd .bd-t td{border:1px solid var(--s-line);vertical-align:top;padding:.28em .4em}
 .s-bd .bd-t tr.bband td{color:#fff;font-weight:900;font-family:'Heebo',Arial,sans-serif;text-align:center;padding:.22em .5em;font-size:1.08em;border-color:transparent}
-.s-bd .bd-t td.bl{text-align:center;background:var(--s-paper)}
+.s-bd .bd-t td.bl{text-align:center;vertical-align:middle;background:var(--s-paper)}
 .s-bd .bd-t td.bl .badge.sm{min-width:0;font-size:1.55em;padding:.12em .35em .06em;border-radius:.3em}
 .s-bd .bd-t td.bl small{display:block;color:var(--s-sub);font-weight:700;font-size:.78em;line-height:1.15;margin-top:.25em}
 .s-bd .bd-t td.bl small.un{color:#b45309}
-.s-bd .bd-t td.bo{text-align:center;line-height:1.2}
+.s-bd .bd-t td.bo{text-align:center;vertical-align:middle;line-height:1.2}
 .s-bd .bd-t td.bo b{display:block;font-weight:800}
 .s-bd .bd-t td.bo small{display:block;color:var(--s-sub);font-weight:600;font-size:.76em;margin-top:.15em}
 .s-bd .bd-t td.bo small.tw{color:var(--s-fg);font-weight:700}
@@ -899,6 +899,8 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-ph > b{color:var(--s-sub)}
 .s-bd .bd-ph b.ltr{font-weight:800}
 .s-bd .bd-head{padding-bottom:.5em}
+/* הכותרת על כל הרוחב — בלי זה, בצילום ל-PDF כותרת שהיא הדבר הרחב ביותר נשברת לשתי שורות ועולה על שורת התוקף */
+.s-bd .bd-head > .t,.s-bd .bd-head > .t > div{flex:1 1 auto;min-width:0}
 .s-cur.s-bd.f-sign{padding:26px 26px 14px}
 .s-bd.f-sign .cu-head h1{font-size:28px}
 .s-bd.f-sign .cu-head .sub{font-size:13px}
@@ -926,6 +928,9 @@ body.editing .slide .inset-x{display:block}
 /* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
 .s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
 .s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
+.s-bd .bd-priv{color:var(--s-sub);font-weight:600;text-align:center;margin:.35em 0 0}
+.s-bd.f-sign .bd-priv{font-size:10px}.s-bd.f-deck .bd-priv{font-size:12px}.s-bd.f-status .bd-priv{font-size:17px}
+.s-bd .bd-priv + .bd-cr{margin-top:.15em}
 /* עריכה בלוח: ✕ בפינה של תא המוצא (שורה) ושל תא הקו (קו שלם); מה שהוסר — שורה אפורה דקה, רק במצב עריכה */
 /* במצב עריכה: השורה שנבחרה (לחיצה על תא; על מספר הקו — כל השורות של הקו) — רקע תכלת ומסגרת כחולה */
 body.editing .s-bd tr.br{cursor:pointer}
@@ -959,3 +964,69 @@ body.editing .s-bd .bdt[data-ph]:empty::before{content:attr(data-ph);color:#8a97
 body.editing .s-bd .badge.bdt[data-ph]:empty::before{color:rgba(255,255,255,.75)}
 body.editing .s-bd tr.badd td{background:#fbfdf9}
 .s-bd .bd-t td.bl .badge.bdt:empty{min-width:1.6em;min-height:1em;display:inline-block}
+/* הודעה על שינוי — "טבלה לפי יעד" עם סימון: חדשה או בשעה חדשה — ירוק מודגש; בוטלה — אדום מחוק, בשעה הקודמת */
+.s-bd .t.nw{color:#137a3f;font-weight:900}
+.s-bd .t.rm{color:#c81e1e;font-weight:600;text-decoration:line-through;text-decoration-thickness:.09em}
+.s-bd .t .was{font-size:.66em;color:#137a3f;font-weight:700;margin-left:.2em;unicode-bidi:isolate}
+.s-bd .bdrm{display:block;color:#c81e1e;font-weight:700;font-size:.8em;margin-top:.15em}
+.s-bd .bdrm .t{text-decoration:line-through;font-weight:600}
+.s-bd .bd-key{margin:.3em 0 0;font-size:.95em;display:flex;flex-wrap:wrap;gap:.3em 1.1em;align-items:baseline}
+.s-bd .bd-key .t{margin-inline-end:.25em}
+.s-bd .bd-t td.bl small.nwl{color:#137a3f;font-weight:800}
+.s-bd .bd-t td.bt.same{color:var(--s-sub);font-weight:700}
+.s-bd .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.s-bd .nwt{color:#137a3f;font-weight:800}
+/* לוח לפי יעד: ימי חול מפוצלים — "יום חול" מעל א׳–ד׳ · יום ה׳ */
+.s-bd .bd-t th.wkh{border-bottom:1px solid rgba(255,255,255,.4)}
+.s-bd .bd-t tr.wk2 th{font-size:.9em;padding-top:.12em;padding-bottom:.12em}
+/* "צפוף": שורות צרות, פחות רווח בין השעות, פס דק, עמודות הקו והמוצא צרות יותר */
+.s-bd.dense .bd-t{line-height:1.12}
+.s-bd.dense .bd-t td{padding:.06em .25em}
+.s-bd.dense .bd-t th{padding:.15em .25em}
+.s-bd.dense .tl{word-spacing:.04em}
+.s-bd.dense .bd-t tr.bband td{padding:0 .4em;font-size:.92em;line-height:1.15}
+.s-bd.dense .bd-t td.bl{padding:.06em .1em;line-height:1.1}
+.s-bd.dense .bd-t td.bl .badge.sm{font-size:1.1em;padding:.02em .2em 0}
+.s-bd.dense .bd-t td.bl small{font-size:.6em;margin-top:0;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.s-bd.dense .bd-t td.bo{line-height:1.08}
+.s-bd.dense .bd-t td.bo small{font-size:.7em;margin-top:0}
+.s-bd.dense .bnote{font-size:.72em;margin-top:0;line-height:1.1}
+.s-bd.dense.f-sign .bd-t col.cl{width:46px}.s-bd.dense.f-sign .bd-t col.co{width:82px}
+.s-bd.dense.f-deck .bd-t col.cl{width:60px}.s-bd.dense.f-deck .bd-t col.co{width:118px}
+.s-bd.dense.f-status .bd-t col.cl{width:78px}.s-bd.dense.f-status .bd-t col.co{width:140px}
+/* צפוף: בעמודת המוצא — רק מאיפה ולאן (שם התחנה וקוד התחנה — בהערה בקובץ האקסל ובמצב עריכה), כותרת קטנה יותר */
+.s-bd.dense .bd-t td.bo small:not(.tw),.s-bd.dense .bd-t td.bo small.twi{display:none}
+body.editing .s-bd.dense .bd-t td.bo small:not(.tw),body.editing .s-bd.dense .bd-t td.bo small.twi{display:block}
+.s-bd.dense.f-sign .cu-head h1{font-size:22px}
+.s-bd.dense.f-sign .cu-head .sub{font-size:11px}
+.s-bd.dense.f-sign .bd-head{padding-bottom:.25em}
+.s-bd.dense.f-sign .cu-body{padding-top:4px}
+.s-bd.dense .bd-ph{margin-top:.2em}
+.s-bd.dense .bd-upd{margin-top:.25em;padding:.1em .5em}
+.s-cur.s-bd.f-sign.dense{padding:16px 18px 10px}
+.s-bd.dense.f-sign .cu-foot{font-size:9px;padding-top:3px;margin-top:4px}
+.s-bd.dense.f-sign .bd-upd,.s-bd.dense.f-sign .bd-ph{font-size:10px}
+.s-bd.dense.f-sign .bd-priv{font-size:9px;margin-top:.2em}
+.s-bd.dense.f-sign .bd-cr{font-size:11.5px}
+/* קו חדש / מבוטל בשני כיוונים: בלוק לכל כיוון (מפה, שלט, סטטוס), וסימן אחר לתחילה ולסוף של הכיוון השני */
+.slide .dot.end.b{background:#1f5fd1}
+.lc-mk.end.b{background:#1f5fd1;box-shadow:0 0 0 1.5px #1f5fd1,0 1px 3px rgba(0,0,0,.4)}
+.kdirs{display:flex;flex-direction:column;gap:10px}
+.kdir p{margin:0;display:flex;gap:8px;align-items:flex-start;line-height:1.35}
+.kdir p .dot{width:16px;height:16px;margin-top:.25em}
+.kdir p b{font-weight:800}
+.kdir ul.tt-list{margin:3px 0 0}
+.s-map .kdir p{font-size:17px}
+.s-map.two .lead{font-size:18px;line-height:1.4}
+.s-map.two ul.tt-list.sm li{font-size:15px;line-height:1.32}
+.sg-what .kdirs{gap:8px}
+.sg-what .kdir p{font-size:21px}
+.sg-what .kdir ul{gap:2px;padding-right:46px}
+.sg-what .kdir ul li{font-size:18px;line-height:1.3}
+.st-what .kdirs{gap:20px}
+.st-what .kdir p{font-size:32px;font-weight:600}
+.st-what .kdir p .dot{width:26px;height:26px}
+.st-what .kdir ul{gap:6px;padding-right:38px;margin-top:6px}
+.st-what .kdir ul li{font-size:28px;padding-right:0}
+.st-what .kdir ul li::before{display:none}
+.lc-mk.end.ab{background:linear-gradient(90deg,#1f5fd1 50%,#13201b 50%)}

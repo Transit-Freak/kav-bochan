@@ -87,3 +87,13 @@ test('קיצור ימים ושעה', () => {
 test('אין תחנה קרובה — עם מספר הקו', () => {
   assert.equal(T.noNear({ _nn: 'של קו 999' }), 'לא נמצאה תחנה חלופית קרובה של קו 999 במסלול החדש');
 });
+
+test('פיצול ימי חול: יום ה׳ שונה בכמה קווים — עמודה משלו; נסיעה אחת שונה — בלי פיצול', () => {
+  const wkday = [420, 480, 540, 600, 660, 720];
+  const row = (thu) => ({ d: { days: [wkday, wkday, wkday, wkday, thu, [], []] } });
+  const thu = [420, 500, 560, 620, 700, 760];
+  const many = Array.from({ length: 6 }, (_, i) => row(i < 4 ? thu : wkday));
+  assert.deepEqual(JSON.parse(JSON.stringify(T.bdWkSplit(many))), [[0, 1, 2, 3], [4]]);
+  const one = Array.from({ length: 6 }, (_, i) => row(i === 0 ? wkday.concat([1300]) : wkday));
+  assert.deepEqual(JSON.parse(JSON.stringify(T.bdWkSplit(one))), [[0, 1, 2, 3, 4]]);
+});
