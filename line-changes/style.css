@@ -418,3 +418,18 @@ details.group summary span{font-weight:600;color:var(--sub)}
 /* הסרגל בטלפון: הכפתורים יורדים לשורה שנייה במקום לצאת מהמסך; מחיקת שורה/קו בלוח — באדום */
 .etb{flex-wrap:wrap;max-width:calc(100vw - 16px)}
 .etb button.rowdel{color:#ffb4a8}
+.etb button[data-t="rowadd"]{color:#b9f0cd}
+/* אזהרה לפני הורדה: חלק מאריחי המפה לא נטענו */
+.tilewarn{position:fixed;z-index:3000;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(520px,calc(100vw - 32px));
+  background:#fff;color:#14201b;border:2px solid #b8361f;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:14px 16px}
+.tilewarn p{margin:0 0 10px;font-weight:700;line-height:1.45}
+.tilewarn .tw-b{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* תיאור תמונה (alt) — חלון קטן בתחתית המסך */
+.altdlg{position:fixed;z-index:3000;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(520px,calc(100vw - 32px));
+  background:#fff;color:#14201b;border:2px solid #1f5fd1;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:14px 16px}
+.altdlg label{display:block;font-weight:800;margin-bottom:6px}
+.altdlg input{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:10px 12px;border:2px solid #9aa5a0;border-radius:10px}
+.altdlg .ad-h{margin:6px 0 10px;font-size:14px;color:#5b6b65}
+.altdlg .tw-b{display:flex;gap:12px;align-items:center}
+.altdlg .tw-b .btn,.tilewarn .tw-b .btn,.tilewarn .tw-b .btn2{flex:none;width:auto;min-height:44px;font-size:16px}
+.altdlg .lnk,.tilewarn .lnk{white-space:nowrap}
