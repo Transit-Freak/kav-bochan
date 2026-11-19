@@ -73,7 +73,8 @@ var LCXlsx = (function () {
     ['מפעיל', 'מס\' קו', 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']).forEach(function (t, c) { cell(R, c, t, sH); });
     var head = R; R++;
     var sOp = st.get({ b: 1, sz: 10, h: 'center' }), sLn = st.get({ b: 1, sz: 20, h: 'center' }), sOr = st.get({ b: 1, sz: 10, h: 'center' });
-    var sTm = st.get({ sz: 10 }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center' }), sNt = st.get({ sz: 9, color: 'C81E1E' });
+    // סדר השעות: משמאל לימין — תא בכיוון LTR, צמוד לשמאל
+    var sTm = M.tord === 'ltr' ? st.get({ sz: 10, h: 'left', ltr: 1 }) : st.get({ sz: 10 }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center' }), sNt = st.get({ sz: 9, color: 'C81E1E' });
     M.bands.forEach(function (b0) {
       // שורות וקווים שהוסרו בעריכה — לא בקובץ; פס בלי שורות — לא בקובץ
       var b = { label: b0.label, color: b0.color, rows: b0.rows.filter(function (r) { return !r.off; }) };
@@ -88,7 +89,7 @@ var LCXlsx = (function () {
         for (var k = 0; k < n; k++) {
           var r = b.rows[i + k], rr = R + k, lines = 1;
           cell(rr, 0, k ? '' : r.op, sOp);
-          cell(rr, 1, k ? '' : r.line, sLn);
+          cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', color: 'FFFFFF', fill: hexOf(r.color) }) : sLn);
           cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), sOr);
           comments.push({ ref: ref(2, rr), t: r.comment });
           var notes = [];

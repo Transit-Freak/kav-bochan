@@ -44,11 +44,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=28'), js('editor.js?v=10'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=29'), js('editor.js?v=10'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=28'], ['editor.js?v=10']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=29'], ['editor.js?v=10']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -80,7 +80,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" id="leafcss" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css?v=23">
-<link rel="stylesheet" id="slidecss" href="slides.css?v=21" media="print" onload="this.media='all'">
+<link rel="stylesheet" id="slidecss" href="slides.css?v=23" media="print" onload="this.media='all'">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -178,6 +178,10 @@
             <label class="fld"><span>כותרת</span><input type="text" id="bdtitle" maxlength="90" autocomplete="off"></label>
             <p class="hint">במצב עריכה: לוחצים על שורה בלוח ובוחרים "מחיקת השורה" או "מחיקת הקו". כל טקסט בלוח אפשר גם לשנות או למחוק.</p>
             <label class="fld"><span>עדכונים והערות <small>(לא חובה — מופיע בתחתית הלוח)</small></span><textarea id="bdnote" rows="2" maxlength="400"></textarea></label>
+          </div>
+          <div class="seg2" id="ttoseg" role="radiogroup" aria-label="סדר השעות">
+            <button type="button" role="radio" data-tto="ltr"><b>שעות משמאל לימין</b><small>06:00 06:30 07:00 →</small></button>
+            <button type="button" role="radio" data-tto="rtl"><b>שעות מימין לשמאל</b><small>← 07:00 06:30 06:00</small></button>
           </div>
           <div class="seg2" id="ttvseg" role="radiogroup" aria-label="כמה פרטים">
             <button type="button" role="radio" data-ttv="gen"><b>כללי</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
@@ -291,7 +295,7 @@
 </footer>
 
 <script src="common.js?v=7"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=32"></script>
 <script src="../a11y.js?v=20261118h" defer></script>
 </body>
 </html>

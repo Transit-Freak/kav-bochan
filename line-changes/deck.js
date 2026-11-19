@@ -272,14 +272,68 @@ var LCDeck = (function () {
     var lat0 = S[0][0], oxy = O.map(function (p) { return xy(p, lat0); });
     var bi = 0, bd = Infinity;
     S.forEach(function (p, i) { var x = dist(p, g.A.ll); if (x < bd) { bd = x; bi = i; } });
-    for (var i = bi; i < S.length; i++) if (distToLine(xy(S[i], lat0), oxy) > 40) return S[Math.max(bi, i - 1)];
+    // רק נקודה שעל קטע שמשתנה באמת (realRuns) — לא שרטוט מחדש של אותה דרך
+    var rn = []; realRuns(d, 'new').forEach(function (r) { rn = rn.concat(r); });
+    var ro = []; realRuns(d, 'old').forEach(function (r) { ro = ro.concat(r); });
+    for (var i = bi; i < S.length; i++) if (rn.indexOf(S[i]) >= 0 && distToLine(xy(S[i], lat0), oxy) > 40) return S[Math.max(bi, i - 1)];
     // המסלול החדש לא יוצא מהישן (למשל קו 999 ב-17.11: הישן נכנס לרכסים, והחדש פשוט נשאר על הכביש הראשי) —
     // המקום שבו הישן נפרד מהחדש
     var sxy = S.map(function (p) { return xy(p, lat0); }), oi = 0, od = Infinity;
     O.forEach(function (p, j) { var x = dist(p, g.A.ll); if (x < od) { od = x; oi = j; } });
-    for (var j = oi; j < O.length; j++) if (distToLine(xy(O[j], lat0), sxy) > 40) return O[Math.max(oi, j - 1)];
+    for (var j = oi; j < O.length; j++) if (ro.indexOf(O[j]) >= 0 && distToLine(xy(O[j], lat0), sxy) > 40) return O[Math.max(oi, j - 1)];
     return g.A.ll;
   }
+  /* קטע שמשתנה באמת, ולא שרטוט מחדש של אותה דרך (קו 971: כמה מטרים בכביש 4 ליד חדרה צוירו מחדש, והמפה התרחקה לכל הארץ):
+     הקטע נחשב רק אם הוא רחוק מהמסלול השני יותר מ-NOISE_DEV מ' לאורך יותר מ-NOISE_LEN מ' ברצף, או שיש בו תחנה שנוספה /
+     שבוטלה (עד STOP_NEAR מ' ממנו). השאר — אפור כמו המסלול שלא השתנה, ולא נכנס לגבולות המפה ולמקום שבו "כאן המסלול משתנה".
+     קטע שמתחיל ונגמר ליד קטע אמיתי בצד השני (עד PAIR_M מ') — גם אמיתי (הדרך הישנה מול החדשה). בחלופה חדשה / שבוטלה — בלי סינון.
+     d.rdr (מהבונה, כשיש) — לכל קטע: 'same' (אותם כבישים ב-OSM) או 'diff'; כשיש — הוא קובע (ותחנה שנוספה או בוטלה תמיד שינוי) */
+  var NOISE_DEV = 80, NOISE_LEN = 300, STOP_NEAR = 60, PAIR_M = 250;   // PAIR_M — קצוות של קטע ישן וחדש שהם אותו שינוי
+  function realRuns(d, side) {
+    if (!d._rr) {
+      var raw = { old: offRuns(d.old.shape, d.new.shape), 'new': offRuns(d.new.shape, d.old.shape) };
+      // חלופה חדשה / שבוטלה: הדרך של החלופה היא השינוי עצמו — כמו קודם, בלי סינון
+      if (d.var) d._rr = raw;
+      else {
+        var keep = function (sd) {
+          var b = sd === 'old' ? d.new.shape : d.old.shape, list = sd === 'old' ? d.removed : d.added;
+          var st = (sd === 'old' ? d.old : d.new).stops.filter(function (x) { return list.indexOf(x.code) >= 0; });
+          return raw[sd].map(function (r) {
+            if (st.length) {
+              var lat0 = r[0][0], rxy = r.map(function (p) { return xy(p, lat0); });
+              if (st.some(function (x) { return distToLine(xy(x.ll, lat0), rxy) <= STOP_NEAR; })) return true;
+            }
+            var flag = rdFlag(d, r);
+            if (flag) return flag === 'diff';
+            return devRuns(r, b, NOISE_DEV).some(function (m) { return m > NOISE_LEN; });
+          });
+        };
+        var k = { old: keep('old'), 'new': keep('new') };
+        // קטע שנפסל, אבל בצד השני יש קטע אמיתי שמתחיל ונגמר באותם מקומות (הדרך הישנה מול החדשה, למשל רחוב מקביל) — גם הוא אמיתי
+        var ends = function (r) { return [r[0], r[r.length - 1]]; };
+        var paired = function (r, sd) {
+          var o = sd === 'old' ? 'new' : 'old', e = ends(r);
+          return raw[o].some(function (q, i) {
+            if (!k[o][i]) return false;
+            var f = ends(q);
+            return (dist(e[0], f[0]) <= PAIR_M && dist(e[1], f[1]) <= PAIR_M) || (dist(e[0], f[1]) <= PAIR_M && dist(e[1], f[0]) <= PAIR_M);
+          });
+        };
+        var k2 = { old: raw.old.map(function (r, i) { return k.old[i] || paired(r, 'old'); }), 'new': raw['new'].map(function (r, i) { return k['new'][i] || paired(r, 'new'); }) };
+        d._rr = { old: raw.old.filter(function (r, i) { return k2.old[i]; }), 'new': raw['new'].filter(function (r, i) { return k2['new'][i]; }) };
+      }
+    }
+    return d._rr[side === 'old' ? 'old' : 'new'];
+  }
+  /* הסימון מהבונה לקטע (שלב 2): d.rdr = [[lat, lon, 'same'|'diff'], ...] — נקודת אמצע של כל קטע שונה ב-GTFS */
+  function rdFlag(d, r) {
+    if (!d.rdr || !d.rdr.length) return '';
+    var best = null, bd = 120;
+    d.rdr.forEach(function (f) { r.forEach(function (p) { var x = dist(p, [f[0], f[1]]); if (x < bd) { bd = x; best = f[2]; } }); });
+    return best || '';
+  }
+  /* נקודות על הקטעים שמשתנים באמת (לגבולות המפה כשאין סמנים) */
+  function chgPts(d) { var o = []; realRuns(d, 'old').concat(realRuns(d, 'new')).forEach(function (r) { o = o.concat(r); }); return o; }
   function runLen(r) { var m = 0; for (var i = 1; i < r.length; i++) m += dist(r[i - 1], r[i]); return m; }
   /* הקטע החדש של קו שמתארך: מהתחנה שבה הקו הסתיים עד היום ועד הסוף (או מההתחלה עד התחנה שבה הקו התחיל) — חותכים את
      המסלול החדש בנקודה הקרובה לתחנה, ולא לפי ההבדל בין השרטוטים (השרטוט הישן לא תמיד מגיע עד התחנה) */
@@ -329,12 +383,12 @@ var LCDeck = (function () {
     var oldSeg = !ar || r || segs.some(function (g) { return g.oldS.length && routeSeg(g); });
     // קטע חדש בירוק — רק אם יש כזה (במפת אזור: ליד התחנות של האזור)
     var apts = ar ? ar.rem.concat(ar.add).map(function (x) { return x.ll; }) : null;
-    var newSeg = offRuns(d.new.shape, d.old.shape).some(function (rn) { return !apts || rn.some(function (pt) { return apts.some(function (c) { return dist(c, pt) < 1500; }); }); });
+    var newSeg = realRuns(d, 'new').some(function (rn) { return !apts || rn.some(function (pt) { return apts.some(function (c) { return dist(c, pt) < 1500; }); }); });
     return '<div class="legend">' +
         (d.var === 'end' ? '<span><i class="sw old"></i>הדרך של הנסיעות שבוטלו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span><span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>' :
         d.var === 'new' ? '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span><span><i class="sw"></i>הדרך של הנסיעות החדשות (מ-' + E(LC.dm(start(d))) + ')</span>' :
         extOf(d) ? '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span><span><i class="sw"></i>הקטע החדש (מ-' + E(LC.dm(start(d))) + ')</span>' :
-          rerouted(d) ? (oldSeg && offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
+          rerouted(d) ? (oldSeg && realRuns(d, 'old').length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
           (allGreen(d) ? '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>'
             : '<span><i class="sw same"></i>המסלול שלא השתנה</span>' + (newSeg ? '<span><i class="sw"></i>קטע חדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '')) : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
@@ -809,7 +863,7 @@ var LCDeck = (function () {
      כשהשינויים בשני הכיוונים רחוקים זה מזה — עמוד שני עם מפה משלו (לא יותר משניים). */
   function changeCenter(d) {
     var pts = d._rem.concat(d._add).map(function (s) { return s.ll; }).concat(d.moved.map(function (m) { return m.ll; }));
-    if (!pts.length) pts = deviating(d.new.shape, d.old.shape).concat(deviating(d.old.shape, d.new.shape));
+    if (!pts.length) pts = chgPts(d);
     if (!pts.length) return null;
     return [pts.reduce(function (a, p) { return a + p[0]; }, 0) / pts.length, pts.reduce(function (a, p) { return a + p[1]; }, 0) / pts.length];
   }
@@ -2321,13 +2375,13 @@ var LCDeck = (function () {
     return { title: bdT('title', (ED.btitle || '').trim() || dflt), dflt: dflt, valid: valid, until: until, sub: bdT('sub', sub), subDflt: sub, home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (ED.bnote || '').trim() || (alts ? 'נסיעות באדום עוברות בדרך אחרת' : '')), contacts: contacts,
-      feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: ED.credit !== false };
+      feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: ED.credit !== false, tord: ED.tord || 'ltr' };
   }
   function bdRow(p, d, i, n, b) {
     var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
     var to = inter ? o[1] : d.t, city0 = cs[0] || o[0] || '';
     var stop = d.f + (d.fc ? ' (' + d.fc + ')' : ''), k = p.makat + '.' + d.dir;
-    return { p: p, d: d, key: k, first: i === 0, n: n, line: p.line, op: bdT('op:' + p.makat, p.op),
+    return { p: p, d: d, key: k, first: i === 0, n: n, line: p.line, op: bdT('op:' + p.makat, p.op), color: bdOpCol(p),
       origin: bdT(k + '|o', inter ? 'מ' + o[0] : d.f),
       stop: bdT(k + '|s', inter ? stop : (d.fc ? 'תחנה ' + d.fc : '')),
       toward: bdT(k + '|w', to ? 'לכיוון ' + to : ''),
@@ -2357,8 +2411,14 @@ var LCDeck = (function () {
       return '<span class="t num' + (e.a ? ' alt' : '') + '">' + e.t + (e.n > 1 ? '<bdi dir="ltr" class="xn">×' + e.n + '</bdi>' : '') + (e.part ? '<sup>' + E(e.part) + '</sup>' : '') + '</span>';
     }).join(' ') + '</span>' + nh + '</td>';
   }
+  /* צבע מספר הקו: הצבע של החברה (כמו בפסים), כהה מספיק לטקסט לבן — ניגודיות 4.5 לפחות */
+  function bdOpCol(p) {
+    var ag = String(agOf(p)), cs = COLORS[ag], base = cs ? cs[0] : PALETTE[(parseInt(ag, 10) || 0) % PALETTE.length], c = base, f = 1;
+    while (contrast(c, '#ffffff') < 4.5 && f > 0.2) { f -= 0.05; c = shade(base, f); }
+    return c;
+  }
   function bdLineCell(r, span) {
-    return '<td class="bl" rowspan="' + span + '"><span class="badge sm num">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op') + '>' + E(r.op) + '</small>' +
+    return '<td class="bl" rowspan="' + span + '"><span class="badge sm num" style="background:' + r.color + ';color:#fff">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op') + '>' + E(r.op) + '</small>' +
       (r.until ? '<small class="un">עד ' + E(LC.dm(r.until)) + '</small>' : '') + '</td>';
   }
   function bdRowHtml(r, lineSpan) {
@@ -2937,12 +2997,12 @@ var LCDeck = (function () {
     // הקטעים שמשתנים (האדום שהקו כבר לא נוסע בו, והירוק החדש) — כולם בתוך המפה; כשהמפה מחולקת לאזורים —
     // רק הקטעים שעוברים ליד התחנות של האזור הזה
     var core0 = marks.map(function (x) { return x.s.ll; }), chgRuns = [];
-    (d.var === 'new' ? [] : offRuns(d.old.shape, d.new.shape)).concat(extOf(d) ? extPart(d) : d.var === 'end' ? [] : offRuns(d.new.shape, d.old.shape)).forEach(function (r) {
+    (d.var === 'new' ? [] : realRuns(d, 'old')).concat(extOf(d) ? extPart(d) : d.var === 'end' ? [] : realRuns(d, 'new')).forEach(function (r) {
       if (m.show && !r.some(function (p) { return core0.some(function (c) { return dist(c, p) <= 1500; }); })) return;
       chgRuns.push(r);
       r.forEach(function (p) { focus.extend(p); });
     });
-    if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
+    if (!focus.isValid()) chgPts(d).forEach(function (p) { focus.extend(p); });
     if (!focus.isValid()) focus = all;
     map.fitBounds(focus, { paddingTopLeft: [PAD, PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
     // מפת ההתמצאות: בפינה שבה היא מסתירה הכי מעט ממה שמשתנה (סמנים, הקטע האדום והירוק). אם בכל הפינות היא
@@ -2983,7 +3043,7 @@ var LCDeck = (function () {
     tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     // רק הקטעים שהקו כבר לא נוסע בהם — לא מתחת לקו החדש, כדי שלא ייראה כאילו משהו בוטל במקום שהקו ממשיך לנסוע בו
-    if (!extOf(d) && d.var !== 'new') offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map); });
+    if (!extOf(d) && d.var !== 'new') realRuns(d, 'old').forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map); });
     // המסלול החדש בירוק; כשהדרך לא משתנה — כחול-אפור ניטרלי (רק התחנה משתנה). קו שמתארך: כל המסלול אפור, והקטע החדש בירוק
     var ext = extOf(d);
     // חלופה חדשה: מסלול הקו (שלא משתנה) אפור, והדרך של החלופה בירוק רק איפה שהיא שונה. חלופה שבוטלה: הדרך שנשארה אפורה
@@ -2991,7 +3051,7 @@ var LCDeck = (function () {
     // צבעי המסלול (ED.rc): 'chg' (ברירת המחדל) — המסלול שלא השתנה אפור-כחול, ורק הקטעים החדשים באמת בירוק;
     // 'all' — כל המסלול החדש בירוק (כמו קודם)
     if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: allGreen(d) && !d.var ? '#1f9152' : '#5f7d96', weight: 6, opacity: .92, interactive: false }).addTo(map);
-    if ((rerouted(d) && !ext && !allGreen(d) && d.var !== 'end') || d.var === 'new') offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
+    if ((rerouted(d) && !ext && !allGreen(d) && d.var !== 'end') || d.var === 'new') realRuns(d, 'new').forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
     if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
     var changed = {};
     d.added.concat(d.removed).forEach(function (c) { changed[c] = 1; });
@@ -3060,9 +3120,9 @@ var LCDeck = (function () {
         var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
         mini.fitBounds(all.extend(view), { padding: [10, 10] });
         tiles(mini).addTo(mini);
-        if (!ext) offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini); });
+        if (!ext) realRuns(d, 'old').forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini); });
         if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: allGreen(d) ? '#1f9152' : '#5f7d96', weight: 2.5, interactive: false }).addTo(mini);
-        if (rerouted(d) && !ext && !allGreen(d)) offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
+        if (rerouted(d) && !ext && !allGreen(d)) realRuns(d, 'new').forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
         if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
         L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
         // כשהמסלול ארוך המלבן קטן מאוד — עיגול צהוב סביבו כדי שיראו איפה זה
@@ -3181,7 +3241,7 @@ var LCDeck = (function () {
         note: old ? 'באדום — נסיעה שמתבטלת או שהשעה שלה משתנה' : ps.some(function (p) { return p.kind === 'timetable'; }) ? 'בירוק — נסיעה חדשה או בשעה חדשה' : '',
         legend: 'השעות הן שעות היציאה מהתחנה הראשונה · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה · לא פרסום רשמי',
         contacts: ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]]),
-        feed: ps.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', when: when };
+        feed: ps.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', when: when, tord: ED.tord || 'rtl' };
     } finally { ED = keep; }
   }
   function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
