@@ -1937,6 +1937,62 @@
       sri: 'sha384-Tha/42qsYmpYmQ07pX+nJzkKumO0BzKJxK/uzVc7xyBQxVCUgQBhQIG8L7vXK+9C' }
   ];
   var libsP = null;
+  /* PDF נגיש: מעל התמונה של כל שקף — שכבת טקסט בלתי נראית (אותו טקסט באותם מקומות), כדי שאפשר יהיה לחפש, לסמן ולהעתיק,
+     וקוראי מסך יקראו אותו. הגופן (Heebo, עם עברית) נטען רק כשמורידים PDF; בלי הגופן — PDF בלי שכבת הטקסט, כמו קודם */
+  var fontP = null;
+  function loadPdfFont() {
+    if (!fontP) fontP = fetch('fonts/Heebo-Regular.ttf').then(function (r) { if (!r.ok) throw new Error('font'); return r.arrayBuffer(); }).then(function (b) {
+      var u = new Uint8Array(b), s = '';
+      for (var i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+      return btoa(s);
+    }).catch(function () { fontP = null; return null; });
+    return fontP;
+  }
+  var NO_GLYPH = /[\u2190-\u21ff\u2700-\u27bf\u2600-\u26ff\ud800-\udfff\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;   // אין בגופן — לא נכנס לשכבת הטקסט
+  /* שורות הטקסט בשקף (s, בגודל מלא): המילים של כל בלוק (פסקה, תא, פריט ברשימה), מקובצות לשורות לפי המקום על המסך,
+     בסדר הקריאה (כמו ב-DOM). הכיוון — של הבלוק, כך שתא של שעות משמאל לימין נשאר משמאל לימין */
+  var TXT_BLOCK = 'p,li,td,th,h1,h2,h3,h4,dd,dt,figcaption,.tbox-t,.leaflet-tooltip,div';
+  function textRuns(s) {
+    var R = s.getBoundingClientRect(), lines = [], rg = document.createRange(), blocks = [];
+    var w = document.createTreeWalker(s, NodeFilter.SHOW_TEXT);
+    for (var t; (t = w.nextNode());) {
+      var v = t.nodeValue; if (!v || !v.trim()) continue;
+      var el = t.parentElement;
+      if (!el || el.closest('.noprint,.tbox-h,style,script,.leaflet-control-attribution,.leaflet-control-zoom')) continue;
+      var cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      var blk = el.closest(TXT_BLOCK) || s, bi = blocks.indexOf(blk);
+      if (bi < 0) { blocks.push(blk); bi = blocks.length - 1; }
+      var re = /\S+/g, m;
+      while ((m = re.exec(v))) {
+        rg.setStart(t, m.index); rg.setEnd(t, m.index + m[0].length);
+        var r = rg.getBoundingClientRect();
+        if (!r.width || !r.height || r.right < R.left || r.left > R.right || r.bottom < R.top || r.top > R.bottom) continue;
+        var line = null;
+        for (var k = lines.length - 1; k >= 0 && k >= lines.length - 40; k--) { var x = lines[k]; if (x.bi === bi && Math.abs(r.top - x.top) < r.height * 0.5) { line = x; break; } }
+        if (line) { line.words.push(m[0]); line.l = Math.min(line.l, r.left); line.r = Math.max(line.r, r.right); line.b = Math.max(line.b, r.bottom); }
+        else lines.push({ bi: bi, words: [m[0]], top: r.top, l: r.left, r: r.right, b: r.bottom, rtl: getComputedStyle(blk).direction === 'rtl' });
+      }
+    }
+    var out = lines;
+    // תמונות עם תיאור (alt) — התיאור במקום של התמונה
+    s.querySelectorAll('img[alt]').forEach(function (im) {
+      var a = (im.getAttribute('alt') || '').trim(), r = im.getBoundingClientRect(); if (!a || !r.width) return;
+      out.push({ words: [a], top: r.top, l: r.left, r: r.right, b: r.top + Math.min(r.height, 24), rtl: true });
+    });
+    return out.map(function (x) { return { t: x.words.join(' '), x: x.l - R.left, y: x.top - R.top, w: x.r - x.l, h: x.b - x.top, rtl: x.rtl }; });
+  }
+  function addTextLayer(pdf, runs) {
+    runs.forEach(function (r) {
+      var t = r.t.replace(NO_GLYPH, '').trim(); if (!t) return;
+      var pt = Math.max(2, r.h * 0.78 * 0.75);   // גובה השורה בפיקסלים → גודל הגופן בנקודות
+      pdf.setFontSize(pt);
+      var tw = pdf.getTextWidth(t); if (!tw) return;
+      try {
+        pdf.text(t, r.x, r.y + r.h * 0.8, { renderingMode: 'invisible', baseline: 'alphabetic', horizontalScale: Math.max(0.2, Math.min(5, r.w / tw)),
+          isInputVisual: false, isOutputVisual: true, isInputRtl: !!r.rtl, isOutputRtl: false });
+      } catch (e) {}
+    });
+  }
   function loadLibs() {
     if (!libsP) libsP = Promise.all(LIBS.map(function (l) {
       if (l.test()) return true;
@@ -2054,8 +2110,18 @@
       };
       var orient = PW > PH ? 'landscape' : 'portrait';
       var pdf = png ? null : new window.jspdf.jsPDF({ orientation: orient, unit: 'px', format: [PW, PH], hotfixes: ['px_scaling'], compress: true });
+      var txt = false;
+      if (pdf) {
+        // כותרת, שפה וכיוון קריאה לקוראי מסך ולתוכנות PDF
+        var ttl = LCDeck.deckTitle(curPages) || pdfName();
+        pdf.setProperties({ title: ttl, subject: ttl, author: 'מצגת לשינוי בקו · הקו הבוחן', creator: 'kavbochan.app', keywords: 'תחבורה ציבורית, שינוי בקו' });
+        try { if (pdf.setLanguage) pdf.setLanguage('he'); } catch (e) {}
+        try { pdf.viewerPreferences({ Direction: 'R2L', DisplayDocTitle: true }); } catch (e) {}
+      }
       // הגופנים מוטמעים פעם אחת לכל המצגת (במקום בכל שקף מחדש)
-      return timeout(H.getFontEmbedCSS($('deck'), opts), 10000).catch(function () { return ''; }).then(function (css) {
+      return Promise.all([timeout(H.getFontEmbedCSS($('deck'), opts), 10000).catch(function () { return ''; }), pdf ? timeout(loadPdfFont(), 10000) : null]).then(function (rs) {
+        var css = rs[0];
+        if (rs[1]) { try { pdf.addFileToVFS('Heebo-Regular.ttf', rs[1]); pdf.addFont('Heebo-Regular.ttf', 'Heebo', 'normal'); pdf.setFont('Heebo'); txt = true; } catch (e) { txt = false; } }
         if (css) opts.fontEmbedCSS = css;
         var i = 0;
         function next() {
@@ -2070,6 +2136,7 @@
             return Promise.race([H.toCanvas(s, opts), new Promise(function (res, rej) { setTimeout(function () { rej(new Error('slide timeout')); }, 30000); })]);
           };
           return (SAFARI ? shot().then(shot) : shot()).then(function (cv) {
+            var runs = txt ? textRuns(s) : null;   // לפני שהשקף חוזר למקומו (שם הוא מוקטן)
             home.insertBefore(s, after); cur = null;
             if (png) {
               return new Promise(function (res, rej) { cv.toBlob(function (b) { b ? res(b) : rej(new Error('png')); }, 'image/png'); }).then(function (b) {
@@ -2079,6 +2146,7 @@
             }
             if (i > 0) pdf.addPage([PW, PH], orient);
             pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PW, PH, undefined, 'FAST');
+            if (runs) addTextLayer(pdf, runs);
             cv.width = cv.height = 0;
             i++;
             return new Promise(function (r) { setTimeout(r, 0); }).then(next);   // לתת לדפדפן לצייר את ההתקדמות

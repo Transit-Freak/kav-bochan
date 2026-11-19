@@ -1778,8 +1778,8 @@ def summary_line(t):
 # לפי מפת הרחובות (OpenStreetMap, שירות המסלולים להולכי רגל של FOSSGIS). התוצאות נשמרות ב-data/walk.json
 # כדי שכל זוג תחנות יחושב פעם אחת בלבד. אם השירות לא זמין — אין שדה walk, והמצגת משתמשת בהערכה בקו אווירי.
 WALK_URL = os.environ.get('WALK_URL', 'https://routing.openstreetmap.de/routed-foot')
-WALK_CANDS = 4
-WALK_AIR_MAX = 1000   # מ' — מועמדת רחוקה יותר בקו אווירי לא נבדקת
+WALK_CANDS = 8
+WALK_AIR_MAX = 1300   # מ' — מועמדת רחוקה יותר בקו אווירי לא נבדקת
 WALK_MAX = 900        # מ' הליכה — מעבר לזה: "לא נמצאה תחנה חלופית קרובה של קו N במסלול החדש"
 WALK_BUDGET = int(os.environ.get('WALK_BUDGET', '1200'))   # שניות לכל הבקשות בריצה אחת (בקשה לוקחת כ-10 שניות); מה שלא הספיק — בלילה הבא
 
@@ -1857,11 +1857,16 @@ def add_walks(found, data):
                 except Exception as e:  # noqa: BLE001
                     fails += 1
                     print('הליכה: שגיאה', e, flush=True)
-            if any(k not in cache for k in keys):
-                continue   # לא חושב — בלי walk לתחנה הזו (המצגת משתמשת בהערכה)
-            for k in keys:
+            known = [(n, k) for n, k in zip(cands, keys) if k in cache]
+            for _, k in known:
                 used[k] = cache[k]
-            best = min(((cache[k], n) for n, k in zip(cands, keys) if cache[k] >= 0), default=None, key=lambda x: x[0])
+            best = min(((cache[k], n) for n, k in known if cache[k] >= 0), default=None, key=lambda x: x[0])
+            if len(known) < len(keys):
+                # חלק מהזוגות עוד לא חושבו (נגמר הזמן בריצה הזו) — מה שכבר ידוע, ואם אין — בלי walk (המצגת משתמשת בהערכה).
+                # "אין תחנה קרובה" — רק כשכל המועמדות נבדקו
+                if best and best[0] <= WALK_MAX:
+                    walk[code] = {'to': best[1][0], 'm': best[0]}
+                continue
             walk[code] = {'none': 1} if not best or best[0] > WALK_MAX else {'to': best[1][0], 'm': best[0]}
         if walk:
             f['walk'] = walk
