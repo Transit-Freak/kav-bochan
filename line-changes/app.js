@@ -1001,7 +1001,8 @@
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
   function tordOf() { return edits.tord === 'ltr' || edits.tord === 'rtl' ? edits.tord : edits.ttc === 'board' || (edits.tt && edits.tt.v === 'board') ? 'ltr' : 'rtl'; }
   function edOpts(form) {
-    return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
+    var tv = syncTv(curPages || []);
+    return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), tv: tv, ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages };
   }
@@ -1020,7 +1021,7 @@
       if (carry) saveEdits();
     }
     // נבחרו כל הקווים במקום (לו"ז עדכני) — "טבלה לפי יעד", עם שם המקום בכותרת
-    if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.ttc) edits.ttc = 'board'; if (!edits.bplace && wantBoard.nm) edits.bplace = wantBoard.nm; if (wantBoard.pl) edits.bpl = wantBoard.pl; saveEdits(); }
+    if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.tv && !edits.ttc) edits.tv = 'board'; if (!edits.bplace && wantBoard.nm) edits.bplace = wantBoard.nm; if (wantBoard.pl) edits.bpl = wantBoard.pl; saveEdits(); }
     wantBoard = null;
     var form = formOf();
     var base = LCDeck.build(pages, deckCity(pages), edOpts(form));
@@ -1143,6 +1144,33 @@
   /* לוח הזמנים (קו חדש ושינוי בלו"ז): כללי / מפורט, טבלה / טקסט — נשמר עם המצגת, כמו העיצוב */
   // לו"ז עדכני — ברירת המחדל: מפורט (כל השעות); הודעה על שינוי — כללי
   function ttOpts() { var t = edits.tt || {}, v = t.v || (curPages && curPages.length && curPages.every(function (p) { return p.kind === 'current'; }) ? 'det' : 'gen'); return { v: v === 'det' || v === 'board' ? v : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
+  /* "איך להציג את לוח הזמנים" — כרטיס אחד (edits.tv), בשני המצבים:
+     board — לוח מודעות (ברירת המחדל) · sum — תקציר (edits.tall — "להציג את כל השעות") · sep — טבלה לכל קו · comb — טבלה משולבת.
+     מהכרטיס נגזרות ההגדרות שהבונה קורא (edits.ttc בלו"ז עדכני, edits.tt ו-edits.ttper בהודעה על שינוי) — וההורדה לפי אותו כרטיס.
+     עריכות שנשמרו לפני הכרטיסים (ttc / tt.v / ttper) — מתורגמות לכרטיס המתאים */
+  var TVS = ['board', 'sum', 'sep', 'comb'];
+  function isCu(pages) { return !!(pages && pages.length && pages.every(function (p) { return p.kind === 'current'; })); }
+  function tvOld(cu) {
+    var v = edits.tt && edits.tt.v;
+    if (cu) {
+      if (edits.ttc === 'board') return 'board';
+      if (edits.ttc === 'sep') { if (v === 'gen') return 'sum'; return 'sep'; }
+      if (v === 'gen') return 'sum';
+      return v === 'det' ? 'comb' : '';
+    }
+    if (v === 'board') return 'board';
+    if (v === 'gen') return 'sum';
+    if (v === 'det') { if (edits.ttper === false) return 'comb'; edits.tall = true; return 'sum'; }
+    return '';
+  }
+  function syncTv(pages) {
+    var cu = isCu(pages);
+    if (TVS.indexOf(edits.tv) < 0) edits.tv = tvOld(cu) || 'board';
+    var tv = edits.tv === 'comb' && !LCDeck.combOk(pages) ? 'board' : edits.tv, det = tv === 'sep' || tv === 'comb' || (tv === 'sum' && edits.tall === true);
+    if (cu) { edits.ttc = tv === 'board' ? 'board' : tv === 'comb' ? undefined : 'sep'; edits.tt = { v: det ? 'det' : 'gen', f: 'table' }; edits.ttper = undefined; }
+    else { edits.ttc = undefined; edits.tt = { v: tv === 'board' ? 'board' : det ? 'det' : 'gen', f: 'table' }; edits.ttper = tv === 'comb' ? false : tv === 'sep' ? true : undefined; }
+    return tv;
+  }
   /* מפות מקורבות לתחנות — רק כשיש במצגת קו חדש או מבוטל. בלי בחירה: קו חדש — כן, קו מבוטל — לא (כמו ב-LCDeck) */
   function zmUi(pages) {
     var nk = pages.filter(function (p) { return p.kind === 'new' || p.kind === 'ended'; });
@@ -1184,36 +1212,29 @@
     edits.zm = b.getAttribute('data-zm'); saveEdits(); keepScroll(function () { render(curPages); });
   });
   function ttUi(pages) {
-    // שינוי קטן בלו"ז מוצג תמיד כטקסט — הבחירה מופיעה רק כשיש במצגת קו חדש או שינוי גדול יותר
-    var cu = pages.some(function (p) { return p.kind === 'current'; }), o = ttOpts();
-    var on = cu || pages.some(function (p) { return (p.kind === 'timetable' && !LCDeck.ttSmall(p)) || p.kind === 'new'; });
-    $('ttgrp').hidden = !on;
-    $('ttfseg').hidden = cu;
-    $('ttcseg').hidden = !cu;
-    // "טבלה לפי יעד" גם בהודעה על שינוי (ttv=board): הלוח החדש עם סימון מה שמשתנה
-    var cbd = !cu && o.v === 'board', bd = (cu && edits.ttc === 'board') || cbd;
-    $('bdopts').hidden = !bd; $('ttvseg').hidden = cu && bd;
-    if (!cu) $('ttfseg').hidden = cbd;
-    $('ttvseg').querySelector('[data-ttv="board"]').hidden = cu;
-    // ייצוא לאקסל: לו"ז עדכני (כל התצוגות), ובהודעה על שינוי — כשיש בה קו שהלו"ז שלו משתנה או קו חדש
-    var hasTt = cu || pages.some(LCDeck.ttCap);
+    // הכרטיסים מופיעים בכל מצגת עם לוח זמנים: לו"ז עדכני, שינוי בלו"ז (גם שינוי קטן של נסיעה אחת) וקו חדש
+    var cu = isCu(pages), tv = syncTv(pages), hasTt = cu || pages.some(LCDeck.ttCap);
+    $('ttgrp').hidden = !hasTt;
     ['xl', 'xl2'].forEach(function (id) { $(id).hidden = !hasTt; });
-    if (cu) {
-      var to = []; pages.forEach(function (p) { var d = (p.od || [])[1]; if (d && to.indexOf(d) < 0) to.push(d); });
-      $('ttcsub').textContent = to.length === 1 ? 'כל השעות ל' + to[0] + ' בטבלה אחת' : 'קווים לאותו יעד בטבלה אחת';
-      var tc = edits.ttc === 'sep' || edits.ttc === 'board' ? edits.ttc : 'comb';
-      $('ttcseg').querySelectorAll('[data-ttc]').forEach(function (b) { b.setAttribute('aria-checked', tc === b.getAttribute('data-ttc') ? 'true' : 'false'); });
-    }
+    if (!hasTt) return;
+    var cok = LCDeck.combOk(pages), bd = tv === 'board';
+    $('tvbsub').textContent = cu ? 'שורה לכל קו, עמודה לכל יום' : 'שורה לכל קו, עמודה לכל יום. מה שמשתנה מסומן בצבע';
+    var cb = $('tvcards').querySelector('[data-tv="comb"]');
+    cb.disabled = !cok;
+    $('tvcsub').textContent = cok ? 'כל השעות לאותו יעד יחד' : 'כל השעות לאותו יעד יחד. מופיע כשיש כמה קווים לאותו יעד';
+    $('tvcards').querySelectorAll('[data-tv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tv') === tv ? 'true' : 'false'); });
+    $('tallw').hidden = tv !== 'sum';
+    $('tall').checked = edits.tall === true;
+    $('bdopts').hidden = !bd;
+    // סדר השעות — בכל תצוגה עם רשימות שעות (לא בתקציר בלי "כל השעות")
+    $('ttow').hidden = tv === 'sum' && edits.tall !== true;
+    $('ttoseg').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === tordOf() ? 'true' : 'false'); });
     if (bd) {
-      {
-        var M = cu ? LCDeck.boardModel(pages, edOpts(formOf())) : LCDeck.chgBoardModel(pages, edOpts(formOf()));
-        $('bdtitle').placeholder = M.dflt;
-        if (document.activeElement !== $('bdtitle')) $('bdtitle').value = 'title' in edits.bd.t ? '' : edits.btitle || M.dflt;
-        if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
-        $('bdnote').placeholder = edits.bnote ? '' : M.note;
-      }
-    }
-    if (bd) {
+      var M = cu ? LCDeck.boardModel(pages, edOpts(formOf())) : LCDeck.chgBoardModel(pages, edOpts(formOf()));
+      $('bdtitle').placeholder = M.dflt;
+      if (document.activeElement !== $('bdtitle')) $('bdtitle').value = 'title' in edits.bd.t ? '' : edits.btitle || M.dflt;
+      if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
+      $('bdnote').placeholder = edits.bnote ? '' : M.note;
       // "להכניס ל-N עמודים" — רק בשלט A4; צפיפות ופיצול ימי חול — בכל הצורות
       $('bpgw').hidden = formOf() !== 'sign';
       var bpg = String(+edits.bpages || 0), fit = LCDeck.boardFit && LCDeck.boardFit();
@@ -1223,12 +1244,6 @@
       $('bdnseg').querySelectorAll('[data-bdn]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bdn') === (edits.bdense ? '1' : '0') ? 'true' : 'false'); });
       $('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
     }
-    var multi = !cu && formOf() === 'deck' && pages.filter(function (p) { return (p.kind === 'timetable' || p.kind === 'new') && p.dirs.some(function (d) { return d.tt && d.tt.length; }); }).length > 1;
-    $('ttperw').hidden = !multi || cbd;
-    $('ttper').checked = edits.ttper !== false;
-    $('ttgrp').querySelectorAll('[data-ttv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttv') === o.v ? 'true' : 'false'); });
-    $('ttgrp').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === tordOf() ? 'true' : 'false'); });
-    $('ttgrp').querySelectorAll('[data-ttf]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttf') === o.f ? 'true' : 'false'); });
   }
   /* הכותרת וההערות של "טבלה לפי יעד" — נשמרות עם המצגת; הלוח נבנה מחדש אחרי הפסקה קצרה בהקלדה */
   var bdT = 0;
@@ -1240,7 +1255,7 @@
       saveEdits(); clearTimeout(bdT); bdT = setTimeout(function () { keepScroll(function () { render(curPages); }); }, 450);
     });
   });
-  $('ttper').addEventListener('change', function () { edits.ttper = this.checked; saveEdits(); keepScroll(function () { render(curPages); }); });
+  $('tall').addEventListener('change', function () { edits.tall = this.checked || undefined; saveEdits(); keepScroll(function () { render(curPages); }); });
   $('ttgrp').addEventListener('click', function (ev) {
     var to = ev.target.closest('[data-tto]');
     if (to) { edits.tord = to.getAttribute('data-tto'); saveEdits(); keepScroll(function () { render(curPages); }); return; }
@@ -1251,12 +1266,9 @@
       else edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); keepScroll(function () { render(curPages); }); return;
     }
-    var c = ev.target.closest('[data-ttc]');
-    if (c) { var v = c.getAttribute('data-ttc'); edits.ttc = v === 'sep' || v === 'board' ? v : undefined; saveEdits(); keepScroll(function () { render(curPages); }); return; }
-    var b = ev.target.closest('[data-ttv],[data-ttf]'); if (!b) return;
-    var o = ttOpts();
-    if (b.hasAttribute('data-ttv')) o.v = b.getAttribute('data-ttv'); else o.f = b.getAttribute('data-ttf');
-    edits.tt = o; saveEdits(); keepScroll(function () { render(curPages); });
+    var c = ev.target.closest('[data-tv]');
+    if (!c || c.disabled) return;
+    edits.tv = c.getAttribute('data-tv'); saveEdits(); keepScroll(function () { render(curPages); });
   });
 
   /* צורה: מצגת (16:9) · שלט להדפסה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
@@ -1620,7 +1632,7 @@
     var b = $('resetall');
     if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
-    edits = normEdits({ look: edits.look, form: edits.form, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace, bpl: edits.bpl }); saveEdits(); render(curPages);
+    edits = normEdits({ look: edits.look, form: edits.form, tv: edits.tv, tall: edits.tall, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace, bpl: edits.bpl }); saveEdits(); render(curPages);
   });
 
   /* ---------- תמונות ----------
@@ -2248,16 +2260,36 @@
     dlMsg('מכין את קובץ האקסל…');
     var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
     xlLib().then(function () {
-      var o = edOpts(formOf()), blob, nm;
+      var o = edOpts(formOf()), tv = o.tv, blob, nm;
       if (cu.length) {
-        // לו"ז עדכני — בכל תצוגה אותו קובץ: שורה לכל קו וכיוון, עמודה לכל קבוצת ימים, ועמודה לחג כשיש
+        // לו"ז עדכני: שורה לכל קו וכיוון, עמודה לכל קבוצת ימים, ועמודה לחג כשיש — לפי הכרטיס:
+        // לוח מודעות — גיליון אחד לכל הקווים; טבלה משולבת — גיליון לכל יעד; תקציר וטבלה לכל קו — גיליון לכל קו
         var M = LCDeck.boardModel(cu, o, { hol: true });
         nm = fileName('לוח-זמנים-' + (edits.bplace || (cu.length <= 3 ? 'קו-' + cu.map(function (p) { return p.line; }).join('-') : M.home)) + '-' + (M.valid || LC.todayIso()));
-        blob = LCXlsx.board(M);
+        if (tv === 'board' || cu.length === 1) blob = LCXlsx.board(M);
+        else {
+          var gs = [], by = {}, used = {};
+          cu.forEach(function (p) {
+            var od = p.od || [], k = tv === 'comb' && od[0] && od[1] && od[0] !== od[1] ? [od[0], od[1]].sort().join('|') : p.id;
+            if (!by[k]) gs.push(by[k] = []);
+            by[k].push(p);
+          });
+          blob = LCXlsx.book(gs.map(function (g) {
+            var od = g[0].od || [], name = (g.length > 1 ? od.filter(Boolean).join('-') : 'קו ' + g[0].line + (od[1] ? ' ' + od[1] : '')).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 28).trim() || 'לו״ז', n = name, i = 2;
+            while (used[n]) n = name.slice(0, 25) + ' ' + i++;
+            used[n] = 1;
+            return [LCDeck.boardModel(g, o, { hol: true }), n];
+          }));
+        }
+      } else if (tv === 'board') {
+        // הודעה על שינוי, לוח מודעות — הלוח החדש עם אותם סימונים כמו בשקף (ירוק — חדש או שונה, אדום מחוק — בוטל)
+        var B = LCDeck.chgBoardModel(tt, o);
+        if (!B.when) B.when = B.valid;
+        nm = fileName('לוח-מודעות-קו-' + tt.map(function (p) { return p.line; }).slice(0, 4).join('-') + '-מ-' + (B.when || LC.todayIso()));
+        blob = LCXlsx.book([[B, 'לוח מודעות']]);
       } else {
-        // הודעה על שינוי: הלו"ז החדש מיום השינוי, ובגיליון שני — הלוח הקודם (כשהשקפים מראים לפני ואחרי).
-        // "טבלה לפי יעד" — הלוח החדש עם אותם סימונים כמו בשקף (ירוק — חדש או שונה, אדום מחוק — בוטל)
-        var N = ttOpts().v === 'board' ? LCDeck.chgBoardModel(tt, o) : LCDeck.chgModel(tt, o, false), sheets = [[N, 'לו״ז חדש']];
+        // הודעה על שינוי: הלו"ז החדש מיום השינוי, ובגיליון שני — הלוח הקודם
+        var N = LCDeck.chgModel(tt, o, false), sheets = [[N, 'לו״ז חדש']];
         if (!N.when) N.when = N.valid;
         if (LCDeck.hasOld(tt)) sheets.push([LCDeck.chgModel(tt, o, true), 'הלו״ז הקודם']);
         nm = fileName('לו״ז-חדש-קו-' + tt.map(function (p) { return p.line; }).slice(0, 4).join('-') + '-מ-' + (N.when || LC.todayIso()));

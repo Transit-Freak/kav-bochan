@@ -46,11 +46,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=35'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=36'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=35'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=36'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -81,8 +81,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" id="leafcss" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=26">
-<link rel="stylesheet" id="slidecss" href="slides.css?v=28" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" id="slidecss" href="slides.css?v=29" media="print" onload="this.media='all'">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -169,50 +169,55 @@
         <div class="kinds" id="kinds"></div>
       </div>
       <div class="group" id="ttgrp" hidden>
-        <span class="flabel">לוח הזמנים</span>
-        <div class="segs2">
-          <div class="seg2" id="ttcseg" role="radiogroup" aria-label="קווים לאותו יעד" hidden>
-            <button type="button" role="radio" data-ttc="comb"><b>משולב לפי יעד</b><small id="ttcsub">כל השעות לאותו יעד בטבלה אחת</small></button>
-            <button type="button" role="radio" data-ttc="sep"><b>כל קו לחוד</b><small>טבלה נפרדת לכל קו</small></button>
-            <button type="button" role="radio" data-ttc="board"><b>טבלה לפי יעד</b><small>כמו לוח מודעות: שורה לכל קו וכיוון, עמודה לכל יום</small></button>
-          </div>
+        <h3 class="tvh">איך להציג את לוח הזמנים</h3>
+        <p class="hint">ההורדה ל-PDF ולאקסל תהיה לפי מה שתבחרו כאן</p>
+        <div class="tvcards" id="tvcards" role="radiogroup" aria-label="איך להציג את לוח הזמנים">
+          <button type="button" role="radio" class="tvc" data-tv="board"><span class="tvstar">מומלץ</span>
+            <span class="tvth th-bd" aria-hidden="true"><i class="bn"></i><span class="r"><i class="n"></i><i></i><i class="g"></i><i></i></span><span class="r"><i class="n"></i><i class="x"></i><i></i><i></i></span><i class="bn o"></i><span class="r"><i class="n"></i><i></i><i></i><i class="g"></i></span></span>
+            <b>לוח מודעות</b><small id="tvbsub">שורה לכל קו, עמודה לכל יום. מה שמשתנה מסומן בצבע</small></button>
+          <button type="button" role="radio" class="tvc" data-tv="sum">
+            <span class="tvth th-sm" aria-hidden="true"><i class="hb"></i><i></i><i style="width:70%"></i><i style="width:55%"></i></span>
+            <b>תקציר</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
+          <button type="button" role="radio" class="tvc" data-tv="sep">
+            <span class="tvth th-sp" aria-hidden="true"><span><i class="h"></i><i></i><i></i><i></i></span><span><i class="h"></i><i></i><i></i><i></i></span></span>
+            <b>טבלה לכל קו</b><small>כל קו בטבלה משלו, כל השעות</small></button>
+          <button type="button" role="radio" class="tvc" data-tv="comb">
+            <span class="tvth th-cb" aria-hidden="true"><i class="h"></i><i></i><i></i><i></i><i></i></span>
+            <b>טבלה משולבת</b><small id="tvcsub">כל השעות לאותו יעד יחד</small></button>
+        </div>
+        <label class="credit-opt" id="tallw" hidden><input type="checkbox" id="tall"> <span>להציג את כל השעות</span></label>
+        <div class="tvopts" id="tvopts">
           <div class="bdopts" id="bdopts" hidden>
+            <h4 class="tvsh">אפשרויות ללוח המודעות</h4>
             <label class="fld"><span>כותרת</span><input type="text" id="bdtitle" maxlength="90" autocomplete="off"></label>
             <p class="hint">במצב עריכה: לוחצים על שורה בלוח ובוחרים "מחיקת השורה" או "מחיקת הקו". כל טקסט בלוח אפשר גם לשנות או למחוק.</p>
             <label class="fld"><span>עדכונים והערות <small>(לא חובה — מופיע בתחתית הלוח)</small></span><textarea id="bdnote" rows="2" maxlength="400"></textarea></label>
-            <div id="bpgw"><span class="flabel sm">להכניס ל:</span>
-              <div class="seg2" id="bpgseg" role="radiogroup" aria-label="כמה עמודים">
+            <span class="flabel sm">צפיפות</span>
+            <div class="seg2 tvseg" id="bdnseg" role="radiogroup" aria-label="צפיפות">
+              <button type="button" role="radio" data-bdn="0"><b>רגילה</b></button>
+              <button type="button" role="radio" data-bdn="1"><b>צפופה</b></button>
+            </div>
+            <div id="bpgw"><span class="flabel sm">להכניס ל־ (בשלט A4)</span>
+              <div class="seg2 tvseg" id="bpgseg" role="radiogroup" aria-label="כמה עמודים">
                 <button type="button" role="radio" data-bpg="1"><b>עמוד אחד</b></button>
                 <button type="button" role="radio" data-bpg="2"><b>שני עמודים</b></button>
                 <button type="button" role="radio" data-bpg="0"><b>כמה שצריך</b></button>
               </div>
               <p class="hint bdneed" id="bdneed" role="status" hidden></p>
             </div>
-            <span class="flabel sm">צפיפות</span>
-            <div class="seg2" id="bdnseg" role="radiogroup" aria-label="צפיפות">
-              <button type="button" role="radio" data-bdn="0"><b>רגילה</b></button>
-              <button type="button" role="radio" data-bdn="1"><b>צפופה</b><small>שורות צרות יותר — יותר קווים בעמוד</small></button>
-            </div>
             <span class="flabel sm">פיצול ימי חול</span>
-            <div class="seg2" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
-              <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b><small>יום עם לו״ז אחר (למשל חמישי) — בעמודה משלו</small></button>
-              <button type="button" role="radio" data-bsp="no"><b>לא</b><small>עמודה אחת לימים א׳–ה׳</small></button>
+            <div class="seg2 tvseg" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
+              <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
+              <button type="button" role="radio" data-bsp="no"><b>לא</b></button>
             </div>
           </div>
-          <div class="seg2" id="ttoseg" role="radiogroup" aria-label="סדר השעות">
-            <button type="button" role="radio" data-tto="ltr"><b>שעות משמאל לימין</b><small>06:00 06:30 07:00 →</small></button>
-            <button type="button" role="radio" data-tto="rtl"><b>שעות מימין לשמאל</b><small>← 07:00 06:30 06:00</small></button>
+          <div id="ttow" hidden>
+            <span class="flabel sm">סדר השעות</span>
+            <div class="seg2 tvseg" id="ttoseg" role="radiogroup" aria-label="סדר השעות">
+              <button type="button" role="radio" data-tto="ltr"><b>משמאל לימין</b></button>
+              <button type="button" role="radio" data-tto="rtl"><b>מימין לשמאל</b></button>
+            </div>
           </div>
-          <div class="seg2" id="ttvseg" role="radiogroup" aria-label="כמה פרטים">
-            <button type="button" role="radio" data-ttv="gen"><b>כללי</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
-            <button type="button" role="radio" data-ttv="det"><b>מפורט</b><small>כל שעות היציאה</small></button>
-            <button type="button" role="radio" data-ttv="board"><b>טבלה לפי יעד</b><small>כמו לוח מודעות, עם סימון מה שמשתנה</small></button>
-          </div>
-          <div class="seg2" id="ttfseg" role="radiogroup" aria-label="איך להציג">
-            <button type="button" role="radio" data-ttf="table"><b>טבלה</b></button>
-            <button type="button" role="radio" data-ttf="text"><b>טקסט</b></button>
-          </div>
-          <label class="credit-opt" id="ttperw" hidden><input type="checkbox" id="ttper"> <span>גם שקף נפרד לכל קו</span></label>
         </div>
       </div>
       <div class="group" id="rcgrp" hidden>
@@ -316,7 +321,7 @@
 </footer>
 
 <script src="common.js?v=7"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>
