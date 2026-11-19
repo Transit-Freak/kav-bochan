@@ -5,8 +5,6 @@ name: line-changes-tests
 # עדכון התמונה-במילים אחרי שינוי מכוון: tests/line-changes/README.md
 
 on:
-  push:
-    branches: [claude/lc-tests]   # זמני — לבדיקה של ה-workflow עצמו, יוסר
   pull_request:
     paths:
       - 'line-changes/**'
