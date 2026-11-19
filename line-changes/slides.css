@@ -248,7 +248,11 @@
 /* ---- תמונה על שקף: מיקום וגודל באחוזים מהשקף; הידיות רק במצב עריכה ---- */
 .slide .ibox{position:absolute;z-index:690;margin:0;padding:0}
 .slide .ibox img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-select:none}
-.ibox-x,.ibox-r{display:none}
+.ibox-x,.ibox-r,.ibox-a{display:none}
+/* "תיאור" — כפתור לתיאור התמונה לקוראי מסך, בפינה העליונה, באותו גודל על המסך כמו הידיות */
+.editing .slide .ibox-a{display:block;position:absolute;top:0;right:0;transform-origin:top right;transform:scale(var(--ik,1));height:40px;padding:0 12px;border-radius:20px;border:3px solid #fff;
+  background:#13201b;color:#fff;font:800 15px/1 'Heebo',sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer}
+@media print{.ibox-a{display:none!important}}
 .editing .slide .ibox{cursor:move;touch-action:none;outline:calc(2px * var(--ik,1)) dashed rgba(31,95,209,.7);outline-offset:calc(2px * var(--ik,1))}
 .editing .slide .ibox:focus{outline:calc(3px * var(--ik,1)) solid #1f5fd1}
 /* הידיות בפינות, בתוך התמונה (כדי שלא ייחתכו בקצה השקף), בגודל קבוע על המסך (40px), גם כשהשקף מוקטן: --ik = 1 / ההקטנה של השקף */

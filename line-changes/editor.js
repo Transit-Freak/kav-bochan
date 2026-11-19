@@ -157,11 +157,13 @@ var LCEdit = (function () {
     d.className = 'ibox';
     d.setAttribute('data-ibox', b.id);
     d.setAttribute('role', 'group');
-    d.setAttribute('aria-label', 'תמונה בשקף. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה');
+    d.setAttribute('aria-label', 'תמונה בשקף' + (b.alt ? ': ' + b.alt : '') + '. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה');
     d.style.left = x + '%'; d.style.top = y + '%'; d.style.width = w + '%'; d.style.aspectRatio = String(b.r);
     d.innerHTML = '<img alt="" draggable="false"><button type="button" class="ibox-x noprint" data-act="imgdel" aria-label="מחיקת התמונה" title="מחיקת התמונה">✕</button>' +
+      '<button type="button" class="ibox-a noprint" data-act="imgalt" aria-label="תיאור התמונה לקוראי מסך" title="תיאור התמונה">תיאור</button>' +
       '<span class="ibox-r noprint" aria-hidden="true" title="שינוי גודל"></span>';
     d.querySelector('img').src = src;
+    d.querySelector('img').alt = b.alt || '';
     return d;
   }
 

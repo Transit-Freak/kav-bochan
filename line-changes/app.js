@@ -994,7 +994,7 @@
   // שקף תמונה: התמונה על כל השקף — ממלאת אותו (cover) או כולה בתוכו (contain)
   function imgSlide(x) {
     return { id: x.id, label: 'שקף תמונה', custom: true, img: true, fit: x.fit === 'contain' ? 'contain' : 'cover',
-      html: '<div class="s-img" data-fit="' + (x.fit === 'contain' ? 'contain' : 'cover') + '"><img alt="" src="' + E(getImg(x.img)) + '"></div>' };
+      html: '<div class="s-img" data-fit="' + (x.fit === 'contain' ? 'contain' : 'cover') + '"><img alt="' + E(x.alt || '') + '" src="' + E(getImg(x.img)) + '"></div>' };
   }
   function xSlide(x, pages) { return x.img ? imgSlide(x) : textSlide(x, pages); }
   // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
@@ -1054,6 +1054,7 @@
           // מפה: הגדלה, הקטנה ואיפוס — בשורה הזו, לא על המפה (גרירה וצביטה — על המפה עצמה)
           (s.map ? '<button type="button" data-act="mzin" aria-label="הגדלת המפה">הגדלה +</button><button type="button" data-act="mzout" aria-label="הקטנת המפה">הקטנה −</button>' +
             '<button type="button" data-act="mreset">איפוס מפה</button>' : '') +
+          (s.img ? '<button type="button" data-act="imgalt">תיאור התמונה</button>' : '') +
           (s.img ? '<button type="button" data-act="fit" aria-pressed="' + (s.fit === 'contain' ? 'true' : 'false') + '">' + (s.fit === 'contain' ? 'כל התמונה בשקף' : 'התמונה ממלאת את השקף') + '</button>' : '') +
           '<button type="button" data-act="' + (s.custom ? 'xdel' : 'off') + '">' + (s.custom ? 'מחיקת השקף' : off ? 'להחזיר את השקף' : 'לא לכלול את השקף') + '</button></div>' +
         '<div class="sframe" data-id="' + E(s.id) + '"><div class="slide" aria-label="' + E(s.label) + '">' + s.html + '</div>' +
@@ -1602,21 +1603,89 @@
   /* ---------- תמונות ----------
      התמונה נשארת במחשב או בטלפון: נקראת מהקובץ (או מההדבקה), מוקטנת על canvas לעד 1600 פיקסלים בצד הארוך
      (JPEG, או PNG כשיש בה שקיפות) — כך ה-PDF נשאר קטן. לא עולה לשום מקום.
-     התמונות עצמן בזיכרון וב-sessionStorage (אם יש מקום); במצגת (edits.imgs, xslides) נשמר רק המיקום והמזהה */
-  var IMGS = {}, MAXPX = 1600;
-  function getImg(id) {
-    if (IMGS[id]) return IMGS[id];
-    try { var v = sessionStorage.getItem('lc-img:' + id); if (v) IMGS[id] = v; return v || ''; } catch (e) { return ''; }
+     התמונות עצמן בזיכרון וב-IndexedDB (נשארות גם אחרי סגירת הלשונית, כמו העריכות ב-localStorage);
+     במצגת (edits.imgs, xslides) נשמר רק המיקום, המזהה והתיאור. תמונות שאף מצגת שמורה לא משתמשת בהן — נמחקות בטעינה */
+  var IMGS = {}, MAXPX = 1600, IDB = null;
+  function idb() {
+    if (IDB) return IDB;
+    IDB = new Promise(function (res, rej) {
+      try {
+        var rq = indexedDB.open('lc-imgs', 1);
+        rq.onupgradeneeded = function () { rq.result.createObjectStore('img'); };
+        rq.onsuccess = function () { res(rq.result); };
+        rq.onerror = function () { rej(rq.error); };
+        rq.onblocked = function () { rej(new Error('blocked')); };
+      } catch (e) { rej(e); }
+    });
+    IDB.catch(function () {});
+    return IDB;
   }
+  function idbDo(mode, fn) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction('img', mode), st = tx.objectStore('img'), out = fn(st);
+        tx.oncomplete = function () { res(out && out.result !== undefined ? out.result : out); };
+        tx.onerror = tx.onabort = function () { rej(tx.error || new Error('idb')); };
+      });
+    });
+  }
+  function getImg(id) { return IMGS[id] || ''; }
   function putImg(id, url) {
     IMGS[id] = url;
-    try { sessionStorage.setItem('lc-img:' + id, url); } catch (e) {}   // גדול מדי — נשאר רק בזיכרון
+    return idbDo('readwrite', function (st) { st.put(url, id); }).catch(function (e) {
+      imgMsg(e && e.name === 'QuotaExceededError' ? 'אין מספיק מקום בדפדפן לשמור את התמונה — היא תישאר רק עד שהלשונית תיסגר.' : 'לא הצלחנו לשמור את התמונה בדפדפן — היא תישאר רק עד שהלשונית תיסגר.');
+    });
   }
-  function clearImgs() {
-    IMGS = {};
+  /* כל מזהי התמונות שמצגות שמורות (localStorage) משתמשות בהן */
+  function usedImgs() {
+    var used = {};
     try {
-      for (var i = sessionStorage.length - 1; i >= 0; i--) { var k = sessionStorage.key(i); if (k && k.indexOf('lc-img:') === 0) sessionStorage.removeItem(k); }
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i); if (!k || k.indexOf('lc-ed2:') !== 0) continue;
+        var e = JSON.parse(localStorage.getItem(k) || 'null') || {};
+        Object.keys(e.imgs || {}).forEach(function (sid) { (e.imgs[sid] || []).forEach(function (b) { if (b && b.img) used[b.img] = 1; }); });
+        (e.xslides || []).forEach(function (x) { if (x && x.img) used[x.img] = 1; });
+      }
     } catch (e) {}
+    if (edits) { Object.keys(edits.imgs || {}).forEach(function (sid) { (edits.imgs[sid] || []).forEach(function (b) { used[b.img] = 1; }); }); (edits.xslides || []).forEach(function (x) { if (x.img) used[x.img] = 1; }); }
+    return used;
+  }
+  /* בטעינה: תמונות מ-sessionStorage (גרסה קודמת) עוברות ל-IndexedDB, הכול נטען לזיכרון, ומה שלא בשימוש — נמחק */
+  var imgsReady = (function () {
+    var moved = {};
+    try {
+      for (var i = sessionStorage.length - 1; i >= 0; i--) {
+        var k = sessionStorage.key(i); if (k && k.indexOf('lc-img:') === 0) { moved[k.slice(7)] = sessionStorage.getItem(k); }
+      }
+    } catch (e) {}
+    Object.keys(moved).forEach(function (id) { IMGS[id] = moved[id]; });
+    if (!window.indexedDB) return Promise.resolve();
+    return idbDo('readwrite', function (st) { Object.keys(moved).forEach(function (id) { st.put(moved[id], id); }); }).then(function () {
+      try { Object.keys(moved).forEach(function (id) { sessionStorage.removeItem('lc-img:' + id); }); } catch (e) {}
+      var all = {};
+      return idbDo('readonly', function (st) {
+        var rq = st.openCursor();
+        rq.onsuccess = function () { var c = rq.result; if (c) { all[c.key] = c.value; c.continue(); } };
+      }).then(function () { return all; });
+    }).then(function (all) {
+      var used = usedImgs(), drop = Object.keys(all).filter(function (id) { return !used[id]; });
+      Object.keys(all).forEach(function (id) { if (used[id] && !IMGS[id]) IMGS[id] = all[id]; });
+      if (drop.length) return idbDo('readwrite', function (st) { drop.forEach(function (id) { st.delete(id); }); });
+    }).catch(function () {}).then(function () {
+      // התמונות הגיעו אחרי הציור הראשון — מציירים שוב את השקפים שיש בהם תמונות
+      if (curPages && slides && slides.length && Object.keys(IMGS).length) keepScroll(function () { render(curPages); });
+    });
+  })();
+  function clearImgs() {
+    // "איפוס": המצגת הזו נמחקה מ-localStorage; תמונות שאף מצגת שמורה לא משתמשת בהן — נמחקות
+    setTimeout(function () {
+      var used = usedImgs(), drop = Object.keys(IMGS).filter(function (id) { return !used[id]; });
+      drop.forEach(function (id) { delete IMGS[id]; });
+      if (window.indexedDB) idbDo('readwrite', function (st) {
+        var rq = st.openCursor();
+        rq.onsuccess = function () { var c = rq.result; if (c) { if (!used[c.key]) c.delete(); c.continue(); } };
+      }).catch(function () {});
+    }, 0);
   }
   function readImage(file) {
     return new Promise(function (res, rej) {
@@ -1680,6 +1749,7 @@
         if (!editMode) setEdit(true);
         saveEdits(); keepScroll(function () { render(curPages); });
         imgMsg('נוסף שקף עם התמונה');
+        imgAlt(nid, null);
         return;
       }
       var D = dims(), port = D.h > D.w;
@@ -1694,6 +1764,7 @@
       var el = frameOf(sid).querySelector('.ibox[data-ibox="' + CSS.escape(iid) + '"]');
       if (el) { el.setAttribute('tabindex', '0'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
       imgMsg('התמונה נוספה. גוררים כדי להזיז, והעיגול הכחול משנה את הגודל.');
+      imgAlt(sid, iid);
     }).catch(function () { imgMsg('לא הצלחנו לקרוא את התמונה. נסו קובץ JPG או PNG.'); });
   }
   var picker = document.createElement('input');
@@ -1715,8 +1786,36 @@
     if (el) el.remove();
     imgMsg('התמונה נמחקה');
   }
+  /* תיאור התמונה (alt) לקוראי מסך: שדה רשות אחרי ההוספה, ואפשר לשנות במצב עריכה ("תיאור" על התמונה / "תיאור התמונה" בשקף תמונה).
+     ריק — התמונה דקורטיבית (alt="") */
+  function altDlg(cur, save) {
+    var old = document.querySelector('.altdlg'); if (old) old.remove();
+    var back = document.activeElement;
+    var box = document.createElement('div');
+    box.className = 'altdlg noprint'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-labelledby', 'altdlg-l');
+    box.innerHTML = '<label id="altdlg-l" for="altdlg-i">תיאור התמונה (לקוראי מסך)</label>' +
+      '<input id="altdlg-i" type="text" dir="auto" maxlength="300" placeholder="למשל: מפת השינוי בתחנה המרכזית">' +
+      '<p class="ad-h">רשות. בלי תיאור — קוראי מסך ידלגו על התמונה.</p>' +
+      '<div class="tw-b"><button type="button" class="btn" data-ad="ok">שמירה</button><button type="button" class="lnk" data-ad="no">בלי תיאור</button></div>';
+    document.body.appendChild(box);
+    var inp = box.querySelector('input'); inp.value = cur || ''; inp.focus();
+    var done = function (v) { box.remove(); if (v !== null) save(v); if (back && back.focus) try { back.focus({ preventScroll: true }); } catch (e) {} };
+    box.addEventListener('click', function (ev) { var b = ev.target.closest('[data-ad]'); if (!b) return; done(b.getAttribute('data-ad') === 'ok' ? inp.value.trim() : ''); });
+    box.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); done(inp.value.trim()); } else if (ev.key === 'Escape') done(null); });
+  }
+  function imgAlt(sid, id) {
+    var b = id ? findImg(sid, id) : edits.xslides.filter(function (x) { return x.id === sid; })[0];
+    if (!b) return;
+    altDlg(b.alt, function (v) {
+      if (v) b.alt = v; else delete b.alt;
+      saveEdits();
+      if (id) drawImgs(sid); else keepScroll(function () { render(curPages); });
+      imgMsg(v ? 'התיאור נשמר' : 'התמונה בלי תיאור');
+    });
+  }
   // פעולות התמונות בסרגל של השקף. מחזיר true אם הפעולה טופלה כאן
   function imgAct(act, sid, b) {
+    if (act === 'imgalt') { var ib0 = b.closest('.ibox'); imgAlt(ib0 ? sidOf(ib0) : sid, ib0 ? ib0.getAttribute('data-ibox') : null); return true; }
     if (act === 'img' || act === 'ximg') { pickFor = { sid: sid, slide: act === 'ximg' }; picker.click(); return true; }
     if (act === 'imgdel') { var ib = b.closest('.ibox'); if (ib) delImg(sidOf(ib), ib.getAttribute('data-ibox')); return true; }
     if (act === 'fit') {
@@ -1728,7 +1827,7 @@
   }
   // הזזה (גרירה של התמונה) ושינוי גודל (העיגול בפינה, שומר על היחס) — עכבר ומגע
   $('deck').addEventListener('pointerdown', function (ev) {
-    var box = ev.target.closest('.ibox'); if (!box || !editMode || ev.target.closest('.ibox-x')) return;
+    var box = ev.target.closest('.ibox'); if (!box || !editMode || ev.target.closest('.ibox-x,.ibox-a')) return;
     if (ev.button > 0) return;
     ev.preventDefault();
     box.focus({ preventScroll: true });
@@ -1873,6 +1972,42 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
   function dlMsg(t) { document.querySelectorAll('.dlmsg').forEach(function (m) { m.textContent = t; }); }
+  /* לפני ההורדה: אריחי מפה שחסרים בשקפים שנכללים — עוד ניסיון אחד, ואם עדיין חסר — שואלים (לא מורידים מפה חלקית בשקט).
+     מתממש כשאפשר להמשיך; נדחה עם {cancel: true} כשמבטלים */
+  function tileGate(label) {
+    var inc = function (el) { var it = el.closest('.sitem'); return !!it && !it.classList.contains('off'); };
+    var waitTiles = function (ms) {
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function poll() { var n = LCDeck.tilesMissing(inc); if (!n || Date.now() - t0 > ms) res(n); else setTimeout(poll, 300); })();
+      });
+    };
+    // קודם מחכים לאריחים שעוד בטעינה או בניסיון החוזר האוטומטי; מה שעדיין חסר — טוענים שוב את השכבה, ורק אז שואלים
+    return waitTiles(6000).then(function (n) {
+      if (!n) return 0;
+      label('טוען את המפה שוב…');
+      LCDeck.tilesMissing(inc, true);
+      return new Promise(function (r) { setTimeout(r, 600); }).then(function () { return waitTiles(10000); });
+    }).then(function (n2) {
+      if (!n2) return;
+      return new Promise(function (res, rej) {
+        var box = document.createElement('div');
+        box.className = 'tilewarn noprint'; box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-labelledby', 'tilewarn-t');
+        box.innerHTML = '<p id="tilewarn-t">חלק מהמפה לא נטען (' + n2 + (n2 === 1 ? ' אריח' : ' אריחים') + '). אפשר לנסות שוב, או להוריד בכל זאת — עם חלקים ריקים במפה.</p>' +
+          '<div class="tw-b"><button type="button" class="btn" data-tw="retry">לנסות שוב</button><button type="button" class="btn2" data-tw="go">להוריד בכל זאת</button>' +
+          '<button type="button" class="lnk" data-tw="no">ביטול</button></div>';
+        document.body.appendChild(box);
+        box.querySelector('[data-tw="retry"]').focus();
+        box.addEventListener('click', function (ev) {
+          var b = ev.target.closest('[data-tw]'); if (!b) return;
+          var a = b.getAttribute('data-tw'); box.remove();
+          if (a === 'go') res();
+          else if (a === 'no') rej({ cancel: true });
+          else tileGate(label).then(res, rej);
+        });
+      });
+    });
+  }
   var busy = false;
   function download() {
     if (busy || !slides.length) return;
@@ -1895,6 +2030,9 @@
       // כל אריחי המפות (לכל מפה יש זמן קצוב משלה ב-deck.js), והגופנים — ועוד גבול עליון לכל ההמתנה
       return timeout(Promise.all([mapsP].concat(document.fonts ? [document.fonts.ready] : [])), 15000);
     }).then(function () {
+      return tileGate(label);
+    }).then(function () {
+      label(making);
       if (editMode) setEdit(false);
       // מקום מחוץ למסך, בגודל המלא של שקף; השקף עובר לשם לרגע ומצולם בלי ההקטנה של התצוגה המקדימה.
       // בתוך .deck — כדי שהצבעים והעיצוב (data-look) יחולו עליו
@@ -1958,6 +2096,7 @@
       save(pdf.output('blob'), pdfName(), tab);
       if (window.LCApp) window.LCApp.lastPdf = { pages: items.length, ms: Math.round(performance.now() - t0) };
     }).catch(function (e) {
+      if (e && e.cancel) { if (tab) try { tab.close(); } catch (x) {} dlMsg('ההורדה בוטלה.'); return; }
       if (window.console) console.error('PDF', e);
       if (tab) try { tab.close(); } catch (x) {}
       if (png) { dlMsg('לא הצלחנו ליצור את התמונות. נסו שוב, או צלמו את המסך.'); return; }

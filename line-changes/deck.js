@@ -1791,7 +1791,7 @@ var LCDeck = (function () {
       var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
       mini.fitBounds(all, { padding: [8, 8] });
       var t2 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true });
-      waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t2.on('load', fin); setTimeout(fin, 12000); }));
+      waits.push(tileWait(t2));
       t2.addTo(mini);
       m.dirs.forEach(function (d) { var S = m.kind === 'ended' ? d.old : d.new; if ((S.shape || []).length > 1) L.polyline(S.shape, { color: m.kind === 'ended' ? '#b8361f' : '#1f9152', weight: 2.5, interactive: false }).addTo(mini); });
       var view = map.getBounds();
@@ -1842,7 +1842,7 @@ var LCDeck = (function () {
     if (m.focus && focusB.isValid()) map.fitBounds(focusB, { padding: [60, 60], maxZoom: 17 });
     else map.fitBounds(all, { padding: [44, 44], maxZoom: 16 });
     var t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
-    waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t.on('load', fin); setTimeout(fin, 12000); }));
+    waits.push(tileWait(t));
     t.addTo(map);
     m.dirs.forEach(function (d) {
       var S = ended ? d.old : d.new;
@@ -3005,6 +3005,46 @@ var LCDeck = (function () {
     return pts;
   }
 
+  /* אריחי המפה: כל אריח שנכשל — עוד ניסיון אחד; הבטחה שמתממשת כשאין אריחים בטעינה (או אחרי 12 שניות).
+     tilesMissing — כמה אריחים במפות שבדף עדיין חסרים (לא נטענו או נכשלו), כדי לא לייצא מפה חלקית בשקט */
+  var TILES = [];
+  function tileWait(t) {
+    var st = t._lc = { err: {}, tried: {}, again: {}, seen: false };
+    TILES.push(t);
+    t.on('tileerror', function (e) {
+      var k = t._tileCoordsToKey(e.coords);
+      if (!st.tried[k]) { st.tried[k] = 1; st.again[k] = 1; setTimeout(function () { if (t._tiles[k]) { t._tiles[k].loaded = 0; e.tile.src = t.getTileUrl(e.coords) + (t.getTileUrl(e.coords).indexOf('?') < 0 ? '?' : '&') + 'r=1'; } }, 500); }
+      else { st.err[k] = 1; delete st.again[k]; }
+    });
+    t.on('tileload', function (e) { var k = t._tileCoordsToKey(e.coords); delete st.err[k]; delete st.again[k]; });
+    t.on('tileunload', function (e) { var k = t._tileCoordsToKey(e.coords); delete st.err[k]; delete st.again[k]; });
+    t.on('load', function () { st.seen = true; });
+    return new Promise(function (res) {
+      var t0 = Date.now();
+      (function poll() {
+        var miss = tileMiss(t), busy = Object.keys(t._tiles || {}).some(function (k) { return !t._tiles[k].loaded || st.again[k]; });
+        if ((st.seen && !busy) || Date.now() - t0 > 12000) { res(miss); return; }
+        setTimeout(poll, 250);
+      })();
+    });
+  }
+  function tileMiss(t) {
+    var st = t._lc || { err: {} }, n = 0;
+    Object.keys(t._tiles || {}).forEach(function (k) { if (!t._tiles[k].loaded || st.err[k] || st.again[k]) n++; });   // לא נטען / נכשל / בניסיון חוזר
+    return n;
+  }
+  /* root — רק מפות בתוך root (למשל השקפים שנכללים); retry — לטעון מחדש שכבות שחסר בהן משהו */
+  function tilesMissing(inc, retry) {
+    TILES = TILES.filter(function (t) { return t._map && document.contains(t._map.getContainer()); });
+    var n = 0;
+    TILES.forEach(function (t) {
+      if (inc && !inc(t._map.getContainer())) return;
+      var m = tileMiss(t);
+      if (m && retry) { t._lc.err = {}; t._lc.tried = {}; t._lc.again = {}; t.redraw(); }
+      n += m;
+    });
+    return n;
+  }
   /* מצייר את המפה של שקף (ומפת ההתמצאות הקטנה); מחזיר Promise שמתממש כשהאריחים נטענו או אחרי זמן קצוב */
   function drawMap(slideEl, m) {
     if (m.route) return drawRouteMap(slideEl, m);
@@ -3016,7 +3056,7 @@ var LCDeck = (function () {
     var waits = [];
     function tiles(mp) {
       var t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
-      waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t.on('load', fin); setTimeout(fin, 12000); }));
+      waits.push(tileWait(t));
       return t;
     }
     var shown = function (s) { return !m.show || m.show[s._k + s.code]; };
@@ -3302,5 +3342,5 @@ var LCDeck = (function () {
     } finally { ED = keep; }
   }
   function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
-  return { setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { tilesMissing: tilesMissing, setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
