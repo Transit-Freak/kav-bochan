@@ -46,11 +46,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=32'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=33'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=32'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=33'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -297,7 +297,7 @@
 </footer>
 
 <script src="common.js?v=7"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

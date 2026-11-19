@@ -3342,5 +3342,7 @@ var LCDeck = (function () {
     } finally { ED = keep; }
   }
   function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
-  return { tilesMissing: tilesMissing, setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
+  var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols };
+  return { _test: _test, tilesMissing: tilesMissing, setPhones: setPhones, fmtPhone: fmtPhone, boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
