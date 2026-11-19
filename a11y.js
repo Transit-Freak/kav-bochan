@@ -1,14 +1,14 @@
-/* כפתור נגישות צף — לכל כלי האתר (בקשת שלמה).
+/* כפתור נגישות — לכל כלי האתר (בקשת שלמה).
    הסמל: הסמל הבינלאומי לנגישות (ISA) — לבן על עיגול כחול, כפי שנהוג
    בתקן הישראלי. קובץ אחד עצמאי: מזריק את הכפתור, התפריט וה-CSS שלו,
    ושומר את ההעדפות ב-localStorage כך שהן חלות על כל ביקור ובכל כלי.
-   ההחלה דרך מחלקות על <html>; ההגדלה ב-zoom על הילדים של <body> (חוץ
-   מהכפתור והתפריט) כדי לא לשבור את המיקום הקבוע של הכפתור עצמו.
+   ההחלה דרך מחלקות על <html>; ההגדלה ב-zoom על הילדים של <body>.
 
-   הכפתור לא מסתיר תוכן (18.11): אחרי כל גלילה, שינוי גודל או שינוי בדף
-   הוא בודק מה יושב מתחתיו. אם יש שם כפתור, קישור, שדה או טקסט — הוא זז
-   למקום פנוי: קודם למעלה באותה פינה, אחר כך לפינה השנייה (וכך גם עולה
-   מעל פס תחתון קבוע של הדף). אין צורך בהגדרה בדפים עצמם. */
+   מקום הכפתור (שלמה 18.11): בתוך הפס העליון של כל עמוד, ככפתור רגיל בזרימת הדף —
+   לא צף, לא זז ולא מסתיר תוכן. כל עמוד מסמן את המקום בפס העליון ב-[data-a11y-slot]
+   (span ריק בגודל 44×44, כדי ששום דבר לא יזוז כשהכפתור נכנס). דפים שהפס שלהם נבנה
+   מחדש (React) — הכפתור חוזר לבד למקום החדש. עמוד בלי מקום מסומן: פס עליון מוכר,
+   ואם אין — שורה קטנה בראש הדף. התפריט נפתח מתחת לכפתור. */
 (function () {
   "use strict";
   if (window.__kbA11y) return;
@@ -69,17 +69,21 @@
     /* ביטול אנימציות ומעברים */
     "html.a11y-nomotion *, html.a11y-nomotion *::before, html.a11y-nomotion *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }",
 
-    /* הכפתור */
-    "#kb-a11y-btn { position: fixed; bottom: 16px; inset-inline-start: 14px; z-index: 99999; width: 48px; height: 48px; box-sizing: border-box; border-radius: 50%; border: 2px solid #fff; background: #0055aa; box-shadow: 0 2px 10px rgba(0,0,0,.35); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }",
-    "@media (max-width: 640px) { #kb-a11y-btn { width: 44px; height: 44px; bottom: 12px; inset-inline-start: 10px; } #kb-a11y-btn svg { width: 26px; height: 26px; } }",
-    "#kb-a11y-btn:hover { background: #0066cc; }",
-    "#kb-a11y-btn svg { width: 28px; height: 28px; display: block; pointer-events: none; }",
+    /* הכפתור — כפתור רגיל בתוך הפס העליון (לא צף): 44×44 למגע, עיגול כחול של 36 */
+    "[data-a11y-slot] { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }",
+    "#kb-a11y-btn { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; cursor: pointer; vertical-align: middle; -webkit-tap-highlight-color: transparent; transform: none; float: none; }",
+    "#kb-a11y-btn .kb-a11y-ico { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #0055aa; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15,23,42,.3); }",
+    "#kb-a11y-btn:hover .kb-a11y-ico, #kb-a11y-btn[aria-expanded='true'] .kb-a11y-ico { background: #0066cc; }",
+    "#kb-a11y-btn svg { width: 24px; height: 24px; display: block; pointer-events: none; }",
     "#kb-a11y-btn:focus { outline: none; }",
-    "#kb-a11y-btn:focus-visible { outline: 3px solid #0f172a !important; outline-offset: 2px !important; box-shadow: 0 0 0 7px #fff !important; }",
+    "#kb-a11y-btn:focus-visible .kb-a11y-ico { outline: 3px solid #0f172a; outline-offset: 1px; box-shadow: 0 0 0 6px #fff; }",
+    /* עמוד בלי פס עליון מסומן — שורה קטנה בראש הדף, בזרימה */
+    "#kb-a11y-top { display: flex; justify-content: flex-end; padding: 6px 10px 0; direction: rtl; }",
 
     /* התפריט */
     "#kb-a11y-panel { position: fixed; z-index: 100000; box-sizing: border-box; background: #fff; color: #0f172a; border: 1px solid #94a3b8; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); padding: 12px; width: 300px; max-width: calc(100vw - 16px); overflow: auto; overscroll-behavior: contain; font: 14px/1.35 Heebo, Arial, sans-serif; direction: rtl; text-align: right; }",
     "#kb-a11y-panel[hidden] { display: none !important; }",
+    "@media (max-width: 520px) { #kb-a11y-panel { width: auto; max-width: none; } }",
     "#kb-a11y-panel h2 { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: #0f172a; }",
     "#kb-a11y-panel .a11y-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }",
     "#kb-a11y-panel button.a11y-opt { display: flex; align-items: center; gap: 6px; box-sizing: border-box; width: 100%; min-height: 44px; margin: 0; text-align: right; padding: 6px 8px; border-radius: 9px; border: 1.5px solid #94a3b8; background: #f8fafc; color: #0f172a; font: 700 13.5px/1.25 Heebo, Arial, sans-serif; cursor: pointer; text-decoration: none; }",
@@ -93,63 +97,33 @@
     "#kb-a11y-panel a { display: flex; align-items: center; min-height: 44px; font-size: 13px; color: #0055aa; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }",
     "#kb-a11y-panel button.a11y-opt:focus-visible, #kb-a11y-panel a:focus-visible { outline: 3px solid #0055aa !important; outline-offset: 2px; }",
     "#kb-a11y-panel button.a11y-opt:focus:not(:focus-visible) { outline: none; }",
-    "@media print { #kb-a11y-btn, #kb-a11y-panel { display: none !important; } }",
+    "@media print { #kb-a11y-btn, #kb-a11y-panel, #kb-a11y-top { display: none !important; } }",
   ].join("\n");
 
   var ICON = '<svg viewBox="0 0 26 26" aria-hidden="true" focusable="false"><circle cx="13" cy="4.4" r="2.2" fill="#fff"/><path d="M13 7.2 v6.2 h5.6 M13 10.4 h4.6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.9 11.2 a5.6 5.6 0 1 0 7.1 7.4 M18.6 13.6 l1.6 5.6 h1.6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-  /* ---------- הכפתור לא יושב על תוכן ---------- */
-  var INTERACTIVE = 'a[href],button,input:not([type="hidden"]),select,textarea,summary,label,[role="button"],[role="link"],[role="tab"],' +
-    '[role="checkbox"],[role="radio"],[role="switch"],[role="menuitem"],[role="option"],[role="slider"],[contenteditable="true"],[contenteditable=""],[tabindex]:not([tabindex="-1"])';
-
-  // מיקום הכפתור (שלמה 18.11): הכפתור עומד קבוע בפינה ולא "רוקד" בגלילה או בלחיצות.
-  // זז רק כשבפינה שלו יושב פס קבוע (למשל סרגל כפתורים בתחתית המסך) — אז עולה מעליו.
-  function makePlacer(btn, panel) {
-    var dy = 0, timer = 0;
-    function ours(el) { return el === btn || btn.contains(el) || panel.contains(el); }
-    function fixedOf(el, cache) {
-      for (var e = el; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
-        var v = cache.get(e);
-        if (v === undefined) { var ps = getComputedStyle(e).position; v = (ps === "fixed" || ps === "sticky") ? e : null; cache.set(e, v); }
-        if (v) return v;
+  /* ---------- המקום של הכפתור בפס העליון ---------- */
+  // פסים עליונים מוכרים — רק אם בעמוד אין [data-a11y-slot] (כל העמודים באתר מסומנים)
+  var KNOWN = [".kbt-bar-in", ".kbh .top .wrap", ".top-in", ".kbtop-in", ".hdr-in", ".kb-top-in", ".kb-top", "header .wrap", "body > header", "#app > header"];
+  function shown(el) { return !!(el && el.isConnected && el.getClientRects().length); }
+  function findSlot() {
+    var list = document.querySelectorAll("[data-a11y-slot]"), first = null;
+    for (var i = 0; i < list.length; i++) {
+      if (shown(list[i])) return list[i];
+      if (!first) first = list[i];
+    }
+    if (first) return first;
+    for (var k = 0; k < KNOWN.length; k++) {
+      var c = document.querySelector(KNOWN[k]);
+      if (shown(c)) {
+        var sp = document.createElement("span");
+        sp.setAttribute("data-a11y-slot", "");
+        sp.style.marginInlineStart = "auto";
+        c.appendChild(sp);
+        return sp;
       }
-      return null;
     }
-    function place() {
-      timer = 0;
-      if (!panel.hidden || !document.elementsFromPoint) return;
-      try {
-        var vh = innerHeight, r = btn.getBoundingClientRect();
-        if (!r.width) return;
-        var bt = r.top - dy, h = r.height, l = r.left, w = r.width, cache = new Map(), lift = 0;
-        for (var round = 0; round < 3; round++) {
-          var top = bt - lift, hit = null;
-          [[l + 2, top + 2], [l + w - 2, top + 2], [l + 2, top + h - 2], [l + w - 2, top + h - 2], [l + w / 2, top + h / 2]].forEach(function (pt) {
-            document.elementsFromPoint(pt[0], pt[1]).forEach(function (el) {
-              if (ours(el)) return;
-              var f = fixedOf(el, cache);
-              if (f && f !== btn) { var fr = f.getBoundingClientRect(); if (fr.bottom >= vh - 2 && fr.height < vh * 0.5) hit = !hit || fr.top < hit.top ? fr : hit; }
-            });
-          });
-          if (!hit) break;
-          lift = Math.min(vh * 0.6, bt + h - hit.top + 8);
-        }
-        if (lift !== -dy) { dy = -lift; btn.style.transform = dy ? "translateY(" + dy + "px)" : ""; }
-      } catch (e) { /* דפדפן ישן — הכפתור נשאר במקומו */ }
-    }
-    function soon(ms) {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(place, ms == null ? 300 : ms);
-    }
-    window.addEventListener("resize", function () { soon(); });
-    window.addEventListener("load", function () { soon(0); });
-    try {
-      new MutationObserver(function (ms) {
-        for (var i = 0; i < ms.length; i++) if (!ours(ms[i].target)) { soon(500); return; }
-      }).observe(document.body, { childList: true, subtree: true });
-    } catch (e) { /* בלי MutationObserver — רק שינוי גודל */ }
-    soon(0);
-    return { now: place, soon: soon };
+    return null;
   }
 
   function build() {
@@ -169,12 +143,12 @@
     var btn = document.createElement("button");
     btn.type = "button";
     btn.id = "kb-a11y-btn";
-    btn.setAttribute("aria-label", "תפריט נגישות");
+    btn.setAttribute("aria-label", "נגישות");
     btn.setAttribute("aria-haspopup", "dialog");
     btn.setAttribute("aria-expanded", "false");
     btn.setAttribute("aria-controls", "kb-a11y-panel");
     btn.title = "נגישות";
-    btn.innerHTML = ICON;
+    btn.innerHTML = '<span class="kb-a11y-ico">' + ICON + "</span>";
 
     var panel = document.createElement("div");
     panel.id = "kb-a11y-panel";
@@ -235,20 +209,67 @@
     });
     panel.appendChild(links);
 
-    document.body.appendChild(btn);
     document.body.appendChild(panel);
-    var placer = makePlacer(btn, panel);
 
-    // החלונית נפתחת ליד הכפתור, בכל מקום שהוא נמצא בו
+    // הכפתור נכנס למקום שלו בפס העליון. אם הפס נבנה מחדש (React) או שהעמוד עבר
+    // לכלי אחר באותה אפליקציה — הכפתור עובר למקום החדש לפני הציור הבא (rAF),
+    // כך שלא רואים אותו נעלם או קופץ.
+    var top = null;
+    function place() {
+      var cur = btn.parentNode;
+      if (cur && cur !== top && cur.hasAttribute && cur.hasAttribute("data-a11y-slot") && shown(cur)) return;
+      var slot = findSlot();
+      if (slot) {
+        if (slot !== cur) slot.appendChild(btn);
+        if (top && top.parentNode) top.parentNode.removeChild(top);
+        return;
+      }
+      if (cur && cur === top && top.isConnected) return;
+      // אין פס עליון בעמוד — שורה קטנה בראש הדף, בזרימת הדף (לא צפה). רק אחרי שהעמוד
+      // סיים לעלות: בדפי React הפס נבנה אחרי הסקריפט, ושורה זמנית הייתה מזיזה את הדף.
+      if (!lateOk) return;
+      top = top || document.createElement("div");
+      top.id = "kb-a11y-top";
+      top.appendChild(btn);
+      document.body.insertBefore(top, document.body.firstChild);
+    }
+    var lateOk = false;
+    function late() { setTimeout(function () { lateOk = true; place(); }, 1500); }
+    if (document.readyState === "complete") late(); else window.addEventListener("load", late);
+    place();
+    var queued = false;
+    function soon() {
+      if (queued) return;
+      queued = true;
+      (window.requestAnimationFrame || setTimeout)(function () { queued = false; place(); if (isOpen()) position(); });
+    }
+    try {
+      var mo = new MutationObserver(function (ms) {
+        for (var i = 0; i < ms.length; i++) {
+          var t = ms[i].target;
+          if (t === panel || panel.contains(t) || t === btn || btn.contains(t)) continue;
+          if (!btn.isConnected) { place(); return; } // מיד, בלי לחכות לפריים
+          soon(); return;
+        }
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    } catch (e) { /* בלי MutationObserver — הכפתור נשאר במקום הראשון */ }
+    window.addEventListener("hashchange", soon);
+
+    // החלונית נפתחת מתחת לכפתור (או מעליו, אם הכפתור בתחתית המסך), בתוך גבולות המסך.
+    // בטלפון — גיליון ברוחב המסך מתחת לפס העליון.
     function position() {
       var r = btn.getBoundingClientRect(), vw = document.documentElement.clientWidth || innerWidth, vh = innerHeight;
       var s = panel.style;
       s.top = s.bottom = s.left = s.right = "";
-      var below = r.top + r.height / 2 < vh / 2;
-      if (below) { s.top = (r.bottom + 8) + "px"; s.maxHeight = (vh - r.bottom - 16) + "px"; }
-      else { s.bottom = (vh - r.top + 8) + "px"; s.maxHeight = (r.top - 16) + "px"; }
-      if (r.left + r.width / 2 > vw / 2) s.right = Math.max(8, vw - r.right) + "px";
-      else s.left = Math.max(8, r.left) + "px";
+      var below = r.top + r.height / 2 < vh * 0.6;
+      if (below) { var t = Math.max(8, r.bottom + 6); s.top = t + "px"; s.maxHeight = Math.max(160, vh - t - 8) + "px"; }
+      else { s.bottom = Math.max(8, vh - r.top + 6) + "px"; s.maxHeight = Math.max(160, r.top - 14) + "px"; }
+      if (vw <= 520) { s.left = "8px"; s.right = "8px"; return; }
+      var w = Math.min(300, vw - 16);
+      if (r.left + r.width / 2 > vw / 2) s.right = Math.min(vw - w - 8, Math.max(8, vw - r.right)) + "px";
+      else s.left = Math.min(vw - w - 8, Math.max(8, r.left)) + "px";
     }
     function isOpen() { return !panel.hidden; }
     function open() {
@@ -264,7 +285,6 @@
       panel.hidden = true;
       btn.setAttribute("aria-expanded", "false");
       if (back) btn.focus();
-      placer.soon();
     }
     btn.onclick = function () { isOpen() ? close(false) : open(); };
     document.addEventListener("keydown", function (e) {
@@ -279,11 +299,12 @@
       var to = e.relatedTarget;
       if (to && !panel.contains(to) && to !== btn) close(false);
     });
-    btn.addEventListener("blur", function () { placer.soon(); });
     document.addEventListener("click", function (e) {
       if (isOpen() && !panel.contains(e.target) && !btn.contains(e.target)) close(false);
     });
     window.addEventListener("resize", function () { if (isOpen()) position(); });
+    // הפס העליון לא תמיד דביק — בגלילה החלונית נשארת צמודה לכפתור
+    window.addEventListener("scroll", function () { if (isOpen()) position(); }, { passive: true, capture: true });
     // שינוי בלשונית אחרת — ההעדפות מתעדכנות גם כאן
     window.addEventListener("storage", function (e) {
       if (e.key === LS) { prefs = load(); apply(prefs); refresh(); }

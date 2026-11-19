@@ -31,6 +31,7 @@
          מכל מקום: מתוך אזור, מהטבלה, מכל מצב. הקישור לשאר הכלים בפוטר -->
     <h1 id="homebtn" style="cursor:pointer" title="חזרה למסך הראשי — המפה הארצית">🏭 נגישות אזורי תעשייה</h1>
     <span class="tag">גרסת בטא</span>
+    <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px;order:2"></span>
     <span class="vseg">
       <a class="btn" id="heatbtn" href="./" title="מפת המצב הארצית">🗺️ מפה</a>
       <a class="btn" id="backbtn" href="#list" title="טבלת כל האזורים">📋 רשימה</a>
@@ -141,7 +142,8 @@
     </div>
     <div class="footrow">
       <div class="logorow"><img id="deptlogo" src="histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" onerror="this.closest('.logorow').style.display='none'"><img src="rahokim-logo.png" alt="רחוקים אבל שווים" style="height:72px;background:#fff;border-radius:8px;padding:5px 9px" onerror="this.style.display='none'"></div>
-      <div class="credits">נבנה ומתוחזק על ידי <a href="mailto:shlomihartman@gmail.com">שלמה הרטמן</a> · <a href="../" target="_blank" rel="noopener">🚌 הקו הבוחן — לעוד כלים ליעילות התחבורה הציבורית ›</a> · © כל הזכויות שמורות ל<a href="mailto:irisdor@gmail.com">מחלקת קידום תחבורה ציבורית</a> בהסתדרות העובדים הכללית</div>
+      <!-- data-copyright: a11y.js לא מוסיף שורת זכויות יוצרים מתחת למפה -->
+      <div class="credits" data-copyright>נבנה ומתוחזק על ידי <a href="mailto:shlomihartman@gmail.com">שלמה הרטמן</a> · <a href="../" target="_blank" rel="noopener">🚌 הקו הבוחן — לעוד כלים ליעילות התחבורה הציבורית ›</a> · © כל הזכויות שמורות ל<a href="mailto:irisdor@gmail.com">מחלקת קידום תחבורה ציבורית</a> בהסתדרות העובדים הכללית</div>
     </div>
   </div>
 
@@ -1037,5 +1039,6 @@ try{
 })();</script>
 <script src="../birthday.js" defer></script>
 <script src="../hagim.js?v=20261118" defer></script>
+<script src="../a11y.js?v=20261118h" defer></script>
 </body>
 </html>

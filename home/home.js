@@ -495,6 +495,7 @@ function html(V) {
 <nav class="nav" aria-label="ניווט ראשי"><a href="#tools">הכלים</a><a href="#g-lines">קווים ותחנות</a><a href="#g-rail">רכבת</a><a href="#partners">שיתופי פעולה</a><a href="#about" data-about>קצת עליי</a></nav>
 <button class="chip-ver" type="button" data-ver-chip title="מה השתנה בגרסה הזו">${hv}</button>
 <a class="gh" href="${GH_URL}" target="_blank" rel="noopener" aria-label="קוד המקור של האתר ב-GitHub" title="קוד המקור ב-GitHub">${GH}</a>
+<span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px"></span>
 </div></header>
 <main>
 <section class="hero"><div class="wrap"><div>
