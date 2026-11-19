@@ -959,3 +959,15 @@ body.editing .s-bd .bdt[data-ph]:empty::before{content:attr(data-ph);color:#8a97
 body.editing .s-bd .badge.bdt[data-ph]:empty::before{color:rgba(255,255,255,.75)}
 body.editing .s-bd tr.badd td{background:#fbfdf9}
 .s-bd .bd-t td.bl .badge.bdt:empty{min-width:1.6em;min-height:1em;display:inline-block}
+/* הודעה על שינוי — "טבלה לפי יעד" עם סימון: חדשה או בשעה חדשה — ירוק מודגש; בוטלה — אדום מחוק, בשעה הקודמת */
+.s-bd .t.nw{color:#137a3f;font-weight:900}
+.s-bd .t.rm{color:#c81e1e;font-weight:600;text-decoration:line-through;text-decoration-thickness:.09em}
+.s-bd .t .was{font-size:.66em;color:#137a3f;font-weight:700;margin-left:.2em;unicode-bidi:isolate}
+.s-bd .bdrm{display:block;color:#c81e1e;font-weight:700;font-size:.8em;margin-top:.15em}
+.s-bd .bdrm .t{text-decoration:line-through;font-weight:600}
+.s-bd .bd-key{margin:.3em 0 0;font-size:.95em;display:flex;flex-wrap:wrap;gap:.3em 1.1em;align-items:baseline}
+.s-bd .bd-key .t{margin-inline-end:.25em}
+.s-bd .bd-t td.bl small.nwl{color:#137a3f;font-weight:800}
+.s-bd .bd-t td.bt.same{color:var(--s-sub);font-weight:700}
+.s-bd .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.s-bd .nwt{color:#137a3f;font-weight:800}

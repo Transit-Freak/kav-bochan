@@ -999,7 +999,7 @@
   function xSlide(x, pages) { return x.img ? imgSlide(x) : textSlide(x, pages); }
   // שקף שנוסף מופיע בצורה הנוכחית? שקף טקסט — רק במצגת; שקף תמונה — בכל הצורות (אם התמונה עוד שמורה)
   function xOk(x, form) { return x.img ? !!getImg(x.img) : form === 'deck'; }
-  function tordOf() { return edits.tord === 'ltr' || edits.tord === 'rtl' ? edits.tord : edits.ttc === 'board' ? 'ltr' : 'rtl'; }
+  function tordOf() { return edits.tord === 'ltr' || edits.tord === 'rtl' ? edits.tord : edits.ttc === 'board' || (edits.tt && edits.tt.v === 'board') ? 'ltr' : 'rtl'; }
   function edOpts(form) {
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf() };
@@ -1141,7 +1141,7 @@
 
   /* לוח הזמנים (קו חדש ושינוי בלו"ז): כללי / מפורט, טבלה / טקסט — נשמר עם המצגת, כמו העיצוב */
   // לו"ז עדכני — ברירת המחדל: מפורט (כל השעות); הודעה על שינוי — כללי
-  function ttOpts() { var t = edits.tt || {}, v = t.v || (curPages && curPages.length && curPages.every(function (p) { return p.kind === 'current'; }) ? 'det' : 'gen'); return { v: v === 'det' ? 'det' : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
+  function ttOpts() { var t = edits.tt || {}, v = t.v || (curPages && curPages.length && curPages.every(function (p) { return p.kind === 'current'; }) ? 'det' : 'gen'); return { v: v === 'det' || v === 'board' ? v : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
   /* מפות מקורבות לתחנות — רק כשיש במצגת קו חדש או מבוטל. בלי בחירה: קו חדש — כן, קו מבוטל — לא (כמו ב-LCDeck) */
   function zmUi(pages) {
     var nk = pages.filter(function (p) { return p.kind === 'new' || p.kind === 'ended'; });
@@ -1189,8 +1189,11 @@
     $('ttgrp').hidden = !on;
     $('ttfseg').hidden = cu;
     $('ttcseg').hidden = !cu;
-    var bd = cu && edits.ttc === 'board';
-    $('bdopts').hidden = !bd; $('ttvseg').hidden = bd;
+    // "טבלה לפי יעד" גם בהודעה על שינוי (ttv=board): הלוח החדש עם סימון מה שמשתנה
+    var cbd = !cu && o.v === 'board', bd = (cu && edits.ttc === 'board') || cbd;
+    $('bdopts').hidden = !bd; $('ttvseg').hidden = cu && bd;
+    if (!cu) $('ttfseg').hidden = cbd;
+    $('ttvseg').querySelector('[data-ttv="board"]').hidden = cu;
     // ייצוא לאקסל: לו"ז עדכני (כל התצוגות), ובהודעה על שינוי — כשיש בה קו שהלו"ז שלו משתנה או קו חדש
     var hasTt = cu || pages.some(LCDeck.ttCap);
     ['xl', 'xl2'].forEach(function (id) { $(id).hidden = !hasTt; });
@@ -1199,8 +1202,10 @@
       $('ttcsub').textContent = to.length === 1 ? 'כל השעות ל' + to[0] + ' בטבלה אחת' : 'קווים לאותו יעד בטבלה אחת';
       var tc = edits.ttc === 'sep' || edits.ttc === 'board' ? edits.ttc : 'comb';
       $('ttcseg').querySelectorAll('[data-ttc]').forEach(function (b) { b.setAttribute('aria-checked', tc === b.getAttribute('data-ttc') ? 'true' : 'false'); });
-      if (bd) {
-        var M = LCDeck.boardModel(pages, edOpts(formOf()));
+    }
+    if (bd) {
+      {
+        var M = cu ? LCDeck.boardModel(pages, edOpts(formOf())) : LCDeck.chgBoardModel(pages, edOpts(formOf()));
         $('bdtitle').placeholder = M.dflt;
         if (document.activeElement !== $('bdtitle')) $('bdtitle').value = 'title' in edits.bd.t ? '' : edits.btitle || M.dflt;
         if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
@@ -1208,7 +1213,7 @@
       }
     }
     var multi = !cu && formOf() === 'deck' && pages.filter(function (p) { return (p.kind === 'timetable' || p.kind === 'new') && p.dirs.some(function (d) { return d.tt && d.tt.length; }); }).length > 1;
-    $('ttperw').hidden = !multi;
+    $('ttperw').hidden = !multi || cbd;
     $('ttper').checked = edits.ttper !== false;
     $('ttgrp').querySelectorAll('[data-ttv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-ttv') === o.v ? 'true' : 'false'); });
     $('ttgrp').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === tordOf() ? 'true' : 'false'); });
@@ -1320,7 +1325,7 @@
     $(id).addEventListener('click', function () {
       setEdit(!editMode);
       // "טבלה לפי יעד": במצב עריכה יש מקום לשורות שהוסרו (עם "להחזיר"); בלי עריכה — העמודים מלאים
-      if (edits.ttc === 'board' && curPages.length && curPages.every(function (p) { return p.kind === 'current'; })) keepScroll(function () { render(curPages); });
+      if ($('deck').querySelector('.s-bd')) keepScroll(function () { render(curPages); });
       if (editMode && id === 'editbtn2') { var f = $('deck'); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
   });
@@ -2214,7 +2219,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=7'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=8'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
@@ -2232,8 +2237,10 @@
         nm = fileName('לוח-זמנים-' + (edits.bplace || (cu.length <= 3 ? 'קו-' + cu.map(function (p) { return p.line; }).join('-') : M.home)) + '-' + (M.valid || LC.todayIso()));
         blob = LCXlsx.board(M);
       } else {
-        // הודעה על שינוי: הלו"ז החדש מיום השינוי, ובגיליון שני — הלוח הקודם (כשהשקפים מראים לפני ואחרי)
-        var N = LCDeck.chgModel(tt, o, false), sheets = [[N, 'לו״ז חדש']];
+        // הודעה על שינוי: הלו"ז החדש מיום השינוי, ובגיליון שני — הלוח הקודם (כשהשקפים מראים לפני ואחרי).
+        // "טבלה לפי יעד" — הלוח החדש עם אותם סימונים כמו בשקף (ירוק — חדש או שונה, אדום מחוק — בוטל)
+        var N = ttOpts().v === 'board' ? LCDeck.chgBoardModel(tt, o) : LCDeck.chgModel(tt, o, false), sheets = [[N, 'לו״ז חדש']];
+        if (!N.when) N.when = N.valid;
         if (LCDeck.hasOld(tt)) sheets.push([LCDeck.chgModel(tt, o, true), 'הלו״ז הקודם']);
         nm = fileName('לו״ז-חדש-קו-' + tt.map(function (p) { return p.line; }).slice(0, 4).join('-') + '-מ-' + (N.when || LC.todayIso()));
         blob = LCXlsx.book(sheets);

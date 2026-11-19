@@ -35,10 +35,13 @@ const DECKS = {
   '10970-20261115-v': 'חלופה שבוטלה',
   '12285-20261129-v': 'חלופה חדשה',
   '70001-20261118-t': 'שינוי בלוח הזמנים',
+  '10436-20261119-t': 'שינוי בלוח הזמנים (קו 436, רק ביום חמישי)',
   '45009-20261115-n': 'קו חדש',
   '71011-20261113-e': 'קו שמבוטל'
 };
 const BOARDS = { 'board-ltr': 'ltr', 'board-rtl': 'rtl' };   // לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות
+// הודעה על שינוי בתצוגת "טבלה לפי יעד": שינוי בלו"ז (436) וקו חדש (9), עם סימון מה שמשתנה
+const CHG_BOARDS = { 'chg-board': '10436-20261119-t,45009-20261115-n' };
 const FORMS = ['deck', 'sign', 'status'];
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -154,6 +157,28 @@ async function main() {
       got[id][form] = await collect(pg, false);
     }
     if (errs.length) problems.push(id + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
+  for (const [key, ids] of Object.entries(CHG_BOARDS)) {
+    if (only && only !== key) continue;
+    const pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    await pg.goto(base + '/line-changes/?c=' + ids);
+    await pg.waitForSelector('.sframe', { timeout: 30000 });
+    await pg.click('[data-ttv="board"]', { force: true });
+    await pg.waitForSelector('.s-bd', { timeout: 30000 });
+    got[key] = {};
+    for (const form of FORMS) {
+      await pg.click('[data-form="' + form + '"]', { force: true });
+      await pg.waitForTimeout(800);
+      const pages = await collect(pg, true), rows = [];
+      Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
+      // הסימונים: חדשה / בשעה חדשה (nw) ושבוטלה (rm), עם השעה
+      const marks = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd td.bt .t.nw, .sitem:not(.off) .s-bd td.bt .t.rm, .sitem:not(.off) .s-bd td.bt .was')).map((x) => (x.classList.contains('was') ? 'הערה ' : x.classList.contains('rm') ? 'בוטלה ' : 'חדשה ') + (x.classList.contains('was') ? x.textContent : x.firstChild.nodeValue)));
+      got[key][form] = { rows: rows, marks: marks, slides: Object.keys(pages).length };
+      for (const x of await orderCheck(pg, 'ltr')) problems.push(key + ' ' + form + ': סדר השעות — ' + x);
+    }
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();
   }
   for (const [key, tord] of Object.entries(BOARDS)) {
