@@ -1,0 +1,2 @@
+/* צבע המותג של החברה (--b) נקבע מתוך JS — במצב כהה בהיר יותר, שיהיה קריא */
+html.kb-dark .seg button.on{color:color-mix(in oklab,var(--b) 45%,#fff)}

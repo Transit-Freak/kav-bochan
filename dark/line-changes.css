@@ -1,0 +1,20 @@
+/* מצב לילה — נבנה אוטומטית ב-tools/dark_css.mjs מתוך העיצוב הבהיר. לא לערוך ביד: תיקונים ב-tools/dark-extra/. */
+
+/* משותף */
+html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
+html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
+html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
+html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
+html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
+html.kb-dark #kb-ver-card{background-image:initial;background-color:#17191f;color:#c3d0ea;box-shadow:rgba(0,0,0,0.55) 0px -8px 30px}
+html.kb-dark #kb-ver-card .vx{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vd{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vold{border-top-color:#363a40}
+html.kb-dark #kb-ver-card .vold h3{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vrow{border-bottom-color:#35383f}
+html.kb-dark #kb-ver-card .vrow small{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vbody{color:#a7b8d0}
+html.kb-dark #kb-ver-card .vtag{background-image:initial;background-color:#1f1b2a;color:#b09df9}
+
+/* line-changes */

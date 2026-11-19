@@ -1,0 +1,109 @@
+/* מצב לילה — נבנה אוטומטית ב-tools/dark_css.mjs מתוך העיצוב הבהיר. לא לערוך ביד: תיקונים ב-tools/dark-extra/. */
+
+/* משותף */
+html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
+html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
+html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
+html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
+html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
+html.kb-dark #kb-ver-card{background-image:initial;background-color:#17191f;color:#c3d0ea;box-shadow:rgba(0,0,0,0.55) 0px -8px 30px}
+html.kb-dark #kb-ver-card .vx{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vd{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vold{border-top-color:#363a40}
+html.kb-dark #kb-ver-card .vold h3{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vrow{border-bottom-color:#35383f}
+html.kb-dark #kb-ver-card .vrow small{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vbody{color:#a7b8d0}
+html.kb-dark #kb-ver-card .vtag{background-image:initial;background-color:#1f1b2a;color:#b09df9}
+/* בסיס לכל הכלים: מפות Leaflet וטפסים */
+html.kb-dark{background-color:#14181f}
+/* אריחי המפה: היפוך עדין — מפה כהה, השמות נשארים קריאים. הקווים והסמנים מעל לא מתהפכים */
+html.kb-dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.85) saturate(.55)}
+html.kb-dark .leaflet-container{background:#262b33}
+html.kb-dark .leaflet-bar a,html.kb-dark .leaflet-bar a:hover,html.kb-dark .leaflet-control-layers{background-color:#1f2630;color:#e2e8f0;border-color:#3b4655}
+html.kb-dark .leaflet-bar a.leaflet-disabled{background-color:#171c23;color:#6b7686}
+html.kb-dark .leaflet-bar{border-color:rgba(0,0,0,.6)}
+html.kb-dark .leaflet-control-attribution{background:rgba(20,24,31,.8)!important;color:#b6c0cc}
+html.kb-dark .leaflet-control-attribution a{color:#93c5fd}
+html.kb-dark .leaflet-popup-content-wrapper,html.kb-dark .leaflet-popup-tip{background:#1f2630;color:#e2e8f0;box-shadow:0 3px 14px rgba(0,0,0,.6)}
+html.kb-dark .leaflet-container a.leaflet-popup-close-button{color:#b6c0cc}
+html.kb-dark .leaflet-tooltip{background-color:#1f2630;color:#e2e8f0;border-color:#3b4655;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+html.kb-dark .leaflet-tooltip-top:before{border-top-color:#1f2630}
+html.kb-dark .leaflet-tooltip-bottom:before{border-bottom-color:#1f2630}
+html.kb-dark .leaflet-tooltip-left:before{border-left-color:#1f2630}
+html.kb-dark .leaflet-tooltip-right:before{border-right-color:#1f2630}
+html.kb-dark ::placeholder{color:#8a96a6}
+
+/* reception */
+:root.kb-dark{--bg:#181b20;--bg2:#191c22;--card:#17191f;--surface2:#181b20;--ink:#c9d4e8;--ink2:#b7c5dd;--mut:#97a2b8;--dim:#8a94a8;--line:rgba(195,208,234,0.08);--line--kb-bg:rgba(255,255,255,0.128);--line2:rgba(195,208,234,0.14);--line2--kb-bg:rgba(255,255,255,0.224);--brand:#0ea5e9;--brand--kb-border:#0ea5e9;--brand--kb-fg:#0ea5e9;--brand2:#349fe3;--brand2--kb-shadow:rgba(0,0,0,0.65);--brand-ink:#59abe7;--sky:#111f27;--sky--kb-shadow:#111f27;--sky2:#161c20;--accent:#0ea5e9;--g3:#00A65A;--g2:#F4B400;--g1:#F26B1D;--g0:#D7263D;--shadow-sm:0 1px 2px rgba(0,0,0,0.11);--shadow:0 1px 2px rgba(0,0,0,0.088),0 10px 30px -14px rgba(0,0,0,0.396);--shadow-lg:0 2px 4px rgba(0,0,0,0.088),0 24px 48px -20px rgba(0,0,0,0.65);--ring:0 0 0 3px rgba(14,165,233,.2);color-scheme:dark}
+html.kb-dark,html.kb-dark body{color:var(--ink);background:var(--bg)}
+html.kb-dark ::selection{background-image:initial;background-color:#002535}
+html.kb-dark a{color:var(--brand-ink)}
+html.kb-dark .sky::before{background-image:radial-gradient(600px 340px at 86% 0px, rgba(56, 189, 248, 0.26), transparent 70%), radial-gradient(520px 320px at 12% 10%, rgba(125, 211, 252, 0.2), transparent 70%);background-color:initial}
+html.kb-dark .sky::after{background-image:linear-gradient(var(--line--kb-bg) 1px,transparent 1px),linear-gradient(90deg,var(--line--kb-bg) 1px,transparent 1px);background-size:48px 48px}
+html.kb-dark .hdr{background-image:initial;background-color:rgba(23,25,31,0.72);border-bottom-color:var(--line)}
+html.kb-dark .brand{color:var(--ink);text-decoration-color:initial}
+html.kb-dark .brand:hover{color:var(--brand-ink)}
+html.kb-dark .crumb{color:var(--mut)}
+html.kb-dark .crumb::before{background:var(--line2--kb-bg)}
+html.kb-dark a.kb-home.kb-home{background-image:initial;background-color:rgba(23,25,31,0.92);color:var(--brand-ink);box-shadow:var(--shadow-sm);border-color:var(--line2)}
+html.kb-dark a.kb-home.kb-home:hover{background-image:initial;background-color:#17191f;color:var(--ink);border-color:rgba(14, 165, 233, 0.45)}
+html.kb-dark .hico{box-shadow:rgba(0,0,0,0.65) 0px 18px 32px -16px, rgba(0,0,0,0.264) 0px 0px 0px 1px}
+html.kb-dark h1{color:var(--ink)}
+html.kb-dark .sub{color:var(--mut)}
+html.kb-dark .sub.tnote{color:var(--mut)}
+html.kb-dark .route{box-shadow:var(--shadow);background:var(--card);border-color:var(--line)}
+html.kb-dark .route::before{background-image:linear-gradient(90deg, rgb(56, 189, 248), rgb(2, 132, 199));background-color:initial}
+html.kb-dark .rsel label{color:var(--ink2)}
+html.kb-dark select{color:var(--ink2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 8l4 4 4-4' stroke='%235b6579' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-color:#17191f;box-shadow:var(--shadow-sm);border-color:var(--line2)}
+html.kb-dark select:hover{border-color:rgba(14, 165, 233, 0.5)}
+html.kb-dark select:focus{outline-color:initial;box-shadow:var(--ring);border-color:var(--brand--kb-border)}
+html.kb-dark .rsel button{background-image:initial;background-color:#17191f;color:var(--brand-ink);box-shadow:var(--shadow-sm);border-color:var(--line2)}
+html.kb-dark .rsel button:hover{background:var(--sky2);border-color:var(--brand--kb-border)}
+html.kb-dark .rcand{color:var(--ink2);background-image:initial;background-color:#17191f;box-shadow:var(--shadow-sm);border-color:var(--line2)}
+html.kb-dark .rcand:hover{border-color:rgba(14, 165, 233, 0.5)}
+html.kb-dark .rcand.on{border-color:rgba(14, 165, 233, 0.5);color:var(--brand-ink);box-shadow:rgba(14, 165, 233, 0.3) 0px 0px 0px 1px;background:var(--sky)}
+html.kb-dark .rcand small{color:var(--mut)}
+html.kb-dark .rres table{background-image:initial;background-color:#17191f;border-color:var(--line)}
+html.kb-dark .rres th,html.kb-dark .rres td{border-bottom-color:var(--line)}
+html.kb-dark .rres tbody tr:last-child td{border-bottom-color:currentcolor}
+html.kb-dark .rres th{color:var(--brand-ink);background:var(--sky2)}
+html.kb-dark .rres td{color:var(--ink2)}
+html.kb-dark .rres .best td{background-image:initial;background-color:#171a20}
+html.kb-dark .rres .bar{background:var(--bg2)}
+html.kb-dark .rres .crown{background-image:initial;background-color:#121e19;color:#5ab792;border-color:#034a33}
+html.kb-dark .rnote{color:var(--mut)}
+html.kb-dark .rnote b{color:var(--ink)}
+html.kb-dark .ctl{box-shadow:var(--shadow);background:var(--card);border-color:var(--line)}
+html.kb-dark .seg{background:var(--bg2);border-color:var(--line)}
+html.kb-dark .seg button{border-color:currentcolor;background-image:initial;background-color:transparent;color:var(--mut)}
+html.kb-dark .seg button:hover{color:var(--ink)}
+html.kb-dark .seg button.on{background-image:initial;background-color:#17191f;color:var(--b);box-shadow:0 1px 2px rgba(0,0,0,0.176),0 6px 14px -8px rgba(0,0,0,0.65),inset 0 -2px 0 var(--b)}
+html.kb-dark label.chk{color:var(--ink2)}
+html.kb-dark .legend{color:var(--ink2)}
+html.kb-dark .legend i.dot{border-color:#32353c;box-shadow:rgba(0,0,0,0.44) 0px 0px 0px 1px}
+html.kb-dark .legend .sep{background:var(--line2--kb-bg)}
+html.kb-dark #map{box-shadow:var(--shadow);background-image:initial;background-color:#191c22;border-color:var(--line)}
+html.kb-dark .stats div{box-shadow:var(--shadow);background:var(--card)}
+html.kb-dark .stats b{color:var(--ink)}
+html.kb-dark .stats span{color:var(--mut)}
+html.kb-dark .panel{box-shadow:var(--shadow);color:var(--ink2);background:linear-gradient(180deg,#17191f,var(--sky2));border-color:var(--line)}
+html.kb-dark .panel h2{color:var(--ink)}
+html.kb-dark .panel h2::before{box-shadow:0 0 0 4px var(--sky--kb-shadow);background:var(--brand)}
+html.kb-dark .panel .dim{color:var(--dim)}
+html.kb-dark .panel li::marker{color:var(--brand--kb-fg)}
+html.kb-dark .panel code{background:var(--bg2)}
+html.kb-dark .msg{color:var(--brand-ink)}
+html.kb-dark .leaflet-popup-content-wrapper{box-shadow:var(--shadow-lg)}
+html.kb-dark .ant{border-color:#32353c;box-shadow:rgba(0,0,0,0.587) 0px 0px 0px 1px}
+html.kb-dark button:focus-visible,html.kb-dark select:focus-visible,html.kb-dark input:focus-visible,html.kb-dark a:focus-visible{outline-color:var(--brand--kb-border)}
+html.kb-dark body #kb-ver button{color:var(--mut);background-image:initial;background-color:#17191f;box-shadow:var(--shadow-sm);border-color:var(--line2)}
+html.kb-dark body #kb-ver button:hover,html.kb-dark body #kb-ver button:focus-visible{color:var(--brand-ink);border-color:var(--brand--kb-border)}
+@media (max-width: 760px){
+html.kb-dark .crumb{border-inline-start-color:var(--line2)}
+}
+
+/* ידני */
+/* צבע המותג של החברה (--b) נקבע מתוך JS — במצב כהה בהיר יותר, שיהיה קריא */
+html.kb-dark .seg button.on{color:color-mix(in oklab,var(--b) 45%,#fff)}

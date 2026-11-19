@@ -1,0 +1,121 @@
+/* מצב לילה — נבנה אוטומטית ב-tools/dark_css.mjs מתוך העיצוב הבהיר. לא לערוך ביד: תיקונים ב-tools/dark-extra/. */
+
+/* משותף */
+html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
+html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
+html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
+html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
+html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
+html.kb-dark #kb-ver-card{background-image:initial;background-color:#17191f;color:#c3d0ea;box-shadow:rgba(0,0,0,0.55) 0px -8px 30px}
+html.kb-dark #kb-ver-card .vx{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vd{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vold{border-top-color:#363a40}
+html.kb-dark #kb-ver-card .vold h3{color:#8b9cb5}
+html.kb-dark #kb-ver-card .vrow{border-bottom-color:#35383f}
+html.kb-dark #kb-ver-card .vrow small{color:rgb(148, 163, 184)}
+html.kb-dark #kb-ver-card .vbody{color:#a7b8d0}
+html.kb-dark #kb-ver-card .vtag{background-image:initial;background-color:#1f1b2a;color:#b09df9}
+/* בסיס לכל הכלים: מפות Leaflet וטפסים */
+html.kb-dark{background-color:#14181f}
+/* אריחי המפה: היפוך עדין — מפה כהה, השמות נשארים קריאים. הקווים והסמנים מעל לא מתהפכים */
+html.kb-dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.85) saturate(.55)}
+html.kb-dark .leaflet-container{background:#262b33}
+html.kb-dark .leaflet-bar a,html.kb-dark .leaflet-bar a:hover,html.kb-dark .leaflet-control-layers{background-color:#1f2630;color:#e2e8f0;border-color:#3b4655}
+html.kb-dark .leaflet-bar a.leaflet-disabled{background-color:#171c23;color:#6b7686}
+html.kb-dark .leaflet-bar{border-color:rgba(0,0,0,.6)}
+html.kb-dark .leaflet-control-attribution{background:rgba(20,24,31,.8)!important;color:#b6c0cc}
+html.kb-dark .leaflet-control-attribution a{color:#93c5fd}
+html.kb-dark .leaflet-popup-content-wrapper,html.kb-dark .leaflet-popup-tip{background:#1f2630;color:#e2e8f0;box-shadow:0 3px 14px rgba(0,0,0,.6)}
+html.kb-dark .leaflet-container a.leaflet-popup-close-button{color:#b6c0cc}
+html.kb-dark .leaflet-tooltip{background-color:#1f2630;color:#e2e8f0;border-color:#3b4655;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+html.kb-dark .leaflet-tooltip-top:before{border-top-color:#1f2630}
+html.kb-dark .leaflet-tooltip-bottom:before{border-bottom-color:#1f2630}
+html.kb-dark .leaflet-tooltip-left:before{border-left-color:#1f2630}
+html.kb-dark .leaflet-tooltip-right:before{border-right-color:#1f2630}
+html.kb-dark ::placeholder{color:#8a96a6}
+
+/* fares */
+:root.kb-dark{--ink:#d1cdca;--ink--kb-bg:#393634;--ink--kb-border:#d1cdca;--ink--kb-keep:#1c1917;--ink2:#c9c4c1;--gold:#d97706;--gold--kb-border:#d97706;--gold-dp:#e17c40;--gold-dp--kb-border:#b45309;--gold-lt:#231c00;--gold-lt--kb-fg:#fef3c7;--paper:#181b21;--card:#17191f;--line:#443b2e;--line--kb-shadow:#261e12;--txt:#cfc8c4;--sub:#a39380}
+html.kb-dark,html.kb-dark body{color:var(--txt);background:var(--paper)}
+html.kb-dark .top{color:rgb(255, 255, 255);background:var(--ink--kb-bg);border-bottom-color:var(--gold--kb-border)}
+html.kb-dark .tag{color:#e78d61;background:var(--gold-lt)}
+html.kb-dark .calc{box-shadow:0 1px 0 var(--line--kb-shadow);background:var(--card);border-color:var(--line)}
+html.kb-dark .calc-head{border-bottom-color:var(--line)}
+html.kb-dark .step{color:var(--ink)}
+html.kb-dark .step i{color:var(--gold-lt--kb-fg);background:var(--ink--kb-bg)}
+html.kb-dark .calc-head .how{color:var(--sub)}
+html.kb-dark .modeSeg{border-color:var(--ink--kb-border)}
+html.kb-dark .modeSeg button,html.kb-dark .modeSeg a{border-color:currentcolor;background-image:initial;background-color:#17191f;color:var(--ink);text-decoration-color:initial}
+html.kb-dark .modeSeg button.on,html.kb-dark .modeSeg a.on{color:var(--gold-lt--kb-fg);background:var(--ink--kb-bg)}
+html.kb-dark .searchrow input,html.kb-dark .stfld input{background-image:initial;background-color:#171a20;border-color:var(--line)}
+html.kb-dark .searchrow input:focus,html.kb-dark .stfld input:focus{outline-color:initial;border-color:var(--gold--kb-border)}
+html.kb-dark .resitem:focus-visible{background:var(--gold-lt);outline-color:var(--gold-dp--kb-border)}
+html.kb-dark .modeSeg button:focus-visible,html.kb-dark .modeSeg a:focus-visible{outline-color:var(--gold-dp--kb-border)}
+html.kb-dark .reslist{border-color:var(--line)}
+html.kb-dark .resitem{border-top-color:#3e3930}
+html.kb-dark a.resitem{color:inherit;text-decoration-color:initial}
+html.kb-dark .resitem:first-child{border-top-color:currentcolor}
+html.kb-dark .resitem:hover{background:var(--gold-lt)}
+html.kb-dark .resitem .rn{color:var(--gold-lt--kb-fg);background:var(--ink--kb-bg)}
+html.kb-dark .resitem .rd2{color:var(--sub)}
+html.kb-dark .msg{color:var(--sub)}
+html.kb-dark .picked{border-top-color:var(--line)}
+html.kb-dark .picked .pline{color:var(--txt)}
+html.kb-dark .picked .pline b{color:var(--gold-dp)}
+html.kb-dark .selrow label{color:var(--sub)}
+html.kb-dark .selrow select{background-image:initial;background-color:#171a20;border-color:var(--line)}
+html.kb-dark .swapbtn{color:var(--gold-dp);background:var(--gold-lt);border-color:var(--gold--kb-border)}
+html.kb-dark .stfld label{color:var(--sub)}
+html.kb-dark .stchip{color:#e89b76;background:var(--gold-lt);border-color:var(--gold--kb-border)}
+html.kb-dark .stchip button{background-image:none;background-color:initial;border-color:currentcolor;color:#e78d61}
+html.kb-dark .stmap-hint{color:var(--sub)}
+html.kb-dark .stmap{border-color:var(--line)}
+html.kb-dark .dothint{background-image:initial;background-color:rgba(28, 25, 23, 0.85);color:rgb(254, 243, 199)}
+html.kb-dark .result-wrap{color:rgb(255, 255, 255);background:var(--ink--kb-bg)}
+html.kb-dark .result-wrap.empty{background-image:initial;background-color:#171a20;color:var(--sub);border-color:var(--line)}
+html.kb-dark .distnote{color:rgb(201, 184, 164)}
+html.kb-dark .pcard{background-image:initial;background-color:#3e3a38;border-inline-start-color:var(--gold--kb-border)}
+html.kb-dark .pcard.na{border-inline-start-color:rgb(107, 95, 82)}
+html.kb-dark .pcard.hl{background-image:initial;background-color:rgb(58, 47, 28);box-shadow:rgba(217, 119, 6, 0.5) 0px 0px 0px 1px inset}
+html.kb-dark .pcard .pn{color:var(--gold-lt--kb-fg)}
+html.kb-dark .pcard .pt{color:rgb(201, 184, 164)}
+html.kb-dark .reftbl{background:var(--card);border-color:var(--line)}
+html.kb-dark .reftbl .rt-head{color:var(--ink)}
+html.kb-dark .reftbl .rt-sub{color:var(--sub)}
+html.kb-dark .reftbl th{color:var(--ink);background:var(--paper);border-bottom-color:var(--gold--kb-border)}
+html.kb-dark .reftbl td{border-bottom-color:var(--line)}
+html.kb-dark .reftbl .zn{color:var(--sub)}
+html.kb-dark .reftbl tr.peri td{background-image:initial;background-color:#1d1a0f}
+html.kb-dark .addrpin{text-shadow:rgba(0,0,0,0.65) 0px 1px 3px}
+html.kb-dark .repdlg{border-color:var(--line)}
+html.kb-dark .repdlg::backdrop{background-image:initial;background-color:rgba(28, 25, 23, 0.55)}
+html.kb-dark .repdlg h3{color:var(--ink)}
+html.kb-dark .repctx{color:var(--sub);background:var(--paper);border-color:var(--line)}
+html.kb-dark .replbl{color:var(--ink)}
+html.kb-dark .replbl textarea,html.kb-dark .replbl input{border-color:var(--line)}
+html.kb-dark .repbtns button{background:var(--paper);border-color:var(--line)}
+html.kb-dark .repbtns .repsendbtn{color:rgb(28, 25, 23);background:var(--gold);border-color:var(--gold--kb-border)}
+html.kb-dark .repstat{color:var(--ink)}
+html.kb-dark .foot{color:rgb(255, 255, 255);background:var(--ink--kb-bg)}
+html.kb-dark .srcs .src-l{background-image:initial;background-color:rgba(255, 255, 255, 0.08)}
+html.kb-dark .foot a{color:var(--gold-lt--kb-fg)}
+html.kb-dark .resitem.city{background:var(--gold-lt)}
+html.kb-dark .ctrnote{color:var(--sub)}
+html.kb-dark .dscbtn{color:var(--ink--kb-keep, var(--ink));border-color:currentcolor;background:var(--gold)}
+html.kb-dark .dscbtn:hover{background-image:initial;background-color:rgb(245, 158, 11)}
+html.kb-dark .dsc-ovl{background-image:initial;background-color:rgba(28, 25, 23, 0.55)}
+html.kb-dark .dsc{box-shadow:rgba(0,0,0,0.65) 0px 20px 60px;background:var(--card)}
+html.kb-dark .dsc-x{border-color:currentcolor;color:var(--sub);background:var(--paper)}
+html.kb-dark .dsc-sub{color:var(--sub)}
+html.kb-dark .dsc-in{background-image:initial;background-color:#17191f;color:var(--txt);border-color:var(--line)}
+html.kb-dark .dsc-msg{color:var(--sub)}
+html.kb-dark .dsc-card{color:rgb(255, 255, 255);background:var(--ink--kb-bg)}
+html.kb-dark .dsc-where{color:rgb(251, 191, 36)}
+html.kb-dark .dsc-mid{color:rgb(231, 223, 211)}
+html.kb-dark .dsc-scores > div{background-image:initial;background-color:rgba(255, 255, 255, 0.08);border-color:rgba(50,53,60,0.14)}
+html.kb-dark .dsc-scores span{color:rgb(201, 191, 178)}
+html.kb-dark .dsc-scores b{color:rgb(251, 191, 36)}
+html.kb-dark .dsc-scores small{color:rgb(201, 191, 178)}
+html.kb-dark .dsc-ex{color:rgb(231, 223, 211)}
+html.kb-dark .dsc-src{color:var(--sub)}
