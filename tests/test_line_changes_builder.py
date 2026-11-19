@@ -1,0 +1,496 @@
+# -*- coding: utf-8 -*-
+"""בדיקות יחידה לבונה של "מצגת לשינוי בקו" (tools/line_changes.py) — זיהוי סוג השינוי, עם נתונים קטנים בזיכרון
+(בלי GTFS אמיתי ובלי רשת): קו חדש וקו שמבוטל (find_new_ended), שינוי מסלול — תחנות שנוספו ובוטלו, החלפת מק"ט,
+תחנה שזזה, עקיפה מול שרטוט מחדש, קו שמתארך (compare), שינוי בלוח הזמנים בלבד (tt_change), חלופה שהוחלפה
+(find_renamed / rename_records), חלופה שבוטלה וחלופה חדשה (find_variants / variant_records), התחנה החלופית הקרובה
+בהליכה (add_walks — WALK_CANDS / WALK_AIR_MAX / WALK_MAX, השירות מוחלף בפונקציה מקומית), סוג הקו (load_line_types)
+ומספר התחנות בכל עיר (stop_city_counts — cn).
+הרצה: python3 -m pytest -q tests/test_line_changes_builder.py"""
+import datetime
+import json
+import os
+import sys
+import time
+from collections import defaultdict
+
+import importlib.util  # noqa: E402
+import pytest
+
+# נטען בשם ייחודי: גם בכלי המכרזים יש מודול בשם line_changes (ראו tests/test_line_changes_units.py)
+_TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools')
+if _TOOLS not in sys.path:
+    sys.path.append(_TOOLS)
+_spec = importlib.util.spec_from_file_location('lc_builder', os.path.join(_TOOLS, 'line_changes.py'))
+L = importlib.util.module_from_spec(_spec)
+sys.modules['lc_builder'] = L
+_spec.loader.exec_module(L)
+
+D = datetime.date
+DAY = datetime.timedelta(days=1)
+T0 = D(2026, 11, 19)          # יום חמישי
+OLD_D0 = T0 - 7 * DAY         # השבוע שעבר: 12.11 (חמישי) עד 18.11
+M_LAT = 1 / 110540            # מטר אחד בקו רוחב, במעלות (כמו ב-dist_m)
+
+
+def days(a, b):
+    """כל התאריכים מ-a עד b (כולל)"""
+    return {a + i * DAY for i in range((b - a).days + 1)}
+
+
+class FakeFeed:
+    """GTFS קטן בזיכרון — רק השדות שהפונקציות הנבדקות קוראות. day_deps — הפונקציה האמיתית של Feed"""
+    day_deps = L.Feed.day_deps
+
+    def __init__(self, d0, pats=None, stops=None, routes=None, svc_set=None, day=None):
+        self.d0, self.day = d0, day or d0
+        self.pat_list = pats or {}
+        self.stops = stops or {}
+        self.routes = routes or {}
+        self.agency = {'3': 'אגד', '5': 'דן'}
+        self.svc_set = svc_set or {}
+
+
+def route(line='970', ty='3', ag='3', long='תחנה-רמת גן<->תחנה-חיפה-1#'):
+    return dict(line=line, ty=ty, ag=ag, long=long, rd='')
+
+
+def var(dates, pid=1, shp='s', rid='r', td=None):
+    """וריאנט אחד של מק"ט-כיוון-חלופה: {(רצף, שרטוט): {td, dates, svc, rid}}"""
+    return {(pid, shp): {'td': td if td is not None else len(dates) * 10, 'dates': set(dates), 'svc': set(), 'rid': rid}}
+
+
+def stop(code, la, lo, city='בני ברק', name=None):
+    return {'code': code, 'name': name or 'תחנה ' + code, 'll': (la, lo), 'city': city}
+
+
+def line_stops(codes, lat0=32.08, lon=34.83, step=0.004):
+    return [stop(c, lat0 + i * step, lon) for i, c in enumerate(codes)]
+
+
+def straight(n=16, lat0=32.08, lon=34.83, step=0.002):
+    return [(lat0 + i * step, lon) for i in range(n)]
+
+
+def cmp(old, new, o_shape=None, n_shape=None):
+    return L.compare(old, new, {s['code']: s for s in old}, {s['code']: s for s in new}, o_shape or [], n_shape or [])
+
+
+# ---------------------------------------------------------------- קו חדש / קו שמבוטל (find_new_ended)
+
+def new_ended(old_v, new_v, routes=None):
+    routes = routes or {'r': route()}
+    old, new = FakeFeed(OLD_D0, routes=routes), FakeFeed(T0, routes=routes)
+    stats = defaultdict(int)
+    keys = sorted(set(old_v) | set(new_v))
+    n, e = L.find_new_ended(keys, old_v, new_v, old, new, T0, stats)
+    return n, e, stats
+
+
+def test_new_line_found():
+    """מק"ט שלא נסע בשבוע שעבר ומתחיל השבוע — קו חדש, מהיום הראשון שלו (כל הכיוונים יחד)"""
+    new_v = {'45009-1-#': var(days(T0 + 2 * DAY, T0 + 20 * DAY)), '45009-2-#': var(days(T0 + 3 * DAY, T0 + 20 * DAY))}
+    n, e, _ = new_ended({}, new_v)
+    assert n == {'45009': (['45009-1-#', '45009-2-#'], T0 + 2 * DAY)}
+    assert e == {}
+
+
+def test_new_line_later_than_a_week_waits():
+    """קו חדש שמתחיל רק בעוד יותר משבוע — לא עכשיו (ייכנס בריצה של שבוע הבא)"""
+    n, _e, stats = new_ended({}, {'45009-1-#': var(days(T0 + 8 * DAY, T0 + 20 * DAY))})
+    assert n == {} and stats['new_later'] == 1
+
+
+def test_rail_and_lines_without_number_are_skipped():
+    """רכבת (route_type 2) וקו בלי מספר — לא קו חדש ולא קו מבוטל"""
+    routes = {'rail': route(ty='2'), 'nonum': route(line='')}
+    new_v = {'1-1-#': var(days(T0, T0 + 20 * DAY), rid='rail'), '2-1-#': var(days(T0, T0 + 20 * DAY), rid='nonum')}
+    old_v = {'3-1-#': var(days(OLD_D0, T0 - DAY), rid='rail')}
+    n, e, _ = new_ended(old_v, new_v, routes)
+    assert n == {} and e == {}
+
+
+def test_line_started_mid_last_week_is_new():
+    """קו שהתחיל ביום שני שעבר: בחמישי ובראשון של השבוע שעבר (ימים שהוא נוסע בהם עכשיו) לא נסע — קו חדש מיום שני"""
+    F = D(2026, 11, 16)
+    wk = {d for d in days(F, T0 + 20 * DAY) if d.weekday() in (6, 0, 1, 2, 3)}   # א׳–ה׳
+    n, _e, stats = new_ended({'45010-1-#': var({d for d in wk if d < T0})}, {'45010-1-#': var({d for d in wk if d >= T0})})
+    assert n == {'45010': (['45010-1-#'], F)} and stats['new_started'] == 1
+
+
+def test_line_missing_one_day_last_week_is_not_new():
+    """רק יום אחד בלי נסיעות בתחילת השבוע שעבר — לא מספיק כדי לקרוא לקו "חדש\""""
+    F = D(2026, 11, 13)
+    wk = {d for d in days(F, T0 + 20 * DAY) if d.weekday() in (6, 0, 1, 2, 3)}
+    n, _e, _ = new_ended({'45010-1-#': var({d for d in wk if d < T0})}, {'45010-1-#': var({d for d in wk if d >= T0})})
+    assert n == {}
+
+
+def test_ended_line_found():
+    """מק"ט שנסע בשבוע שעבר ואין לו אף נסיעה מעכשיו — קו שמבוטל, עם היום האחרון שלו"""
+    old_v = {'71011-1-#': var(days(OLD_D0, T0 - 2 * DAY)), '71011-2-#': var(days(OLD_D0, T0 - 3 * DAY))}
+    n, e, _ = new_ended(old_v, {})
+    assert n == {}
+    assert e == {'71011': (['71011-1-#', '71011-2-#'], T0 - 2 * DAY, False)}
+
+
+def test_line_ending_this_week_is_ended_soon():
+    """קו שהנסיעה האחרונה שלו בשבוע הקרוב, ואחריה אין כלום — קו שמבוטל (soon), מהיום האחרון"""
+    old_v = {'71011-1-#': var(days(OLD_D0, T0 - DAY))}
+    new_v = {'71011-1-#': var(days(T0, T0 + 3 * DAY))}
+    _n, e, _ = new_ended(old_v, new_v)
+    assert e == {'71011': (['71011-1-#'], T0 + 3 * DAY, True)}
+
+
+def test_line_that_keeps_running_is_not_ended():
+    old_v = {'71011-1-#': var(days(OLD_D0, T0 - DAY))}
+    new_v = {'71011-1-#': var(days(T0, T0 + 20 * DAY))}
+    n, e, _ = new_ended(old_v, new_v)
+    assert n == {} and e == {}
+
+
+# ---------------------------------------------------------------- שינוי מסלול (compare)
+
+def test_route_change_stops_added_and_removed():
+    """תחנה c בוטלה ובמקומה x במקום אחר — אחת נוספה ואחת בוטלה; התחנות שנשארו — לא"""
+    old = line_stops('abcde')
+    new = [s for s in old if s['code'] != 'c']
+    new.insert(2, stop('x', 32.088, 34.85))
+    res, minor = cmp(old, new)
+    assert [s['code'] for s in res['added']] == ['x']
+    assert [s['code'] for s in res['removed']] == ['c']
+    assert res['moved'] == [] and res['swaps'] == [] and res['ext'] == ''
+    assert not res['order']
+    assert 'code' not in minor
+
+
+def test_stop_code_swap_is_not_a_change():
+    """מק"ט חדש באותו שם ובאותו מקום (עד SWAP_M) — החלפת מק"ט בלבד: לא נוספה ולא בוטלה"""
+    old = line_stops('abcde')
+    new = [dict(s) for s in old]
+    new[2] = stop('c2', old[2]['ll'][0] + 20 * M_LAT, 34.83, name=old[2]['name'])
+    res, minor = cmp(old, new)
+    assert res['added'] == [] and res['removed'] == []
+    assert res['swaps'] == [{'old': 'c', 'new': 'c2', 'name': old[2]['name']}]
+    assert minor['code'] == 1
+
+
+def test_moved_stop():
+    """אותו מק"ט שזז יותר מ-MOVE_M — תחנה שזזה; הזזה קטנה — רק בסטטיסטיקה"""
+    old = line_stops('abcde')
+    new = [dict(s) for s in old]
+    new[1] = dict(new[1], ll=(new[1]['ll'][0] + 120 * M_LAT, 34.83))
+    new[3] = dict(new[3], ll=(new[3]['ll'][0] + 20 * M_LAT, 34.83))
+    res, minor = cmp(old, new)
+    assert [m['code'] for m in res['moved']] == ['b'] and 115 <= res['moved'][0]['m'] <= 125
+    assert minor['move'] == 1
+
+
+def test_same_stops_redraw_is_not_a_route_change():
+    """אותן תחנות, השרטוט זז 50 מ' — שרטוט מחדש של אותה דרך, לא שינוי מסלול"""
+    st = line_stops('abcde')
+    shp = straight()
+    lon_m = 1 / (111320 * 0.847)
+    redraw = [(la, lo + 50 * lon_m) if 4 <= i <= 10 else (la, lo) for i, (la, lo) in enumerate(shp)]
+    res, minor = cmp(st, st, shp, redraw)
+    assert not res['geo'] and res['dev'] == 0
+    assert minor['redraw'] == 1
+
+
+def test_same_stops_detour_is_a_route_change():
+    """אותן תחנות, אבל קטע של יותר מ-400 מ' רחוק מהמסלול הקודם יותר מ-150 מ' — עקיפה (geo)"""
+    st = line_stops('abcde')
+    shp = straight()
+    lon_m = 1 / (111320 * 0.847)
+    detour = [(la, lo + 300 * lon_m) if 4 <= i <= 10 else (la, lo) for i, (la, lo) in enumerate(shp)]
+    res, _ = cmp(st, st, shp, detour)
+    assert res['geo'] and res['dev'] > 400
+    assert res['added'] == [] and res['removed'] == []
+
+
+def test_extension_at_the_end():
+    """אותן תחנות באותו סדר ועוד תחנות בסוף — קו שמתארך (ext=end)"""
+    old = line_stops('abc')
+    new = line_stops('abcde')
+    res, _ = cmp(old, new)
+    assert res['ext'] == 'end' and [s['code'] for s in res['added']] == ['d', 'e']
+    res2, _ = cmp(line_stops('cde', lat0=32.088), line_stops('abcde'))
+    assert res2['ext'] == 'start'
+
+
+def test_identical_route_is_no_change():
+    st = line_stops('abcde')
+    shp = straight()
+    res, minor = cmp(st, st, shp, list(shp))
+    assert not (res['added'] or res['removed'] or res['moved'] or res['geo'])
+    assert dict(minor) == {}
+
+
+# ---------------------------------------------------------------- שינוי בלוח הזמנים בלבד (tt_change)
+
+def tt_feeds(old_deps, new_deps, extra_old=None):
+    """שירות אחד בשבוע שעבר ושירות אחד מהיום; extra_old — {תאריך: שעות} לימים חריגים בשבוע שעבר"""
+    last = T0 + 20 * DAY
+    ref_days = sorted(days(OLD_D0, T0 - DAY))
+    o_svc = {'o': list(old_deps)}
+    o_set = {'o': set(d for d in ref_days if d not in (extra_old or {}))}
+    for i, (d, deps) in enumerate(sorted((extra_old or {}).items())):
+        o_svc['x%d' % i] = list(deps)
+        o_set['x%d' % i] = {d}
+    old = FakeFeed(OLD_D0, svc_set=o_set)
+    new = FakeFeed(T0, svc_set={'n': days(T0, last)})
+    return L.tt_change(old, new, o_svc, {'n': list(new_deps)}, ref_days, T0, last)
+
+
+def test_timetable_change_found():
+    """אותו מסלול, נסיעה נוספת בכל יום — שינוי בלוח הזמנים מהיום, כל ימי השבוע בקבוצה אחת"""
+    res, why = tt_feeds([420, 480, 540], [420, 480, 540, 600])
+    assert why == ''
+    eff, groups, changed = res
+    assert eff == T0
+    assert len(groups) == 1 and changed == groups
+    assert changed[0][1] == [420, 480, 540] and changed[0][2] == [420, 480, 540, 600]
+
+
+def test_timetable_same_is_no_change():
+    assert tt_feeds([420, 480, 540], [420, 480, 540]) == (None, 'same')
+
+
+def test_timetable_small_shift_is_not_significant():
+    """הזזה של 2 דקות בנסיעה אמצעית — לא שינוי משמעותי (מסונן, 'shift')"""
+    assert tt_feeds([420, 480, 540], [420, 482, 540]) == (None, 'shift')
+
+
+def test_holiday_last_week_is_not_a_change():
+    """יום חריג אחד בשבוע שעבר (חג — פחות נסיעות) בתוך ימים עם אותו לוח חדש — מקבל את הלוח של רוב הימים"""
+    holiday = D(2026, 11, 16)
+    assert tt_feeds([420, 480, 540], [420, 480, 540], extra_old={holiday: [480]}) == (None, 'same')
+
+
+# ---------------------------------------------------------------- חלופה שהוחלפה (find_renamed / rename_records)
+
+REN_STOPS = {c: stop(c, 32.08 + i * 0.004, 34.83) for i, c in enumerate('abcdefgh')}
+REN_STOPS['x'] = stop('x', 32.09, 34.86)
+
+
+def renamed(old_v, new_v, pats_old=None, pats_new=None):
+    pats_old = pats_old or {1: list('abcdefgh'), 2: list('abcdefgh'), 3: list('abcdefgh')}
+    pats_new = pats_new or pats_old
+    old = FakeFeed(OLD_D0, pats_old, REN_STOPS, {'r': route()})
+    new = FakeFeed(T0, pats_new, REN_STOPS, {'r': route()})
+    return L.find_renamed(sorted(set(old_v) | set(new_v)), old_v, new_v, old, T0, new), old, new
+
+
+def test_renamed_gap_up_to_8_days_when_direction_idle():
+    """הפסקה של 6 ימים בין הישנה לחדשה, ובינתיים אין בכיוון אף נסיעה — עדיין אותה חלופה"""
+    old_v = {'10970-1-#': var(days(OLD_D0 - 7 * DAY, OLD_D0 - DAY) | {OLD_D0}, pid=1)}
+    F = OLD_D0 + 6 * DAY
+    new_v = {'10970-1-0': var(days(F, T0 + 20 * DAY), pid=2)}
+    old_v['10970-1-0'] = var({F}, pid=2)
+    ren, _o, _n = renamed(old_v, new_v)
+    assert ren == {'10970-1-0': ('10970-1-#', F)}
+
+
+def test_not_renamed_after_long_gap_with_other_trips():
+    """הפסקה של 6 ימים כשחלופה אחרת באותו כיוון נסעה בינתיים — לא החלפה"""
+    old_v = {'10970-1-#': var({OLD_D0}, pid=1), '10970-1-5': var(days(OLD_D0, T0 - DAY), pid=3)}
+    F = OLD_D0 + 6 * DAY
+    old_v['10970-1-0'] = var({F}, pid=2)
+    new_v = {'10970-1-0': var(days(F, T0 + 20 * DAY), pid=2), '10970-1-5': var(days(T0, T0 + 20 * DAY), pid=3)}
+    ren, _o, _n = renamed(old_v, new_v)
+    assert ren == {}
+
+
+def test_renamed_picks_the_busiest_old_alternative():
+    """שתי חלופות ישנות שהפסיקו לפני החדשה — נבחרת זו שנסעה הכי הרבה בשבוע שעבר"""
+    F = T0 - 2 * DAY
+    old_v = {'10970-1-#': var(days(OLD_D0, F - DAY), pid=1, td=5),
+             '10970-1-1': var(days(OLD_D0, F - DAY), pid=3, td=50),
+             '10970-1-0': var({F, F + DAY}, pid=2)}
+    new_v = {'10970-1-0': var(days(T0, T0 + 20 * DAY), pid=2)}
+    ren, _o, _n = renamed(old_v, new_v)
+    assert ren == {'10970-1-0': ('10970-1-1', F)}
+
+
+def test_rename_record_for_changed_stops():
+    """חלופה שהוחלפה ובמסלול החדש תחנה אחרת — רשומת שינוי מסלול עם was והסבר (basis)"""
+    F = T0 - 2 * DAY
+    old_v = {'10970-1-#': var(days(OLD_D0, F - DAY), pid=1), '10970-1-0': var({F, F + DAY}, pid=2)}
+    new_v = {'10970-1-0': var(days(T0, T0 + 20 * DAY), pid=2)}
+    pats = {1: list('abcdefgh'), 2: list('abcxefgh')}
+    ren, old, new = renamed(old_v, new_v, pats, pats)
+    stats = {}
+    recs = L.rename_records(ren, old_v, new_v, old, new, {}, {}, T0, stats)
+    assert len(recs) == 1
+    r = recs[0]
+    assert r['rd'] == '10970-1-0' and r['was'] == '10970-1-#' and r['eff'] == F.isoformat()
+    assert r['added'] == ['x'] and r['removed'] == ['d']
+    assert '10970-1-#' in r['basis'] and '10970-1-0' in r['basis']
+
+
+# ---------------------------------------------------------------- חלופה שבוטלה / חדשה (find_variants / variant_records)
+
+def variants_case(old_v, new_v, pats):
+    old = FakeFeed(OLD_D0, pats, REN_STOPS, {'r': route()})
+    new = FakeFeed(T0, pats, REN_STOPS, {'r': route()})
+    stats = defaultdict(int)
+    keys = sorted(set(old_v) | set(new_v))
+    out = L.find_variants(keys, old_v, new_v, old, new, {}, {}, {}, T0, stats)
+    return out, L.variant_records(out, old, new, {}, {}, T0, defaultdict(int)), stats
+
+
+def test_ended_alternative_with_lost_stop():
+    """חלופה שנסעה בשבוע שעבר ואין לה נסיעות מעכשיו, ותחנה x שאף חלופה אחרת של הקו לא עוצרת בה — חלופה שבוטלה"""
+    pats = {1: list('abcdefgh'), 2: list('abcxdefgh')}
+    old_v = {'10970-1-#': var(days(OLD_D0, T0 - DAY), pid=1), '10970-1-3': var(days(OLD_D0, T0 - 2 * DAY), pid=2)}
+    new_v = {'10970-1-#': var(days(T0, T0 + 20 * DAY), pid=1)}
+    out, recs, stats = variants_case(old_v, new_v, pats)
+    assert [(v['k'], v['var'], v['lost']) for v in out] == [('10970-1-3', 'end', {'x'})]
+    assert stats['varend'] == 1
+    assert len(recs) == 1 and recs[0]['var'] == 'end' and recs[0]['removed'] == ['x'] and recs[0]['added'] == []
+    assert recs[0]['last'] == (T0 - 2 * DAY).isoformat() and recs[0]['eff'] == (T0 - DAY).isoformat()
+
+
+def test_ended_alternative_without_lost_stops_is_skipped():
+    """חלופה שבוטלה, אבל כל התחנות שלה עדיין בחלופה אחרת (קיצור מסלול) — לא נכנסת"""
+    pats = {1: list('abcdefgh'), 2: list('abcd')}
+    old_v = {'10970-1-#': var(days(OLD_D0, T0 - DAY), pid=1), '10970-1-3': var(days(OLD_D0, T0 - 2 * DAY), pid=2)}
+    new_v = {'10970-1-#': var(days(T0, T0 + 20 * DAY), pid=1)}
+    out, _recs, stats = variants_case(old_v, new_v, pats)
+    assert out == [] and stats['varend_same'] == 1
+
+
+def test_new_alternative_with_new_stop():
+    """חלופה שלא נסעה בשבוע שעבר ומתחילה השבוע (VAR_MIN נסיעות לפחות), עם תחנה חדשה לקו — חלופה חדשה"""
+    pats = {1: list('abcdefgh'), 2: list('abcxdefgh')}
+    old_v = {'10970-1-#': var(days(OLD_D0, T0 - DAY), pid=1)}
+    new_v = {'10970-1-#': var(days(T0, T0 + 20 * DAY), pid=1), '10970-1-4': var(days(T0 + DAY, T0 + 20 * DAY), pid=2, td=40)}
+    out, recs, stats = variants_case(old_v, new_v, pats)
+    assert [(v['k'], v['var'], v['eff']) for v in out] == [('10970-1-4', 'new', T0 + DAY)]
+    assert stats['varnew'] == 1
+    assert recs[0]['added'] == ['x'] and recs[0]['removed'] == [] and recs[0]['freq']
+
+
+# ---------------------------------------------------------------- התחנה החלופית בהליכה (add_walks)
+
+def arr(code, la, lo):
+    return [code, 'תחנה ' + code, la, lo, 'בני ברק']
+
+
+def walk_rec(news, removed=('r',)):
+    return {'old': {'stops': [arr('r', 32.0, 34.8)]}, 'new': {'stops': news}, 'removed': list(removed)}
+
+
+@pytest.fixture
+def walk_env(monkeypatch, tmp_path):
+    """בלי רשת ובלי המתנה: walk_table מוחלפת ברשימת קריאות ובתשובה קבועה"""
+    monkeypatch.delenv('WALK', raising=False)
+    monkeypatch.setattr(time, 'sleep', lambda s: None)
+    calls = []
+    answer = {}
+
+    def fake_table(src, dests):
+        calls.append([d[0] for d in dests])
+        if answer.get('fail'):
+            raise RuntimeError('down')
+        return [answer.get(d[0], 500) for d in dests]
+
+    monkeypatch.setattr(L, 'walk_table', fake_table)
+    return calls, answer, str(tmp_path)
+
+
+def north(code, m):
+    return arr(code, 32.0 + m * M_LAT, 34.8)
+
+
+def test_walk_checks_only_the_nearest_candidates(walk_env):
+    """נבדקות רק WALK_CANDS התחנות הקרובות ביותר בקו אווירי, ורק עד WALK_AIR_MAX; התחנה עצמה (אותו מק"ט) — לא"""
+    calls, answer, data = walk_env
+    news = [north('r', 0)] + [north('s%d' % i, 100 * i) for i in range(1, 12)] + [north('far', 1400)]
+    answer.update({'s3': 250, 's1': 700})
+    f = walk_rec(news)
+    L.add_walks([f], data)
+    assert len(calls) == 1
+    assert calls[0] == ['s%d' % i for i in range(1, L.WALK_CANDS + 1)]
+    assert f['walk'] == {'r': {'to': 's3', 'm': 250}}
+
+
+def test_walk_air_max_none_without_request(walk_env):
+    """אין אף תחנה במסלול החדש עד WALK_AIR_MAX בקו אווירי — "לא נמצאה", בלי בקשה לשירות"""
+    calls, _answer, data = walk_env
+    f = walk_rec([north('a', L.WALK_AIR_MAX + 100), north('b', 2000)])
+    L.add_walks([f], data)
+    assert calls == [] and f['walk'] == {'r': {'none': 1}}
+
+
+def test_walk_too_far_on_foot_is_none(walk_env):
+    """כל המועמדות רחוקות בהליכה יותר מ-WALK_MAX (או בלי מסלול) — "לא נמצאה\""""
+    _calls, answer, data = walk_env
+    answer.update({'a': L.WALK_MAX + 50, 'b': None})
+    f = walk_rec([north('a', 300), north('b', 400)])
+    L.add_walks([f], data)
+    assert f['walk'] == {'r': {'none': 1}}
+
+
+def test_walk_cache_reused_and_pruned(walk_env):
+    """זוג שכבר חושב נשמר ב-walk.json ולא מבוקש שוב; בקובץ נשארים רק הזוגות שבשימוש"""
+    calls, answer, data = walk_env
+    answer.update({'a': 320})
+    f = walk_rec([north('a', 300)])
+    L.add_walks([f], data)
+    L.add_walks([walk_rec([north('a', 300)])], data)
+    assert len(calls) == 1
+    cache = json.load(open(os.path.join(data, 'walk.json'), encoding='utf-8'))
+    assert list(cache.values()) == [320]
+    L.add_walks([walk_rec([north('b', 300)], removed=())], data)
+    assert json.load(open(os.path.join(data, 'walk.json'), encoding='utf-8')) == {}
+
+
+def test_walk_service_down_leaves_no_walk(walk_env):
+    """השירות לא זמין — אין שדה walk (המצגת משתמשת בהערכה בקו אווירי), ולא "לא נמצאה\""""
+    _calls, answer, data = walk_env
+    answer['fail'] = True
+    f = walk_rec([north('a', 300)])
+    f['walk'] = {'old': 1}
+    L.add_walks([f], data)
+    assert 'walk' not in f
+
+
+def test_walk_disabled(walk_env, monkeypatch):
+    calls, _answer, data = walk_env
+    monkeypatch.setenv('WALK', '0')
+    f = walk_rec([north('a', 300)])
+    L.add_walks([f], data)
+    assert calls == [] and 'walk' not in f and not os.path.exists(os.path.join(data, 'walk.json'))
+
+
+# ---------------------------------------------------------------- סוג הקו (load_line_types)
+
+def test_load_line_types(tmp_path):
+    """לפי מק"ט — הסוג של רוב השורות; סוג לא מוכר ושורה קצרה — מדולגים"""
+    rows = [[10970, '970', 1, 'א', 'ב', 'מרכז', 'בינעירוני'], [10970, '970', 2, 'ב', 'א', 'מרכז', 'בינעירוני'],
+            [10970, '970', 3, 'ב', 'א', 'מרכז', 'עירוני'], [11001, '1', 1, 'א', 'ב', 'דרום', 'עירוני'],
+            [12000, '200', 1, 'א', 'ב', 'צפון', 'אזורי'], [13000, '300', 1, 'א', 'ב', 'צפון', 'אחר'], [14000, '400']]
+    p = tmp_path / 'main.json'
+    p.write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
+    assert L.load_line_types(str(p)) == {'10970': 'i', '11001': 'u', '12000': 'r'}
+
+
+def test_load_line_types_from_env_and_missing(tmp_path, monkeypatch):
+    p = tmp_path / 'm.json'
+    p.write_text(json.dumps([[5, '5', 1, '', '', '', 'עירוני']]), encoding='utf-8')
+    monkeypatch.setenv('LC_LINE_TYPES', str(p))
+    assert L.load_line_types() == {'5': 'u'}
+    assert L.load_line_types(str(tmp_path / 'none.json')) == {}
+    bad = tmp_path / 'bad.json'
+    bad.write_text('{not json', encoding='utf-8')
+    assert L.load_line_types(str(bad)) == {}
+
+
+# ---------------------------------------------------------------- מספר התחנות בכל עיר (cn)
+
+def test_stop_city_counts_parallel_to_stop_cities():
+    """לכל עיר ברצף (stop_cities) — כמה תחנות בה; תחנה בלי עיר לא נספרת ולא מפרידה"""
+    st = [{'city': c} for c in ['לוד', 'לוד', '', 'לוד', 'רמלה', 'רמלה', 'לוד']]
+    assert L.stop_cities(st) == ['לוד', 'רמלה', 'לוד']
+    assert L.stop_city_counts(st) == [3, 2, 1]
+    assert L.stop_city_counts([]) == [] and L.stop_city_counts([{'city': ''}]) == []

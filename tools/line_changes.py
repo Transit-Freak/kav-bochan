@@ -1005,6 +1005,62 @@ def variant_records(varis, old, new, shp_old, shp_new, t0, stats):
     return found
 
 
+def find_new_ended(keys, old_v, new_v, old, new, t0, stats):
+    """קו חדש / קו מבוטל — לפי מק"ט (כל הכיוונים והחלופות יחד). מחזיר (new_mks, ended_mks):
+    new_mks = {מק"ט: (מפתחות, היום הראשון)} · ended_mks = {מק"ט: (מפתחות, היום האחרון, האם יש עוד נסיעות בשבוע הקרוב)}"""
+    DAY = datetime.timedelta(days=1)
+    week_end = t0 + 7 * DAY
+
+    def route_of(feed, vs):
+        return feed.routes[next(iter(vs.values()))['rid']]
+
+    old_mk, new_mk = defaultdict(list), defaultdict(list)
+    for k in keys:
+        if k in old_v:
+            old_mk[k.split('-')[0]].append(k)
+        if k in new_v:
+            new_mk[k.split('-')[0]].append(k)
+
+    def mk_dates(vmap, ks):
+        out = set()
+        for k in ks:
+            for x in vmap[k].values():
+                out |= x['dates']
+        return out
+
+    new_mks, ended_mks = {}, {}
+    for mk, ks in new_mk.items():
+        r = route_of(new, new_v[ks[0]])
+        if r['ty'] == '2' or not r['line']:
+            continue
+        nd = mk_dates(new_v, ks)
+        if mk in old_mk:
+            # קו שהתחיל באמצע השבוע שעבר: בימים הראשונים של השבוע לא נסע, אף שבימים מהסוג הזה הוא נוסע עכשיו
+            F = min(mk_dates(old_v, old_mk[mk]))
+            runs = {d.weekday() for d in nd if d < week_end}
+            if sum(1 for i in range((F - old.d0).days) if (old.d0 + DAY * i).weekday() in runs) < 2:   # יום אחד בלי נסיעות — לא מספיק
+                continue
+            stats['new_started'] += 1
+            S = F
+        else:
+            S = min(nd)
+        if S > week_end:          # מתחיל רק בעוד יותר משבוע — ייכנס בריצה של שבוע הבא
+            stats['new_later'] += 1
+            continue
+        new_mks[mk] = (ks, S)
+    for mk, ks in old_mk.items():
+        r = route_of(old, old_v[ks[0]])
+        if r['ty'] == '2' or not r['line']:
+            continue
+        nd = mk_dates(new_v, new_mk[mk]) if mk in new_mk else set()
+        if nd and max(nd) >= week_end:
+            continue
+        # אין אף נסיעה מעכשיו ועד סוף החלון (שבועיים ועוד שבוע), או שהנסיעה האחרונה בשבוע הקרוב ואחריה אין כלום
+        L = max(nd) if nd else max(mk_dates(old_v, ks))
+        ended_mks[mk] = (ks, L, bool(nd))
+    return new_mks, ended_mks
+
+
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
@@ -1051,53 +1107,11 @@ def run():
     # קו חדש / קו מבוטל — לפי מק"ט (כל הכיוונים והחלופות יחד)
     DAY = datetime.timedelta(days=1)
     week_end, hz_end = t0 + 7 * DAY, t0 + HORIZON * DAY
-    old_mk, new_mk = defaultdict(list), defaultdict(list)
-    for k in keys:
-        if k in old_v:
-            old_mk[k.split('-')[0]].append(k)
-        if k in new_v:
-            new_mk[k.split('-')[0]].append(k)
 
     def route_of(feed, vs):
         return feed.routes[next(iter(vs.values()))['rid']]
 
-    def mk_dates(vmap, ks):
-        out = set()
-        for k in ks:
-            for x in vmap[k].values():
-                out |= x['dates']
-        return out
-
-    new_mks, ended_mks = {}, {}
-    for mk, ks in new_mk.items():
-        r = route_of(new, new_v[ks[0]])
-        if r['ty'] == '2' or not r['line']:
-            continue
-        nd = mk_dates(new_v, ks)
-        if mk in old_mk:
-            # קו שהתחיל באמצע השבוע שעבר: בימים הראשונים של השבוע לא נסע, אף שבימים מהסוג הזה הוא נוסע עכשיו
-            F = min(mk_dates(old_v, old_mk[mk]))
-            runs = {d.weekday() for d in nd if d < week_end}
-            if sum(1 for i in range((F - old.d0).days) if (old.d0 + DAY * i).weekday() in runs) < 2:   # יום אחד בלי נסיעות — לא מספיק
-                continue
-            stats['new_started'] += 1
-            S = F
-        else:
-            S = min(nd)
-        if S > week_end:          # מתחיל רק בעוד יותר משבוע — ייכנס בריצה של שבוע הבא
-            stats['new_later'] += 1
-            continue
-        new_mks[mk] = (ks, S)
-    for mk, ks in old_mk.items():
-        r = route_of(old, old_v[ks[0]])
-        if r['ty'] == '2' or not r['line']:
-            continue
-        nd = mk_dates(new_v, new_mk[mk]) if mk in new_mk else set()
-        if nd and max(nd) >= week_end:
-            continue
-        # אין אף נסיעה מעכשיו ועד סוף החלון (שבועיים ועוד שבוע), או שהנסיעה האחרונה בשבוע הקרוב ואחריה אין כלום
-        L = max(nd) if nd else max(mk_dates(old_v, ks))
-        ended_mks[mk] = (ks, L, bool(nd))
+    new_mks, ended_mks = find_new_ended(keys, old_v, new_v, old, new, t0, stats)
     stats['new_line'] = len(new_mks)
     stats['ended_line'] = len(ended_mks)
     print(f'קווים חדשים: {len(new_mks)} · קווים שמבוטלים: {len(ended_mks)}', flush=True)

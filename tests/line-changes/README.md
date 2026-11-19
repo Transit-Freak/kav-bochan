@@ -8,9 +8,10 @@
 | בדיקה | קובץ | מה |
 |---|---|---|
 | יחידה — הבונה | `tests/test_line_changes_units.py` | קבוצות ימים, קיצור ימים, סיכום לו"ז, שינוי משמעותי |
+| יחידה — הבונה: סוג השינוי | `tests/test_line_changes_builder.py` | קו חדש וקו שמבוטל, תחנות שנוספו ובוטלו, החלפת מק"ט, תחנה שזזה, עקיפה מול שרטוט מחדש, קו שמתארך, שינוי בלו"ז בלבד, חלופה שהוחלפה, חלופה שבוטלה / חדשה, התחנה החלופית בהליכה (בלי רשת), סוג הקו, מספר התחנות בכל עיר (cn) |
 | יחידה — חלופה שהוחלפה | `tools/test_line_changes_renamed.py` | `find_renamed` / `rename_records` |
 | יחידה — כבישים | `tools/test_road_match.py` | סימון `same` / `diff` לקטעים |
-| יחידה — הדף | `tests/line-changes-units.test.mjs` | כלל הרעש בשרטוט, ×N, קיצור ימים, "לא נמצאה תחנה חלופית קרובה"; בלוח לפי יעד — סוג הקו (לפי משרד התחבורה, ובלי הנתון — קו בין ערים סמוכות), סדר הקווים, ואות וצבע לכל חלופה |
+| יחידה — הדף | `tests/line-changes-units.test.mjs` (טוען את `deck.js` ואת `deck-sign.js`, `deck-board.js`, `deck-maps.js`) | כלל הרעש בשרטוט, ×N, קיצור ימים, "לא נמצאה תחנה חלופית קרובה"; בלוח לפי יעד — סוג הקו (לפי משרד התחבורה, ובלי הנתון — קו בין ערים סמוכות), סדר הקווים, ואות וצבע לכל חלופה |
 | המצגות בדפדפן | `tests/line-changes/decks.mjs` | 17 מצגות, 5 לוחות לפי יעד, 3 לוחות בלוד (חלופות, סדר הקווים, סוג קו, סדר ידני), הודעה על שינוי כלוח מודעות, ו"איך להציג את לוח הזמנים" (3 מצגות), מול `snapshots.json` |
 
 הבדיקה בדפדפן בונה כל מצגת מהנתונים הקבועים ב-`tests/fixtures/line-changes/data`, עם שעה קבועה (19.11.2026) ובלי רשת
@@ -34,7 +35,7 @@
 ```
 npm i --no-save --prefix /tmp/lc playwright leaflet@1.9.4
 NODE_PATH=/tmp/lc/node_modules node tests/line-changes/decks.mjs
-python3 -m pytest -q tests/test_line_changes_units.py tools/test_line_changes_renamed.py tools/test_road_match.py
+python3 -m pytest -q tests/test_line_changes_units.py tests/test_line_changes_builder.py tools/test_line_changes_renamed.py tools/test_road_match.py
 node --test tests/line-changes-units.test.mjs
 ```
 

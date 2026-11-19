@@ -1,6 +1,6 @@
 name: line-changes-tests
 
-# בדיקות קבועות ל"מצגת לשינוי בקו": בדיקות יחידה (הבונה בפייתון ו-deck.js), ובניית מצגות קבועות בדפדפן
+# בדיקות קבועות ל"מצגת לשינוי בקו": בדיקות יחידה (הבונה בפייתון ו-deck.js עם החלקים שלו), ובניית מצגות קבועות בדפדפן
 # מול תמונה-במילים (tests/line-changes/snapshots.json). רץ על PR שנוגע בקוד של הכלי או בבונה — לא על עדכוני הנתונים.
 # עדכון התמונה-במילים אחרי שינוי מכוון: tests/line-changes/README.md
 
@@ -17,6 +17,7 @@ on:
       - 'tests/fixtures/line-changes/**'
       - 'tests/line-changes-units.test.mjs'
       - 'tests/test_line_changes_units.py'
+      - 'tests/test_line_changes_builder.py'
       - '.github/workflows/line-changes-tests.yml'
   workflow_dispatch:
 
@@ -45,13 +46,13 @@ jobs:
       - name: בדיקות יחידה — הבונה (פייתון)
         run: |
           python3 -m pip install -q pytest
-          python3 -m pytest -q tests/test_line_changes_units.py tools/test_line_changes_renamed.py tools/test_road_match.py
+          python3 -m pytest -q tests/test_line_changes_units.py tests/test_line_changes_builder.py tools/test_line_changes_renamed.py tools/test_road_match.py
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: בדיקות יחידה — deck.js
+      - name: בדיקות יחידה — deck.js (וגם deck-sign/board/maps.js)
         run: node --test tests/line-changes-units.test.mjs
 
       - name: המצגות הקבועות בדפדפן מול התמונה-במילים
