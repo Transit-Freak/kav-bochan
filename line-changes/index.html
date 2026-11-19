@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
 /* טעינה מהירה: רשימת הקווים והשינויים מתחילות לרדת כבר עכשיו, לפני שאר הדף (app.js משתמש ב-LCPRE),
-   ובקישור למצגת (?c=) — גם הקובץ של השינוי או לוח הזמנים. הקוד של המצגת והמפות (deck.js, editor.js, Leaflet)
+   ובקישור למצגת (?c=) — גם הקובץ של השינוי או לוח הזמנים. הקוד של המצגת והמפות (deck.js ו-deck-*.js, editor.js, Leaflet)
    נטען רק בשלב 2 או 3, או ברקע אחרי שהחיפוש מוכן — LCDeckLoad() */
 (function () {
   function get(u) { var p = fetch(u, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); p.catch(function () {}); return p; }
@@ -42,15 +42,16 @@
     });
   }
   var LJS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', LSRI = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
-  // deck.js צריך את common.js (LC) — מריצים אחרי שהדף נקרא; בקישור למצגת ההורדה עצמה מתחילה כבר עכשיו (preload)
+  // deck.js צריך את common.js (LC) — מריצים אחרי שהדף נקרא; בקישור למצגת ההורדה עצמה מתחילה כבר עכשיו (preload).
+  // deck-sign/board/maps.js צריכים את deck.js — הסקריפטים רצים לפי הסדר (async=false)
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=38'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=39'), js('deck-sign.js?v=1'), js('deck-board.js?v=1'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=38'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=39'], ['deck-sign.js?v=1'], ['deck-board.js?v=1'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
