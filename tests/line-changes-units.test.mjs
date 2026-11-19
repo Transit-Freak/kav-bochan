@@ -1,4 +1,4 @@
-// בדיקות יחידה ל"מצגת לשינוי בקו" (line-changes/deck.js) — בלי דפדפן: כלל הרעש בשרטוט המסלול, ×N (כמה אוטובוסים
+// בדיקות יחידה ל"מצגת לשינוי בקו" (line-changes/deck.js ו-deck-*.js) — בלי דפדפן: כלל הרעש בשרטוט המסלול, ×N (כמה אוטובוסים
 // באותה שעה), קיצור ימים, ושורת "לא נמצאה תחנה חלופית קרובה". הרצה: node --test tests/line-changes-units.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,8 @@ const ctx = { console };
 ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'deck.js'), 'utf8') + ';this.LCDeck = LCDeck;', ctx);
+// deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
+for (const f of ['deck.js', 'deck-sign.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
