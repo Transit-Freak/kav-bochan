@@ -896,12 +896,7 @@ $('#play').onclick = () => {
 $('#c-in').onclick = () => map.zoomIn(); $('#c-out').onclick = () => map.zoomOut();
 $('#c-home').onclick = () => map.setView([31.9, 34.95], 8);
 $('#c-loc').onclick = () => navigator.geolocation && navigator.geolocation.getCurrentPosition(p => map.setView([p.coords.latitude, p.coords.longitude], 15), () => msg('לא התקבל מיקום'));
-$('#theme').onclick = () => {
-  const d = document.documentElement.dataset.theme === 'dark' ? '' : 'dark';
-  if (d) document.documentElement.dataset.theme = d; else delete document.documentElement.dataset.theme;
-  try { localStorage.setItem('spd.theme', d || 'light'); } catch (e) { /* */ }
-  setBase();
-};
+// תאורת יום / לילה — בכפתור של כל האתר בפס העליון (theme-boot.js / a11y.js), לא בכפתור נפרד של הכלי
 $('#q-btn').onclick = () => { $('#bar').classList.toggle('sopen'); $('#q').focus(); };
 $('#q').oninput = () => {
   const q = $('#q').value.trim(), el = $('#qres');

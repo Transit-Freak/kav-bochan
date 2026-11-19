@@ -1,0 +1,4 @@
+/* כפתור החזרה לקו הבוחן — העיצוב הבהיר של הכלי מסומן !important */
+html.kb-dark .kb-home{background:rgba(15,23,42,.92)!important;color:#7dd3fc!important;border-color:#334155!important}
+html.kb-dark .kb-home:hover{color:#e0f2fe!important;border-color:rgba(125,211,252,.5)!important}
+html:root.kb-dark{--faint:#8b9ab0}
