@@ -84,7 +84,7 @@ var LCXlsx = (function () {
     } else hd.forEach(function (t, c) { cell(R, c, t, sH); });
     var head = R; R++;
     // התאים בשורות — מיושרים למעלה (כמו בלוח)
-    var sOp = st.get({ b: 1, sz: 10, h: 'center', v: 'top' }), sLn = st.get({ b: 1, sz: 20, h: 'center', v: 'top' }), sOr = st.get({ b: 1, sz: 10, h: 'center', v: 'top' });
+    var sOp = st.get({ b: 1, sz: 10, h: 'center', v: 'center' }), sLn = st.get({ b: 1, sz: 20, h: 'center', v: 'center' }), sOr = st.get({ b: 1, sz: 10, h: 'center', v: 'center' });
     // סדר השעות: משמאל לימין — תא בכיוון LTR, צמוד לשמאל
     var sTm = M.tord === 'ltr' ? st.get({ sz: 10, h: 'left', ltr: 1, v: 'top' }) : st.get({ sz: 10, v: 'top' }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center', v: 'top' }), sNt = st.get({ sz: 9, color: 'C81E1E', v: 'top' });
     M.bands.forEach(function (b0) {
@@ -101,7 +101,7 @@ var LCXlsx = (function () {
         for (var k = 0; k < n; k++) {
           var r = b.rows[i + k], rr = R + k, lines = 1;
           cell(rr, 0, k ? '' : r.op, sOp);
-          cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', v: 'top', color: 'FFFFFF', fill: hexOf(r.color) }) : sLn);
+          cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', v: 'center', color: 'FFFFFF', fill: hexOf(r.color) }) : sLn);
           cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), sOr);
           comments.push({ ref: ref(2, rr), t: r.comment });
           var notes = [];

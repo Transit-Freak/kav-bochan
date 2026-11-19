@@ -876,11 +876,11 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-t th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;text-align:center;padding:.3em .3em;border:1px solid var(--s-band)}
 .s-bd .bd-t td{border:1px solid var(--s-line);vertical-align:top;padding:.28em .4em}
 .s-bd .bd-t tr.bband td{color:#fff;font-weight:900;font-family:'Heebo',Arial,sans-serif;text-align:center;padding:.22em .5em;font-size:1.08em;border-color:transparent}
-.s-bd .bd-t td.bl{text-align:center;background:var(--s-paper)}
+.s-bd .bd-t td.bl{text-align:center;vertical-align:middle;background:var(--s-paper)}
 .s-bd .bd-t td.bl .badge.sm{min-width:0;font-size:1.55em;padding:.12em .35em .06em;border-radius:.3em}
 .s-bd .bd-t td.bl small{display:block;color:var(--s-sub);font-weight:700;font-size:.78em;line-height:1.15;margin-top:.25em}
 .s-bd .bd-t td.bl small.un{color:#b45309}
-.s-bd .bd-t td.bo{text-align:center;line-height:1.2}
+.s-bd .bd-t td.bo{text-align:center;vertical-align:middle;line-height:1.2}
 .s-bd .bd-t td.bo b{display:block;font-weight:800}
 .s-bd .bd-t td.bo small{display:block;color:var(--s-sub);font-weight:600;font-size:.76em;margin-top:.15em}
 .s-bd .bd-t td.bo small.tw{color:var(--s-fg);font-weight:700}
