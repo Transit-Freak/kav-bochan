@@ -204,7 +204,7 @@ def locations(lr, op, d, h0, m0, h1, m1):
     return rides
 
 
-def passes(pts, code, thr=120):
+def passes(pts, code, thr=250):
     """זמני מעבר ליד תחנה: אינטרפולציה על הקטע הקרוב ביותר בכל ריצה רציפה מתחת לסף."""
     if code not in STOPS or len(pts) < 2:
         return []
@@ -274,9 +274,10 @@ def analyze_day(d):
     for r in day_routes.get((d, '455'), []):
         if r['line_ref'] != trip['lr']:
             continue
-        rides = get('/gtfs_rides/list', gtfs_route_id=r['id'], limit=50,
-                    start_time_from=loc(d, 14, 10), start_time_to=loc(d, 14, 20)) or []
-        rides = [x for x in rides if x.get('gtfs_route_id') == r['id']]
+        rides = ride_stops_for_route(r['id'], d)
+        t0 = ts(loc(d, 14, 15))
+        rides = [x for x in rides if x.get('start_time') and abs(ts(x['start_time']) - t0) < 600]
+        rec['455_gtfs_start'] = hhmm(ts(rides[0]['start_time'])) if rides else None
         if rides:
             for x in stops_of_ride(rides[0]['id']):
                 c = str(x.get('gtfs_stop__code'))
@@ -284,6 +285,11 @@ def analyze_day(d):
                     sched[c] = ts(x.get('arrival_time'))
     pa = {}
     for c in ('10003', '11060', '12008'):
+        if c in STOPS:
+            la, lo, _ = STOPS[c]
+            md = min(((hav(la, lo, a, o), t) for t, a, o in trip['pts']), default=None)
+            rec[f'455_mind_{c}'] = [round(md[0]), hhmm(md[1])] if md else None
+        rec['455_last_ping'] = hhmm(trip['pts'][-1][0]) if trip['pts'] else None
         ps = passes(trip['pts'], c)
         pa[c] = ps[0][0] if ps else None
         rec[f'455_at_{c}'] = hhmm(pa[c])
