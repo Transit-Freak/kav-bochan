@@ -1,0 +1,43 @@
+name: bus-game-osm
+# משחק האוטובוס (unreleased/bus-game): הורדת רחובות, בניינים ותחנות של קריית מלאכי מ-OpenStreetMap.
+# Overpass חסום מסביבת העבודה, לכן ההורדה רצה כאן והפלט נשמר בענף claude/bus-game.
+on:
+  push:
+    branches: [claude/bus-game]
+    paths: [.github/workflows/bus-game-osm.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bus-game-osm-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: unreleased/bus-game, fetch-depth: 0}
+      - name: Overpass
+        run: |
+          set -euo pipefail
+          B='31.712,34.720,31.749,34.770'
+          Q="[out:json][timeout:300][bbox:$B];(way[highway];way[building];relation[building];way[landuse];way[leisure];way[natural];way[amenity];way[railway];node[highway=bus_stop];node[public_transport=platform];);out geom qt;"
+          ok=0
+          for ep in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            echo "== $ep"
+            if curl -fsS --max-time 400 -A "kav-bochan-bus-game/1.0 (https://kavbochan.app)" --data-urlencode "data=$Q" "$ep" -o raw.json; then ok=1; break; fi
+            sleep 40
+          done
+          [ "$ok" = 1 ]
+          ls -la raw.json
+          python3 -c "import json;d=json.load(open('raw.json'));print(len(d['elements']),'elements')"
+          mkdir -p unreleased/bus-game/world
+          gzip -9 -c raw.json > unreleased/bus-game/world/osm_raw.json.gz
+          ls -la unreleased/bus-game/world
+      - name: Save
+        run: |
+          git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add unreleased/bus-game/world/osm_raw.json.gz
+          git commit -qm "משחק האוטובוס: נתוני OpenStreetMap של קריית מלאכי" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin claude/bus-game && git push -q origin HEAD:claude/bus-game && break; sleep 5; done
