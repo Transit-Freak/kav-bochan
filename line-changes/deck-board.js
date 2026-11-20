@@ -32,10 +32,13 @@
   function bdK(k, cls, ph) { return ' class="bdt' + (cls ? ' ' + cls : '') + (bdDel(k) && !ph ? ' bdel' : '') + '" data-bk="' + E(k) + '"' + (ph ? ' data-ph="' + E(ph) + '"' : ''); }
   /* שורה שהמשתמש הוסיף (ED.bd.nr — [{id, after}]): קו, מוצא ותאים ריקים לכתיבה, באותו פס, מתחת לשורה after */
   function bdNewRow(id) {
-    var k = 'n' + id, p = { makat: k, line: '', op: '' };
+    var k = 'n' + id, p = { makat: k, line: '', op: '' }, sm = bdStopMode();
     return { p: p, d: null, add: true, key: k, first: true, n: 1, line: bdT('ln:' + k, ''), op: bdT('op:' + k, ''), color: '#3d4a45',
-      origin: bdT(k + '|o', ''), stop: bdT(k + '|s', ''), toward: bdT(k + '|w', ''), until: '', comment: '' };
+      origin: bdT(k + '|o', ''), stop: sm === 'all' ? bdT(k + '|s', '') : '', hideS: sm !== 'all', toward: sm === 'none' ? '' : bdT(k + '|w', ''), hideW: sm === 'none',
+      towardAll: bdT(k + '|w', ''), until: '', comment: '' };
   }
+  /* מה מופיע מתחת למוצא (ED.bstop): 'all' — שם התחנה והקוד, והכיוון (ברירת המחדל); 'dir' — רק "לכיוון …"; 'none' — כלום */
+  function bdStopMode() { var m = D.ED.bstop; return m === 'dir' || m === 'none' ? m : 'all'; }
   function bdWithNew(rows) {
     var nr = (D.ED.bd && D.ED.bd.nr) || [], out = [];
     var put = function (r) { out.push(r); nr.forEach(function (x) { if (x.after === r.key) put(bdNewRow(x.id)); }); };
@@ -185,6 +188,28 @@
     var top = Math.max.apply(null, Object.keys(x.cnt).map(function (c) { return x.cnt[c]; }));
     return (home && (x.cnt[home] || 0) >= BD_MOST * x.tot) || top >= BD_MOST * x.tot;
   }
+  /* ידני: פס שקווים הועברו אליו (ED.bmb) מתחלק לפי הסדר שבו: רצף של קווים שהועברו ושייכים לאותו יעד — פס משלו, עם הכותרת
+     של היעד שלהם (מפתח הטקסט — של הפס המקורי, lk); הקווים של הפס עצמו — תחת הכותרת שלו (כשקו הועבר לאמצע — שני חלקים,
+     ולכל אחד כותרת). host — הפס שאליו הועברו (להזזה במצב עריכה), k — מפתח ייחודי לכל חלק */
+  function bdSegs(all) {
+    var out = [];
+    all.forEach(function (b) {
+      var segs = [];
+      b.pages.forEach(function (p) {
+        var sk = p._mv ? p._nbk : b.bk, last = segs[segs.length - 1];
+        if (last && last.sk === sk) last.pages.push(p); else segs.push({ sk: sk, pages: [p] });
+      });
+      if (segs.length === 1 && segs[0].sk === b.bk) { out.push(b); return; }
+      var nh = 0, nm = {};
+      segs.forEach(function (s) {
+        var mv = s.sk !== b.bk, k;
+        if (!mv) k = nh++ ? b.k + '~' + nh : b.k;
+        else { nm[s.sk] = (nm[s.sk] || 0) + 1; k = b.k + '>' + s.sk + (nm[s.sk] > 1 ? '~' + nm[s.sk] : ''); }
+        out.push({ k: k, bk: b.bk, lk: mv ? s.sk : b.k, flat: false, pages: s.pages, mvs: mv, host: b.k, hostPages: mv ? null : b.pages });
+      });
+    });
+    return out;
+  }
   function bdModel(pages, xo) {
     var keys = bdKeys(), man = !keys.length, k1 = keys[0] || '', flat = !!D.ED.bflat;
     // סדר ראשון, בלי סוג הקו והיעד (שעוד לא ידועים) — ממנו העיר "שלנו" כשיש תיקו
@@ -238,12 +263,14 @@
       }
       by[bk].pages.push(p);
     });
-    // מה שמגדיר את הפס (עירוני, סוג, הקצוות) — מהקווים שבו מלכתחילה, לא מקו שהועבר אליו
+    // ידני: קו שהועבר לפס של יעד אחר — לא נכנס מתחת לכותרת של הפס הזה, אלא בפס משלו באותו מקום, עם היעד שלו (bdSegs)
+    if (man && !flat) all = bdSegs(all);
+    // מה שמגדיר את הפס (עירוני, סוג, הקצוות) — מהקווים שבו מלכתחילה, לא מקו שהועבר אליו (בפס שהתפצל — מכל הקווים שלו)
     all.forEach(function (b) {
-      var np = b.pages.filter(function (p) { return !p._mv; }), p0 = (np[0] || b.pages[0]);
+      var np = (b.hostPages || b.pages).filter(function (p) { return !p._mv; }), p0 = (np[0] || b.pages[0]);
       b.np = np.length ? np : b.pages; b.local = flat ? b.pages.every(local) : local(p0); b.t = p0._t; b.E = p0._E;
     });
-    var bands = all, ci = 0;
+    var bands = all, ci = 0, colBy = {};
     if (k1 === 'type') {
       var to = bdTypeOrder();
       bands = bands.map(function (b, i) { return [b, i]; }).sort(function (x, y) { return to.indexOf(x[0].t) - to.indexOf(y[0].t) || x[1] - y[1]; }).map(function (x) { return x[0]; });
@@ -272,9 +299,11 @@
         var via = home && ends.indexOf(home) < 0 && b.np.every(function (p) { return p._sd.every(function (d) { return (d.cs || []).map(bdQ).indexOf(home) >= 0; }); });
         if (via) b.label += ' (דרך ' + home + ')';
       }
-      b.label = bdT('band:' + b.k, b.label);
+      b.label = bdT('band:' + (b.lk || b.k), b.label);
       var ags = opsOf(b.pages.map(function (p) { return { op: String(agOf(p)) }; }));
-      b.color = ags.length === 1 && COLORS[ags[0]] ? cuTagCol(ags[0], 0) : CU_COL[ci++ % CU_COL.length];
+      // חלקים של אותו פס, ופס של קו שהועבר והפס המקורי שלו — באותו צבע
+      b.color = b.lk && colBy[b.lk] ? colBy[b.lk] : ags.length === 1 && COLORS[ags[0]] ? cuTagCol(ags[0], 0) : CU_COL[ci++ % CU_COL.length];
+      colBy[b.lk || b.k] = colBy[b.lk || b.k] || b.color;
       b.ops = opsOf(b.pages);
       b.rows = [];
       b.pages.forEach(function (p) {
@@ -375,11 +404,12 @@
   function bdRow(p, d, i, n, b) {
     var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
     var to = inter ? o[1] : d.t, city0 = cs[0] || o[0] || '';
-    var stop = d.f + (d.fc ? ' (' + d.fc + ')' : ''), k = p.makat + '.' + d.dir;
+    var stop = d.f + (d.fc ? ' (' + d.fc + ')' : ''), k = p.makat + '.' + d.dir, sm = bdStopMode(), tw = bdT(k + '|w', to ? 'לכיוון ' + to : '');
     return { p: p, d: d, key: k, first: i === 0, n: n, inter: inter, line: bdT('ln:' + p.makat, p.line), op: bdT('op:' + p.makat, p.op), color: bdOpCol(p),
       origin: bdT(k + '|o', inter ? 'מ' + o[0] : d.f),
-      stop: bdT(k + '|s', inter ? stop : (d.fc ? 'תחנה ' + d.fc : '')),
-      toward: bdT(k + '|w', to ? 'לכיוון ' + to : ''),
+      // מתחת למוצא (ED.bstop): הכל — התחנה והכיוון; 'dir' — רק הכיוון; 'none' — כלום. towardAll — הכיוון גם כשהוא מוסתר (למקרא)
+      stop: sm === 'all' ? bdT(k + '|s', inter ? stop : (d.fc ? 'תחנה ' + d.fc : '')) : '', hideS: sm !== 'all',
+      toward: sm === 'none' ? '' : tw, hideW: sm === 'none', towardAll: tw,
       from: p.chg && BD_FROM ? bdT('fr:' + p.makat, 'מ-' + LC.dm(p.valid)) : '',
       until: p.until || '', untilTxt: p.until ? bdT('un:' + p.makat, 'עד ' + LC.dm(p.until)) : '',
       comment: (to ? 'לכיוון ' + to + (cs.length && cs[cs.length - 1] !== to ? ', ' + cs[cs.length - 1] : '') + ': ' : '') +
@@ -466,8 +496,8 @@
     return '<tr class="br' + (r.first ? ' lead' : '') + (r.add ? ' badd' : '') + '" data-rk="' + E(r.key) + '" data-mk="' + E(r.p.makat) + '" data-ln="' + E(r.line) + '">' + (lineSpan ? bdLineCell(r, lineSpan) : '') +
       '<td class="bo">' +
       // טקסט שנמחק — נשאר כשדה ריק (במצב עריכה אפשר ללחוץ עליו ולשחזר; בהדפסה הוא לא תופס מקום)
-      '<b' + bdK(r.key + '|o', '', r.add ? 'מוצא' : '') + '>' + E(r.origin) + '</b><small' + bdK(r.key + '|s', '', r.add ? 'תחנה' : '') + '>' + E(r.stop) + '</small>' +
-      '<small' + bdK(r.key + '|w', r.inter ? 'tw twi' : 'tw', r.add ? 'לכיוון' : '') + '>' + E(r.toward) + '</small></td>' +
+      '<b' + bdK(r.key + '|o', '', r.add ? 'מוצא' : '') + '>' + E(r.origin) + '</b>' + (r.hideS ? '' : '<small' + bdK(r.key + '|s', '', r.add ? 'תחנה' : '') + '>' + E(r.stop) + '</small>') +
+      (r.hideW ? '' : '<small' + bdK(r.key + '|w', r.inter ? 'tw twi' : 'tw', r.add ? 'לכיוון' : '') + '>' + E(r.toward) + '</small>') + '</td>' +
       r.cells.map(function (x) { return x.skip ? '' : x.span ? bdCellHtml(x).replace('<td ', '<td colspan="' + x.span + '" ') : bdCellHtml(x); }).join('') + '</tr>';
   }
   /* שורה או קו שהוסרו: במצב עריכה — שורה דקה ואפורה עם "להחזיר" (מחוץ לעריכה, בהדפסה ובקובץ — לא מופיעה) */
@@ -480,7 +510,7 @@
     return '<tr class="bsec' + (b.secOff ? ' boff noprint' : '') + (b.secLabel ? '' : ' bsec0 noprint') + '" data-sec="' + b.sec + '"><td colspan="' + (ncol + 2) + '"><span' + bdK('sec:' + b.sec, '', 'כותרת הפרק') + '>' + E(b.secLabel) + '</span></td></tr>';
   }
   function bdBandHtml(b, ncol, cont) {
-    return '<tr class="bband' + (b.off ? ' boff noprint' : '') + '" data-bkey="' + E(b.k) + '" style="background:' + b.color + '"><td colspan="' + (ncol + 2) + '"><span' + bdK('band:' + b.k) + '>' + E(b.label) + '</span>' + (cont && BD_M && BD_M.lbl.cont ? ' <span' + bdK('lbl:cont') + '>' + E(BD_M.lbl.cont) + '</span>' : '') + '</td></tr>';
+    return '<tr class="bband' + (b.off ? ' boff noprint' : '') + '" data-bkey="' + E(b.k) + '" style="background:' + b.color + '"><td colspan="' + (ncol + 2) + '"><span' + bdK('band:' + (b.lk || b.k)) + '>' + E(b.label) + '</span>' + (cont && BD_M && BD_M.lbl.cont ? ' <span' + bdK('lbl:cont') + '>' + E(BD_M.lbl.cont) + '</span>' : '') + '</td></tr>';
   }
   /* רוחב העמודות של הימים — בכל צפיפות, כך שהלוח כולו יהיה הכי נמוך: מודדים בדף (מחוץ למסך) כל שעה, כל הערה וכל טקסט
      בכל תא, ומחשבים מזה כמה שורות תופס כל תא בכל רוחב (שעות — לפי הסדר, כמה שנכנסות בשורה; הערות וטקסט — לפי האורך).
@@ -682,8 +712,8 @@
   }
   /* מקרא לחלופות: שורה לכל קו וכיוון בעמוד שיש בו נסיעות בדרך אחרת — האות והצבע של כל חלופה, ומה הדרך */
   function bdAltEntry(r) {
-    var two = r.n > 1 && r.toward;
-    return '<p class="bd-al" data-ak="' + E(r.key) + '"><b class="bd-aln">קו ' + E(r.line) + (two ? ' ' + E(r.toward) : '') + ':</b> ' + r.alts.map(function (x) {
+    var tw = r.towardAll || r.toward, two = r.n > 1 && tw;
+    return '<p class="bd-al" data-ak="' + E(r.key) + '"><b class="bd-aln">קו ' + E(r.line) + (two ? ' ' + E(tw) : '') + ':</b> ' + r.alts.map(function (x) {
       return '<span class="bd-ali" style="color:' + x.c + '"><b class="al">' + x.L + '</b> ' + E(x.txt) + '</span>';
     }).join(' <span class="bd-als">·</span> ') + '</p>';
   }
@@ -931,9 +961,91 @@
     } finally { D.ED = keep; }
   }
 
+  /* ===== סדר ידני במצב עריכה: הזזה של קו או של פס (↑↓) =====
+     bs — הפסים והקווים בסדר שרואים (app.js, bdOrderNow): [{k, bk, mks, nat: {מק"ט: הפס המקורי}, segs: [{k, mks, mv, lk}]}].
+     בלוח רואים "חלקים": רצף של קווים עם אותו פס מקורי (natOf) — תחת כותרת אחת */
+  function bdWhereSel(bs, sel) {
+    if (sel.band) {
+      for (var i = 0; i < bs.length; i++) for (var s = 0; s < bs[i].segs.length; s++) if (bs[i].segs[s].k === sel.band) return { b: i, s: s, mv: bs[i].segs[s].mv };
+      return null;
+    }
+    for (var j = 0; j < bs.length; j++) { var x = bs[j].mks.indexOf(sel.mk); if (x >= 0) return { b: j, l: x }; }
+    return null;
+  }
+  // מה שרואים: הקווים לפי הסדר, וכותרת בכל מקום שהפס המקורי מתחלף
+  function bdMvSig(bs, natOf) {
+    var out = [], last = null;
+    bs.forEach(function (H) { H.mks.forEach(function (m) { if (natOf[m] !== last) out.push('[' + (last = natOf[m]) + ']'); out.push(m); }); });
+    return out.join('|');
+  }
+  // קו שהועבר, בקצה של פס, ליד קו מאותו יעד בפס הסמוך — עובר לשם (אין שתי כותרות זהות צמודות)
+  function bdMvNorm(bs, natOf) {
+    for (var g = 0; g < 200; g++) {
+      var ne = bs.filter(function (H) { return H.mks.length; }), ch = false;
+      for (var i = 0; i + 1 < ne.length && !ch; i++) {
+        var A = ne[i], B = ne[i + 1], a = A.mks[A.mks.length - 1], b = B.mks[0];
+        if (natOf[a] !== natOf[b]) continue;
+        if (natOf[a] !== A.bk) { A.mks.pop(); B.mks.unshift(a); ch = true; }
+        else if (natOf[b] !== B.bk) { B.mks.shift(); A.mks.push(b); ch = true; }
+      }
+      if (!ch) break;
+    }
+    return bs;
+  }
+  /* פס: מתחלף עם הפס הסמוך (פס של קווים שהועברו — עם החלק הסמוך בפס שהוא בתוכו, ובקצה — לפס הסמוך).
+     קו שחולק את החלק שלו עם קווים אחרים: מתחלף עם הקו הסמוך — גם בקצה הפס, עם הקו האחרון של הפס הקודם / הראשון של הבא
+     (ושם, כשהיעד שלו אחר, הוא מופיע בפס משלו). קו שעומד לבד בחלק שלו: זז כמו פס קטן — מדלג על כל החלק שמעליו / מתחתיו, ולא נכנס לאמצע פס.
+     מחזיר {bs, natOf, mk0} או null כשאין מה להזיז (או שלא משתנה כלום במה שרואים) */
+  function bdMovePlan(bs, sel, dir) {
+    var w = bdWhereSel(bs, sel); if (!w) return null;
+    var natOf = {}; bs.forEach(function (H) { Object.keys(H.nat).forEach(function (m) { natOf[m] = H.nat[m]; }); });
+    var ws = bs.map(function (H) { return { k: H.k, bk: H.bk, mks: H.mks.slice(), segs: H.segs }; });
+    var before = bdMvSig(bs, natOf), mk0 = sel.mk;
+    if (w.l == null) {
+      if (w.mv) {
+        var H = ws[w.b], sg = H.segs.slice(), s2 = w.s + dir, mvs = sg[w.s];
+        if (s2 >= 0 && s2 < sg.length) { sg[w.s] = sg[s2]; sg[s2] = mvs; H.mks = sg.reduce(function (a, x) { return a.concat(x.mks); }, []); }
+        else {
+          var nb2 = w.b + dir; if (nb2 < 0 || nb2 >= ws.length) return null;
+          H.mks = H.mks.filter(function (m) { return mvs.mks.indexOf(m) < 0; });
+          ws[nb2].mks = dir < 0 ? ws[nb2].mks.concat(mvs.mks) : mvs.mks.concat(ws[nb2].mks);
+        }
+        mk0 = mvs.mks[0];
+      } else { var j = w.b + dir; if (j < 0 || j >= ws.length) return null; var t = ws[w.b]; ws[w.b] = ws[j]; ws[j] = t; mk0 = ws[j].mks[0]; }
+    } else {
+      // החלקים שרואים: כל קו לפי הסדר, עם הפס שהוא בתוכו (h) והחלק שלו (r)
+      var it = [], r = -1;
+      ws.forEach(function (H, h) { H.mks.forEach(function (m) { if (!it.length || natOf[m] !== natOf[it[it.length - 1].m]) r++; it.push({ m: m, h: h, r: r }); }); });
+      var pos = -1; it.forEach(function (x, i) { if (x.m === sel.mk) pos = i; });
+      if (pos < 0) return null;
+      var me = it[pos], alone = it.filter(function (x) { return x.r === me.r; }).length === 1;
+      if (alone) {
+        // לבד בחלק שלו: לפני החלק שמעליו / אחרי החלק שמתחתיו, בפס של הקו שבקצה החלק הזה
+        var nbr = it.filter(function (x) { return x.r === me.r + dir; }); if (!nbr.length) return null;
+        var an = dir < 0 ? nbr[0] : nbr[nbr.length - 1], L0 = ws[me.h].mks;
+        L0.splice(L0.indexOf(me.m), 1);
+        var T = ws[an.h].mks, ai = T.indexOf(an.m);
+        T.splice(dir < 0 ? ai : ai + 1, 0, me.m);
+      } else {
+        var L = ws[w.b].mks, k = w.l + dir;
+        if (k >= 0 && k < L.length) { var u = L[w.l]; L[w.l] = L[k]; L[k] = u; }
+        else {
+          var nb = w.b + dir; while (nb >= 0 && nb < ws.length && !ws[nb].mks.length) nb += dir;
+          if (nb < 0 || nb >= ws.length) return null;
+          // מתחלף עם הקו שמעבר לקצה: לפני הקו האחרון של הפס הקודם / אחרי הקו הראשון של הפס הבא
+          L.splice(w.l, 1);
+          var N = ws[nb].mks; N.splice(dir < 0 ? N.length - 1 : 1, 0, sel.mk);
+        }
+      }
+    }
+    bdMvNorm(ws, natOf);
+    return bdMvSig(ws, natOf) === before ? null : { bs: ws, natOf: natOf, mk0: mk0 };
+  }
+
   // לקבצים האחרים של המצגת, ולדף (LCDeck)
   D.bdSlides = bdSlides; D.chgBoardBuild = chgBoardBuild;
   LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
+  LCDeck.boardMove = bdMovePlan; LCDeck.boardWhere = bdWhereSel;
   LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
   LCDeck.boardWidths = function () { var g = BD_CG[BD_GEO.form + '|' + BD_GEO.sc]; return g ? { tw: g.tw, cl: g.cl, co: g.co, ws: g.ws.slice(), man: g.man, mt: g.mt, cost: bdCost(g.mt, g.ws), rows: g.mt.rows.map(function (r) { return Math.max.apply(null, [r.fl].concat(r.cells.map(function (c) { var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += g.ws[k]; return bdCellH(g.mt, c, w); }))); }) } : null; };
 })(LCDeck._in);

@@ -1039,7 +1039,7 @@
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), tv: tv, ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
-      bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw,
+      bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop,
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }
@@ -1286,6 +1286,8 @@
       if (fit && fit.need) $('bdneed').textContent = 'גם באותיות הקטנות ביותר שעוד אפשר לקרוא, הלוח לא נכנס — צריך לפחות ' + fit.need + ' עמודים.';
       $('bdnseg').querySelectorAll('[data-bdn]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bdn') === (edits.bdense ? '1' : '0') ? 'true' : 'false'); });
       $('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
+      var bst = edits.bstop === 'dir' || edits.bstop === 'none' ? edits.bstop : 'all';
+      $('bstseg').querySelectorAll('[data-bst]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bst') === bst ? 'true' : 'false'); });
       var bord = M.ord || edits.bord || 'type', keys = M.keys || [];
       // סדר הקווים — רק כשיש בלוח יותר מקו אחד
       var tc = M.tcount || {};
@@ -1383,7 +1385,7 @@
       else if (!edits.bcw) { edits.bcw = bdColsNow() || undefined; if (!editMode) setEdit(true); }
       saveEdits(); keepScroll(function () { render(curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub]');
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -1394,6 +1396,8 @@
       else if (bo.hasAttribute('data-bsub')) edits.bsub = bo.getAttribute('data-bsub') === 'num' ? 'num' : undefined;
       else if (bo.hasAttribute('data-bpg')) edits.bpages = +bo.getAttribute('data-bpg') || undefined;
       else if (bo.hasAttribute('data-bdn')) edits.bdense = bo.getAttribute('data-bdn') === '1' || undefined;
+      // מתחת למוצא: הכל (ברירת המחדל) / רק הכיוון / כלום
+      else if (bo.hasAttribute('data-bst')) { var sv = bo.getAttribute('data-bst'); edits.bstop = sv === 'dir' || sv === 'none' ? sv : undefined; }
       else edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); keepScroll(function () { render(curPages); }); return;
     }
@@ -1599,14 +1603,18 @@
     ks.forEach(function (k) { if (empty) delete edits.bd.t[k]; else edits.bd.t[k] = ''; });
     saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
   }
-  /* סדר ידני בלוח: הפסים והקווים בסדר שרואים עכשיו — [{k: מפתח הפס, bk: המפתח שלו לקיבוץ, mks: [מק"טים], nat: {מק"ט: הפס המקורי}}] */
+  /* סדר ידני בלוח: הפסים והקווים בסדר שרואים עכשיו — [{k: מפתח הפס, bk: המפתח שלו לקיבוץ, mks: [מק"טים], nat: {מק"ט: הפס המקורי},
+     segs: [{k, mks, mv, lk}] — החלקים שהפס מוצג בהם: קווים שהועברו אליו מיעד אחר מוצגים בפס משלהם (mv), באותו מקום}] */
   function bdOrderNow() {
-    var o = edOpts(formOf()), M = isCu(curPages) ? LCDeck.boardModel(curPages, o) : LCDeck.chgBoardModel(curPages, o);
-    return M.bands.map(function (b) {
-      var mks = [], nat = {};
+    var o = edOpts(formOf()), M = isCu(curPages) ? LCDeck.boardModel(curPages, o) : LCDeck.chgBoardModel(curPages, o), out = [];
+    M.bands.forEach(function (b) {
+      var mks = [], nat = {}, hk = b.host || b.k, last = out[out.length - 1];
       b.rows.forEach(function (r) { if (!r.add && r.p && r.p.makat && mks.indexOf(r.p.makat) < 0) { mks.push(r.p.makat); nat[r.p.makat] = r.p._nbk; } });
-      return { k: b.k, bk: b.bk, mks: mks, nat: nat };
+      var sg = { k: b.k, mks: mks, mv: !!b.mvs, lk: b.lk || b.k };
+      if (b.host && last && last.k === hk) { last.mks = last.mks.concat(mks); Object.assign(last.nat, nat); last.segs.push(sg); return; }
+      out.push({ k: hk, bk: b.bk, mks: mks.slice(), nat: nat, segs: [sg] });
     });
+    return out;
   }
   /* רוחב עמודות בלוח: העמודות (הקו, המוצא והימים) של טבלה בסדר שלהן — לפי תאי הכותרת (מימין לשמאל), ברוחב של השקף (בלי הקטנה) */
   function bdColRects(tb) {
@@ -1678,43 +1686,40 @@
   $('deck').addEventListener('pointerup', bcwEnd);
   $('deck').addEventListener('pointercancel', bcwEnd);
   window.addEventListener('resize', function () { if (editMode) bdColUi(); });
-  function bdWhere(bs, sel) {
-    if (sel.band) { for (var i = 0; i < bs.length; i++) if (bs[i].k === sel.band) return { b: i }; return null; }
-    for (var j = 0; j < bs.length; j++) { var x = bs[j].mks.indexOf(sel.mk); if (x >= 0) return { b: j, l: x }; }
-    return null;
-  }
+  function bdWhere(bs, sel) { return LCDeck.boardWhere(bs, sel); }
   function bdCanMove(sel) {
     var bs = bdOrderNow(), w = bdWhere(bs, sel); if (!w) return null;
     // קו: גם מעבר לפס הקודם / הבא (בראש הפס או בסופו)
+    // פס של קווים שהועברו — זז בין החלקים של הפס שהוא בתוכו, ומשם לפס הקודם / הבא
+    if (w.l == null && w.mv) return { up: w.s > 0 || w.b > 0, dn: w.s < bs[w.b].segs.length - 1 || w.b < bs.length - 1 };
     return w.l == null ? { up: w.b > 0, dn: w.b < bs.length - 1 } : { up: w.l > 0 || w.b > 0, dn: w.l < bs[w.b].mks.length - 1 || w.b < bs.length - 1 };
   }
-  /* העברה של קו (בתוך הפס) או של פס שלם — והסדר עובר ל"ידני" (מהסדר שרואים עכשיו) */
+  /* העברה של קו או של פס שלם — והסדר עובר ל"ידני" (מהסדר שרואים עכשיו) */
   function bdMove(dir) {
     if (!bdSel) return;
     var sel = bdSel;
     // מסדר אחר — קודם עוברים ל"ידני" מהסדר שרואים עכשיו (הפסים של "ידני" — לפי יעד בלבד)
     if (edits.bord !== 'man') { edits.bman = bdOrderNow().reduce(function (a, b) { return a.concat(b.mks); }, []); edits.bord = 'man'; edits.bk = undefined; }
-    var bs = bdOrderNow(), w = bdWhere(bs, sel); if (!w) return;
-    if (w.l == null) { var j = w.b + dir; if (j < 0 || j >= bs.length) return; var t = bs[w.b]; bs[w.b] = bs[j]; bs[j] = t; }
-    else {
-      var L = bs[w.b].mks, k = w.l + dir;
-      if (k >= 0 && k < L.length) { var u = L[w.l]; L[w.l] = L[k]; L[k] = u; }
-      else {
-        // בראש הפס ↑ — לסוף הפס הקודם; בסוף הפס ↓ — לראש הפס הבא (ED.bmb: מק"ט → הפס שאליו הועבר)
-        var nb = w.b + dir; if (nb < 0 || nb >= bs.length) return;
-        var mk = L.splice(w.l, 1)[0], nat = bs[w.b].nat[mk];
-        if (dir < 0) bs[nb].mks.push(mk); else bs[nb].mks.unshift(mk);
-        var mb = Object.assign({}, edits.bmb || {});
-        if (bs[nb].bk === nat) delete mb[mk]; else mb[mk] = bs[nb].bk;
-        edits.bmb = Object.keys(mb).length ? mb : undefined;
-      }
-    }
-    edits.bman = bs.reduce(function (a, b) { return a.concat(b.mks); }, []);
+    // ההזזה עצמה — LCDeck.boardMove (deck-board.js): הסדר החדש של הפסים והקווים, או null כשאין מה להזיז
+    var plan = LCDeck.boardMove(bdOrderNow(), sel, dir); if (!plan) return;
+    var res = plan.bs, natOf = plan.natOf, mk0 = plan.mk0;
+    // ED.bmb: מק"ט → הפס שאליו הועבר (בלי — כשזה הפס המקורי שלו)
+    var mb = Object.assign({}, edits.bmb || {});
+    res.forEach(function (H) { H.mks.forEach(function (m) { if (natOf[m] === H.bk) delete mb[m]; else mb[m] = H.bk; }); });
+    edits.bmb = Object.keys(mb).length ? mb : undefined;
+    edits.bman = res.reduce(function (a, b) { return a.concat(b.mks); }, []);
     edits.bord = 'man';
     saveEdits(); hideBar();
     keepScroll(function () { render(curPages); });
-    // אותו קו / פס נשאר מסומן, עם הסרגל — כדי שאפשר להמשיך להזיז
-    setTimeout(function () { bdSelect(sel); var tr = $('deck').querySelector('.s-bd tr.bsel'); if (tr) showBar(tr); }, 30);
+    // אותו קו / פס נשאר מסומן, עם הסרגל — כדי שאפשר להמשיך להזיז (פס — לפי הפס שבו הקו הראשון שלו נמצא עכשיו)
+    setTimeout(function () {
+      if (sel.band && mk0) {
+        var r = $('deck').querySelector('.sitem:not(.off) .s-bd tr.br[data-mk="' + CSS.escape(mk0) + '"]');
+        while (r && !r.classList.contains('bband')) r = r.previousElementSibling;
+        if (r) sel = { band: r.getAttribute('data-bkey') };
+      }
+      bdSelect(sel); var tb = $('deck').querySelector('.s-bd tr.bsel'); if (tb) showBar(tb);
+    }, 30);
   }
   function bdSelRect(slide) {
     var trs = slide.querySelectorAll('tr.bsel'); if (!trs.length) return null;
@@ -2531,7 +2536,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=12'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=13'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }

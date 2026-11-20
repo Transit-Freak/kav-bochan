@@ -47,11 +47,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=39'), js('deck-sign.js?v=1'), js('deck-board.js?v=2'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=39'), js('deck-sign.js?v=1'), js('deck-board.js?v=3'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=39'], ['deck-sign.js?v=1'], ['deck-board.js?v=2'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=39'], ['deck-sign.js?v=1'], ['deck-board.js?v=3'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -206,6 +206,12 @@
               </div>
               <p class="hint bdneed" id="bdneed" role="status" hidden></p>
             </div>
+            <span class="flabel sm">מתחת למוצא</span>
+            <div class="seg2 tvseg" id="bstseg" role="radiogroup" aria-label="מתחת למוצא">
+              <button type="button" role="radio" data-bst="all"><b>הכל</b></button>
+              <button type="button" role="radio" data-bst="dir"><b>רק כיוון</b></button>
+              <button type="button" role="radio" data-bst="none"><b>כלום</b></button>
+            </div>
             <span class="flabel sm">פיצול ימי חול</span>
             <div class="seg2 tvseg" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
               <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
@@ -221,7 +227,7 @@
               <button type="button" role="radio" data-bor="num"><b>לפי מספר קו</b></button>
               <button type="button" role="radio" data-bor="man"><b>ידני</b></button>
             </div>
-            <p class="hint" id="bmanh" hidden>במצב עריכה: לוחצים על קו או על פס בלוח, ומזיזים עם "העברה למעלה ↑" / "העברה למטה ↓". קו שבראש פס עובר בלחיצה על ↑ לסוף הפס שמעליו (ו-↓ בסוף פס — לפס שמתחתיו).</p>
+            <p class="hint" id="bmanh" hidden>במצב עריכה: לוחצים על קו או על פס בלוח, ומזיזים עם "העברה למעלה ↑" / "העברה למטה ↓". קו שבראש פס עובר בלחיצה על ↑ לפס שמעליו (ו-↓ בסוף פס — לפס שמתחתיו), ושם הוא מופיע בפס משלו, עם היעד שלו. קו שעומד לבד בפס משלו זז כמו פס — מעל הפס שמעליו או מתחת לפס שמתחתיו.</p>
             <div class="bkw" id="bkw">
               <label class="bkf"><span>קודם לפי</span><select id="bk1" aria-label="קודם לפי"></select></label>
               <label class="bkf"><span>ואז לפי</span><select id="bk2" aria-label="ואז לפי"></select></label>
@@ -354,7 +360,7 @@
 </footer>
 
 <script src="common.js?v=7"></script>
-<script src="app.js?v=44"></script>
+<script src="app.js?v=45"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>
