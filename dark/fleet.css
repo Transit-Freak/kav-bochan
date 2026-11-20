@@ -183,6 +183,14 @@ html.kb-dark .vfold{border-color:var(--line)}
 html.kb-dark .vfold > summary small{color:var(--mut)}
 html.kb-dark .vfold > summary .arr{color:#77a2fe}
 html.kb-dark .empty{color:var(--dim)}
+html.kb-dark .sxhead{color:var(--mut)}
+html.kb-dark .sxcard > summary .sxn{color:#e07c40}
+html.kb-dark .sxcard > summary .sxn small{color:#77a2fe}
+html.kb-dark .sxcard[open] > summary .sxn small{color:var(--dim)}
+html.kb-dark .sxcard > summary p{color:var(--mut)}
+html.kb-dark .sxin{border-top-color:var(--line)}
+html.kb-dark .sxin td.bad{color:#e07c40}
+html.kb-dark .sxin td.sxop small{color:var(--mut)}
 html.kb-dark .msg{color:var(--mut)}
 html.kb-dark button:focus-visible,html.kb-dark input:focus-visible,html.kb-dark tr:focus-visible,html.kb-dark a:focus-visible{outline-color:#c4cfea}
 html.kb-dark .occ{color:var(--mut)}
