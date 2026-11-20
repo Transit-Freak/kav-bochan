@@ -22,10 +22,24 @@
     // הוא מתייחס לזה כקפיצה בתוך הדף בלי טעינה — והדף חוזר לגרסת הנייד. "?" ריק לפני ה-# הופך את זה
     // לטעינה אמיתית (שלמה 30.10: "עובר לגרסה במחשב ומחזיר ישר לגרסה של הטלפון")
     if (location.hash && location.href.indexOf("?") < 0) rep0(history.state, "", location.pathname + "?" + location.hash);
-    history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
-    history.replaceState = function (st, t, u) { rep0(st, t, u); save(); };
+    // אותו דבר בכל מעבר בתוך הדף (שלמה 20.11, הקלטת רשת של כרום): כתובת שונה מהדף רק אחרי ה-#
+    // ("/fleet/#m=city") — "אתר למחשב" טוען אותה מחדש עם זהות של טלפון, והדף נשאר צר. "?" ריק לפני ה-#
+    // בכל כתובת שהכלי כותב (pushState / replaceState / קישור #) הופך את המעבר לטעינה אמיתית במצב מחשב
+    var q = function (u) {
+      if (u == null) return u;
+      try {
+        var a = new URL(String(u), location.href);
+        if (a.hash && a.origin === location.origin && a.href.split("#")[0].indexOf("?") < 0) return a.pathname + "?" + a.hash;
+      } catch (e) {}
+      return u;
+    };
+    history.pushState = function (st, t, u) { push0(st, t, q(u)); note(); save(); };
+    history.replaceState = function (st, t, u) { rep0(st, t, q(u)); save(); };
     window.addEventListener("popstate", save);
-    window.addEventListener("hashchange", function () { note(); save(); });
+    window.addEventListener("hashchange", function () {
+      if (location.href.split("#")[0].indexOf("?") < 0) rep0(history.state, "", location.pathname + "?" + location.hash);
+      note(); save();
+    });
     save();
   } catch (e) {}
 })();
