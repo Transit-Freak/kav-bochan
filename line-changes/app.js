@@ -1055,7 +1055,7 @@
     var base = LCDeck.build(pages, deckCity(pages), edOpts(form));
     pastTense(base, pages);
     drawKinds(pages);
-    ttUi(pages); zmUi(pages); rcUi(pages); a4Ui(form);
+    ttUi(pages); zmUi(pages); rcUi(pages); a4Ui(form); fnUi();
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -1239,6 +1239,12 @@
     var b = ev.target.closest('[data-zm]'); if (!b) return;
     edits.zm = b.getAttribute('data-zm'); saveEdits(); keepScroll(function () { render(curPages); });
   });
+  function fnUi() {
+    var el = $('fname');
+    el.placeholder = pdfName(true).replace(/\.pdf$/, '');
+    if (document.activeElement !== el) el.value = edits.fname || '';
+  }
+  $('fname').addEventListener('input', function () { edits.fname = this.value.trim() ? this.value : undefined; saveEdits(); });
   function ttUi(pages) {
     // הכרטיסים מופיעים בכל מצגת עם לוח זמנים: לו"ז עדכני, שינוי בלו"ז (גם שינוי קטן של נסיעה אחת) וקו חדש
     var cu = isCu(pages), tv = syncTv(pages), hasTt = cu || pages.some(LCDeck.ttCap);
@@ -1272,6 +1278,9 @@
       $('bdnseg').querySelectorAll('[data-bdn]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bdn') === (edits.bdense ? '1' : '0') ? 'true' : 'false'); });
       $('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
       var bord = M.ord || edits.bord || 'type', keys = M.keys || [];
+      // סדר הקווים — רק כשיש בלוח יותר מקו אחד
+      var tc = M.tcount || {};
+      $('bordw').hidden = (tc.u || 0) + (tc.i || 0) + (tc.r || 0) < 2;
       $('borseg').querySelectorAll('[data-bor]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bor') === bord ? 'true' : 'false'); });
       $('bmanh').hidden = bord !== 'man';
       // מיון בשתי רמות: "קודם לפי" ו"ואז לפי" (גם האפשרויות המוכנות מוצגות כך); ידני — בלי
@@ -2302,10 +2311,14 @@
     return libsP;
   }
   function timeout(p, ms) { return Promise.race([p, new Promise(function (res) { setTimeout(res, ms); })]); }
-  function pdfName() {
+  // שם הקובץ: מה שהמשתמש כתב בשדה "שם הקובץ", ואם לא — השם הרגיל
+  function cleanName(s) { return s.replace(/[\\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').replace(/\.(pdf|xlsx|png)$/i, '').replace(/^[-. ]+|[-. ]+$/g, ''); }
+  function userName() { return cleanName(String(edits.fname || '').trim()); }
+  function pdfName(dflt) {
+    var f = formOf(), un = dflt ? '' : userName();
+    if (un) return un + (f === 'status' ? '' : '.pdf');
     var ds = curPages.map(function (p) { return p.formal || p.eff || ''; }).filter(Boolean).sort();
     var base = LCDeck.deckTitle(curPages);   // כמו בשער: שינוי בקו 9 / שינויים בקווים 9, 18 ו-54 / אותו שינוי ב-3 קווים
-    var f = formOf();
     if (f === 'sign') base = 'שלט-להדפסה-' + base;
     if (f === 'status') base = 'סטטוס-' + base;
     return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + (f === 'status' ? '' : '.pdf');
@@ -2513,7 +2526,7 @@
       document.head.appendChild(sc);
     }));
   }
-  function fileName(s) { return s.replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx'; }
+  function fileName(s) { var un = userName(); if (un) return un + '.xlsx'; return s.replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx'; }
   function exportXlsx() {
     var cu = curPages.filter(function (p) { return p.kind === 'current'; }), tt = curPages.filter(LCDeck.ttCap);
     if (!cu.length && !tt.length) return;

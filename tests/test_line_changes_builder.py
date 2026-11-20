@@ -494,3 +494,26 @@ def test_stop_city_counts_parallel_to_stop_cities():
     assert L.stop_cities(st) == ['לוד', 'רמלה', 'לוד']
     assert L.stop_city_counts(st) == [3, 2, 1]
     assert L.stop_city_counts([]) == [] and L.stop_city_counts([{'city': ''}]) == []
+
+
+def _tt_rec(eff, found, tt):
+    return dict(rd='49010-1-#', kind='timetable', eff=eff, found=found, tt=tt)
+
+
+def test_keep_prev_drops_later_part_of_same_timetable_change():
+    """שינוי בלו"ז ברביעי–שישי מ-18.11 נמצא אתמול. היום נשאר בהשוואה רק שישי (20.11), עם אותן שעות —
+    זה אותו שינוי, ולא דף נוסף"""
+    fri = dict(t=['d5'], n=[300, 360, 650], o=[300, 360, 655])
+    prev = [_tt_rec('2026-11-18', '2026-11-18', [dict(t=['d3', 'd4'], n=[285, 345], o=[290, 350]), fri])]
+    found = [_tt_rec('2026-11-20', '2026-11-19', [dict(fri)])]
+    out = L.keep_prev(found, prev, '2026-11-19', '2026-11-05')
+    assert [f['eff'] for f in out] == ['2026-11-18']
+
+
+def test_keep_prev_keeps_different_later_timetable_change():
+    """שינוי אחר בשישי (שעות אחרות מאלה שברישום הקודם), או שינוי אחרי השבוע הראשון — נשאר בנפרד"""
+    prev = [_tt_rec('2026-11-18', '2026-11-18', [dict(t=['d5'], n=[300, 360, 650], o=[300, 360, 655])])]
+    other = [_tt_rec('2026-11-20', '2026-11-19', [dict(t=['d5'], n=[300, 400], o=[300, 360, 650])])]
+    assert sorted(f['eff'] for f in L.keep_prev(other, prev, '2026-11-19', '2026-11-05')) == ['2026-11-18', '2026-11-20']
+    late = [_tt_rec('2026-11-27', '2026-11-19', [dict(t=['d5'], n=[300, 360, 650], o=[300, 360, 655])])]
+    assert sorted(f['eff'] for f in L.keep_prev(late, prev, '2026-11-19', '2026-11-05')) == ['2026-11-18', '2026-11-27']

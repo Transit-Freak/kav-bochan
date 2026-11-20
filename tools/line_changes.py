@@ -1982,6 +1982,18 @@ def keep_prev(found, prev, t0, keep_from, keep_all=False):
         drop.update(same)
         keep.append(p)
         seen.add(key + (p['eff'],))
+    # שינוי בלו"ז שכבר נמצא קודם, עם יותר ימים: למשל רביעי–שישי מ-18.11. למחרת ה-GTFS של "לפני" כבר כולל את
+    # רביעי וחמישי, ונשאר רק שישי — ואז אותו שינוי "נמצא" שוב מ-20.11 (שישי). אם כל הימים שנמצאו היום
+    # נמצאים גם ברישום הקודם, עם אותן שעות, ובשבוע הראשון שלו — זה אותו שינוי, ונשאר רק הרישום הקודם.
+    by_day = lambda f: {w: tuple(e.get('n') or ()) for e in f.get('tt', []) for w in e.get('t', [])}   # noqa: E731
+    wk = lambda d: (datetime.date.fromisoformat(d) + datetime.timedelta(days=7)).isoformat()   # noqa: E731
+    for i, f in enumerate(found):
+        if i in drop or kind(f) != 'timetable':
+            continue
+        fd = by_day(f)
+        if fd and any((p['rd'], kind(p)) == (f['rd'], 'timetable') and p['eff'] < f['eff'] < wk(p['eff'])
+                      and all(by_day(p).get(w) == n for w, n in fd.items()) for p in keep):
+            drop.add(i)
     return [f for i, f in enumerate(found) if i not in drop] + keep
 
 

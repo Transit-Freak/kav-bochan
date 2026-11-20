@@ -288,6 +288,8 @@ details.group summary span{font-weight:600;color:var(--sub)}
   .sframe.toolong{box-shadow:none}
 }
 
+.fname{display:flex;flex-direction:column;gap:4px;margin:var(--sp3,12px) 0;font-size:14px;font-weight:700;color:var(--sub)}
+.fname input{font:inherit;font-weight:500;font-size:16px;color:var(--fg);padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);width:100%;box-sizing:border-box}
 .credit-opt{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:15px;cursor:pointer}
 .credit-opt input{width:20px;height:20px;accent-color:currentColor}
 
@@ -476,7 +478,7 @@ details.group summary span{font-weight:600;color:var(--sub)}
 /* סדר הקווים: "קודם לפי" / "ואז לפי", בלי פסי יעד; רוחב עמודות */
 .bkw{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 4px}
 .bkf{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:14px;min-width:150px;flex:1 1 150px;max-width:220px}
-.bkf select{font:inherit;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card,#fff);color:inherit}
+.bkf select{font:inherit;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:inherit}
 .bflat{display:block;font-weight:700;font-size:14px;margin:10px 0 2px;cursor:pointer}
 .bflat input{width:18px;height:18px;vertical-align:-3px;margin:0;margin-inline-end:8px}
 .bflat small{display:block;font-weight:600;color:var(--sub);margin-inline-start:26px}
