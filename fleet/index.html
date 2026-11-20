@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="../theme-boot.js?v=20261119"></script>
-<link rel="stylesheet" href="../dark/fleet.css?v=20261119">
+<link rel="stylesheet" href="../dark/fleet.css?v=20261120">
 <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../nav-restore.js"></script><script src="../home-link.js"></script>
 <script src="../version.js" defer></script>
@@ -253,6 +253,23 @@
   .vfold>summary .arr{color:#1D4ED8;font-weight:800;white-space:nowrap}
   .vfold>.vin{padding:0 12px 12px}
   .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
+  /* נתונים חשודים: כרטיס לכל בדיקה, הרשימה נפתחת בלחיצה */
+  .sxhead{font-size:13.5px;color:var(--mut);font-weight:600;line-height:1.6;margin:0 0 4px}
+  .sxcard{padding:0;overflow:hidden}
+  .sxcard>summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
+  .sxcard>summary::-webkit-details-marker{display:none}
+  .sxcard>summary b{font-size:14.5px;font-weight:800}
+  .sxcard>summary .sxn{grid-row:span 2;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:#B4540A;text-align:center;min-width:44px}
+  .sxcard>summary .sxn small{display:block;font-size:11px;font-weight:700;color:#1D4ED8}
+  .sxcard[open]>summary .sxn small{color:var(--dim)}
+  .sxcard>summary p{margin:0;font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.55}
+  .sxin{padding:0 12px 12px;border-top:1px solid var(--line)}
+  .sxin h4{margin:12px 4px 2px;font-size:13px}
+  .sxin td.num{font-variant-numeric:tabular-nums}
+  .sxin td.bad{color:#B4540A;font-weight:800}
+  .sxin .vl{font-weight:800}
+  .sxin td.sxop{white-space:normal;min-width:130px;max-width:240px;line-height:1.35}
+  .sxin td.sxop small{display:block;font-size:11px;color:var(--mut);font-weight:600}
   .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
   button:focus-visible,input:focus-visible,tr:focus-visible,a:focus-visible{outline:2px solid #10172A;outline-offset:2px}
   /* ── טלפון: הסרגל העליון נשבר לשורות, הכפתורים גדלים, המודאל הופך לגיליון תחתון ──
@@ -308,15 +325,16 @@
     <a class="mode" data-m="moves" href="#m=moves" hidden>מעברים</a>
     <a class="mode" data-m="cluster" href="#m=cluster" hidden>אשכול ביום</a>
     <a class="mode" data-m="line" href="#m=line" hidden>לפי קו</a>
+    <a class="mode" data-m="suspect" href="#m=suspect" hidden>נתונים חשודים</a>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 33 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. "נתונים חשודים" מרכז סתירות וערכים מוזרים במאגרים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 34 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
-<script src="moves.js?v=24"></script>
+<script src="moves.js?v=25"></script>
 <script>
-window.FLEET_BUILD='24';
+window.FLEET_BUILD='25';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -341,6 +359,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
+let SUSP=null, SXOPEN=new Set(), SXLIM={};
 let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', CYF=null, ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null, LNFN=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
@@ -453,6 +472,7 @@ function home(){
   if(MODE==='moves') return movesHome();
   if(MODE==='cluster') return clusterHome(f);
   if(MODE==='line') return lineHome(f);
+  if(MODE==='suspect') return suspectHome();
   if(MODE==='plate'){
     // בלי חיפוש: כל רשימת הרכבים (לא רשימת החברות) — מהחדש שנצפה לישן
     const clean=f.replace(/-/g,'');
@@ -1679,11 +1699,34 @@ function dlCSV(name,rows){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
-const VHEAD=['חברה','מספר רכב','סוג הרכב','שנתון','יצרן ודגם','נסיעות ביום','ק"מ ביום (משוער)','ק"מ סה"כ (משוער)','ק"מ במד (רשמי)','נצפה לראשונה','נצפה לאחרונה','מצב'];
+const VHEAD=['חברה','מספר רכב','סוג הרכב','שנתון','יצרן ודגם','נסיעות ביום','ק"מ ביום (משוער)','ק"מ סה"כ (משוער)','ק"מ במד (רשמי)','נצפה לראשונה','נצפה לאחרונה','מצב','סיבת הבדיקה'];
+// "סיבת הבדיקה" באקסל: למה הרכב "לבדיקה" (אותו ניסוח כמו בכרטיס הרכב), ועוד הבדיקות של "נתונים חשודים"
+// שהרכב מופיע בהן. מד ק"מ 0 ברכב חדש לא נכלל — זה המאגר שלא מתעדכן, לא רכב חשוד
+const SXWHY={seats:'מושבים שונים בשני המאגרים',size:'גודל לא מתאים למספר המושבים','model-size':'גודל שונה משאר הדגם','seats-odd':'מספר מושבים חריג',
+  km0:'מד ק"מ 0 במאגר','km-odd':'מד ק"מ לא סביר',expired:'רישיון שפג במאגר','before-year':'נצפה לפני שנת הייצור'};
+let SXMAP=null;
+function sxMap(){
+  if(SXMAP||!SUSP||!SUSP.checks)return SXMAP||{};
+  SXMAP={};const add=(p,id)=>{const k=String(p).replace(/\D/g,'').replace(/^0+/,'');(SXMAP[k]=SXMAP[k]||[]).push(SXWHY[id]);};
+  for(const c of SUSP.checks){if(!SXWHY[c.id])continue;
+    if(c.groups){if(c.groups[0])c.groups[0].rows.forEach(r=>add(r.plate,c.id));}
+    else (c.rows||[]).forEach(r=>add(r.plate,c.id));}
+  return SXMAP;
+}
+function chkWhy(v){
+  const w=[];
+  if(isChk(v))w.push(`לפי המאגר הממשלתי: ${BITUL[v._bi]?BITUL[v._bi][0]:v._bi} ב-${fd(v._bd)}, אבל נצפה נוסע עד ${fd(v[2])}`);
+  const s=sxMap()[String(v[0]).replace(/\D/g,'').replace(/^0+/,'')];
+  if(s)w.push(...s);
+  return w.join(' · ');
+}
 function vRow(v,o){const on=isActive(v);const mv=on?null:movedTo(v);
-  return [chainTxt(v,o),v[0],gT(v)||'',gY(v)||'',gM(v)||'',gR(v)!=null?gR(v):'',v._kd!=null?v._kd:'',v._kt!=null?v._kt:'',v._ok!=null?v._ok:'',v[1],v[2],on?'פעיל':mv?'עבר ל'+mv.name:'ירד מהשירות'];}
-function XDL(){
+  return [chainTxt(v,o),v[0],gT(v)||'',gY(v)||'',gM(v)||'',gR(v)!=null?gR(v):'',v._kd!=null?v._kd:'',v._kt!=null?v._kt:'',v._ok!=null?v._ok:'',v[1],v[2],on?'פעיל':mv?'עבר ל'+mv.name:'ירד מהשירות',chkWhy(v)];}
+async function XDL(){
   if(!DATA) return;
+  // סיבות הבדיקה צריכות את "נתונים חשודים" — טוענים פעם אחת לפני ההורדה (אם חסר, העמודה רק בלי הן)
+  if(SUSP===null){try{const r=await fetch('data/fleet-suspect.json',{cache:'no-cache'});SUSP=r.ok?await r.json():{checks:[]};}catch(e){SUSP={checks:[]};}if(!Array.isArray(SUSP.checks))SUSP={checks:[]};}
+  await loadBitul();buildBitul();
   const D=[]; let name='צי-הרכבים';
   if(VIEW.t==='op'){const o=op(VIEW.ref); if(!o) return;
     name='fleet-op-'+o.ref; D.push(VHEAD);
@@ -1703,9 +1746,9 @@ function XDL(){
     name='fleet-city '+CITYSEL+(CITYMON?' '+CITYMON:'');
     if(CV&&CVIDX&&CVIDX[CITYSEL]){
       // רשימת הרכבים של העיר, כמו בטבלה (כולל סינון החודש והמצב)
-      D.push(['חברה','מספר רכב','סוג הרכב','שנתון','יצרן ודגם','ימי פעילות שנמדדו','נסיעות סה"כ','נסיעות ביום','נצפה לראשונה','נצפה לאחרונה','מצב']);
+      D.push(['חברה','מספר רכב','סוג הרכב','שנתון','יצרן ודגם','ימי פעילות שנמדדו','נסיעות סה"כ','נסיעות ביום','נצפה לראשונה','נצפה לאחרונה','מצב','סיבת הבדיקה']);
       for(const r of cityVehRows(CITYSEL)){const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
-        D.push([r.o.name,v[0],gT(v)||'',gY(v)||'',gM(v)||'',r.dd!=null?r.dd:'',r.rt!=null?r.rt:'',gR(v)!=null?gR(v):'',v[1],v[2],on?'פעיל':mv?'עבר ל'+mv.name:'ירד מהשירות']);}
+        D.push([r.o.name,v[0],gT(v)||'',gY(v)||'',gM(v)||'',r.dd!=null?r.dd:'',r.rt!=null?r.rt:'',gR(v)!=null?gR(v):'',v[1],v[2],on?'פעיל':mv?'עבר ל'+mv.name:'ירד מהשירות',chkWhy(v)]);}
     }else{
       D.push(['חברה','רכבים שפעלו בעיר']);
       (CITIES.cities[CITYSEL].ops||[]).forEach(([r,n])=>D.push([opName(r),n]));
@@ -1747,6 +1790,11 @@ function XDL(){
         });
       }
     }
+  }else if(MODE==='suspect'&&SUSP&&SUSP.checks.length){
+    name='fleet-suspect';D.push(['בדיקה','מספר רכב','חברה','יצרן ודגם','פרטים']);
+    for(const c of SUSP.checks){const cols=(c.cols||[]).filter(([k])=>k!=='model');
+      const rs=c.groups?c.groups.flatMap(g=>g.rows.map(r=>[g.title,r])):(c.rows||[]).map(r=>['',r]);
+      for(const [g,r] of rs)D.push([c.title+(g?' · '+g:''),r.plate,r.op||'',r.model||'',cols.map(([k,t])=>t+': '+(r[k]==null?'—':/^\d{4}-\d\d-\d\d$/.test(r[k])?fd(r[k]):r[k])).join(' · ')]);}
   }else if(MODE==='moves'&&MOVES&&MOVES.m){
     name='fleet-moves'+(MVF?' '+mvLabel(MVF):'')+(MVT?' '+mvLabel(MVT):'');
     D.push(['מספר רכב','סוג','שנתון','יצרן ודגם','מאיפה','נצפה שם לאחרונה','לאן','נצפה שם לראשונה']);
@@ -1771,6 +1819,51 @@ function render(){
   document.body.classList.toggle('inner',!(MODE==='op'&&VIEW.t==='home'));
   $('#view').innerHTML=crumb()+(VIEW.t==='op'?opView(VIEW.ref):home());
   syncNav();syncUrl();
+}
+
+/* נתונים חשודים: סתירות וערכים מוזרים בין מאגר הרישוי, מאגר "ציי רכב אוטובוסים" והשידורים.
+   הנתונים: data/fleet-suspect.json (tools/fleet_suspect.py, ב-fleet-registry כל לילה).
+   כל בדיקה: {id, title, note, count, cols:[[מפתח, כותרת]...], rows | groups:[{title, rows}]} */
+async function loadSuspect(){
+  if(SUSP!==null) return;
+  try{const r=await fetch('data/fleet-suspect.json',{cache:'no-cache'});SUSP=r.ok?await r.json():{checks:[]};}
+  catch(e){SUSP={checks:[]};}
+  if(!Array.isArray(SUSP.checks))SUSP={checks:[]};
+  render();
+}
+function sxToggle(el){const id=el.dataset.id;if(el.open)SXOPEN.add(id);else SXOPEN.delete(id);syncUrl();}
+function sxCell(r,k){
+  const x=r[k];
+  if(x==null||x==='')return '<td>—</td>';
+  if(typeof x==='number')return `<td class="num${k==='km'||k==='seats'&&r.usual!=null?' bad':''}">${fmt(x)}</td>`;
+  if(/^\d{4}-\d\d-\d\d$/.test(x))return `<td class="num">${fd(x)}</td>`;
+  if(k==='usual'&&r.n_usual)return `<td>${esc(x)} <span style="color:var(--dim)">· ${fmt(r.n_usual)} רכבים</span></td>`;
+  return `<td>${esc(x)}</td>`;
+}
+function sxTable(c,rows,key){
+  if(!rows.length)return '<div class="empty" style="padding:16px">אין</div>';
+  const lim=SXLIM[key]||100,shown=rows.slice(0,lim);
+  // הערכים הסותרים מיד אחרי מספר הרכב (בטלפון הם נראים בלי לגלול), והחברה והדגם בתא אחד בסוף
+  const cols=(c.cols||[]).filter(([k])=>k!=='model');
+  return `<div class="tblbox"><table><thead><tr><th>מספר רכב</th>${cols.map(([,t])=>`<th>${esc(t)}</th>`).join('')}<th>חברה ודגם</th></tr></thead><tbody>
+    ${shown.map(r=>`<tr class="v" tabindex="0" onclick="showV('${esc(r.plate)}')"><td dir="ltr" style="text-align:right"><a class="vl" href="${vh(r.plate)}" onclick="if(nv(event)){event.stopPropagation();showV('${esc(r.plate)}')}">${esc(r.plate)}</a></td>${cols.map(([k])=>sxCell(r,k)).join('')}<td class="sxop">${esc(r.op||'')}${r.model?`<small><bdi>${esc(r.model)}</bdi></small>`:''}</td></tr>`).join('')}
+    </tbody></table></div>${rows.length>lim?`<button class="more" onclick="SXLIM['${key}']=${lim+400};render()">הצגת עוד ${fmt(Math.min(400,rows.length-lim))} מתוך ${fmt(rows.length-lim)} שנותרו</button>`:''}`;
+}
+function suspectHome(){
+  if(SUSP===null){loadSuspect();return '<div class="msg">⏳ טוען…</div>';}
+  if(!SUSP.checks.length)return '<div class="panel"><div class="empty">הנתונים יופיעו אחרי העדכון הלילי</div></div>';
+  const head=`<div class="panel"><p class="sxhead">סתירות וערכים מוזרים במאגרים של משרד התחבורה (מאגר הרישוי ומאגר "ציי רכב אוטובוסים"), לעומת מה שרואים בשידורים. ברוב המקרים זו כנראה טעות ברישום, ולא בהכרח בעיה אמיתית ברכב.</p>
+    <p class="note" style="margin:4px 0 0">עדכון: ${fd(SUSP.updated)} · רק רכבים שנצפו בשידורים. לחיצה על כרטיס פותחת את הרשימה, ולחיצה על רכב פותחת את כל פרטיו.</p></div>`;
+  // סינון לפי החיפוש: מספר רכב, חברה או דגם
+  const q=Q.trim().toLowerCase(),qd=q.replace(/\D/g,'');
+  const flt=rs=>!q?rs:rs.filter(r=>(qd&&String(r.plate).includes(qd))||String(r.op||'').toLowerCase().includes(q)||String(r.model||'').toLowerCase().includes(q));
+  return head+(q?`<p class="note" style="margin:10px 4px 0">מסונן לפי "${esc(Q.trim())}"</p>`:'')+SUSP.checks.map(c=>{
+    const op=SXOPEN.has(c.id);
+    const gs=c.groups?c.groups.map(g=>({title:g.title,rows:flt(g.rows||[])})):null, rows=gs?null:flt(c.rows||[]);
+    const n=q?(gs?gs.reduce((a,g)=>a+g.rows.length,0):rows.length):c.count;
+    const body=!op?'':gs?gs.map((g,i)=>`<h4>${esc(g.title)} · ${fmt(g.rows.length)}</h4>${sxTable(c,g.rows,c.id+'-'+i)}`).join(''):sxTable(c,rows,c.id);
+    return `<details class="panel sxcard" data-id="${esc(c.id)}" ${op?'open':''} ontoggle="sxToggle(this);if(this.open&&!this.querySelector('.sxin table,.sxin .empty'))render()"><summary><b>${esc(c.title)}</b><span class="sxn">${fmt(n)}<small>${op?'סגירה ▴':'רשימה ▾'}</small></span><p>${esc(c.note||'')}</p></summary><div class="sxin">${body}</div></details>`;
+  }).join('');
 }
 
 /* מצב "לפי קו" (שלמה 25.10): אילו אוטובוסים נוסעים בכל קו — לפי נסיעות ולפי רכבים, בשלושת
@@ -1910,10 +2003,10 @@ function lineView(l){
 /* ── ניווט (שלמה 08.10: "האתר עמוס מדי וקשה לנווט בו") ──
    חיפוש אחד שמציע חברה, עיר, דגם או רכב; ארבע לשוניות; שאר הכלים בתפריט "⋯";
    שורת "איפה אני" בדפים הפנימיים; ודף החברה בלשוניות סקירה / רכבים / שנתונים. */
-const MODE_NAME={op:'חברות',city:'ערים',type:'דגמים',plate:'כל הרכבים',moves:'מעברים',cluster:'אשכול ביום',line:'לפי קו'};
-const EXTRA_MODES=['plate','moves','cluster','line'];
+const MODE_NAME={op:'חברות',city:'ערים',type:'דגמים',plate:'כל הרכבים',moves:'מעברים',cluster:'אשכול ביום',line:'לפי קו',suspect:'נתונים חשודים'};
+const EXTRA_MODES=['plate','moves','cluster','line','suspect'];
 let OPTAB='ov', FSHEET=false, SUG=[], SUGI=-1, MODELS=null;
-const phText=()=>MODE==='line'?'חיפוש מספר קו, עיר או חברה…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':MODE==='plate'?'חיפוש מספר רכב…':'חיפוש: חברה, עיר, דגם או מספר רכב';
+const phText=()=>MODE==='suspect'?'סינון לפי מספר רכב, חברה או דגם…':MODE==='line'?'חיפוש מספר קו, עיר או חברה…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':MODE==='plate'?'חיפוש מספר רכב…':'חיפוש: חברה, עיר, דגם או מספר רכב';
 function syncNav(){
   document.querySelectorAll('.nav .mode').forEach(x=>{x.classList.toggle('on',x.dataset.m===MODE);if(EXTRA_MODES.includes(x.dataset.m))x.hidden=x.dataset.m!==MODE;});
   $('#q').placeholder=phText();
@@ -1954,6 +2047,7 @@ function MENU(){
     it('אשכול ביום','כמה אוטובוסים עבדו בכל יום, לפי אשכול מכרז ועיר',"setMode('cluster')",nh({m:'cluster'}))+
     it('לפי קו','אילו אוטובוסים נוסעים בכל קו, ומה הסיכוי לכל דגם',"setMode('line')",nh({m:'line'}))+
     it('כל הרכבים','רשימת כל הרכבים במעקב, לפי מספר רכב',"setMode('plate')",nh({m:'plate'}))+
+    it('נתונים חשודים','סתירות ונתונים מוזרים במאגרים של משרד התחבורה',"setMode('suspect')",nh({m:'suspect'}))+
     it('⬇ הורדה לאקסל','הטבלה של המסך הנוכחי, כקובץ שנפתח באקסל',"closeMenu();XDL()")+
     it('🔗 שיתוף','קישור שפותח בדיוק את המסך הזה',"closeMenu();SHARE()")+
     it('על המקורות','מאיפה הנתונים ומתי הם מתעדכנים',"SOURCES()"));
@@ -2048,6 +2142,7 @@ function stateParams(){
   if(MODE==='line'&&LNBY!=='t')p.set('lb',LNBY);
   if(MODE==='line'&&LNSEL&&LNDIR)p.set('ld',LNDIR);
   if(MODE==='line'&&LNSEL&&LNT)p.set('lt',LNT);
+  if(MODE==='suspect'&&SXOPEN.size)p.set('sx',[...SXOPEN].join(','));
   return p;
 }
 function syncUrl(){
@@ -2108,6 +2203,7 @@ function applyHash(){
     if(gv('lb')==='v')LNBY='v';
     if(gv('ld'))LNDIR=+gv('ld')||0;
     if(gv('lt'))LNT=gv('lt');
+    if(gv('sx'))SXOPEN=new Set(gv('sx').split(','));
     if(gv('tab'))OPTAB=gv('tab');
     else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF||CHKF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);

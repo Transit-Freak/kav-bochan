@@ -9,6 +9,7 @@ on:
       - 'tools/fleet_refresh_registry.py'
       - 'tools/fleet_enrich_gov.py'
       - 'tools/fleet_bitul_sofi.py'
+      - 'tools/fleet_suspect.py'
       - '.github/workflows/fleet-registry.yml'
 
 permissions:
@@ -49,11 +50,15 @@ jobs:
       - name: ביטול סופי של אוטובוסים
         continue-on-error: true
         run: python3 tools/fleet_bitul_sofi.py
+      # נתונים חשודים: סתירות וערכים מוזרים בין המאגרים (בלי רשת — מהקבצים שכבר נבנו)
+      - name: נתונים חשודים
+        continue-on-error: true
+        run: python3 tools/fleet_suspect.py
       - name: פרסום נתוני הרישוי בלבד
         run: |
           git config user.name 'fleet-bot'
           git config user.email 'noreply@github.com'
-          git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json fleet/data/fleet-bitul.json $(ls fleet/data/fleet-bitul-sofi.json 2>/dev/null) fleet/data/fleet-official.json fleet/data/fleet-armor.json
+          git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json fleet/data/fleet-bitul.json $(ls fleet/data/fleet-bitul-sofi.json 2>/dev/null) fleet/data/fleet-official.json fleet/data/fleet-armor.json $(ls fleet/data/fleet-suspect.json 2>/dev/null)
           git diff --cached --quiet && exit 0
           git commit -m 'data: refresh official fleet registration details'
           for i in 1 2 3 4 5; do
