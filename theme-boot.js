@@ -233,8 +233,7 @@
     // בדף שהורחב לרוחב מחשב הכול מוקטן — מגדילים את החלונית כדי שתהיה קריאה בצילום מסך
     var k = Math.max(1, Math.min(4, innerWidth / (Math.min(screen.width || innerWidth, innerWidth))));
     box.style.fontSize = Math.round(12 * k) + "px"; box.style.maxWidth = Math.round(Math.min(innerWidth * 0.94, 520 * k)) + "px";
-    log.unshift(new Date().toTimeString().slice(0, 8) + " " + why + " · " + innerWidth);
-    log = log.slice(0, 5);
+    if (why) note(why);
     box.innerHTML = '<div style="font-weight:700;margin-bottom:4px">בדיקה · <a href="?diag=0" style="color:#b45309">סגירה</a></div>' +
       row("דפדפן", ua) +
       row("מזדהה כטלפון", /Mobi|Android|iPhone|iPad/i.test(ua) ? "כן" : "לא") +
@@ -247,11 +246,21 @@
       '<div style="margin-top:4px;color:#555">' + log.join("<br>") + "</div>";
   }
   var t = 0;
-  function later(why) { clearTimeout(t); t = setTimeout(function () { draw(why); }, 150); }
+  // כל אירוע נרשם מיד, עם אלפיות שנייה, הרוחב באותו רגע ואיך הדפדפן מזדהה — כדי לתפוס שינוי רגעי (שלמה 20.11:
+  // "לשנייה זה הופך למצב מחשב ואז ישר חוזר")
+  function note(why) {
+    var d = new Date(), ms = String(d.getMilliseconds()).padStart(3, "0");
+    log.unshift(d.toTimeString().slice(0, 8) + "." + ms + " " + why + " · " + innerWidth + "/" + outerWidth + " · " + (/Mobi|Android/i.test(navigator.userAgent) ? "טלפון" : "מחשב"));
+    log = log.slice(0, 10);
+  }
+  function later(why) { note(why); clearTimeout(t); t = setTimeout(function () { draw(""); }, 150); }
   document.addEventListener("DOMContentLoaded", function () { draw("טעינה"); });
   window.addEventListener("load", function () { draw("סוף טעינה"); });
   window.addEventListener("resize", function () { later("שינוי גודל"); });
   window.addEventListener("pageshow", function (e) { draw(e.persisted ? "חזרה מהזיכרון" : "הצגה"); });
   window.addEventListener("popstate", function () { later("ניווט בתוך הדף"); });
   window.addEventListener("hashchange", function () { later("שינוי כתובת"); });
+  document.addEventListener("visibilitychange", function () { later(document.hidden ? "הוסתר" : "חזר להיות גלוי"); });
+  window.addEventListener("pagehide", function (e) { note(e.persisted ? "יציאה לזיכרון" : "יציאה"); });
+  window.addEventListener("orientationchange", function () { later("סיבוב"); });
 })();
