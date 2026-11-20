@@ -111,7 +111,7 @@ var LCXlsx = (function () {
           cell(rr, 0, k ? '' : r.op, sOp);
           cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', v: 'center', color: 'FFFFFF', fill: hexOf(r.color) }) : sLn);
           cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), sOr);
-          comments.push({ ref: ref(2, rr), t: r.comment });
+          if (!r.hideS) comments.push({ ref: ref(2, rr), t: r.comment });   // התחנה (בהערה) — רק כשהיא מוצגת בלוח
           var notes = [];
           r.cells.forEach(function (x, ci) {
             if (x.skip) return;   // חלק מתא ממוזג (ימי חול זהים בשורה הזו)
@@ -163,7 +163,7 @@ var LCXlsx = (function () {
     M.bands.forEach(function (b0) {
       b0.rows.forEach(function (r) {
         if (r.off || !r.alts || !r.alts.length) return;
-        cell(R, 0, 'קו ' + r.line + (r.n > 1 && r.toward ? ' ' + r.toward : ''), sL); merges.push('A' + R + ':C' + R);
+        cell(R, 0, 'קו ' + r.line + (r.n > 1 && (r.towardAll || r.toward) ? ' ' + (r.towardAll || r.toward) : ''), sL); merges.push('A' + R + ':C' + R);
         cell(R, 3, { runs: r.alts.map(function (a, i) { return { t: a.L + ' ' + a.txt + (i < r.alts.length - 1 ? ' ·' : ''), color: hexOf(a.c), b: true }; }) }, st.get({ sz: 10 }));
         merges.push(ref(3, R) + ':' + ref(last, R)); heights[R] = 20; R++;
       });

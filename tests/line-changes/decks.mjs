@@ -735,6 +735,44 @@ async function main() {
       if (JSON.stringify(g.move.afterReload) !== JSON.stringify(g.move.up2)) problems.push(key + ': ההעברה בין פסים לא נשמרה אחרי טעינה מחדש');
       const flatSeq = g.move.up2.map((x) => x.startsWith('[') ? x.slice(1, -1) : x.split('/')[0]);
       if (flatSeq.join('|') !== g.move.xlsx.join('|')) problems.push(key + ': ההעברה בין פסים לא הגיעה לאקסל — ' + g.move.xlsx.join(' '));
+      // קו שהועבר לפס של יעד אחר — בפס משלו עם היעד שלו (982 תחת "צפת – ירושלים" בתוך רמת גן), ואין שני פסים צמודים עם אותה כותרת
+      const segOf = (sq, ln) => { let h = ''; for (const x of sq) { if (x.startsWith('[')) h = x; else if (x === ln) return h; } return null; };
+      if (!/ירושלים/.test(segOf(g.move.up, '982') || '')) problems.push(key + ': 982 שהועבר לפס של רמת גן לא קיבל פס עם היעד שלו');
+      const dupHead = (sq) => sq.some((x, i) => x.startsWith('[') && i && sq[i - 1].startsWith('['));
+      [g.move.up, g.move.up2].forEach((sq) => { if (dupHead(sq)) problems.push(key + ': פס ריק (שתי כותרות צמודות) — ' + sq.join(' ')); });
+      // E. הפס של קו שהועבר (989, "צפת – נתניה" בתוך ירושלים) — ↓ על שורת הפס מזיז אותו בתוך הפס של ירושלים, אחרי 993
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(500);
+      await pg.evaluate(() => { const tr = Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd tr.bband')).find((t) => /נתניה/.test(t.textContent)); const td = tr.querySelector('td'); td.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); td.click(); }); await pg.waitForTimeout(300);
+      g.move.bandCanDn = await pg.evaluate(() => !document.querySelector('#etb [data-t="mvdn"]').disabled);
+      await pg.evaluate(() => document.querySelector('#etb [data-t="mvdn"]').click()); await pg.waitForTimeout(1000);
+      g.move.bandDn = (await lineSeq(pg)).map((x) => x.replace(/\/.*$/, ''));
+      g.move.bandSel = await pg.evaluate(() => (document.querySelector('.s-bd tr.bband.bsel') || {}).textContent || '');
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(600);
+      if (segOf(g.move.bandDn, '989') !== '[צפת – נתניה]' || g.move.bandDn.indexOf('989') < g.move.bandDn.indexOf('993')) problems.push(key + ': ↓ על הפס של 989 לא הזיז אותו — ' + g.move.bandDn.join(' '));
+      if (dupHead(g.move.bandDn)) problems.push(key + ': פס ריק אחרי הזזת פס — ' + g.move.bandDn.join(' '));
+      // F. מתחת למוצא: "רק כיוון" — בלי שם התחנה והקוד, "לכיוון …" נשאר; "כלום" — רק המוצא; גם באקסל ובצפוף
+      const under = async () => pg.evaluate(() => { const q = (s) => document.querySelectorAll('.sitem:not(.off) .s-bd tr.br td.bo ' + s).length; return { rows: q('b'), stop: q('[data-bk$="|s"]'), dir: q('[data-bk$="|w"]') }; });
+      g.bstop = { all: await under() };
+      for (const m of ['dir', 'none']) {
+        await pg.evaluate((m) => document.querySelector('[data-bst="' + m + '"]').click(), m); await pg.waitForTimeout(1000);
+        g.bstop[m] = await under();
+        g.bstop[m].on = await pg.evaluate(() => (document.querySelector('#bstseg [aria-checked="true"]') || {}).getAttribute?.('data-bst'));
+        const xo = await xlsxSheet(pg);
+        g.bstop[m].xlsxDir = (xo.match(/לכיוון/g) || []).length;
+      }
+      await pg.evaluate(() => document.querySelector('[data-bdn="1"]').click()); await pg.waitForTimeout(900);
+      g.bstop.noneDense = await under();
+      await pg.evaluate(() => document.querySelector('[data-bdn="0"]').click()); await pg.waitForTimeout(600);
+      await pg.evaluate(() => document.querySelector('[data-bst="all"]').click()); await pg.waitForTimeout(1000);
+      g.bstop.back = await under();
+      const S0 = g.bstop;
+      if (!(S0.all.stop > 0 && S0.all.dir > 0)) problems.push(key + ': "הכל" — אין תחנה או כיוון מתחת למוצא');
+      if (S0.dir.stop || S0.dir.dir !== S0.all.dir || S0.dir.on !== 'dir') problems.push(key + ': "רק כיוון" — ' + JSON.stringify(S0.dir));
+      if (S0.none.stop || S0.none.dir || S0.none.on !== 'none' || S0.none.rows !== S0.all.rows) problems.push(key + ': "כלום" — ' + JSON.stringify(S0.none));
+      // (במקרא החלופות באקסל הכיוון נשאר — כדי להבחין בין שני הכיוונים של קו)
+      if (!S0.dir.xlsxDir || S0.dir.xlsxDir - S0.none.xlsxDir !== S0.all.dir) problems.push(key + ': מתחת למוצא — באקסל (' + S0.dir.xlsxDir + ', ' + S0.none.xlsxDir + ')');
+      if (S0.noneDense.stop || S0.noneDense.dir) problems.push(key + ': "כלום" בצפוף — ' + JSON.stringify(S0.noneDense));
+      if (JSON.stringify(S0.back) !== JSON.stringify(S0.all)) problems.push(key + ': "הכל" לא מחזיר את התחנה והכיוון');
     }
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();

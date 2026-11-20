@@ -181,15 +181,52 @@ test('מיון בשתי רמות: קודם לפי מפעיל (בסדר שנבח�
   assert.equal(ctx.LCDeck.boardModel(lodPages(), { ...o, bord: 'key', bk: ['num', 'op'] }).ord, 'key');
 });
 
-test('ידני: קו שהועבר לפס אחר (bmb) מופיע בסוף הפס הזה, והפס שומר את השם שלו', () => {
+test('ידני: קו שהועבר לפס של יעד אחר (bmb) מקבל שם פס משלו עם היעד שלו; פס שקו הועבר לאמצעו — מתחלק; אותו יעד — מצטרף', () => {
   const o = { ltype: LINES_FX.lt, pord: ['11464', '53009', '36011', '14384'] };
   const ps = () => ['36011', '53009', '11464', '14384'].map(ttPage);
   const M0 = ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['11464', '53009', '36011', '14384'] });
-  const tlv = M0.bands.find((b) => /תל אביב/.test(b.label));
+  const tlv = M0.bands.find((b) => /תל אביב/.test(b.label)), bb = M0.bands.find((b) => /בני ברק/.test(b.label));
+  // 384 (לוד – בני ברק) הועבר לסוף הפס של תל אביב — פס משלו מתחת ל-464, ולא מתחת לכותרת של תל אביב
   const M = ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['11464', '14384', '53009', '36011'], bmb: { 14384: tlv.bk } });
-  assert.deepEqual(seq(M)[0], 'לוד – תל אביב יפו: 464 384');
-  // בסדר אחר (לא ידני) — הקו חוזר לפס שלו
+  assert.deepEqual(seq(M), ['לוד – תל אביב יפו: 464', 'לוד – בני ברק: 384', 'הקווים העירוניים · לוד, רמלה: 9 11']);
+  const seg = M.bands[1];
+  assert.ok(seg.mvs); assert.equal(seg.host, tlv.k); assert.equal(seg.lk, bb.k); assert.notEqual(seg.k, tlv.k);
+  // הכותרת של הפס — לפי הטקסט ששונה בפס המקורי שלו
+  const R = ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['11464', '14384', '53009', '36011'], bmb: { 14384: tlv.bk }, bd: { t: { ['band:' + bb.k]: 'לבני ברק' } } });
+  assert.equal(R.bands[1].label, 'לבני ברק');
+  // בראש הפס — פס משלו מעל הכותרת של תל אביב
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['14384', '11464', '53009', '36011'], bmb: { 14384: tlv.bk } }))[0], 'לוד – בני ברק: 384');
+  // באמצע פס: הפס מתחלק לשני חלקים, ולכל אחד הכותרת שלו
+  const two = ['36011', '53009', '11464', '14384', '12509'].map(ttPage);
+  const tlv2 = ctx.LCDeck.boardModel(two, { ...o, bord: 'man' }).bands.find((b) => /תל אביב/.test(b.label));
+  const S = ctx.LCDeck.boardModel(two.concat([ttPage('11464')].map((p) => ({ ...p, makat: '99464', id: 'tt-99464' }))),
+    { ...o, bord: 'man', bman: ['11464', '14384', '99464', '53009', '36011', '12509'], bmb: { 14384: tlv2.bk } });
+  const sq = seq(S);
+  assert.deepEqual(sq.slice(0, 3), ['לוד – תל אביב יפו: 464', 'לוד – בני ברק: 384', 'לוד – תל אביב יפו: 464']);
+  assert.equal(new Set(J(S.bands.map((b) => b.k))).size, S.bands.length, 'מפתח ייחודי לכל חלק');
+  assert.equal(S.bands[0].color, S.bands[2].color);
+  // אותו יעד — מצטרף לפס (בלי חלק משלו): קו נוסף לתל אביב שהועבר לפס של תל אביב — באותו פס
+  const J2 = ctx.LCDeck.boardModel(two.concat([{ ...ttPage('11464'), makat: '99464', id: 'tt-99464' }]),
+    { ...o, bord: 'man', bman: ['11464', '14384', '53009', '36011', '12509', '99464'], bmb: { 99464: tlv2.bk } });
+  assert.deepEqual(J([...new Set(J2.bands[0].rows.map((r) => r.p.makat))]), ['11464', '99464']);
+  assert.ok(J2.bands.every((b) => !b.mvs && !b.host));
+  // בלי פסי יעד, ובסדר אחר (לא ידני) — כמו קודם
+  assert.equal(ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bflat: true, bman: ['11464', '14384', '53009', '36011'], bmb: { 14384: tlv.bk } }).bands.length, 1);
   assert.ok(seq(ctx.LCDeck.boardModel(ps(), { ...o, bord: 'add', bmb: { 14384: tlv.bk } })).includes('לוד – בני ברק: 384'));
+});
+
+test('מתחת למוצא (bstop): הכל — התחנה והכיוון; רק כיוון — בלי התחנה; כלום — רק המוצא (גם בלוח של הודעה על שינוי)', () => {
+  const rowsOf = (bstop) => ctx.LCDeck.boardModel([ttPage('36011'), ttPage('11464')], { ltype: LINES_FX.lt, bstop }).bands.flatMap((b) => b.rows);
+  const all = rowsOf(), dir = rowsOf('dir'), none = rowsOf('none');
+  assert.ok(all.every((r) => !r.hideS && !r.hideW) && all.some((r) => r.stop));
+  assert.ok(dir.every((r) => r.stop === '' && r.hideS && !r.hideW) && dir.some((r) => r.toward));
+  assert.deepEqual(J(dir.map((r) => r.toward)), J(all.map((r) => r.toward)));
+  assert.ok(none.every((r) => r.stop === '' && r.toward === '' && r.hideW));
+  // הכיוון נשאר למקרא החלופות (קו עם שני כיוונים)
+  assert.deepEqual(J(none.map((r) => r.towardAll)), J(all.map((r) => r.toward)));
+  assert.deepEqual(J(none.map((r) => r.origin)), J(all.map((r) => r.origin)));
+  // ערך לא מוכר — כמו ברירת המחדל
+  assert.deepEqual(J(rowsOf('x').map((r) => r.stop)), J(all.map((r) => r.stop)));
 });
 
 test('רוחב עמודות: עמודה עם הרבה שעות מקבלת יותר רוחב, והלוח נמוך יותר מאשר ברוחב שווה; ידני — לפי החלקים', () => {
