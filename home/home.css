@@ -312,3 +312,13 @@ html.kbh-js .kbh .rv:not(.in){opacity:0;transform:translateY(14px)}
 .kbt .vcard button[class*="text-[10px]"]:hover{background:#f0f9ff;border-color:#7dd3fc;color:var(--brand-ink)}
 .kbt button:not([class*="bg-"]):not([class*="px-"]):not([class*="py-"]):not([class*="p-"]):not(.underline):not([class*="text-[10px]"]){border-radius:999px;padding:2px}
 .kbt button:not([class*="bg-"]):not([class*="px-"]):not([class*="py-"]):not([class*="p-"]):not(.underline):not([class*="text-[10px]"]):hover{background:#f0f9ff}
+/* שבת: העין נחה — Zzz עולה לאט, ו"שבת שלום" מתחת לעין */
+.kbh .stage.kb-shabbat .beam{display:none}
+.kbh .kb-shalom{position:absolute;left:50%;top:69%;transform:translateX(-50%);z-index:3;white-space:nowrap;font-weight:800;font-size:15px;color:#0369a1;background:rgba(255,255,255,.85);padding:2px 12px;border-radius:999px;pointer-events:none}
+.kbh .kb-zzz text{opacity:.8}
+@media (prefers-reduced-motion:no-preference){
+  .kbh .kb-zzz text{animation:kb-zzz 3.6s ease-in-out infinite;opacity:0}
+  .kbh .kb-zzz text:nth-child(2){animation-delay:.6s}
+  .kbh .kb-zzz text:nth-child(3){animation-delay:1.2s}
+}
+@keyframes kb-zzz{0%{opacity:0;transform:translateY(4px)}25%{opacity:.9}70%{opacity:.6}100%{opacity:0;transform:translateY(-6px)}}

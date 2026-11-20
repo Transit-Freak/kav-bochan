@@ -20,6 +20,39 @@ function eye(id,stat){const E='M14 60 Q60 20 106 60 Q60 100 14 60 Z',HL='<circle
   if(stat)return `<svg viewBox="0 0 120 120" aria-hidden="true">${defs}${tile}</svg><div class="eye-layer"><svg viewBox="0 0 120 120" aria-hidden="true">${lidG}${dash}</svg></div>`;
   return `<svg viewBox="0 0 120 120" aria-hidden="true">${defs}${tile}${lidG}${dash}</svg>`}
 
+/* ===== שבת: העין נחה =====
+   משעה לפני כניסת שבת עד צאת שבת (לפי השקיעה בירושלים: כניסת שבת — 20 דקות לפני השקיעה, כלומר מ-80 דקות לפני השקיעה בשישי, עד 40 דקות אחרי השקיעה בשבת) העין בדף הבית
+   עצומה, עם Zzz ו"שבת שלום", ולא מסתכלת על הכלים. נבדק בדפדפן בזמן הטעינה (לא בבנייה). ‎?shabbat=1 / ‎?shabbat=0 — לבדיקה */
+function sunsetUTC(y, m, d) {   // השקיעה בירושלים (31.778, 35.235) ביום הזה, בדקות מחצות UTC — נוסחת NOAA המקוצרת
+  const lat = 31.778 * Math.PI / 180, lon = 35.235;
+  const n = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / 864e5), g = 2 * Math.PI / 365 * (n - 1 + .5);
+  const eq = 229.18 * (.000075 + .001868 * Math.cos(g) - .032077 * Math.sin(g) - .014615 * Math.cos(2 * g) - .040849 * Math.sin(2 * g));
+  const dec = .006918 - .399912 * Math.cos(g) + .070257 * Math.sin(g) - .006758 * Math.cos(2 * g) + .000907 * Math.sin(2 * g) - .002697 * Math.cos(3 * g) + .00148 * Math.sin(3 * g);
+  const ha = Math.acos(Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat) * Math.cos(dec)) - Math.tan(lat) * Math.tan(dec)) * 180 / Math.PI;
+  return 720 - 4 * (lon - ha) - eq;
+}
+function isShabbat(now) {
+  try {
+    const q = new URLSearchParams(W.location && W.location.search || '').get('shabbat');
+    if (q === '1' || q === '0') return q === '1';
+  } catch (e) { }
+  now = now || new Date();
+  let p;
+  try { p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }).formatToParts(now).map(x => [x.type, x.value])); }
+  catch (e) { return false; }
+  const y = +p.year, m = +p.month, d = +p.day, at = mins => Date.UTC(y, m - 1, d) + mins * 6e4;
+  if (p.weekday === 'Fri') return now.getTime() >= at(sunsetUTC(y, m, d) - 80);
+  if (p.weekday === 'Sat') return now.getTime() < at(sunsetUTC(y, m, d) + 40);
+  return false;
+}
+function sleepEye() {
+  return `<svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="kb-eye-bg-sleep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient></defs>` +
+    `<rect width="120" height="120" rx="26" fill="url(#kb-eye-bg-sleep)"/><rect x=".75" y=".75" width="118.5" height="118.5" rx="25.25" fill="none" stroke="#bae6fd" stroke-width="1.5"/>` +
+    `<path d="M14 58 Q60 86 106 58" stroke="#0ea5e9" stroke-width="6" fill="none" stroke-linecap="round"/>` +
+    `<g stroke="#0ea5e9" stroke-width="4" stroke-linecap="round"><path d="M30 70 L25 79"/><path d="M45 76 L42 86"/><path d="M60 78 L60 88"/><path d="M75 76 L78 86"/><path d="M90 70 L95 79"/></g>` +
+    `<g class="kb-zzz" font-family="Heebo,Arial,sans-serif" font-weight="900" fill="#38bdf8"><text x="78" y="40" font-size="13">Z</text><text x="88" y="29" font-size="10">z</text><text x="96" y="20" font-size="8">z</text></g></svg>`;
+}
+
 /* ===== חלקים משותפים לסמלים ===== */
 const f=n=>+n.toFixed(2);
 function tile(k,c1,c2,inner){
@@ -575,8 +608,14 @@ function mount(root, opts) {
   loadVersions().then(V => { if (V) applyVersions(root, V); });
   new MutationObserver(() => adoptVer(root)).observe(document.body, { childList: true });
 
-  /* העין מסתכלת על הסמלים לפי הסדר */
-  const stage = root.querySelector('.stage'), beam = stage.querySelector('.beam');
+  /* העין מסתכלת על הסמלים לפי הסדר — ובשבת היא נחה */
+  const stage = root.querySelector('.stage'), beam = stage.querySelector('.beam'), SH = isShabbat();
+  if (SH) {
+    stage.classList.add('kb-shabbat');
+    stage.querySelector('.eye').innerHTML = sleepEye();
+    stage.setAttribute('aria-label', 'כל הכלים סביב העין הבוחנת, שנחה בשבת');
+    const t = document.createElement('div'); t.className = 'kb-shalom'; t.textContent = 'שבת שלום'; stage.appendChild(t);
+  }
   const iris = stage.querySelector('.kb-iris-js'), lid = stage.querySelector('.eye-layer');
   const orbs = [].slice.call(stage.querySelectorAll('.orb'));
   let beamDeg = 0;
@@ -600,8 +639,8 @@ function mount(root, opts) {
   /* בחגים העין משחקת מדי פעם עם סמל החג (hagim-play.js): אחרי כל מבט יוצא אירוע kbh:gaze,
      וכל עוד stage.kbhPlay דלוק העין לא עוברת לסמל הבא ולא ממצמצת. stage.kbhLook(k) — להסתכל עכשיו על סמל מסוים */
   const step = () => { if (!hold && live() && !stage.kbhPlay) { const o = orbs[idx]; lookAtOrb(o); idx = (idx + 1) % orbs.length; stage.dispatchEvent(new CustomEvent('kbh:gaze', { detail: { orb: o } })); } };
-  stage.kbhLook = k => { const i = orbs.findIndex(o => o.dataset.k === k); if (i >= 0 && !RM()) { idx = i; step(); } };
-  if (!RM()) {
+  stage.kbhLook = k => { const i = orbs.findIndex(o => o.dataset.k === k); if (i >= 0 && !RM() && !SH) { idx = i; step(); } };
+  if (!RM() && !SH) {
     beam.style.opacity = 0;
     /* מתחילים להסתכל רק אחרי שהדף נטען (תמונות, גופנים) — כך גם הסיבוב הראשון חלק */
     const start = () => { setTimeout(step, 300); setInterval(step, 1800); blinkLoop(); };
@@ -661,5 +700,5 @@ function mount(root, opts) {
   } else rv.forEach(el => el.classList.add('in'));
 }
 
-W.KBH = { ICON, eye, GROUPS, PARKS, COUNT, ALL, html, mount, unmount, fillIcons, ensureDefs };
+W.KBH = { isShabbat, ICON, eye, GROUPS, PARKS, COUNT, ALL, html, mount, unmount, fillIcons, ensureDefs };
 })();
