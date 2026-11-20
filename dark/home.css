@@ -460,6 +460,7 @@ html.kb-dark .kbt .kbt-chipbtn:hover{background-image:initial;background-color:#
 html.kb-dark .kbt .vcard button[class*="text-[10px]"]{background-image:initial;background-color:#181b20;color:var(--muted);border-color:var(--line2)}
 html.kb-dark .kbt .vcard button[class*="text-[10px]"]:hover{background-image:initial;background-color:#161c20;border-color:rgb(125, 211, 252);color:var(--brand-ink)}
 html.kb-dark .kbt button:not([class*="bg-"]):not([class*="px-"]):not([class*="py-"]):not([class*="p-"]):not(.underline):not([class*="text-[10px]"]):hover{background-image:initial;background-color:#161c20}
+html.kb-dark .kbh .kb-shalom{color:#59abe7;background-image:initial;background-color:rgba(23,25,31,0.85)}
 html.kb-dark body{background-image:initial;background-color:#181b20;color:#c3d0ea}
 html.kb-dark #boot-loader{background-image:initial;background-color:#181b20}
 html.kb-dark #boot-loader .ring{border-right-color:#373c42;border-bottom-color:#373c42;border-left-color:#373c42;border-top-color:rgb(79, 70, 229)}
