@@ -1202,7 +1202,10 @@
   }
   function syncTv(pages) {
     var cu = isCu(pages);
-    if (TVS.indexOf(edits.tv) < 0) edits.tv = tvOld(cu) || 'board';
+    // ברירת המחדל: בלו"ז עדכני — לוח מודעות; בהודעה על שינוי — תקציר (הישן מול החדש), ולוח מודעות רק כשבוחרים בו (edits.tvx).
+    // 19.11–20.11 לוח המודעות נשמר כברירת מחדל גם בהודעה על שינוי — בלי בחירה מפורשת הוא חוזר לתקציר
+    if (!cu && !edits.tvx && (edits.tv === 'board' || (TVS.indexOf(edits.tv) < 0 && tvOld(cu) === 'board'))) edits.tv = 'sum';
+    if (TVS.indexOf(edits.tv) < 0) edits.tv = tvOld(cu) || (cu ? 'board' : 'sum');
     var tv = edits.tv === 'comb' && !LCDeck.combOk(pages) ? 'board' : edits.tv, det = tv === 'sep' || tv === 'comb' || (tv === 'sum' && edits.tall === true);
     if (cu) { edits.ttc = tv === 'board' ? 'board' : tv === 'comb' ? undefined : 'sep'; edits.tt = { v: det ? 'det' : 'gen', f: 'table' }; edits.ttper = undefined; }
     else { edits.ttc = undefined; edits.tt = { v: tv === 'board' ? 'board' : det ? 'det' : 'gen', f: 'table' }; edits.ttper = tv === 'comb' ? false : tv === 'sep' ? true : undefined; }
@@ -1265,6 +1268,7 @@
     var cb = $('tvcards').querySelector('[data-tv="comb"]');
     cb.disabled = !cok;
     $('tvcsub').textContent = cok ? 'כל השעות לאותו יעד יחד' : 'כל השעות לאותו יעד יחד. מופיע כשיש כמה קווים לאותו יעד';
+    $('tvcards').querySelector('.tvstar').hidden = !cu;   // "מומלץ" — רק בלו"ז עדכני
     $('tvcards').querySelectorAll('[data-tv]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tv') === tv ? 'true' : 'false'); });
     $('tallw').hidden = tv !== 'sum';
     $('tall').checked = edits.tall === true;
@@ -1399,7 +1403,7 @@
     }
     var c = ev.target.closest('[data-tv]');
     if (!c || c.disabled) return;
-    edits.tv = c.getAttribute('data-tv'); saveEdits(); keepScroll(function () { render(curPages); });
+    edits.tv = c.getAttribute('data-tv'); edits.tvx = 1; saveEdits(); keepScroll(function () { render(curPages); });
   });
 
   /* צורה: מצגת (16:9) · שלט להדפסה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
@@ -1910,7 +1914,7 @@
     var b = $('resetall');
     if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
-    edits = normEdits({ look: edits.look, form: edits.form, tv: edits.tv, tall: edits.tall, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace, bpl: edits.bpl }); saveEdits(); render(curPages);
+    edits = normEdits({ look: edits.look, form: edits.form, tv: edits.tv, tvx: edits.tvx, tall: edits.tall, tt: edits.tt, ttc: edits.ttc, bplace: edits.bplace, bpl: edits.bpl }); saveEdits(); render(curPages);
   });
 
   /* ---------- תמונות ----------

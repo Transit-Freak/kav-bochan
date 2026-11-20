@@ -41,12 +41,13 @@ const DECKS = {
   '71011-20261113-e': 'קו שמבוטל',
   '72001-20261120-t': 'שינוי קטן בלו"ז (נסיעה אחת בשישי בוטלה) — עמוד אחד בתקציר'
 };
+// ברירת המחדל: בהודעה על שינוי — תקציר (הישן מול החדש; לוח מודעות רק כשבוחרים בו), בלו"ז עדכני — לוח מודעות, עם "מומלץ".
 // "איך להציג את לוח הזמנים": כל כרטיס משנה את מה שיוצא (השקפים בכל צורה) ואת קובץ האקסל — בהודעה על שינוי (שני קווים לאותו
 // יעד — יש גם "טבלה משולבת"), בשינוי קטן של נסיעה אחת (קו 1 ביתר עילית — בלי "טבלה משולבת", עם הסבר) ובלו"ז עדכני (436 ו-437)
 const CARDS = {
-  'cards-chg': { url: '?c=70001-20261118-t,45009-20261115-n', comb: true },
-  'cards-small': { url: '?c=72001-20261120-t', comb: false, rm: '14:36' },
-  'cards-cu': { url: '?m=tt&c=10436,10437', comb: true }
+  'cards-chg': { url: '?c=70001-20261118-t,45009-20261115-n', comb: true, dflt: 'sum' },
+  'cards-small': { url: '?c=72001-20261120-t', comb: false, rm: '14:36', dflt: 'sum' },
+  'cards-cu': { url: '?m=tt&c=10436,10437', comb: true, dflt: 'board' }
 };
 // לוח לפי יעד: קרית מלאכי (עיר), בשני סדרי השעות — עם פיצול ימי חול אוטומטי (יום א׳ · ב׳–ד׳ · יום ה׳, וקובץ אקסל
 // עם כותרת "יום חול" ממוזגת ותאים ממוזגים); בלי פיצול; "צפוף" + "להכניס לעמוד אחד" — כל הקווים (לא נכנס: נבדק שמופיע
@@ -442,9 +443,10 @@ async function main() {
     await pg.goto(base + '/line-changes/' + cs.url);
     await pg.waitForSelector('.sframe', { timeout: 30000 });
     const ui = await pg.evaluate(() => ({ shown: !document.getElementById('ttgrp').hidden, dflt: (document.querySelector('#tvcards [aria-checked="true"]') || {}).getAttribute?.('data-tv'),
-      comb: !document.querySelector('[data-tv="comb"]').disabled, why: document.getElementById('tvcsub').textContent }));
+      star: !document.querySelector('#tvcards .tvstar').hidden, comb: !document.querySelector('[data-tv="comb"]').disabled, why: document.getElementById('tvcsub').textContent }));
     if (!ui.shown) problems.push(key + ': אין בחירה של תצוגת לוח הזמנים');
-    if (ui.dflt !== 'board') problems.push(key + ': ברירת המחדל ' + ui.dflt + ' במקום לוח מודעות');
+    if (ui.dflt !== cs.dflt) problems.push(key + ': ברירת המחדל ' + ui.dflt + ' במקום ' + cs.dflt);
+    if (ui.star !== (cs.dflt === 'board')) problems.push(key + ': "מומלץ" על לוח המודעות ' + (ui.star ? 'מופיע' : 'לא מופיע'));
     if (ui.comb !== cs.comb) problems.push(key + ': "טבלה משולבת" ' + (ui.comb ? 'פעילה' : 'כבויה') + ' במקום ' + (cs.comb ? 'פעילה' : 'כבויה'));
     if (!ui.comb && !/מופיע כשיש כמה קווים לאותו יעד/.test(ui.why)) problems.push(key + ': "טבלה משולבת" כבויה בלי הסבר');
     const views = [['board'], ['sum'], ['sum', true], ['sep']].concat(cs.comb ? [['comb']] : []), res = {};
