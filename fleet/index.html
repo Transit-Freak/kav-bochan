@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script src="../theme-boot.js?v=20261120"></script>
+<script src="../theme-boot.js?v=20261120b"></script>
 <link rel="stylesheet" href="../dark/fleet.css?v=20261120">
 <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../nav-restore.js"></script><script src="../home-link.js"></script>
@@ -1835,6 +1835,7 @@ function sxToggle(el){const id=el.dataset.id;if(el.open)SXOPEN.add(id);else SXOP
 function sxCell(r,k){
   const x=r[k];
   if(x==null||x==='')return '<td>—</td>';
+  if(k==='year')return `<td class="num">${esc(String(x))}</td>`;   // שנה בלי פסיק של אלפים (שלמה 20.11)
   if(typeof x==='number')return `<td class="num${k==='km'||k==='seats'&&r.usual!=null?' bad':''}">${fmt(x)}</td>`;
   if(/^\d{4}-\d\d-\d\d$/.test(x))return `<td class="num">${fd(x)}</td>`;
   if(k==='usual'&&r.n_usual)return `<td>${esc(x)} <span style="color:var(--dim)">· ${fmt(r.n_usual)} רכבים</span></td>`;

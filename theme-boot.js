@@ -194,7 +194,7 @@
     var WIDE = "width=1200";
     var fix = function () {
       var m = document.querySelector('meta[name="viewport"]');
-      if (m && m.getAttribute("content") !== WIDE) m.setAttribute("content", WIDE);
+      if (m && m.getAttribute("content") !== WIDE) { window.kbDesk = { from: m.getAttribute("content"), at: Math.round(performance.now()) }; m.setAttribute("content", WIDE); }
       return !!m;
     };
     document.documentElement.classList.add("kb-desk-on-phone");
@@ -204,4 +204,54 @@
     mo.observe(document.documentElement, { childList: true, subtree: true });
     document.addEventListener("DOMContentLoaded", function () { fix(); mo.disconnect(); });
   } catch (e) { /* דפדפן ישן */ }
+})();
+
+/* חלונית בדיקה (שלמה 20.11, "אתר מותאם למחשב" בטלפון): ‎?diag=1 מדליק אותה בכל דפי האתר (נשמר ב-localStorage),
+   ‎?diag=0 מכבה. מציגה מה הדפדפן אומר על עצמו ומה רוחב הדף בפועל — לצילום מסך ושליחה */
+(function () {
+  "use strict";
+  var K = "kb-diag", on = false;
+  try {
+    var q = new URLSearchParams(location.search).get("diag");
+    if (q === "1") localStorage.setItem(K, "1");
+    if (q === "0") localStorage.removeItem(K);
+    on = localStorage.getItem(K) === "1";
+  } catch (e) { return; }
+  if (!on) return;
+  var box = null, log = [];
+  function vp() { var m = document.querySelector('meta[name="viewport"]'); return m ? m.getAttribute("content") : "(אין)"; }
+  function row(k, v) { return '<div><b>' + k + ':</b> <span dir="ltr">' + String(v).replace(/[<&]/g, "") + "</span></div>"; }
+  function draw(why) {
+    if (!document.body) return;
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "kb-diag";
+      box.style.cssText = "position:fixed;left:6px;bottom:6px;z-index:2147483647;max-width:min(94vw,520px);background:#fffbe6;color:#111;border:2px solid #b45309;border-radius:10px;padding:8px 10px;font:12px/1.35 Arial,sans-serif;direction:rtl;text-align:right;box-shadow:0 4px 18px rgba(0,0,0,.25);user-select:text";
+      document.body.appendChild(box);
+    }
+    var vv = window.visualViewport, ua = navigator.userAgent || "", d = window.kbDesk;
+    // בדף שהורחב לרוחב מחשב הכול מוקטן — מגדילים את החלונית כדי שתהיה קריאה בצילום מסך
+    var k = Math.max(1, Math.min(4, innerWidth / (Math.min(screen.width || innerWidth, innerWidth))));
+    box.style.fontSize = Math.round(12 * k) + "px"; box.style.maxWidth = Math.round(Math.min(innerWidth * 0.94, 520 * k)) + "px";
+    log.unshift(new Date().toTimeString().slice(0, 8) + " " + why + " · " + innerWidth);
+    log = log.slice(0, 5);
+    box.innerHTML = '<div style="font-weight:700;margin-bottom:4px">בדיקה · <a href="?diag=0" style="color:#b45309">סגירה</a></div>' +
+      row("דפדפן", ua) +
+      row("מזדהה כטלפון", /Mobi|Android|iPhone|iPad/i.test(ua) ? "כן" : "לא") +
+      row("מסך", (screen.width || "?") + "×" + (screen.height || "?") + " · DPR " + (window.devicePixelRatio || 1) + " · מגע " + (navigator.maxTouchPoints || 0)) +
+      row("רוחב הדף", "innerWidth " + innerWidth + " · client " + document.documentElement.clientWidth + (vv ? " · visual " + Math.round(vv.width) + " ×" + vv.scale.toFixed(2) : "")) +
+      row("viewport", vp()) +
+      row("התיקון", d ? "הופעל (היה: " + d.from + ", אחרי " + d.at + "ms)" : document.documentElement.classList.contains("kb-desk-on-phone") ? "הופעל, בלי תגית viewport" : "לא הופעל") +
+      row("כתובת", location.pathname + location.search + location.hash) +
+      row("היסטוריה", "history.length " + history.length + (performance.getEntriesByType ? " · " + ((performance.getEntriesByType("navigation")[0] || {}).type || "?") : "")) +
+      '<div style="margin-top:4px;color:#555">' + log.join("<br>") + "</div>";
+  }
+  var t = 0;
+  function later(why) { clearTimeout(t); t = setTimeout(function () { draw(why); }, 150); }
+  document.addEventListener("DOMContentLoaded", function () { draw("טעינה"); });
+  window.addEventListener("load", function () { draw("סוף טעינה"); });
+  window.addEventListener("resize", function () { later("שינוי גודל"); });
+  window.addEventListener("pageshow", function (e) { draw(e.persisted ? "חזרה מהזיכרון" : "הצגה"); });
+  window.addEventListener("popstate", function () { later("ניווט בתוך הדף"); });
+  window.addEventListener("hashchange", function () { later("שינוי כתובת"); });
 })();
