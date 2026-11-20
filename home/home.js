@@ -21,7 +21,7 @@ function eye(id,stat){const E='M14 60 Q60 20 106 60 Q60 100 14 60 Z',HL='<circle
   return `<svg viewBox="0 0 120 120" aria-hidden="true">${defs}${tile}${lidG}${dash}</svg>`}
 
 /* ===== שבת: העין נחה =====
-   מכניסת שבת עד צאת שבת (לפי השקיעה בירושלים: 20 דקות לפני השקיעה בשישי עד 40 דקות אחרי השקיעה בשבת) העין בדף הבית
+   משעה לפני כניסת שבת עד צאת שבת (לפי השקיעה בירושלים: כניסת שבת — 20 דקות לפני השקיעה, כלומר מ-80 דקות לפני השקיעה בשישי, עד 40 דקות אחרי השקיעה בשבת) העין בדף הבית
    עצומה, עם Zzz ו"שבת שלום", ולא מסתכלת על הכלים. נבדק בדפדפן בזמן הטעינה (לא בבנייה). ‎?shabbat=1 / ‎?shabbat=0 — לבדיקה */
 function sunsetUTC(y, m, d) {   // השקיעה בירושלים (31.778, 35.235) ביום הזה, בדקות מחצות UTC — נוסחת NOAA המקוצרת
   const lat = 31.778 * Math.PI / 180, lon = 35.235;
@@ -41,7 +41,7 @@ function isShabbat(now) {
   try { p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }).formatToParts(now).map(x => [x.type, x.value])); }
   catch (e) { return false; }
   const y = +p.year, m = +p.month, d = +p.day, at = mins => Date.UTC(y, m - 1, d) + mins * 6e4;
-  if (p.weekday === 'Fri') return now.getTime() >= at(sunsetUTC(y, m, d) - 20);
+  if (p.weekday === 'Fri') return now.getTime() >= at(sunsetUTC(y, m, d) - 80);
   if (p.weekday === 'Sat') return now.getTime() < at(sunsetUTC(y, m, d) + 40);
   return false;
 }
