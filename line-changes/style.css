@@ -119,7 +119,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .grp-h{font-family:var(--f-head);font-weight:800;font-size:13.5px;color:var(--sub);background:var(--card2);padding:var(--sp2) var(--sp4);border-top:1px solid var(--line);position:sticky;top:0;z-index:1}
 .grp-h:first-child{border-top:none}
 .grp-h span{font-family:var(--f-body);font-weight:600}
-.res{display:flex;align-items:center;gap:var(--sp3);min-height:64px;padding:var(--sp2) var(--sp4);border:none;border-top:1px solid var(--line2);background:var(--card);color:var(--fg);text-align:right;cursor:pointer;min-width:0;width:100%}
+.res{text-decoration:none;display:flex;align-items:center;gap:var(--sp3);min-height:64px;padding:var(--sp2) var(--sp4);border:none;border-top:1px solid var(--line2);background:var(--card);color:var(--fg);text-align:right;cursor:pointer;min-width:0;width:100%}
 .res:first-child,.grp-h + .res{border-top:none}
 .res:hover{background:var(--card2)}
 .badge{font-family:var(--f-head);font-weight:900;background:var(--after);color:var(--on-after);border-radius:10px;padding:5px 8px;font-size:17px;min-width:50px;text-align:center;flex:none;font-variant-numeric:tabular-nums;line-height:1.2}
@@ -144,7 +144,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .linehead b{font-size:18px}
 .linehead .t span{font-size:14px;color:var(--sub)}
 .cards{display:flex;flex-direction:column;gap:var(--sp3)}
-.ccard{display:flex;align-items:center;gap:var(--sp3);text-align:right;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r2);padding:var(--sp4) var(--sp4) calc(var(--sp4) + 3px);cursor:pointer;width:100%;position:relative;overflow:hidden;min-height:84px}
+.ccard{text-decoration:none;color:var(--fg);display:flex;align-items:center;gap:var(--sp3);text-align:right;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r2);padding:var(--sp4) var(--sp4) calc(var(--sp4) + 3px);cursor:pointer;width:100%;position:relative;overflow:hidden;min-height:84px}
 .ccard::before{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:linear-gradient(to left,var(--before) 0 50%,var(--new) 50%)}
 .ccard.past::before{background:repeating-linear-gradient(to left,var(--sub) 0 8px,transparent 8px 13px)}
 .ccard:hover{border-color:var(--after);background:var(--card2)}
@@ -288,6 +288,8 @@ details.group summary span{font-weight:600;color:var(--sub)}
   .sframe.toolong{box-shadow:none}
 }
 
+.fname{display:flex;flex-direction:column;gap:4px;margin:var(--sp3,12px) 0;font-size:14px;font-weight:700;color:var(--sub)}
+.fname input{font:inherit;font-weight:500;font-size:16px;color:var(--fg);padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);width:100%;box-sizing:border-box}
 .credit-opt{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:15px;cursor:pointer}
 .credit-opt input{width:20px;height:20px;accent-color:currentColor}
 
@@ -473,3 +475,16 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .pk .pkmv{border:0;background:transparent;color:inherit;font:800 14px Arial,sans-serif;padding:0 3px;cursor:pointer;min-width:24px;min-height:28px}
 .pk .pkmv:disabled{opacity:.3;cursor:default}
 .s-bd tr.bband.bsel td{outline:3px solid #1f5fd1;outline-offset:-3px}
+/* סדר הקווים: "קודם לפי" / "ואז לפי", בלי פסי יעד; רוחב עמודות */
+.bkw{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 4px}
+.bkf{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:14px;min-width:150px;flex:1 1 150px;max-width:220px}
+.bkf select{font:inherit;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:inherit}
+.bflat{display:block;font-weight:700;font-size:14px;margin:10px 0 2px;cursor:pointer}
+.bflat input{width:18px;height:18px;vertical-align:-3px;margin:0;margin-inline-end:8px}
+.bflat small{display:block;font-weight:600;color:var(--sub);margin-inline-start:26px}
+/* גרירת הגבול בין העמודות בלוח (במצב עריכה) */
+.bcw-l{position:absolute;inset:0;pointer-events:none;z-index:6}
+.bcw-h{position:absolute;width:18px;margin-left:-9px;cursor:col-resize;touch-action:none;pointer-events:auto;display:flex;justify-content:center}
+.bcw-h::after{content:"";width:4px;height:100%;border-radius:2px;background:#1f5fd1;opacity:.55}
+.bcw-h:hover::after,.bcw-h.on::after{opacity:1}
+.bcw-g{position:absolute;width:0;border-left:2px dashed rgba(31,95,209,.55);pointer-events:none}

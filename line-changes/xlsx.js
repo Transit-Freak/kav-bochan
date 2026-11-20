@@ -58,6 +58,12 @@ var LCXlsx = (function () {
     var rows = [], merges = [], comments = [], heights = {};
     var nC = 3 + M.cols.length + 1, last = nC - 1;   // מפעיל · מס' קו · מוצא · ימים… · הערות
     var W = [11, 8, 22].concat(M.cols.map(function (c, i) { return i === 0 ? 58 : 34; }), [34]);
+    // רוחב המוצא והימים — באותו יחס כמו בלוח (M.cw: אוטומטי או מה שנגרר במצב עריכה), באותו רוחב כולל
+    if (M.cw && M.cw.cols && M.cw.cols.length === M.cols.length) {
+      var tot = W.slice(2, 3 + M.cols.length).reduce(function (a, b) { return a + b; }, 0);
+      W[2] = Math.max(10, Math.round(tot * M.cw.o));
+      M.cw.cols.forEach(function (f, i) { W[3 + i] = Math.max(9, Math.round(tot * f)); });
+    }
     var cell = function (r, c, v, s) { (rows[r] = rows[r] || [])[c] = { v: v, s: s }; };
     var R = 1;
     // כותרת ותוקף
@@ -93,8 +99,8 @@ var LCXlsx = (function () {
       // שורות וקווים שהוסרו בעריכה — לא בקובץ; פס בלי שורות — לא בקובץ
       var b = { label: b0.label, color: b0.color, rows: b0.rows.filter(function (r) { return !r.off; }) };
       if (!b.rows.length) return;
-      var bs = st.get({ b: 1, sz: 12, color: 'FFFFFF', fill: hexOf(b.color), h: 'center' });
-      cell(R, 0, b.label, bs); merges.push('A' + R + ':' + ref(last, R)); R++;
+      // בלי פסי יעד — בלי שורת פס
+      if (!b0.flat) { var bs = st.get({ b: 1, sz: 12, color: 'FFFFFF', fill: hexOf(b.color), h: 'center' }); cell(R, 0, b.label, bs); merges.push('A' + R + ':' + ref(last, R)); R++; }
       var i = 0;
       while (i < b.rows.length) {
         var r0 = b.rows[i], n = 1;
