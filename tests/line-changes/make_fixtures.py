@@ -22,7 +22,7 @@ DECKS = ['10971-20261121', '10999-20261117', '10357-20261120', '10590-20261120',
          '14457-20261120', '12459-20261120', '10970-20261117', '10970-20261115-v', '12285-20261129-v',
          '70001-20261118-t', '45009-20261115-n', '71011-20261113-e', '11827-20261120-n',
          '72001-20261120-t']
-BOARD_CITY = 'קרית מלאכי'   # לוח לפי יעד של מקום (עיר), בשני סדרי השעות
+BOARD_CITIES = ['קרית מלאכי', 'צפת']   # לוח לפי יעד של מקום (עיר): קרית מלאכי — בשני סדרי השעות; צפת — רוחב העמודות, ריקון תאים, מיון בשתי רמות
 # לוח לפי יעד בלוד: קו 11 (רמלה–לוד, שלוש חלופות — צבע ואות לכל חלופה), סדר הקווים, וקו בין ערים סמוכות שנחשב עירוני;
 # ולוח של מקום — שכונת גני איילון בלוד (כל הקווים האלה עוצרים בה)
 LOD_LINES = ['36011', '68005', '53009', '32012', '31019', '14384', '12408', '11251', '15174', '21134', '36081', '11464', '12509', '11884']
@@ -82,9 +82,9 @@ def main():
     missing = set(DECKS) - {c['id'] for c in idx['changes']}
     assert not missing, missing
     lines = json.loads(rd('lines.json'))
-    ci = lines['cities'].index(BOARD_CITY)
+    cis = [lines['cities'].index(c) for c in BOARD_CITIES]
     makats = {c['makat'] for c in idx['changes']}
-    board = {ln[0] for ln in lines['lines'] if ci in ln[5]} | set(LOD_LINES)
+    board = {ln[0] for ln in lines['lines'] if any(ci in ln[5] for ci in cis)} | set(LOD_LINES)
     places = json.loads(rd('places.json'))
     hood = hood_place(places)
     all_lines = lines['lines']

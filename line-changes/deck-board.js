@@ -27,7 +27,9 @@
      offL — קווים שהוסרו (לפי מק"ט). הכול חל גם על השלט, המצגת, הסטטוס והאקסל — כי כולם נבנים מ-bdModel */
   function bdT(k, dflt) { var t = D.ED.bd && D.ED.bd.t; return t && Object.prototype.hasOwnProperty.call(t, k) && t[k] != null ? t[k] : dflt; }
   function bdOff(kind, k) { var o = D.ED.bd && D.ED.bd[kind]; return !!(o && o[k]); }
-  function bdK(k, cls, ph) { return ' class="bdt' + (cls ? ' ' + cls : '') + '" data-bk="' + E(k) + '"' + (ph ? ' data-ph="' + E(ph) + '"' : ''); }
+  // טקסט שנמחק (""): bdel — לא תופס מקום; במצב עריכה — סימן קטן לשחזור (slides.css)
+  function bdDel(k) { var t = D.ED.bd && D.ED.bd.t; return !!(t && t[k] === ''); }
+  function bdK(k, cls, ph) { return ' class="bdt' + (cls ? ' ' + cls : '') + (bdDel(k) && !ph ? ' bdel' : '') + '" data-bk="' + E(k) + '"' + (ph ? ' data-ph="' + E(ph) + '"' : ''); }
   /* שורה שהמשתמש הוסיף (ED.bd.nr — [{id, after}]): קו, מוצא ותאים ריקים לכתיבה, באותו פס, מתחת לשורה after */
   function bdNewRow(id) {
     var k = 'n' + id, p = { makat: k, line: '', op: '' };
@@ -98,25 +100,64 @@
   // קו שלא ברשימה (נוסף אחר כך) — בסוף, לפי הסדר שבו נוסף
   // 'type' — לפי סוג קו (ברירת המחדל): פרקים "קווים עירוניים" / "בין-עירוניים" / "אזוריים" בסדר שהמשתמש בחר (ED.btypes),
   // סוג שהמשתמש הוריד (ED.bthide) — לא בלוח; בתוך כל פרק — לפי הסדר שהוספתם, או לפי מספר הקו (ED.bsub === 'num')
-  var BD_ORD = ['type', 'add', 'dest', 'op', 'num', 'man'];
+  // מיון בשתי רמות (ED.bk — "קודם לפי" ו"ואז לפי", ED.bord === 'key'): סוג קו / מפעיל / יעד / מספר קו / הסדר שהוספתם.
+  // האפשרויות המוכנות הן צירופים קבועים של אותם מפתחות (BD_PRESET). בסוף — תמיד לפי הסדר שהוספתם.
+  // מפתח ראשון "סוג קו" — פרקים; "סוג קו" או "מפעיל" ראשון — פס היעד מתחלק לפיו (קווים של מפעיל אחד לא נכנסים לפס של מפעיל אחר)
+  // מפעיל — לפי הסדר שהמשתמש בחר (ED.bops), ואחריו המפעילים לפי הסדר שבו נוספו. יעד — הפסים הבינעירוניים ואחריהם העירוניים,
+  // כל פס במקום של הקו הראשון בו לפי המפתחות שאחרי "יעד"
+  var BD_ORD = ['type', 'add', 'dest', 'op', 'num', 'man', 'key'];
+  var BD_KEYS = ['type', 'op', 'dest', 'num', 'add'];
+  var BD_PRESET = { type: ['type', 'add'], add: ['add'], dest: ['dest', 'num'], op: ['op', 'num'], num: ['num'] };
   function bdOrd() { return BD_ORD.indexOf(D.ED.bord) >= 0 ? D.ED.bord : 'type'; }
+  function bdKeys() {
+    var o = bdOrd(); if (o === 'man') return [];
+    var k = o === 'key' && Array.isArray(D.ED.bk) ? D.ED.bk.filter(function (x, i, a) { return BD_KEYS.indexOf(x) >= 0 && a.indexOf(x) === i; }).slice(0, 2) : [];
+    if (k.length) return k;
+    if (o === 'type' || o === 'key') return ['type', D.ED.bsub === 'num' ? 'num' : 'add'];
+    return BD_PRESET[o].slice();
+  }
+  // האפשרות המוכנה שמתאימה למפתחות (לכפתורים), או 'key' — צירוף אחר
+  function bdPresetOf(k) {
+    if (!k.length) return 'man';
+    if (k.length === 2 && k[0] === 'type' && k[1] === 'num') return 'type';
+    for (var o in BD_PRESET) if (BD_PRESET[o].join() === k.join()) return o;
+    return 'key';
+  }
   var BD_TYPES = ['u', 'i', 'r'], BD_TYPE_LBL = { u: 'קווים עירוניים', i: 'קווים בין-עירוניים', r: 'קווים אזוריים' };
   function bdTypeOrder() {
     var o = (D.ED.btypes || []).filter(function (t) { return BD_TYPES.indexOf(t) >= 0; });
     BD_TYPES.forEach(function (t) { if (o.indexOf(t) < 0) o.push(t); });
     return o;
   }
-  function bdSort(pages) {
-    var ord = bdOrd(), po = D.ED.pord || [], pm = ord === 'man' && D.ED.bman ? D.ED.bman : [];
-    if (ord === 'type') ord = D.ED.bsub === 'num' ? 'num' : 'add';
-    var byNum = function (a, b) { return bdNum(a.line) - bdNum(b.line) || (a.line < b.line ? -1 : a.line > b.line ? 1 : 0); };
+  function bdOpK(p) { return String(agOf(p) || p.op); }
+  /* keys — המפתחות ([] — ידני, ED.bman); G — הפס של קו לפי יעד ({k, local}), למפתח "יעד" (בלי — המפתח לא משפיע) */
+  function bdSort(pages, keys, G) {
+    var po = D.ED.pord || [], pm = !keys.length && D.ED.bman ? D.ED.bman : [];
     var rk = function (p) { var j = pm.indexOf(p.makat); if (j >= 0) return j; var i = po.indexOf(p.makat); return pm.length + (i < 0 ? po.length + pages.indexOf(p) : i); };
-    var byAdd = function (a, b) { return rk(a) - rk(b); };
-    if (ord === 'add' || ord === 'man') return pages.slice().sort(byAdd);
-    if (ord !== 'op') return pages.slice().sort(byNum);
-    var opR = {}, n = 0;
-    pages.slice().sort(byAdd).forEach(function (p) { var o = String(agOf(p) || p.op); if (!(o in opR)) opR[o] = n++; });
-    return pages.slice().sort(function (a, b) { return opR[String(agOf(a) || a.op)] - opR[String(agOf(b) || b.op)] || byNum(a, b); });
+    var to = bdTypeOrder(), oo = bdOpOrder(pages, rk), dr = {};
+    var cmp1 = function (k, a, b) {
+      if (k === 'num') return bdNum(a.line) - bdNum(b.line) || (a.line < b.line ? -1 : a.line > b.line ? 1 : 0);
+      if (k === 'type') return to.indexOf(a._t) - to.indexOf(b._t);
+      if (k === 'op') return oo.indexOf(bdOpK(a)) - oo.indexOf(bdOpK(b));
+      if (k === 'dest') return G ? dr[pages.indexOf(a)] - dr[pages.indexOf(b)] : 0;
+      return 0;
+    };
+    var cmp = function (ks) { return function (a, b) { for (var i = 0; i < ks.length; i++) { var c = cmp1(ks[i], a, b); if (c) return c; } return rk(a) - rk(b); }; };
+    var di = keys.indexOf('dest');
+    if (di >= 0 && G) {
+      var gr = {}, n = 0;
+      pages.slice().sort(cmp(keys.slice(di + 1))).forEach(function (p) { var g = G(p); if (!(g.k in gr)) gr[g.k] = { r: n++, l: g.local }; });
+      pages.forEach(function (p, i) { var g = gr[G(p).k]; dr[i] = (g.l ? 1e6 : 0) + g.r; });
+    }
+    return pages.slice().sort(cmp(keys));
+  }
+  /* סדר המפעילים: מה שהמשתמש קבע (ED.bops), ואחריו המפעילים לפי הסדר שבו הקווים שלהם נוספו */
+  function bdOpOrder(pages, rk) {
+    var have = {}, out = [];
+    pages.forEach(function (p) { have[bdOpK(p)] = 1; });
+    (D.ED.bops || []).forEach(function (o) { o = String(o); if (have[o] && out.indexOf(o) < 0) out.push(o); });
+    pages.slice().sort(function (a, b) { return rk(a) - rk(b); }).forEach(function (p) { var o = bdOpK(p); if (out.indexOf(o) < 0) out.push(o); });
+    return out;
   }
   /* כמה תחנות בכל עיר בכיוונים שבלוח (d.cn — מקביל ל-d.cs, מהבנייה הלילית); בלי הנתון — null */
   function bdCityStops(p) {
@@ -145,7 +186,9 @@
     return (home && (x.cnt[home] || 0) >= BD_MOST * x.tot) || top >= BD_MOST * x.tot;
   }
   function bdModel(pages, xo) {
-    var ps = bdSort(pages), ord = bdOrd();
+    var keys = bdKeys(), man = !keys.length, k1 = keys[0] || '', flat = !!D.ED.bflat;
+    // סדר ראשון, בלי סוג הקו והיעד (שעוד לא ידועים) — ממנו העיר "שלנו" כשיש תיקו
+    var ps = bdSort(pages, keys.filter(function (k) { return k !== 'type' && k !== 'dest'; })), ord = man ? 'man' : bdPresetOf(keys);
     // המוצא והיעד — מהכיוונים שמוצגים בשורות (העיר של התחנה הראשונה והאחרונה), לא מהשם של הקו ברשימת הקווים
     ps.forEach(function (p) {
       p._sd = bdDirs(p);
@@ -170,37 +213,53 @@
     // לפי סוג קו: כמה קווים מכל סוג (לרשימה בשלב 3), וסוג שהמשתמש הוריד — לא בלוח
     var tcount = { u: 0, i: 0, r: 0 };
     ps.forEach(function (p) { tcount[p._t]++; });
-    if (ord === 'type' && D.ED.bthide) ps = ps.filter(function (p) { return !D.ED.bthide[p._t]; });
+    if (keys.indexOf('type') >= 0 && D.ED.bthide) ps = ps.filter(function (p) { return !D.ED.bthide[p._t]; });
     var par = {}, find = function (c) { while (par[c] && par[c] !== c) c = par[c]; return c; };
     ps.forEach(function (p) { if (!local(p)) return; p._E.forEach(function (c) { par[c] = par[c] || c; }); p._E.forEach(function (c) { par[find(c)] = find(p._E[0]); }); });
-    var by = {}, inter = [], loc = [], all = [], used = {};
+    var k0of = function (p) { return local(p) ? 'L|' + find(p._E[0]) : 'I|' + p._E.slice().sort().join('|'); };
+    ps = bdSort(ps, keys, function (p) { return { k: k0of(p), local: local(p) }; });
+    // המפעילים שבלוח, לפי הסדר (לרשימה בשלב 3)
+    var po0 = D.ED.pord || [], opn = {};
+    var opl = bdOpOrder(ps, function (p) { var i = po0.indexOf(p.makat); return i < 0 ? po0.length + pages.indexOf(p) : i; });
+    ps.forEach(function (p) { var o = bdOpK(p); opn[o] = opn[o] || { k: o, name: p.op, n: 0 }; opn[o].n++; });
+    // הפס של כל קו: לפי יעד (סוג קו או מפעיל ראשון — גם לפיהם); בלי פסי יעד (ED.bflat) — פס אחד (בכל פרק). ידני — קו שהמשתמש
+    // העביר לפס אחר (ED.bmb: מק"ט → הפס) נכנס לשם, כל עוד הפס קיים
+    var grp = function (p) { return k1 === 'type' ? p._t : k1 === 'op' ? bdOpK(p) : ''; };
+    var natK = function (p) { var k0 = k0of(p), g = grp(p); return flat ? 'F|' + (k1 === 'type' ? p._t : '') : g ? g + '>' + k0 : k0; };
+    var nat = {}; ps.forEach(function (p) { p._nbk = natK(p); nat[p._nbk] = 1; });
+    var by = {}, all = [], used = {};
     ps.forEach(function (p) {
-      var isL = local(p), k0 = isL ? 'L|' + find(p._E[0]) : 'I|' + p._E.slice().sort().join('|');
-      // לפי סוג קו: אותו יעד בשני סוגים — שני פסים, אחד בכל פרק (המפתח של הראשון — כמו בשאר הסדרים, לטקסט שנערך בפס)
-      var bk = ord === 'type' ? p._t + '>' + k0 : k0;
+      var bk = p._nbk, mv = man && !flat && D.ED.bmb && D.ED.bmb[p.makat];
+      p._mv = !!(mv && nat[mv] && mv !== bk);
+      if (p._mv) bk = mv;
       if (!by[bk]) {
-        var k = used[k0] ? k0 + '#' + p._t : k0; used[k0] = 1;
-        by[bk] = { k: k, local: isL, t: p._t, pages: [], E: p._E }; (isL ? loc : inter).push(by[bk]); all.push(by[bk]);
+        var k0 = bk.replace(/^[^>]*>/, ''), k = used[k0] ? k0 + '#' + bk.split('>')[0] : k0; used[k0] = 1;
+        by[bk] = { k: k, bk: bk, flat: flat, pages: [] }; all.push(by[bk]);
       }
       by[bk].pages.push(p);
     });
-    // לפי יעד: הפסים הבינעירוניים ואחריהם העירוניים; לפי סוג קו — לפי הפרקים; בשאר הסדרים — הפסים לפי הקו הראשון בכל אחד
-    var bands = ord === 'dest' ? inter.concat(loc) : all, ci = 0;
-    if (ord === 'type') {
+    // מה שמגדיר את הפס (עירוני, סוג, הקצוות) — מהקווים שבו מלכתחילה, לא מקו שהועבר אליו
+    all.forEach(function (b) {
+      var np = b.pages.filter(function (p) { return !p._mv; }), p0 = (np[0] || b.pages[0]);
+      b.np = np.length ? np : b.pages; b.local = flat ? b.pages.every(local) : local(p0); b.t = p0._t; b.E = p0._E;
+    });
+    var bands = all, ci = 0;
+    if (k1 === 'type') {
       var to = bdTypeOrder();
       bands = bands.map(function (b, i) { return [b, i]; }).sort(function (x, y) { return to.indexOf(x[0].t) - to.indexOf(y[0].t) || x[1] - y[1]; }).map(function (x) { return x[0]; });
       // כותרת פרק מעל הפס הראשון של כל סוג (אפשר לשנות או למחוק, כמו כל טקסט בלוח)
       bands.forEach(function (b, i) { if (!i || bands[i - 1].t !== b.t) { b.sec = b.t; b.secLabel = bdT('sec:' + b.t, BD_TYPE_LBL[b.t]); } });
     }
     bands.forEach(function (b) {
-      if (b.local) {
-        var cs = b.E.slice(); b.pages.forEach(function (p) { p._E.forEach(function (c) { if (cs.indexOf(c) < 0) cs.push(c); }); });
+      if (b.flat) b.label = '';   // בלי פסי יעד — אין כותרת פס
+      else if (b.local) {
+        var cs = b.E.slice(); b.np.forEach(function (p) { p._E.forEach(function (c) { if (cs.indexOf(c) < 0) cs.push(c); }); });
         cs.sort(function (x, y) { return (y === home) - (x === home); });
-        b.label = (b.pages.length > 1 ? 'הקווים העירוניים · ' : 'קו עירוני · ') + cs.join(', ');
+        b.label = (b.np.length > 1 ? 'הקווים העירוניים · ' : 'קו עירוני · ') + cs.join(', ');
       } else {
         // הזוגות (מוצא, יעד) של השורות; כשלכל השורות אותם שני קצוות — "א – ב"; אחרת הקצה המשותף מול השאר ("קרית מלאכי / באר טוביה – נחם")
         var pairs = [];
-        b.pages.forEach(function (p) { p._sd.forEach(function (d) { pairs.push((d.od || []).map(bdQ)); }); });
+        b.np.forEach(function (p) { p._sd.forEach(function (d) { pairs.push((d.od || []).map(bdQ)); }); });
         var ends = b.E, shared = ends.filter(function (c) { return pairs.every(function (q) { return q.indexOf(c) >= 0; }); });
         var homeFirst = function (x, y) { return (y === home) - (x === home); };
         if (ends.length === 1) b.label = ends[0];   // קו שיוצא וחוזר לאותו מקום (קו אזורי מעגלי)
@@ -210,7 +269,7 @@
           b.label = rest.indexOf(home) >= 0 ? rest.join(' / ') + ' – ' + shared[0] : shared[0] + ' – ' + rest.join(' / ');
         } else b.label = ends.slice().sort(homeFirst).join(' / ');
         // "(דרך X)": רק כש-X לא אחד הקצוות, וכל השורות בפס עוצרות בו
-        var via = home && ends.indexOf(home) < 0 && b.pages.every(function (p) { return p._sd.every(function (d) { return (d.cs || []).map(bdQ).indexOf(home) >= 0; }); });
+        var via = home && ends.indexOf(home) < 0 && b.np.every(function (p) { return p._sd.every(function (d) { return (d.cs || []).map(bdQ).indexOf(home) >= 0; }); });
         if (via) b.label += ' (דרך ' + home + ')';
       }
       b.label = bdT('band:' + b.k, b.label);
@@ -222,7 +281,8 @@
         var ds = p._sd.slice();
         // הכיוון שיוצא מהעיר "שלנו" — ראשון
         ds.sort(function (x, y) { return (bdQ((y.od || [])[0]) === home) - (bdQ((x.od || [])[0]) === home) || (x.dir < y.dir ? -1 : 1); });
-        ds.forEach(function (d, i) { b.rows.push(bdRow(p, d, i, ds.length, b)); });
+        // קו שהועבר לפס אחר, או בלי פסי יעד — המוצא והיעד בשורה לפי הקו עצמו (עירוני או לא)
+        ds.forEach(function (d, i) { b.rows.push(bdRow(p, d, i, ds.length, b.flat || p._mv ? { local: local(p) } : b)); });
       });
       b.rows = bdWithNew(b.rows);
       // שורות וקווים שהוסרו: נשארים ברשימה (כדי שאפשר יהיה להחזיר אותם במצב עריכה) עם off; פס שכל השורות בו הוסרו — off
@@ -284,7 +344,7 @@
     var sub = [BD_FROM ? 'בתוקף מהתאריך שליד כל קו' : valid ? 'בתוקף מ-' + LC.dmy(valid) + (until ? ' עד ' + LC.dmy(until) : '') : '', vps.length ? linesTxt(vps) : ''].filter(Boolean).join(' · ');
     var contacts = ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]])
       .map(function (c) { return [bdT('phn:' + c[0], c[0]), bdT('php:' + c[0], c[1]), c[0]]; }).filter(function (c) { return c[0] || c[1]; });
-    return { ord: ord, tcount: tcount, types: bdTypeOrder(), title: bdT('title', (D.ED.btitle || '').trim() || dflt), dflt: dflt, valid: valid, until: until, sub: bdT('sub', sub), subDflt: sub, home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
+    return { ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', (D.ED.btitle || '').trim() || dflt), dflt: dflt, valid: valid, until: until, sub: bdT('sub', sub), subDflt: sub, home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (D.ED.bnote || '').trim() || (alts ? 'נסיעות שמסומנות באות ובצבע (א׳, ב׳…) עוברות בדרך אחרת' : '')), contacts: contacts,
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: true, tord: D.ED.tord || 'ltr',
@@ -369,7 +429,7 @@
     return x.notes.map(function (nt) { return nt.c ? '<span class="bna" style="color:' + nt.c + '">' + E(bdNoteLine(nt)) + '</span>' : E(bdNoteLine(nt)); }).join('<br>');
   }
   function bdCellHtml(x) {
-    var nt = bdNoteTxt(x), nh = nt ? '<span' + bdK(x.nkey, 'bnote') + '>' + bdNoteHtml(x) + '</span>' : '';
+    var nt = bdNoteTxt(x), nh = nt ? '<span' + bdK(x.nkey, 'bnote') + '>' + bdNoteHtml(x) + '</span>' : x.ntxt === '' && x.notes.length ? '<span' + bdK(x.nkey, 'bnote') + '></span>' : '';
     if (x.txt != null) return '<td class="bt' + (x.same ? ' same' : '') + '"><span' + bdK(x.key, 'tl', x.ph) + '>' + E(x.txt) + '</span>' + nh + '</td>';
     var rms = x.rm || [], inl = BD_RM !== 'note' && rms.length <= BD_RM_MAX;   // הרבה נסיעות שבוטלו בתא אחד — בשורה מתחת לתא
     if (!x.ents.length && !rms.length) return '<td class="bt off"><span' + bdK(x.key) + '>' + E(BD_M ? BD_M.lbl.off : 'אינו פעיל') + '</span>' + nh + '</td>';
@@ -422,58 +482,197 @@
   function bdBandHtml(b, ncol, cont) {
     return '<tr class="bband' + (b.off ? ' boff noprint' : '') + '" data-bkey="' + E(b.k) + '" style="background:' + b.color + '"><td colspan="' + (ncol + 2) + '"><span' + bdK('band:' + b.k) + '>' + E(b.label) + '</span>' + (cont && BD_M && BD_M.lbl.cont ? ' <span' + bdK('lbl:cont') + '>' + E(BD_M.lbl.cont) + '</span>' : '') + '</td></tr>';
   }
-  /* רוחב העמודות: כך שהלוח כולו יהיה הכי נמוך — מחלקים את הרוחב ב"משבצות" (שעה אחת ברוחב), כל פעם למשבצת שהכי
-     מקצרת את סכום הגבהים של השורות (גובה שורה — התא הגבוה בה: שעות, סימונים והערות). תא ממוזג (ימי חול זהים) — על
-     הרוחב של כל העמודות שלו. BD_GEO — הצורה והגודל (מהם כמה שעות נכנסות בשורה) */
-  var BD_GEO = { form: 'sign', sc: 1 }, BD_CG = {};
-  var BD_FS = { sign: 13, deck: 16, status: 23 };
-  function bdSlots(form, sc) {
-    var dn = !!D.ED.bdense, W = FORMS[form].w - (form === 'sign' ? (dn ? 36 : 52) : 72) - (form === 'sign' ? (dn ? 128 : 156) : form === 'deck' ? (dn ? 178 : 226) : (dn ? 218 : 266));
-    return Math.max(4, W / (BD_FS[form] * sc * (dn ? 3.1 : 3.4)));
+  /* רוחב העמודות של הימים — בכל צפיפות, כך שהלוח כולו יהיה הכי נמוך: מודדים בדף (מחוץ למסך) כל שעה, כל הערה וכל טקסט
+     בכל תא, ומחשבים מזה כמה שורות תופס כל תא בכל רוחב (שעות — לפי הסדר, כמה שנכנסות בשורה; הערות וטקסט — לפי האורך).
+     גובה שורה — התא הגבוה בה (גם המוצא ומספר הקו). מתחילים מהרוחב הקטן ביותר של כל עמודה (השעה הרחבה בה, ולא פחות
+     מ-BD_WMIN מהרוחב), ומוסיפים כל פעם רוחב לעמודה שהכי מקצרת את סכום הגבהים (עד BD_WMAX); מה שנשאר — לפי כמות הטקסט בכל
+     עמודה. אותו רוחב בכל העמודים (חישוב אחד ללוח כולו). תא ממוזג (ימי חול זהים) — על הרוחב של כל העמודות שלו.
+     ידני (ED.bcw — {o: המוצא, '<ימים>': עמודה}, חלק מהרוחב שאחרי עמודת הקו): גוררים במצב עריכה את הגבול בין העמודות */
+  var BD_GEO = { form: 'sign', sc: 1 }, BD_CG = {}, BD_LASTW = {};
+  var BD_WMIN = 0.07, BD_WMAX = 0.5, BD_WU = 4;
+  function bdColKey(c) { return c.hol ? 'h' + c.hol[0] : c.days.join(''); }
+  function bdManW() { var w = D.ED.bcw; return w && typeof w === 'object' && Object.keys(w).length ? w : null; }
+  /* החלקים (המוצא וכל עמודה) מתוך ED.bcw או מהרוחב האוטומטי האחרון; עמודה שאין לה רוחב שמור — כמו הממוצע של השאר */
+  function bdFracs(w, cols) {
+    var known = cols.map(function (c) { return +w[bdColKey(c)] || 0; }).filter(function (x) { return x > 0; });
+    var o = +w.o > 0 ? +w.o : 0.16, avg = known.length ? known.reduce(function (a, b) { return a + b; }, 0) / known.length : (1 - o) / Math.max(1, cols.length);
+    var fs = cols.map(function (c) { return +w[bdColKey(c)] > 0 ? +w[bdColKey(c)] : avg; }), tot = o + fs.reduce(function (a, b) { return a + b; }, 0);
+    return { o: o / tot, cols: fs.map(function (f) { return f / tot; }) };
   }
-  function bdColW(M, T) {
-    var n = M.cols.length, rows = [];
-    M.bands.forEach(function (b) { b.rows.forEach(function (r) {
-      if (r.off) return;
-      rows.push(r.cells.map(function (x, i) {
-        if (x.skip) return null;
-        var wt, notes = bdNoteTxt(x).split('\n').filter(Boolean).map(function (s) { return s.length; });
-        if (x.txt != null) wt = Math.max(1.8, x.txt.length / 5.5);
-        else if (!x.ents.length && !(x.rm || []).length) wt = 1.8;
-        else wt = x.ents.concat(BD_RM !== 'note' && (x.rm || []).length <= BD_RM_MAX ? x.rm || [] : []).reduce(function (t, e) { return t + 1 + (e.al ? 0.35 : 0) + (e.part ? 0.5 : 0) + (e.was != null || e.nwp ? 1 : 0) + (e.n > 1 ? 0.3 : 0); }, 0);
-        return { c: i, s: x.span || 1, wt: wt, nt: notes };
-      }).filter(Boolean));
-    }); });
-    var cost = function (ws) {
-      var t = 0;
-      rows.forEach(function (cs) {
-        var mx = 1;
-        cs.forEach(function (x) { var w = 0; for (var k = x.c; k < x.c + x.s; k++) w += ws[k]; var l = Math.ceil(x.wt / w - 1e-9); x.nt.forEach(function (s) { l += Math.ceil(s / (w * 5.5) - 1e-9) * 0.8; }); if (l > mx) mx = l; });
-        t += mx;
+  /* לאקסל: היחס בין המוצא לעמודות הימים — כמו בלוח (ידני, או האוטומטי של הלוח שעל המסך) */
+  function bdCwOf(cols) {
+    var w = bdManW() || BD_LASTW[cols.filter(function (c) { return !c.hol; }).map(bdColKey).join(',')];
+    return w ? bdFracs(w, cols) : null;
+  }
+  function bdHost(M, form, sc, html) {
+    var host = document.createElement('div');
+    host.className = 'deck'; host.setAttribute('data-form', form); host.setAttribute('data-look', D.ED.look || 'kav');
+    host.style.cssText = 'position:absolute;left:-40000px;top:0;visibility:hidden;width:' + FORMS[form].w + 'px;' + lookVars(D.ED.look, M.pages);
+    host.innerHTML = '<div class="sframe"><div class="slide">' + html + '</div></div>';
+    document.body.appendChild(host);
+    return host;
+  }
+  /* המדידה לרוחב העמודות: הרוחב של הטבלה ושל עמודות הקו והמוצא, ולכל שורה — הגובה של המוצא ושל מספר הקו, ולכל תא —
+     רוחב כל שעה (עם הסימנים שלה), של כל שורת הערה ושל טקסט שנכתב במקום השעות */
+  function bdMetrics(M, form, sc, items) {
+    var n = M.cols.length;
+    if (!n) return null;
+    var cg = '<colgroup><col class="cl"><col class="co">' + M.cols.map(function () { return '<col>'; }).join('') + '</colgroup>';
+    var host = bdHost(M, form, sc, bdSlideHtml(M, form, sc, bdTable(M, items.map(function (x) { return x.html; }).join(''), cg)));
+    try {
+      var W = function (e) { return e.getBoundingClientRect().width; }, Hh = function (e) { return e.getBoundingClientRect().height; };
+      var tb = host.querySelector('table.bd-t'), ths = host.querySelectorAll('thead tr:first-child th');
+      var mt = { tw: W(tb), cl: W(ths[0]), co: W(ths[1]), rows: [], n: n };
+      var td0 = host.querySelector('td.bt'); if (!td0) return null;
+      var cs = getComputedStyle(td0);
+      mt.padH = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 1; mt.padV = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + 1;
+      var probe = document.createElement('span'); probe.className = 'tl'; probe.style.cssText = 'display:inline-block;white-space:nowrap';
+      probe.innerHTML = '<span class="t num">00:00</span> <span class="t num">00:00</span>';
+      td0.appendChild(probe);
+      mt.sp = Math.max(0, W(probe) - W(probe.firstChild) - W(probe.lastChild)); mt.hT = Hh(probe);
+      probe.className = 'bnote'; probe.textContent = 'א'; mt.hN = Hh(probe);
+      probe.style.display = 'block'; mt.mN = parseFloat(getComputedStyle(probe).marginTop) || 0;
+      probe.className = 'bdrm'; mt.hR = Hh(probe); mt.mR = parseFloat(getComputedStyle(probe).marginTop) || 0;
+      td0.removeChild(probe);
+      // טקסט שנשבר לשורות: הרוחב של כל שורה (בין <br>), בלי שבירה
+      var segs = function (el) {
+        var out = [], st = el.style.cssText; el.style.whiteSpace = 'nowrap'; el.style.display = 'inline-block';
+        var rg = document.createRange(), cur = [];
+        var flush = function () { if (!cur.length) return; rg.setStartBefore(cur[0]); rg.setEndAfter(cur[cur.length - 1]); var w = rg.getBoundingClientRect().width; if (w > 0.5) out.push(w); cur = []; };
+        Array.prototype.forEach.call(el.childNodes, function (c) { if (c.nodeName === 'BR') flush(); else cur.push(c); });
+        flush(); el.style.cssText = st;
+        return out;
+      };
+      var trs = host.querySelectorAll('tbody tr.br'), rIts = items.filter(function (x) { return x.r; });
+      Array.prototype.forEach.call(trs, function (tr, j) {
+        var r = rIts[j] && rIts[j].r; if (!r) return;
+        var rg = document.createRange(), fl = 0, bo = tr.querySelector('td.bo'), bl = tr.querySelector('td.bl');
+        if (bo) { rg.selectNodeContents(bo); fl = Math.max(fl, rg.getBoundingClientRect().height + mt.padV); }
+        if (bl) { rg.selectNodeContents(bl); fl = Math.max(fl, (rg.getBoundingClientRect().height + mt.padV) / (+bl.getAttribute('rowspan') || 1)); }
+        var cis = r.cells.map(function (x, i) { return x.skip ? -1 : i; }).filter(function (i) { return i >= 0; });
+        var cells = Array.prototype.map.call(tr.querySelectorAll('td.bt'), function (td, q) {
+          var ci = cis[q], x = r.cells[ci] || {}, c = { c: ci, s: x.span || 1, tk: [], tx: [], nt: [], rm: [] };
+          var tl = td.querySelector(':scope > .tl');
+          var toks = tl ? tl.querySelectorAll(':scope > .t') : [];
+          if (toks.length) c.tk = Array.prototype.map.call(toks, W);
+          else { var t0 = td.querySelector(':scope > .bdt'); if (t0 && t0.textContent.trim()) c.tx = segs(t0); }
+          var nt = td.querySelector(':scope > .bnote'); if (nt) c.nt = segs(nt);
+          var rm = td.querySelector(':scope > .bdrm'); if (rm) c.rm = segs(rm);
+          return c;
+        });
+        mt.rows.push({ fl: fl, cells: cells });
       });
-      return t;
-    };
-    var ws = M.cols.map(function () { return 2; }), rem = T - 2 * n;
-    if (rem <= 0) return ws;
-    var cur = cost(ws);
-    while (rem >= 0.5) {
+      return mt;
+    } finally { document.body.removeChild(host); }
+  }
+  /* כמה גבוה תא ברוחב w (פיקסלים) */
+  function bdCellH(mt, c, w) {
+    var av = Math.max(8, w - mt.padH), h = mt.padV, ln = function (ws) { return ws.reduce(function (t, x) { return t + Math.max(1, Math.ceil(x * 1.03 / av - 1e-9)); }, 0); };
+    if (c.tk.length) {
+      var L = 1, x = 0;
+      c.tk.forEach(function (t) { if (!x) x = t; else if (x + mt.sp + t <= av + 0.5) x += mt.sp + t; else { L++; x = t; } });
+      h += L * mt.hT;
+    } else if (c.tx.length) h += ln(c.tx) * mt.hT;
+    if (c.nt.length) h += mt.mN + ln(c.nt) * mt.hN;
+    if (c.rm.length) h += mt.mR + ln(c.rm) * mt.hR;
+    return h;
+  }
+  /* סכום הגבהים של השורות כשרוחב העמודות ws (עם זיכרון לכל תא ורוחב) */
+  function bdCost(mt, ws) {
+    var t = 0;
+    mt.rows.forEach(function (r) {
+      var mx = r.fl;
+      r.cells.forEach(function (c) {
+        var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += ws[k] || 0;
+        var key = Math.round(w), m = c.m || (c.m = {});
+        var h = m[key] != null ? m[key] : (m[key] = bdCellH(mt, c, key));
+        if (h > mx) mx = h;
+      });
+      t += mx;
+    });
+    return t;
+  }
+  /* הרוחב הקטן ביותר של כל עמודה: השעה הרחבה בה (עם הסימנים), ולא פחות מ-f מהרוחב; ו"משקל" — כמות הטקסט בה */
+  function bdMins(mt, Wd, f) {
+    var n = mt.n, mins = [], wt = [];
+    for (var c = 0; c < n; c++) { mins.push(f * Wd); wt.push(0); }
+    mt.rows.forEach(function (r) { r.cells.forEach(function (x) {
+      var big = Math.max.apply(null, [0].concat(x.tk)) + mt.padH + 1;
+      if (x.s === 1 && big > mins[x.c]) mins[x.c] = big;
+      var len = x.tk.reduce(function (a, b) { return a + b + mt.sp; }, 0) + x.tx.reduce(function (a, b) { return a + b; }, 0) + x.nt.reduce(function (a, b) { return a + b; }, 0) * 0.8;
+      for (var k = x.c; k < x.c + x.s; k++) wt[k] += len / x.s;
+    }); });
+    return { mins: mins, wt: wt };
+  }
+  function bdAutoW(mt, Wd) {
+    var n = mt.n, mw = bdMins(mt, Wd, BD_WMIN), mins = mw.mins, wt = mw.wt;
+    var sMin = mins.reduce(function (a, b) { return a + b; }, 0);
+    if (sMin >= Wd) return mins.map(function (m) { return m / sMin * Wd; });
+    var maxs = mins.map(function (m) { return Math.max(m, BD_WMAX * Wd); });
+    var ws = mins.slice(), R = Wd - sMin, cur = bdCost(mt, ws);
+    while (R >= BD_WU) {
       var best = null;
-      for (var c = 0; c < n; c++) for (var k = 1; k <= 8 && k * 0.5 <= rem; k++) {
-        ws[c] += k * 0.5; var v = cost(ws); ws[c] -= k * 0.5;
-        var gain = (cur - v) / k;
-        if (gain > 1e-9 && (!best || gain > best.g + 1e-9)) best = { g: gain, c: c, k: k, v: v };
+      for (var j = 0; j < n; j++) for (var k = 1; k <= 30 && k * BD_WU <= R && ws[j] + k * BD_WU <= maxs[j]; k++) {
+        ws[j] += k * BD_WU; var v = bdCost(mt, ws); ws[j] -= k * BD_WU;
+        var g = (cur - v) / k;
+        if (g > 1e-6 && (!best || g > best.g + 1e-6)) best = { g: g, j: j, k: k, v: v };
       }
       if (!best) break;
-      ws[best.c] += best.k * 0.5; rem -= best.k * 0.5; cur = best.v;
+      ws[best.j] += best.k * BD_WU; R -= best.k * BD_WU; cur = best.v;
     }
-    return ws;   // מה שנשאר — מתחלק לפי היחס (הרוחב באחוזים)
+    // מה שנשאר — לפי כמות הטקסט בכל עמודה (עד BD_WMAX)
+    for (var it = 0; it < 4 && R > 0.5; it++) {
+      var open = [], sw = 0;
+      for (var q = 0; q < n; q++) if (ws[q] < maxs[q] - 0.5) { open.push(q); sw += wt[q] || 1; }
+      if (!open.length) break;
+      var R0 = R;
+      open.forEach(function (q) { var add = Math.min(maxs[q] - ws[q], R0 * (wt[q] || 1) / sw); ws[q] += add; R -= add; });
+    }
+    if (R > 0.5) ws = ws.map(function (w) { return w + R / n; });
+    // ליטוש: העברת רוחב מעמודה לעמודה, כל עוד זה מקצר את הלוח (הוספה בלבד נתקעת לפעמים לפני "מדרגה")
+    cur = bdCost(mt, ws);
+    for (var pass = 0; pass < 30; pass++) {
+      var bt = null;
+      for (var a = 0; a < n; a++) for (var b = 0; b < n; b++) {
+        if (a === b) continue;
+        for (var d = BD_WU; d <= 64; d += BD_WU) {
+          if (ws[b] - d < mins[b] - 0.01 || ws[a] + d > maxs[a] + 0.01) break;
+          ws[a] += d; ws[b] -= d; var v2 = bdCost(mt, ws); ws[a] -= d; ws[b] += d;
+          if (v2 < cur - 0.5 && (!bt || v2 < bt.v)) bt = { a: a, b: b, d: d, v: v2 };
+        }
+      }
+      if (!bt) break;
+      ws[bt.a] += bt.d; ws[bt.b] -= bt.d; cur = bt.v;
+    }
+    return ws;
+  }
+  /* הרוחב לצורה ולגודל (מטמון לכל לוח) */
+  function bdWidths(M, form, sc, items) {
+    if (BD_CG.M !== M) BD_CG = { M: M };
+    var key = form + '|' + sc;
+    if (key in BD_CG) return BD_CG[key];
+    var mt = bdMetrics(M, form, sc, items);
+    if (!mt) return (BD_CG[key] = null);
+    var man = bdManW(), avail = mt.tw - mt.cl, co, ws;
+    if (man) {
+      // ידני — כמו שנגרר, אבל לא צר מהשעה הרחבה בעמודה (שהשעות לא יעלו על העמודה הבאה); את מה שחסר לוקחים מהשאר
+      var fr = bdFracs(man, M.cols), mn = bdMins(mt, avail, 0).mins;
+      co = Math.max(48, fr.o * avail); ws = fr.cols.map(function (f, i) { return Math.max(mn[i], f * avail); });
+      var over = co + ws.reduce(function (a, b) { return a + b; }, 0) - avail;
+      if (over > 0) {
+        var room = (co - 48) + ws.reduce(function (t, w, i) { return t + w - mn[i]; }, 0);
+        if (room > 0) { var q = Math.min(1, over / room); co -= (co - 48) * q; ws = ws.map(function (w, i) { return w - (w - mn[i]) * q; }); }
+      }
+    }
+    else { co = mt.co; ws = bdAutoW(mt, avail - co); }
+    return (BD_CG[key] = { tw: mt.tw, cl: mt.cl, co: co, ws: ws, man: !!man, mt: mt });
   }
   function bdColgroup(M) {
-    var T = Math.round(bdSlots(BD_GEO.form, BD_GEO.sc) * 2) / 2, ck = T + '|' + M.cols.length;
-    if (BD_CG.M !== M) BD_CG = { M: M };
-    var w = BD_CG[ck] || (BD_CG[ck] = bdColW(M, T));
-    var tot = w.reduce(function (a, b) { return a + b; }, 0);
-    return '<colgroup><col class="cl"><col class="co">' + w.map(function (x) { return '<col style="width:' + (x / tot * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
+    var g = BD_CG.M === M ? BD_CG[BD_GEO.form + '|' + BD_GEO.sc] : null;
+    if (!g || g.ws.length !== M.cols.length) return '<colgroup><col class="cl"><col class="co">' + M.cols.map(function () { return '<col style="width:' + (100 / Math.max(1, M.cols.length)).toFixed(2) + '%">'; }).join('') + '</colgroup>';
+    var pc = function (x) { return (x / g.tw * 100).toFixed(3) + '%'; };
+    return '<colgroup><col class="cl"><col class="co"' + (g.man ? ' style="width:' + pc(g.co) + '"' : '') + '>' +
+      g.ws.map(function (x, i) { return '<col data-ck="' + E(bdColKey(M.cols[i])) + '" style="width:' + pc(x) + '">'; }).join('') + '</colgroup>';
   }
   function bdHead(M, form) {
     return '<div class="cu-head bd-head"><div class="t"><div>' + (M.title ? '<h1' + bdK('title', 'hd') + '>' + E(M.title) + '</h1>' : '') +
@@ -503,24 +702,21 @@
       '<p class="bd-priv">המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד</p>' +
       (M.credit ? '<p' + bdK('credit', 'bd-cr') + '>' + (M.creditTxt === BD_CR ? 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · <span class="ltr">kavbochan.app</span>' : E(M.creditTxt)) + '</p>' : '') + '</div>';
   }
-  function bdTable(M, rows) {
+  function bdTable(M, rows, cg) {
     var nw = M.cols.filter(function (c) { return c.wk; }).length, two = nw > 1, rs = two ? ' rowspan="2"' : '';
     var th = function (c) { return '<th' + (two && !c.wk ? rs : '') + '><span' + bdK('th:' + c.days.join('')) + '>' + E(c.label) + '</span></th>'; };
     var head = '<tr><th' + rs + '><span' + bdK('th:line') + '>' + E(M.th.line) + '</span></th><th' + rs + '><span' + bdK('th:orig') + '>' + E(M.th.orig) + '</span></th>' +
       (two ? '<th colspan="' + nw + '" class="wkh"><span' + bdK('th:wk') + '>' + E(M.th.wk) + '</span></th>' + M.cols.filter(function (c) { return !c.wk; }).map(th).join('') + '</tr><tr class="wk2">' + M.cols.filter(function (c) { return c.wk; }).map(th).join('')
         : M.cols.map(th).join('')) + '</tr>';
-    return '<table class="bd-t">' + bdColgroup(M) + '<thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="bd-t">' + (cg || bdColgroup(M)) + '<thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
   }
   function bdSlideHtml(M, form, sc, body, ops, pgi, rows) {
     return '<div class="s-cur s-bd f-' + form + (D.ED.bdense ? ' dense' : '') + '" style="--bd:' + sc + '">' + bdHead(M, form) + '<div class="cu-body">' + body + '</div>' + bdFoot(M, ops, pgi, rows) + '</div>';
   }
   /* מדידה: כל השורות בעמוד אחד מחוץ למסך — הגובה של כל שורה והמקום שיש לטבלה */
   function bdMeasure(M, form, sc, items) {
-    var host = document.createElement('div');
-    host.className = 'deck'; host.setAttribute('data-form', form); host.setAttribute('data-look', D.ED.look || 'kav');
-    host.style.cssText = 'position:absolute;left:-40000px;top:0;visibility:hidden;width:' + FORMS[form].w + 'px;' + lookVars(D.ED.look, M.pages);
-    host.innerHTML = '<div class="sframe"><div class="slide">' + bdSlideHtml(M, form, sc, bdTable(M, items.map(function (x) { return x.html; }).join(''))) + '</div></div>';
-    document.body.appendChild(host);
+    bdWidths(M, form, sc, items);
+    var host = bdHost(M, form, sc, bdSlideHtml(M, form, sc, bdTable(M, items.map(function (x) { return x.html; }).join(''))));
     var body = host.querySelector('.cu-body'), th = host.querySelector('thead'), trs = host.querySelectorAll('tbody > tr');
     var avail = body.clientHeight - th.offsetHeight - 4, hs = Array.prototype.map.call(trs, function (t) { return t.getBoundingClientRect().height; });
     // מקרא החלופות (בתחתית העמוד): הגובה של השורה של כל קו וכיוון, ומה שהמקרא מוסיף מעבר לשורות (ריווח)
@@ -545,7 +741,8 @@
         if (b.secOff) (offs[prevKey] = offs[prevKey] || []).push(secIt); else { items.push(secIt); prevKey = items.length - 1; }
       }
       var bandIt = { band: b, html: bdBandHtml(b, M.cols.length, false) };
-      if (b.off) (offs[prevKey] = offs[prevKey] || []).push(bandIt); else { items.push(bandIt); prevKey = items.length - 1; }
+      if (b.flat) { /* בלי פסי יעד — אין שורת פס */ }
+      else if (b.off) (offs[prevKey] = offs[prevKey] || []).push(bandIt); else { items.push(bandIt); prevKey = items.length - 1; }
       var seenL = {};
       b.rows.forEach(function (r) {
         if (!r.off) { items.push({ b: b, r: r, html: null }); prevKey = items.length - 1; return; }
@@ -578,7 +775,7 @@
       var need = (it.sec ? h + (items[i + 1] && items[i + 1].band ? bandNeed(i + 1) : 0) : it.band ? bandNeed(i) : h) + ab;
       if (cur.length && used + need > H) {
         pgs.push(cur); cur = []; used = 0; alOn = false; ab = it.r && ms.al.h[it.r.key] ? ms.al.base : 0;
-        if (!it.band && !it.sec) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
+        if (!it.band && !it.sec && !it.b.flat) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
       }
       cur.push(it); used += h + ab;
       if (ab || (it.r && ms.al.h[it.r.key])) alOn = true;
@@ -589,7 +786,7 @@
   }
   function bdPageHtml(M, its) {
     return its.map(function (it, i) {
-      if (it.cont) return bdBandHtml(it.cont, M.cols.length, true);
+      if (it.cont) return it.cont.flat ? '' : bdBandHtml(it.cont, M.cols.length, true);
       if (it.band || it.off || it.sec) return it.html;
       // מספר הקו — תא אחד לכל הכיוונים של הקו באותו עמוד (שורה שהוסרה באמצע — מפרידה)
       var prev = its[i - 1];
@@ -621,6 +818,9 @@
     });
     var n = best.pg.length;
     BD_GEO = { form: form, sc: best.sc };
+    // לאקסל — הרוחב שיצא (חלק מהרוחב שאחרי עמודת הקו)
+    var gw = BD_CG.M === M ? BD_CG[form + '|' + best.sc] : null;
+    if (gw && !gw.man) { var lw = { o: gw.co / (gw.tw - gw.cl) }; M.cols.forEach(function (c, i) { lw[bdColKey(c)] = gw.ws[i] / (gw.tw - gw.cl); }); BD_LASTW[M.cols.map(bdColKey).join(',')] = lw; }
     var out = best.pg.map(function (its, i) {
       var ops = opsOf(its.filter(function (it) { return it.r && !it.r.off; }).map(function (it) { return it.r.p; }));
       return { id: (form === 'deck' ? '' : form === 'sign' ? 'sg-' : 'st-') + 'bd' + i, label: 'לוח לפי יעד' + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
@@ -734,5 +934,6 @@
   // לקבצים האחרים של המצגת, ולדף (LCDeck)
   D.bdSlides = bdSlides; D.chgBoardBuild = chgBoardBuild;
   LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
-  LCDeck._test.bdWkSplit = bdWkSplit;
+  LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
+  LCDeck.boardWidths = function () { var g = BD_CG[BD_GEO.form + '|' + BD_GEO.sc]; return g ? { tw: g.tw, cl: g.cl, co: g.co, ws: g.ws.slice(), man: g.man, mt: g.mt, cost: bdCost(g.mt, g.ws), rows: g.mt.rows.map(function (r) { return Math.max.apply(null, [r.fl].concat(r.cells.map(function (c) { var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += g.ws[k]; return bdCellH(g.mt, c, w); }))); }) } : null; };
 })(LCDeck._in);

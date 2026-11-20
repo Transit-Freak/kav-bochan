@@ -63,6 +63,40 @@ const BOARDS = {
 // board-lod-adj — קודם קווים בינעירוניים ואחר כך קווים בעיר: 11 ו-5 (בין לוד לרמלה, רוב התחנות בעיר אחת) — בפס הקווים העירוניים.
 // board-hood — לוח של מקום: שכונת גני איילון בלוד
 const LOD = '36011,68005,53009,32012,31019,14384,12408,11251,15174,21134,36081,11464,12509,11884';
+// לוח לפי יעד בצפת (כל הקווים בעיר, 58) ובשבעת הקווים לצפת מנחמיה (979, 981, 984, 982, 992, 993, 989):
+// רוחב עמודות אוטומטי — הלוח נמוך יותר מאשר ברוחב שווה (בפועל, לפי גובה השורות בדף, ולפי המודל); ריקון תא ומחיקת טקסט — בלי גובה;
+// מיון בשתי רמות (מפעיל, ואז מספר קו — עם סדר מפעילים שנבחר) ו"בלי פסי יעד"; העברת קו לפס אחר — נשמרת ומגיעה לאקסל
+const SAFED7 = '?m=tt&c=14979,10981,10984,10982,11992,12993,11989';
+// השורות בלוח לפי הסדר: [פס] קו קו … (קו פעם אחת)
+async function lineSeq(pg) {
+  return pg.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('.sitem:not(.off) .s-bd tbody tr').forEach((tr) => {
+      if (tr.classList.contains('bband')) { if (!/\(המשך\)/.test(tr.textContent)) out.push('[' + tr.textContent.trim() + ']'); return; }
+      const l = tr.getAttribute('data-ln'), mk = tr.getAttribute('data-mk');
+      if (l && !out.includes(mk)) out.push(mk);
+    });
+    const ln = {}; document.querySelectorAll('.sitem:not(.off) .s-bd tr.br').forEach((tr) => { if (tr.querySelector('td.bl')) ln[tr.getAttribute('data-mk')] = tr.getAttribute('data-ln') + '/' + ((tr.querySelector('td.bl small.op') || {}).textContent || ''); });
+    return out.map((x) => ln[x] || x);
+  });
+}
+// סכום הגבהים של השורות (קו וכיוון) בכל העמודים, בפיקסלים של השקף (בלי ההקטנה במסך)
+async function rowsHeight(pg) {
+  return pg.evaluate(() => {
+    let t = 0;
+    document.querySelectorAll('.sitem:not(.off) .sframe').forEach((f) => { const sl = f.querySelector('.slide'), k = sl.getBoundingClientRect().width / sl.offsetWidth; f.querySelectorAll('.s-bd tbody tr.br').forEach((tr) => { t += tr.getBoundingClientRect().height / k; }); });
+    return { h: Math.round(t), pages: document.querySelectorAll('.sitem:not(.off) .s-bd').length, sc: +(document.querySelector('.sitem:not(.off) .s-bd') || { style: { getPropertyValue: () => 1 } }).style.getPropertyValue('--bd') || 1 };
+  });
+}
+async function setEdits(pg, fn) {
+  await pg.evaluate((src) => { const k = Object.keys(localStorage).find((x) => x.startsWith('lc-ed2:')); const e = JSON.parse(localStorage.getItem(k)); (new Function('e', src))(e); localStorage.setItem(k, JSON.stringify(e)); window.name = 'keep'; }, fn);
+  await pg.reload(); await pg.waitForSelector('.s-bd', { timeout: 30000 }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(1000);
+}
+async function xlsxSheet(pg) {
+  const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.evaluate(() => document.getElementById('xl').click())]);
+  const s = fs.readFileSync(await dl.path()).toString('utf8');
+  return s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
+}
 const LOD_BOARDS = {
   'board-lod': { url: '?m=tt&c=' + LOD, orders: ['type', 'add', 'dest', 'op', 'num'], alts: '11', xlsx: true, types: true, manual: true, fill: 0.85 },
   'board-lod-adj': { url: '?m=tt&c=14384,11464,12408,53009,36011,68005' },
@@ -560,16 +594,17 @@ async function main() {
       await pg.click('[data-bor="type"]', { force: true }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(800);
       const list = async () => pg.evaluate(() => Array.from(document.querySelectorAll('#btyl li')).map((li) => li.querySelector('b').textContent + ' ' + li.querySelector('small').textContent + (li.querySelector('input').checked ? '' : ' (מוסתר)')).join(' | '));
       const t = { list0: await list() };
-      for (let k = 0; k < 2; k++) { await pg.click('#btyl [data-bty="r"] [data-bty-mv="-1"]', { force: true }); await pg.waitForTimeout(700); }
+      for (let k = 0; k < 2; k++) { await pg.evaluate((q) => document.querySelector(q).click(), '#btyl [data-bty="r"] [data-bty-mv="-1"]'); await pg.waitForTimeout(700); }
       t.list1 = await list(); t.rUp = await bandSeq(pg);
-      await pg.click('#btyl [data-bty="i"] input', { force: true }); await pg.waitForTimeout(800);
+      await pg.evaluate((q) => document.querySelector(q).click(), '#btyl [data-bty="i"] input'); await pg.waitForTimeout(800);
       t.list2 = await list(); t.noI = await bandSeq(pg);
       const xl = await xlsxSecs(pg); t.xlsx = xl;
-      await pg.click('#btyl [data-bty="i"] input', { force: true }); await pg.waitForTimeout(500);
-      for (let k = 0; k < 2; k++) { await pg.click('#btyl [data-bty="r"] [data-bty-mv="1"]', { force: true }); await pg.waitForTimeout(500); }
-      await pg.click('[data-bsub="num"]', { force: true }); await pg.waitForTimeout(700);
+      await pg.evaluate((q) => document.querySelector(q).click(), '#btyl [data-bty="i"] input'); await pg.waitForTimeout(500);
+      for (let k = 0; k < 2; k++) { await pg.evaluate((q) => document.querySelector(q).click(), '#btyl [data-bty="r"] [data-bty-mv="1"]'); await pg.waitForTimeout(500); }
+      // "ואז לפי": מספר קו (בתוך כל סוג), ובחזרה — הסדר שהוספתם
+      await pg.selectOption('#bk2', 'num'); await pg.waitForTimeout(700);
       t.byNum = await bandSeq(pg);
-      await pg.click('[data-bsub="add"]', { force: true }); await pg.waitForTimeout(500);
+      await pg.selectOption('#bk2', 'add'); await pg.waitForTimeout(500);
       got[key].types = t;
       if (!/^אזורי/.test(t.list1)) problems.push(key + ': "אזורי" לא עלה לראש הרשימה — ' + t.list1);
       if (t.noI.some((x) => /בין-עירוניים/.test(x))) problems.push(key + ': "בין-עירוני" מוסתר ועדיין בלוח');
@@ -599,6 +634,107 @@ async function main() {
       if (JSON.stringify(m.seq) !== JSON.stringify(m.afterReload)) problems.push(key + ': הסדר הידני לא נשמר אחרי טעינה מחדש');
       const flatSeq = m.seq.filter((x) => !/^§/.test(x)).map((x) => x.split(': ')[1]).join(' ').split(' ');
       if (flatSeq.join(' ') !== m.xlsx.join(' ')) problems.push(key + ': הסדר באקסל שונה מהלוח — ' + m.xlsx.join(' '));
+    }
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
+  for (const key of ['board-safed', 'board-safed7']) {
+    if (only && only !== key) continue;
+    const pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    if (key === 'board-safed') {
+      await pg.goto(base + '/line-changes/?m=tt');
+      await pg.fill('#q', 'צפת'); await pg.waitForSelector('.res.place', { timeout: 30000 }); await pg.click('.res.place');
+      await pg.waitForSelector('#plall'); await pg.click('#plall');
+    } else await pg.goto(base + '/line-changes/' + SAFED7);
+    await pg.waitForSelector('.s-bd', { timeout: 30000 });
+    await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(1000);
+    const g = got[key] = {};
+    // A. רוחב עמודות: אוטומטי מול רוחב שווה לכל העמודות (ידני) — בשתי הצפיפויות; הלוח לא גבוה יותר ולא ארוך יותר
+    for (const dn of ['0', '1']) {
+      await pg.evaluate((d) => document.querySelector('[data-bdn="' + d + '"]').click(), dn); await pg.waitForTimeout(1000);
+      const auto = await rowsHeight(pg);
+      const model = await pg.evaluate(() => { const w = LCDeck.boardWidths(), T = LCDeck._test, n = w.ws.length, s = w.ws.reduce((a, b) => a + b, 0); return { auto: T.bdCost(w.mt, w.ws), eq: T.bdCost(w.mt, w.ws.map(() => s / n)) }; });
+      await setEdits(pg, "var n = Array.from(document.querySelector('.sitem:not(.off) .s-bd').querySelectorAll('col[data-ck]')); e.bcw = { o: 0.16 }; n.forEach(function (c) { e.bcw[c.getAttribute('data-ck')] = 0.84 / n.length; });");
+      const eq = await rowsHeight(pg);
+      const seg = await pg.evaluate(() => (document.querySelector('#bcwseg [aria-checked="true"]') || {}).getAttribute?.('data-bcw'));
+      await pg.evaluate(() => document.querySelector('[data-bcw="auto"]').click()); await pg.waitForTimeout(1000);
+      const back = await rowsHeight(pg);
+      console.log(key + (dn === '1' ? ' צפוף' : '') + ': רוחב אוטומטי — ' + auto.h + 'px, ' + auto.pages + ' עמודים (גופן ' + auto.sc + '); רוחב שווה — ' + eq.h + 'px, ' + eq.pages + ' עמודים (גופן ' + eq.sc + '); במודל ' + Math.round(model.auto) + ' מול ' + Math.round(model.eq));
+      if (model.auto > model.eq + 0.5) problems.push(key + ': רוחב אוטומטי גבוה יותר במודל מרוחב שווה');
+      if (auto.pages > eq.pages || (auto.pages === eq.pages && auto.sc === eq.sc && auto.h >= eq.h)) problems.push(key + (dn === '1' ? ' צפוף' : '') + ': רוחב אוטומטי לא מקצר את הלוח (' + auto.h + ' מול ' + eq.h + ')');
+      if (seg !== 'man') problems.push(key + ': "רוחב עמודות" לא מסומן "ידני" אחרי רוחב שנשמר');
+      if (back.h !== auto.h || back.pages !== auto.pages) problems.push(key + ': "אוטומטי" לא מחזיר את הרוחב האוטומטי');
+    }
+    await pg.evaluate(() => document.querySelector('[data-bdn="0"]').click()); await pg.waitForTimeout(800);
+    if (key === 'board-safed') {
+      // C. מיון בשתי רמות: קודם לפי מפעיל (המפעיל השני — למעלה), ואז לפי מספר קו; ו"בלי פסי יעד"
+      await pg.selectOption('#bk1', 'op'); await pg.waitForTimeout(900);
+      await pg.selectOption('#bk2', 'num'); await pg.waitForTimeout(900);
+      const ops0 = await pg.evaluate(() => Array.from(document.querySelectorAll('#bopl li b')).map((b) => b.textContent));
+      await pg.evaluate(() => document.querySelectorAll('#bopl [data-bop-mv="-1"]')[1].click()); await pg.waitForTimeout(900);
+      const ops1 = await pg.evaluate(() => Array.from(document.querySelectorAll('#bopl li b')).map((b) => b.textContent));
+      await pg.evaluate(() => document.getElementById('bflat').click()); await pg.waitForTimeout(900);
+      const flat = await lineSeq(pg), xs = await xlsxSheet(pg);
+      g.sort = { ops0, ops1, on: await pg.evaluate(() => (document.querySelector('#borseg [aria-checked="true"]') || {}).getAttribute?.('data-bor')), flat };
+      if (flat.some((x) => x.startsWith('['))) problems.push(key + ': "בלי פסי יעד" — עדיין יש פסים');
+      if (ops1[0] !== ops0[1]) problems.push(key + ': סדר המפעילים לא השתנה');
+      // הסדר נכון: המפעילים לפי ops1, ובכל מפעיל — מספר הקו עולה
+      const opOf = (x) => x.split('/')[1], numOf = (x) => parseInt(x, 10) * 10 + (/\D/.test(x.split('/')[0]) ? 1 : 0);
+      flat.forEach((x, i) => { if (!i) return; const p = flat[i - 1], a = ops1.indexOf(opOf(p)), b2 = ops1.indexOf(opOf(x)); if (a > b2 || (a === b2 && numOf(p) > numOf(x))) problems.push(key + ': מיון בשתי רמות — ' + p + ' לפני ' + x); });
+      if (/<c r="A\d+"[^>]*><is><t[^>]*>(צפת – |הקווים העירוניים)/.test(xs)) problems.push(key + ': באקסל יש שורת פס ב"בלי פסי יעד"');
+      const xl = [...xs.matchAll(/<c r="B\d+"[^>]*><is><t[^>]*>(\d+[^<]*)<\/t>/g)].map((m) => m[1]);
+      if (xl.join(' ') !== flat.map((x) => x.split('/')[0]).join(' ')) problems.push(key + ': הסדר באקסל שונה מהלוח');
+    } else {
+      // B. מחיקת טקסט (התחנה של 984) וריקון תא (יום שישי של 981, השורה הראשונה): מחוץ לעריכה — בלי גובה; באקסל — ריק; ושחזור
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(500);
+      await pg.evaluate(() => document.querySelector('.sitem:not(.off) .s-bd tr.br[data-ln="984"] [data-bk$="|s"]').focus()); await pg.waitForTimeout(200);
+      await pg.evaluate(() => document.querySelector('#etb [data-t="del"]').click()); await pg.waitForTimeout(900);
+      const fri = await pg.evaluate(() => { const tr = document.querySelector('.sitem:not(.off) .s-bd tr.br[data-ln="981"]'), i = Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd thead th')).findIndex((t) => t.textContent.trim() === 'יום שישי'); return { rk: tr.getAttribute('data-rk'), h: tr.getBoundingClientRect().height, i }; });
+      const friCell = '.s-bd tr.br[data-rk="' + fri.rk + '"] td.bt [data-bk$="|c' + (await pg.evaluate((rk) => { const ths = Array.from(document.querySelector('.sitem:not(.off) .s-bd table').querySelectorAll('col[data-ck]')).map((c) => c.getAttribute('data-ck')); return ths.indexOf('5'); }, fri.rk)) + '"]';
+      await pg.evaluate((q) => { const e = document.querySelector('.sitem:not(.off) ' + q).closest('td'); e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); e.click(); }, friCell); await pg.waitForTimeout(300);
+      const tb = await pg.evaluate(() => Array.from(document.querySelectorAll('#etb button')).filter((x) => !x.hidden).map((x) => x.textContent));
+      await pg.evaluate(() => document.querySelector('#etb [data-t="cellclr"]').click()); await pg.waitForTimeout(900);
+      const inEdit = await pg.evaluate((q) => { const e = document.querySelector('.sitem:not(.off) ' + q); return { pos: getComputedStyle(e).position, del: e.classList.contains('bdel') }; }, friCell);
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(900);
+      const out = await pg.evaluate((q) => { const st = document.querySelector('.sitem:not(.off) .s-bd tr.br[data-ln="984"] [data-bk$="|s"]'), c = document.querySelector('.sitem:not(.off) ' + q); return { stop: st.getBoundingClientRect().height, cell: c.getBoundingClientRect().height, td: c.closest('td').textContent.trim(), row: c.closest('tr').getBoundingClientRect().height }; }, friCell);
+      const xs = await xlsxSheet(pg);
+      g.clear = { toolbar: tb, inEdit, stopH: out.stop, cellH: out.cell, cellText: out.td };
+      if (out.stop !== 0) problems.push(key + ': טקסט שנמחק תופס ' + out.stop + 'px');
+      if (out.cell !== 0 || out.td) problems.push(key + ': תא שרוקן עדיין תופס מקום (' + out.cell + 'px, "' + out.td + '")');
+      if (!(out.row < fri.h)) problems.push(key + ': השורה לא התקצרה אחרי ריקון התא (' + fri.h + ' → ' + out.row + ')');
+      if (!inEdit.del || inEdit.pos !== 'absolute') problems.push(key + ': במצב עריכה התא שרוקן לא מופיע כסימן קטן');
+      const ci5 = await pg.evaluate(() => Array.from(document.querySelector('.sitem:not(.off) .s-bd table').querySelectorAll('col[data-ck]')).map((c) => c.getAttribute('data-ck')).indexOf('5'));
+      const r981 = (xs.match(/<c r="B(\d+)"[^>]*><is><t[^>]*>981<\/t>/) || [])[1], fx = r981 && xs.match(new RegExp('<c r="' + 'ABCDEFGHIJ'.charAt(3 + ci5) + r981 + '"[^>]*>(?:<is>(.*?)</is>)?'));
+      g.clear.xlsx = fx ? (fx[1] || '').replace(/<[^>]+>/g, '') : null;
+      if (!fx || g.clear.xlsx) problems.push(key + ': באקסל יום שישי של 981 לא רוקן (' + (fx ? g.clear.xlsx : 'אין תא') + ')');
+      // שחזור התא
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(500);
+      await pg.evaluate((q) => { const e = document.querySelector('.sitem:not(.off) ' + q).closest('td'); e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); e.click(); }, friCell); await pg.waitForTimeout(300);
+      g.clear.restoreBtn = await pg.evaluate(() => document.querySelector('#etb [data-t="cellclr"]').textContent);
+      await pg.evaluate(() => document.querySelector('#etb [data-t="cellclr"]').click()); await pg.waitForTimeout(900);
+      if (!(await pg.evaluate((q) => document.querySelector('.sitem:not(.off) ' + q).textContent.trim().length > 0, friCell))) problems.push(key + ': "שחזור התא" לא החזיר את השעות');
+      // D. ידני: 982 (ראש הפס של ירושלים) — ↑ לסוף הפס של רמת גן, ואחר כך ↓ ובחזרה; נשמר אחרי טעינה ומגיע לאקסל
+      g.move = { before: (await lineSeq(pg)).map((x) => x.replace(/\/.*$/, '')) };
+      const pk = async (ln) => pg.evaluate((ln) => { const e = document.querySelector('.sitem:not(.off) .s-bd tr.br[data-ln="' + ln + '"] td.bo'); e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); e.click(); }, ln);
+      await pk('982'); await pg.waitForTimeout(300);
+      g.move.canUp = await pg.evaluate(() => !document.querySelector('#etb [data-t="mvup"]').disabled);
+      await pg.evaluate(() => document.querySelector('#etb [data-t="mvup"]').click()); await pg.waitForTimeout(1000);
+      g.move.up = (await lineSeq(pg)).map((x) => x.replace(/\/.*$/, ''));
+      await pk('989'); await pg.waitForTimeout(300);
+      await pg.evaluate(() => document.querySelector('#etb [data-t="mvup"]').click()); await pg.waitForTimeout(1000);
+      g.move.up2 = (await lineSeq(pg)).map((x) => x.replace(/\/.*$/, ''));
+      await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(600);
+      await pg.evaluate(() => { window.name = 'keep'; });
+      await pg.reload(); await pg.waitForSelector('.s-bd', { timeout: 30000 }); await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(1000);
+      g.move.afterReload = (await lineSeq(pg)).map((x) => x.replace(/\/.*$/, ''));
+      const xs2 = await xlsxSheet(pg);
+      g.move.xlsx = [...xs2.matchAll(/<c r="[AB]\d+"[^>]*><is><t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]).filter((x) => /^\d+$|^צפת – /.test(x));
+      await pg.evaluate(() => { window.name = ''; });
+      if (JSON.stringify(g.move.up) === JSON.stringify(g.move.before)) problems.push(key + ': ↑ בראש הפס לא העביר את 982');
+      if (JSON.stringify(g.move.afterReload) !== JSON.stringify(g.move.up2)) problems.push(key + ': ההעברה בין פסים לא נשמרה אחרי טעינה מחדש');
+      const flatSeq = g.move.up2.map((x) => x.startsWith('[') ? x.slice(1, -1) : x.split('/')[0]);
+      if (flatSeq.join('|') !== g.move.xlsx.join('|')) problems.push(key + ': ההעברה בין פסים לא הגיעה לאקסל — ' + g.move.xlsx.join(' '));
     }
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();

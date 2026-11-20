@@ -473,3 +473,16 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .pk .pkmv{border:0;background:transparent;color:inherit;font:800 14px Arial,sans-serif;padding:0 3px;cursor:pointer;min-width:24px;min-height:28px}
 .pk .pkmv:disabled{opacity:.3;cursor:default}
 .s-bd tr.bband.bsel td{outline:3px solid #1f5fd1;outline-offset:-3px}
+/* סדר הקווים: "קודם לפי" / "ואז לפי", בלי פסי יעד; רוחב עמודות */
+.bkw{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 4px}
+.bkf{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:14px;min-width:150px;flex:1 1 150px;max-width:220px}
+.bkf select{font:inherit;font-weight:700;padding:7px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card,#fff);color:inherit}
+.bflat{display:block;font-weight:700;font-size:14px;margin:10px 0 2px;cursor:pointer}
+.bflat input{width:18px;height:18px;vertical-align:-3px;margin:0;margin-inline-end:8px}
+.bflat small{display:block;font-weight:600;color:var(--sub);margin-inline-start:26px}
+/* גרירת הגבול בין העמודות בלוח (במצב עריכה) */
+.bcw-l{position:absolute;inset:0;pointer-events:none;z-index:6}
+.bcw-h{position:absolute;width:18px;margin-left:-9px;cursor:col-resize;touch-action:none;pointer-events:auto;display:flex;justify-content:center}
+.bcw-h::after{content:"";width:4px;height:100%;border-radius:2px;background:#1f5fd1;opacity:.55}
+.bcw-h:hover::after,.bcw-h.on::after{opacity:1}
+.bcw-g{position:absolute;width:0;border-left:2px dashed rgba(31,95,209,.55);pointer-events:none}

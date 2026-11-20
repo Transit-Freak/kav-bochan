@@ -158,3 +158,59 @@ test('חלופות: לכל חלופה בשורה אות וצבע משלה, וה�
   const nt = r.cells.flatMap((x) => x.notes).find((x) => x.L);
   assert.ok(nt && nt.c);
 });
+
+test('מיון בשתי רמות: קודם לפי מפעיל (בסדר שנבחר) ואז לפי מספר קו; האפשרויות המוכנות — אותם מפתחות', () => {
+  const ps = lodPages(), o = { ltype: LINES_FX.lt, pord: LOD_MK };
+  const M = ctx.LCDeck.boardModel(ps, { ...o, bord: 'key', bk: ['op', 'num'], bflat: true });
+  assert.equal(M.ord, 'op');
+  assert.deepEqual(J(M.keys), ['op', 'num']);
+  const rows = M.bands.flatMap((b) => b.rows), seen = [];
+  rows.forEach((r) => { if (!seen.includes(r.p)) seen.push(r.p); });
+  const ops = J(M.opList.map((x) => x.k));
+  for (let i = 1; i < seen.length; i++) {
+    const a = seen[i - 1], b = seen[i], oa = ops.indexOf(String(a.ag || a.op)), ob = ops.indexOf(String(b.ag || b.op));
+    assert.ok(oa < ob || (oa === ob && parseInt(a.line, 10) <= parseInt(b.line, 10)), a.line + ' לפני ' + b.line);
+  }
+  // סדר מפעילים שנבחר: המפעיל האחרון — ראשון
+  const last = ops[ops.length - 1], R = ctx.LCDeck.boardModel(lodPages(), { ...o, bord: 'key', bk: ['op', 'num'], bops: [last], bflat: true });
+  assert.equal(String(R.bands[0].rows[0].p.ag || R.bands[0].rows[0].p.op), last);
+  // בלי פסי יעד — פס אחד בלי כותרת
+  assert.equal(M.bands.length, 1); assert.ok(M.bands[0].flat); assert.equal(M.bands[0].label, '');
+  // "קודם לפי סוג קו, ואז לפי מספר" — כמו "לפי סוג קו" עם "בתוך כל סוג: לפי מספר קו"
+  assert.deepEqual(seq(ctx.LCDeck.boardModel(lodPages(), { ...o, bord: 'key', bk: ['type', 'num'] })), seq(ctx.LCDeck.boardModel(lodPages(), { ...o, bsub: 'num' })));
+  assert.equal(ctx.LCDeck.boardModel(lodPages(), { ...o, bord: 'key', bk: ['num', 'op'] }).ord, 'key');
+});
+
+test('ידני: קו שהועבר לפס אחר (bmb) מופיע בסוף הפס הזה, והפס שומר את השם שלו', () => {
+  const o = { ltype: LINES_FX.lt, pord: ['11464', '53009', '36011', '14384'] };
+  const ps = () => ['36011', '53009', '11464', '14384'].map(ttPage);
+  const M0 = ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['11464', '53009', '36011', '14384'] });
+  const tlv = M0.bands.find((b) => /תל אביב/.test(b.label));
+  const M = ctx.LCDeck.boardModel(ps(), { ...o, bord: 'man', bman: ['11464', '14384', '53009', '36011'], bmb: { 14384: tlv.bk } });
+  assert.deepEqual(seq(M)[0], 'לוד – תל אביב יפו: 464 384');
+  // בסדר אחר (לא ידני) — הקו חוזר לפס שלו
+  assert.ok(seq(ctx.LCDeck.boardModel(ps(), { ...o, bord: 'add', bmb: { 14384: tlv.bk } })).includes('לוד – בני ברק: 384'));
+});
+
+test('רוחב עמודות: עמודה עם הרבה שעות מקבלת יותר רוחב, והלוח נמוך יותר מאשר ברוחב שווה; ידני — לפי החלקים', () => {
+  const T = ctx.LCDeck._test, tk = (n) => Array.from({ length: n }, () => 30);
+  const cell = (c, n) => ({ c, s: 1, tk: tk(n), tx: [], nt: [], rm: [] });
+  const mt = { n: 3, padH: 8, padV: 6, sp: 5, hT: 14, hN: 12, mN: 2, hR: 12, mR: 2,
+    rows: [0, 1, 2, 3].map(() => ({ fl: 20, cells: [cell(0, 6), cell(1, 30), cell(2, 4)] })) };
+  const ws = J(T.bdAutoW(mt, 450));
+  assert.ok(Math.abs(ws.reduce((a, b) => a + b, 0) - 450) < 1);
+  assert.ok(ws[1] > ws[0] && ws[1] > ws[2], ws.join(' '));
+  assert.ok(T.bdCost(mt, ws) < T.bdCost(mt, [150, 150, 150]));
+  const f = J(T.bdFracs({ o: 0.2, '01234': 0.5, '5': 0.3 }, [{ days: [0, 1, 2, 3, 4] }, { days: [5] }, { days: [6] }]));
+  assert.ok(Math.abs(f.o + f.cols.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+  assert.ok(f.cols[0] > f.cols[1]);
+});
+
+test('ריקון התא ומחיקת טקסט: השעות, ההערה והתחנה ריקות במודל (וכך גם באקסל)', () => {
+  const p = ttPage('36011'), M0 = ctx.LCDeck.boardModel([p], { ltype: LINES_FX.lt });
+  const r = M0.bands[0].rows.find((x) => x.alts && x.alts.length), i = r.cells.findIndex((x) => x.notes.length);
+  const t = { [r.key + '|c' + i]: '', [r.key + '|n' + i]: '', [r.key + '|s']: '' };
+  const M = ctx.LCDeck.boardModel([ttPage('36011')], { ltype: LINES_FX.lt, bd: { t } });
+  const r2 = M.bands[0].rows.find((x) => x.key === r.key);
+  assert.equal(r2.cells[i].txt, ''); assert.equal(r2.cells[i].ntxt, ''); assert.equal(r2.stop, '');
+});
