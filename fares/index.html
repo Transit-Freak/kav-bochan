@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <script src="../theme-boot.js?v=20261120c"></script>
 <link rel="stylesheet" href="../dark/fares.css?v=20261119">
-<meta name="viewport" content="width=device-width, initial-scale=1"><script src="../home-link.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><script src="../nav-restore.js?v=20261120"></script><script src="../home-link.js"></script>
 <script src="../version.js" defer></script>
 <script src="../april.js" defer></script>
 <!-- מונע מהדפדפן להגיש גרסה ישנה של הדף מה-cache (אותו דפוס כמו בדף הבית ובהקו בזמן) -->
@@ -464,8 +464,10 @@ function isCurrent(l){
 let PEND=(()=>{const h=new URLSearchParams(location.hash.slice(1));return (h.get('l')||h.get('m')==='st')?h:null;})();
 // ‎#m=rail&f=<תחנה>&t=<תחנה>‎ — שחזור "לפי רכבת"
 const PENDR=(()=>{const h=new URLSearchParams(location.hash.slice(1));return h.get('m')==='rail'?h:null;})();
+// עד ש"לפי רכבת" שוחזר מהכתובת לא כותבים אותה מחדש — אחרת הנתונים שמגיעים קודם מוחקים את ‎#m=rail‎
+let RPEND=!!PENDR;
 function syncUrl(){
-  if (PEND) return;   // באמצע שחזור מהכתובת — לא לדרוס אותה
+  if (PEND || RPEND) return;   // באמצע שחזור מהכתובת — לא לדרוס אותה
   const p=new URLSearchParams();
   if ($('paneRail').classList.contains('on')){
     p.set('m','rail');
@@ -1099,7 +1101,7 @@ $('modeRail').addEventListener('click', modeClick(()=>{
 }));
 if (PENDR) window.addEventListener('load', ()=>{
   setMode('Rail');
-  loadRail().then(()=>{ if (PENDR.get('f')) $('rFrom').value=PENDR.get('f'); if (PENDR.get('t')) $('rTo').value=PENDR.get('t'); computeRail(); }).catch(()=>{});
+  loadRail().then(()=>{ if (PENDR.get('f')) $('rFrom').value=PENDR.get('f'); if (PENDR.get('t')) $('rTo').value=PENDR.get('t'); RPEND=false; computeRail(); syncUrl(); }).catch(()=>{ RPEND=false; });
 });
 // שחזור "לפי תחנות" מהכתובת — אחרי טעינת הדף, כי ספריית המפה (Leaflet) נטענת אחרי הסקריפט הזה
 if (PEND && PEND.get('m')==='st') window.addEventListener('load', ()=>{

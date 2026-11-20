@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><script src="../home-link.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><script src="../nav-restore.js?v=20261120"></script><script src="../home-link.js"></script>
 <script src="../a11y.js?v=20261118h" defer></script>
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -456,6 +456,9 @@ function render(){
 document.addEventListener('input',e=>{if(e.target.id==='q'){Q=e.target.value;render();}});
 document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.card[data-k]');if(c)pick(c.dataset.k);});
 window.addEventListener('hashchange',()=>{if(DATA)route();});
+// "אחורה" מתחנה לרשימה: הכתובת של התחנה נכתבת עם "?" ריק לפני ה-# (nav-restore.js), כך שהחזרה
+// לרשימה היא לא רק שינוי אחרי ה-# — ולא תמיד מגיע hashchange. popstate מגיע תמיד
+window.addEventListener('popstate',()=>{if(DATA)route();});
 
 Promise.all([
   fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status===404?'nodata':'http');return r.json();}),
