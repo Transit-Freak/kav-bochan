@@ -521,7 +521,10 @@ if (inspF > 9.5) {
     vec3 c = sc;
     if (pat > 0.5 && pat < 1.5 && fract(v * 9.0) < 0.42) c = mix(sc, vec3(0.95), 0.75);                       // פסים
     if (pat > 1.5 && pat < 2.5 && reg < 2.5 && (abs(v - 0.38) < 0.035 || abs(v - 0.58) < 0.035)) c = vec3(0.86, 0.88, 0.9);   // אפוד זוהר: פסים מחזירי אור
-    if (pat > 2.5 && pat < 3.5 && reg < 1.5 && front > 0.5 && length(vec2(u - 0.08, v - 0.66)) < 0.045) c = vec3(0.12, 0.28, 0.6);   // חולצת בית ספר: סמל קטן
+    // חולצת בית ספר: סמל מודפס קטן בצד שמאל של החזה, מעל החזה (עיגול לבן עם טבעת כהה, 2 ס"מ, במטרים — לא אליפסה).
+    // קודם: כתם כחול כהה ורחב מתחת לחזה — בישיבה הוא ירד אל הבטן ונראה כמו הג'ינס שבוקע מבעד לחולצה
+    if (pat > 2.5 && pat < 3.5 && reg < 1.5 && front > 0.5) { float rr = length(vec2(u - 0.085, (v - 0.8) * max(0.2, vTop)));
+      if (rr < 0.02) c = rr > 0.0145 ? vec3(0.1, 0.16, 0.32) : rr < 0.007 ? vec3(0.78, 0.2, 0.18) : vec3(0.94); }
     if (pat > 3.5 && pat < 4.5 && fract(u * 11.0 + v * 3.0) < 0.5 && fract(v * 7.0 - u * 2.0) < 0.5) c = sc * 0.82;   // מנומר עדין (מדים)
     if (pat > 4.5 && pat < 5.5 && (fract(v * 8.0) < 0.2 || fract(u * 8.0) < 0.2)) c = sc * 0.7;                     // משבצות
     if (reg < 1.5 && strap > 0.5 && strap < 1.5 && abs(abs(u) - 0.09) < 0.022 && v > 0.45) c = vec3(0.1);            // רצועות תיק גב
@@ -550,12 +553,24 @@ if (inspF > 9.5) {
   else diffuseColor.rgb = pantsC * (0.9 + 0.4 * lum);
 }`);
   };
-  m.customProgramCacheKey = () => 'insp3';
+  m.customProgramCacheKey = () => 'insp4';
 }
 // לכל קודקוד בבגדים: האזור (0 אגן ורגליים, 1 גו, 2 זרוע עליונה, 3 אמה; +0.5 — מלפנים. הסדר חשוב: הערך עובר אינטרפולציה בין
 // קודקודים, ולכן אזורים שנוגעים זה בזה צמודים במספרים — בלי פס של אזור אחר בגבול) ומיקומו ביחס לאגן
 // (u — לרוחב, שמאלה של הדמות חיובי; v — גובה מעל האגן), בתנוחת העמידה. נשמר בגאומטריה המקורית (vest) — משותף לכולם
 const REGION = [[/^(LowerBack|Spine|Spine1|LeftShoulder|RightShoulder|Neck|Neck1)$/, 1], [/^(LeftArm|RightArm)$/, 2], [/^(LeftForeArm|RightForeArm|LeftHand|RightHand|LThumb|RThumb|LeftFingerBase|RightFingerBase|LeftHandFinger1|RightHandFinger1)$/, 3]];
+// איים של רשת בגד (חליפה של MakeHuman = חולצה ומכנסיים בחלקים נפרדים): 1 — אי שמרכזו מעל האגן (חולצה), 2 — מתחתיו (מכנסיים),
+// 0 — אי קטן (כפתור, שולי תפר — נשאר לפי העצמות). לפי האינדקסים בלבד, בלי ריתוך לפי מיקום: החולצה התחובה נוגעת במכנסיים
+// (בדגם 0 הריתוך חיבר את כל החליפה לאי אחד)
+function clothIslands(g, P, hipY) {
+  const n = g.attributes.position.count, par = new Int32Array(n), out = new Uint8Array(n); if (!g.index) return out;
+  for (let i = 0; i < n; i++) par[i] = i;
+  const f = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; }, ix = g.index.array;
+  for (let t = 0; t < ix.length; t += 3) { const a = f(ix[t]); par[f(ix[t + 1])] = a; par[f(ix[t + 2])] = a; }
+  const sy = new Map(); for (let i = 0; i < n; i++) { const r = f(i), e = sy.get(r) || [0, 0]; e[0] += P[i * 3 + 1]; e[1]++; sy.set(r, e); }
+  for (let i = 0; i < n; i++) { const e = sy.get(f(i)); out[i] = e[1] < 20 ? 0 : e[0] / e[1] > hipY ? 1 : 2; }
+  return out;
+}
 function markInsp(gltf) {
   const root = gltf.scene; if (root.userData.insp) return root.userData.insp; 
   const idle = gltf.animations.find(a => /idle/i.test(a.name));
@@ -576,11 +591,14 @@ function markInsp(gltf) {
     const g = srcs[k].geometry, n = g.attributes.position.count, A = new Float32Array(n * 3);
     g.setAttribute('vest', new THREE.BufferAttribute(A, 3));
     if (kind !== 'cloth' || !o.isSkinnedMesh) return;
-    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones, isl = clothIslands(g, P, c.y);
     for (let i = 0; i < n; i++) {
       const w = [0, 0, 0, 0];
       for (let j = 0; j < 4; j++) { const ww = sw.getComponent(i, j); if (!ww) continue; const nm = legacyBone(bones[si.getComponent(i, j)]?.name || ''); const r = REGION.find(([re]) => re.test(nm)); w[r ? r[1] : 0] += ww; }
       let reg = 0; if (w[1] >= 0.5) reg = 1; else if (w[2] >= Math.max(w[1], w[3], w[0])) reg = 2; else if (w[3] >= 0.5) reg = 3; else if (w[1] > w[0]) reg = 1;
+      // האזור לפי החלק של הבגד (אי ברשת), לא רק לפי העצמות: השוליים של החולצה צמודים לאגן — לפי העצמות הם יצאו "מכנסיים",
+      // וצבע המכנסיים עלה אל תחתית החולצה בקו מדורג (בישיבה — על הבטן, כאילו הג'ינס בוקע מבעד לחולצה). וגם הפוך: מכנסיים לא מקבלים צבע חולצה
+      if (isl[i] === 1 && reg === 0) reg = 1; else if (isl[i] === 2) reg = 0;
       const u = P[i * 3] - c.x, v = P[i * 3 + 1] - c.y, z = P[i * 3 + 2] - c.z;
       A[i * 3] = reg; A[i * 3 + 1] = u; A[i * 3 + 2] = v;
       if (reg === 1) { top = Math.max(top, v); zf = Math.max(zf, z); torso.push([A, i, z, N ? N[i * 3 + 2] : 0]); }
