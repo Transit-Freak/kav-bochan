@@ -1686,14 +1686,7 @@
   $('deck').addEventListener('pointerup', bcwEnd);
   $('deck').addEventListener('pointercancel', bcwEnd);
   window.addEventListener('resize', function () { if (editMode) bdColUi(); });
-  function bdWhere(bs, sel) {
-    if (sel.band) {
-      for (var i = 0; i < bs.length; i++) for (var s = 0; s < bs[i].segs.length; s++) if (bs[i].segs[s].k === sel.band) return { b: i, s: s, mv: bs[i].segs[s].mv };
-      return null;
-    }
-    for (var j = 0; j < bs.length; j++) { var x = bs[j].mks.indexOf(sel.mk); if (x >= 0) return { b: j, l: x }; }
-    return null;
-  }
+  function bdWhere(bs, sel) { return LCDeck.boardWhere(bs, sel); }
   function bdCanMove(sel) {
     var bs = bdOrderNow(), w = bdWhere(bs, sel); if (!w) return null;
     // קו: גם מעבר לפס הקודם / הבא (בראש הפס או בסופו)
@@ -1701,68 +1694,15 @@
     if (w.l == null && w.mv) return { up: w.s > 0 || w.b > 0, dn: w.s < bs[w.b].segs.length - 1 || w.b < bs.length - 1 };
     return w.l == null ? { up: w.b > 0, dn: w.b < bs.length - 1 } : { up: w.l > 0 || w.b > 0, dn: w.l < bs[w.b].mks.length - 1 || w.b < bs.length - 1 };
   }
-  /* העברה של קו (בתוך הפס) או של פס שלם — והסדר עובר ל"ידני" (מהסדר שרואים עכשיו) */
-  /* מה שרואים בלוח (בסדר ידני): הקווים לפי הסדר, ופס חדש בכל מקום שהיעד (הפס המקורי של הקו) מתחלף */
-  function bdSig(bs, natOf) {
-    var out = [], last = null;
-    bs.forEach(function (H) { H.mks.forEach(function (m) { if (natOf[m] !== last) out.push('[' + (last = natOf[m]) + ']'); out.push(m); }); });
-    return out.join('|');
-  }
-  /* קו שהועבר, בקצה של פס, ליד קו מאותו יעד בפס הסמוך — עובר לשם (כך אין שני פסים צמודים עם אותה כותרת) */
-  function bdNorm(bs, natOf) {
-    for (var g = 0; g < 200; g++) {
-      var ne = bs.filter(function (H) { return H.mks.length; }), ch = false;
-      for (var i = 0; i + 1 < ne.length && !ch; i++) {
-        var A = ne[i], B = ne[i + 1], a = A.mks[A.mks.length - 1], b = B.mks[0];
-        if (natOf[a] !== natOf[b]) continue;
-        if (natOf[a] !== A.bk) { A.mks.pop(); B.mks.unshift(a); ch = true; }
-        else if (natOf[b] !== B.bk) { B.mks.shift(); A.mks.push(b); ch = true; }
-      }
-      if (!ch) break;
-    }
-    return bs;
-  }
+  /* העברה של קו או של פס שלם — והסדר עובר ל"ידני" (מהסדר שרואים עכשיו) */
   function bdMove(dir) {
     if (!bdSel) return;
     var sel = bdSel;
     // מסדר אחר — קודם עוברים ל"ידני" מהסדר שרואים עכשיו (הפסים של "ידני" — לפי יעד בלבד)
     if (edits.bord !== 'man') { edits.bman = bdOrderNow().reduce(function (a, b) { return a.concat(b.mks); }, []); edits.bord = 'man'; edits.bk = undefined; }
-    var bs = bdOrderNow(), w = bdWhere(bs, sel); if (!w) return;
-    var natOf = {}; bs.forEach(function (H) { Object.keys(H.nat).forEach(function (m) { natOf[m] = H.nat[m]; }); });
-    var cp = function (x) { return x.map(function (H) { return { k: H.k, bk: H.bk, mks: H.mks.slice(), segs: H.segs }; }); };
-    var before = bdSig(bs, natOf), res = null, ws = cp(bs), mk0 = sel.mk;
-    if (w.l == null) {
-      if (w.mv) {
-        // פס של קווים שהועברו: מתחלף עם החלק הסמוך באותו פס; בקצה — עובר לסוף הפס הקודם / לראש הפס הבא
-        var H = ws[w.b], sg = H.segs.slice(), s2 = w.s + dir, mvs = sg[w.s];
-        if (s2 >= 0 && s2 < sg.length) { sg[w.s] = sg[s2]; sg[s2] = mvs; H.mks = sg.reduce(function (a, x) { return a.concat(x.mks); }, []); }
-        else {
-          var nb2 = w.b + dir; if (nb2 < 0 || nb2 >= ws.length) return;
-          H.mks = H.mks.filter(function (m) { return mvs.mks.indexOf(m) < 0; });
-          ws[nb2].mks = dir < 0 ? ws[nb2].mks.concat(mvs.mks) : mvs.mks.concat(ws[nb2].mks);
-        }
-        mk0 = mvs.mks[0];
-      } else { var j = w.b + dir; if (j < 0 || j >= ws.length) return; var t = ws[w.b]; ws[w.b] = ws[j]; ws[j] = t; mk0 = ws[j].mks[0]; }
-      res = bdNorm(ws, natOf);
-      if (bdSig(res, natOf) === before) return;
-    } else {
-      // קו: מתחלף עם הקו שמעליו / מתחתיו באותו פס; בראש הפס ↑ — לסוף הפס הקודם, ובסוף הפס ↓ — לראש הפס הבא.
-      // שם הוא מופיע בפס משלו, עם היעד שלו. צעד שלא משנה את מה שרואים (למשל קו שכבר עומד לבד בפס שלו) — ממשיכים צעד נוסף
-      for (var tr = 0; tr < 12 && !res; tr++) {
-        var w2 = bdWhere(ws, sel); if (!w2) break;
-        var L = ws[w2.b].mks, k = w2.l + dir;
-        if (k >= 0 && k < L.length) { var u = L[w2.l]; L[w2.l] = L[k]; L[k] = u; }
-        else {
-          var nb = w2.b + dir; while (nb >= 0 && nb < ws.length && !ws[nb].mks.length) nb += dir;
-          if (nb < 0 || nb >= ws.length) break;
-          var mk = L.splice(w2.l, 1)[0];
-          if (dir < 0) ws[nb].mks.push(mk); else ws[nb].mks.unshift(mk);
-        }
-        var n = bdNorm(cp(ws), natOf);
-        if (bdSig(n, natOf) !== before) res = n;
-      }
-      if (!res) return;
-    }
+    // ההזזה עצמה — LCDeck.boardMove (deck-board.js): הסדר החדש של הפסים והקווים, או null כשאין מה להזיז
+    var plan = LCDeck.boardMove(bdOrderNow(), sel, dir); if (!plan) return;
+    var res = plan.bs, natOf = plan.natOf, mk0 = plan.mk0;
     // ED.bmb: מק"ט → הפס שאליו הועבר (בלי — כשזה הפס המקורי שלו)
     var mb = Object.assign({}, edits.bmb || {});
     res.forEach(function (H) { H.mks.forEach(function (m) { if (natOf[m] === H.bk) delete mb[m]; else mb[m] = H.bk; }); });

@@ -739,6 +739,8 @@ async function main() {
       const segOf = (sq, ln) => { let h = ''; for (const x of sq) { if (x.startsWith('[')) h = x; else if (x === ln) return h; } return null; };
       if (!/ירושלים/.test(segOf(g.move.up, '982') || '')) problems.push(key + ': 982 שהועבר לפס של רמת גן לא קיבל פס עם היעד שלו');
       const dupHead = (sq) => sq.some((x, i) => x.startsWith('[') && i && sq[i - 1].startsWith('['));
+      // 989 לבד בפס של נתניה — ↑ מדלג על כל הפס של ירושלים (992 993), ולא נכנס לאמצעו
+      { const u = g.move.up2, i9 = u.indexOf('989'); if (!(i9 >= 0 && u[i9 - 1] === '[צפת – נתניה]' && u.slice(i9 + 1, i9 + 4).join(' ') === '[צפת – ירושלים] 992 993')) problems.push(key + ': ↑ על 989 (לבד בפס שלו) לא דילג על כל הפס של ירושלים — ' + u.join(' ')); }
       [g.move.up, g.move.up2].forEach((sq) => { if (dupHead(sq)) problems.push(key + ': פס ריק (שתי כותרות צמודות) — ' + sq.join(' ')); });
       // E. הפס של קו שהועבר (989, "צפת – נתניה" בתוך ירושלים) — ↓ על שורת הפס מזיז אותו בתוך הפס של ירושלים, אחרי 993
       await pg.click('#editbtn', { force: true }); await pg.waitForTimeout(500);

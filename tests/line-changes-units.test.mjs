@@ -215,6 +215,36 @@ test('ידני: קו שהועבר לפס של יעד אחר (bmb) מקבל שם 
   assert.ok(seq(ctx.LCDeck.boardModel(ps(), { ...o, bord: 'add', bmb: { 14384: tlv.bk } })).includes('לוד – בני ברק: 384'));
 });
 
+test('הזזה בסדר ידני (boardMove): קו לבד בפס משלו מדלג על פס שלם; קו שחולק פס — מתחלף עם השכן, ובקצה עובר לפס הסמוך בפס משלו', () => {
+  // רמת גן: 1 2 3 · ירושלים: 4 5 · נתניה: 6 (מק"ט → הפס המקורי)
+  const NAT = { 1: 'RG', 2: 'RG', 3: 'RG', 4: 'J', 5: 'J', 6: 'N' };
+  const H = (bk, mks) => ({ k: bk, bk, mks, nat: Object.fromEntries(mks.map((m) => [m, NAT[m]])), segs: [{ k: bk, mks, mv: false, lk: bk }] });
+  const view = (bs) => { const o = []; let last = null; bs.forEach((h) => h.mks.forEach((m) => { if (NAT[m] !== last) o.push('[' + (last = NAT[m]) + ']'); o.push(m); })); return o.join(' '); };
+  const mv = (bs, mk, dir) => { const p = ctx.LCDeck.boardMove(bs, { mk }, dir); return p && J(p.bs).map((h) => ({ ...h, nat: Object.fromEntries(h.mks.map((m) => [m, NAT[m]])), segs: [{ k: h.k, mks: h.mks, mv: false, lk: h.bk }] })); };
+  const B0 = [H('RG', ['1', '2', '3']), H('J', ['4', '5']), H('N', ['6'])];
+  // 6 לבד בפס של נתניה: ↑ — מעל כל הפס של ירושלים (לא לאמצע), ↑ שוב — מעל רמת גן
+  const a = mv(B0, '6', -1);
+  assert.equal(view(a), '[RG] 1 2 3 [N] 6 [J] 4 5');
+  const b = mv(a, '6', -1);
+  assert.equal(view(b), '[N] 6 [RG] 1 2 3 [J] 4 5');
+  assert.equal(mv(b, '6', -1), null, 'בראש הלוח — אין לאן');
+  assert.equal(view(mv(b, '6', 1)), '[RG] 1 2 3 [N] 6 [J] 4 5');
+  // 4 חולק את הפס עם 5: ↑ בראש הפס — מתחלף עם 3 (הקו האחרון של רמת גן), בפס משלו עם היעד שלו
+  const c = mv(B0, '4', -1);
+  assert.equal(view(c), '[RG] 1 2 [J] 4 [RG] 3 [J] 5 [N] 6');
+  // ↑ שוב — לבד: מדלג על כל החלק שמעליו (1 2), ולא נכנס לאמצע
+  const d = mv(c, '4', -1);
+  assert.equal(view(d), '[J] 4 [RG] 1 2 3 [J] 5 [N] 6');
+  // ↓ על 4 שלבד — מדלג על כל רמת גן, ומתאחד עם 5 (בלי שתי כותרות זהות צמודות)
+  const e = mv(d, '4', 1);
+  assert.equal(view(e), '[RG] 1 2 3 [J] 4 5 [N] 6');
+  // קו בתוך פס — מתחלף עם השכן
+  assert.equal(view(mv(B0, '2', -1)), '[RG] 2 1 3 [J] 4 5 [N] 6');
+  // פס: מתחלף עם הפס הסמוך
+  const f = ctx.LCDeck.boardMove(B0, { band: 'N' }, -1);
+  assert.equal(view(J(f.bs)), '[RG] 1 2 3 [N] 6 [J] 4 5');
+});
+
 test('מתחת למוצא (bstop): הכל — התחנה והכיוון; רק כיוון — בלי התחנה; כלום — רק המוצא (גם בלוח של הודעה על שינוי)', () => {
   const rowsOf = (bstop) => ctx.LCDeck.boardModel([ttPage('36011'), ttPage('11464')], { ltype: LINES_FX.lt, bstop }).bands.flatMap((b) => b.rows);
   const all = rowsOf(), dir = rowsOf('dir'), none = rowsOf('none');
