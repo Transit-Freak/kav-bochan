@@ -119,7 +119,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .grp-h{font-family:var(--f-head);font-weight:800;font-size:13.5px;color:var(--sub);background:var(--card2);padding:var(--sp2) var(--sp4);border-top:1px solid var(--line);position:sticky;top:0;z-index:1}
 .grp-h:first-child{border-top:none}
 .grp-h span{font-family:var(--f-body);font-weight:600}
-.res{display:flex;align-items:center;gap:var(--sp3);min-height:64px;padding:var(--sp2) var(--sp4);border:none;border-top:1px solid var(--line2);background:var(--card);color:var(--fg);text-align:right;cursor:pointer;min-width:0;width:100%}
+.res{text-decoration:none;display:flex;align-items:center;gap:var(--sp3);min-height:64px;padding:var(--sp2) var(--sp4);border:none;border-top:1px solid var(--line2);background:var(--card);color:var(--fg);text-align:right;cursor:pointer;min-width:0;width:100%}
 .res:first-child,.grp-h + .res{border-top:none}
 .res:hover{background:var(--card2)}
 .badge{font-family:var(--f-head);font-weight:900;background:var(--after);color:var(--on-after);border-radius:10px;padding:5px 8px;font-size:17px;min-width:50px;text-align:center;flex:none;font-variant-numeric:tabular-nums;line-height:1.2}
@@ -144,7 +144,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .linehead b{font-size:18px}
 .linehead .t span{font-size:14px;color:var(--sub)}
 .cards{display:flex;flex-direction:column;gap:var(--sp3)}
-.ccard{display:flex;align-items:center;gap:var(--sp3);text-align:right;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r2);padding:var(--sp4) var(--sp4) calc(var(--sp4) + 3px);cursor:pointer;width:100%;position:relative;overflow:hidden;min-height:84px}
+.ccard{text-decoration:none;color:var(--fg);display:flex;align-items:center;gap:var(--sp3);text-align:right;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r2);padding:var(--sp4) var(--sp4) calc(var(--sp4) + 3px);cursor:pointer;width:100%;position:relative;overflow:hidden;min-height:84px}
 .ccard::before{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:linear-gradient(to left,var(--before) 0 50%,var(--new) 50%)}
 .ccard.past::before{background:repeating-linear-gradient(to left,var(--sub) 0 8px,transparent 8px 13px)}
 .ccard:hover{border-color:var(--after);background:var(--card2)}
