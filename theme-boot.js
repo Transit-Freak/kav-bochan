@@ -181,3 +181,27 @@
     },
   };
 })();
+
+/* "אתר מותאם למחשב" בטלפון (שלמה 20.11): Chrome בטלפון מחליף את זהות הדפדפן למחשב, אבל בדפים שעוברים
+   בין מסכים בתוך הדף (history.pushState — למשל צי הרכבים) הוא לא תמיד מרחיב את רוחב הדף. אז כשטלפון
+   מזדהה כמחשב (בלי "Mobile"/"Android" בזהות הדפדפן, מסך מגע צר) — הדף מרחיב את עצמו לרוחב מחשב. כשמכבים
+   את מצב המחשב הזהות חוזרת לטלפון והדף נשאר ברוחב הטלפון. iPad (מסך רחב מ-600) — לא נוגעים */
+(function () {
+  "use strict";
+  try {
+    var ua = navigator.userAgent || "", sw = Math.min(screen.width || 0, screen.height || 0);
+    if (/Mobi|Android|iPhone|iPod|iPad/i.test(ua) || !(navigator.maxTouchPoints > 0) || !sw || sw >= 600) return;
+    var WIDE = "width=1200";
+    var fix = function () {
+      var m = document.querySelector('meta[name="viewport"]');
+      if (m && m.getAttribute("content") !== WIDE) m.setAttribute("content", WIDE);
+      return !!m;
+    };
+    document.documentElement.classList.add("kb-desk-on-phone");
+    if (fix()) return;
+    // הסקריפט נטען לפני תגית ה-viewport: מתקנים ברגע שהיא נוספת, לפני הציור הראשון
+    var mo = new MutationObserver(function () { if (fix()) mo.disconnect(); });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("DOMContentLoaded", function () { fix(); mo.disconnect(); });
+  } catch (e) { /* דפדפן ישן */ }
+})();

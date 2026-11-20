@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script src="../theme-boot.js?v=20261119"></script>
+<script src="../theme-boot.js?v=20261120"></script>
 <link rel="stylesheet" href="../dark/fleet.css?v=20261120">
 <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="../nav-restore.js"></script><script src="../home-link.js"></script>
@@ -328,13 +328,13 @@
     <a class="mode" data-m="suspect" href="#m=suspect" hidden>נתונים חשודים</a>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. "נתונים חשודים" מרכז סתירות וערכים מוזרים במאגרים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 34 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. "נתונים חשודים" מרכז סתירות וערכים מוזרים במאגרים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 35 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
 <script src="moves.js?v=25"></script>
 <script>
-window.FLEET_BUILD='25';
+window.FLEET_BUILD='26';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -2216,8 +2216,12 @@ document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',e=>{
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;LIMIT=200;render();suggest();});
 
+// מאגר ציי הרכב יורד במקביל, והמסך הראשון מחכה לו: בלעדיו "רכבי קבלן", "ירדו" ו"פעילים" נספרים לפי סוג
+// הרישוי בלבד, ואחרי שנייה המספרים קפצו (שלמה 20.11: "954 קבלנים ושנייה אחרי 1,062")
+const OFCP=loadOfficial();
 fetch('data/fleet.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.status===404};return r.json();})
-.then(d=>{d.operators=d.operators.filter(o=>![2,20,21].includes(o.ref)&&!/^מפעיל \d+$/.test(o.name));DATA=d;OFF=d.v===2?1:0;buildX();applyHash();render();
+.then(async d=>{d.operators=d.operators.filter(o=>![2,20,21].includes(o.ref)&&!/^מפעיל \d+$/.test(o.name));DATA=d;OFF=d.v===2?1:0;buildX();
+  await OFCP;buildOfficial();applyHash();render();
   Promise.all([loadKM(),loadArmor(),loadOfficial(),loadGaps(),loadPhotos(),loadBitul()]).then(()=>{buildKm();buildArmor();buildOfficial();buildGaps();buildBitul();render();});})
 .catch(e=>{
   // תקלת רשת אינה "אין נתונים" — ההודעה הקודמת הטעתה גולש בלי קליטה
