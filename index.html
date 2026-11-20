@@ -38,10 +38,10 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=26b3c7bc4a" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=10c04640c3" />
 <!-- דף הבית החדש (העין הבוחנת) ומראה הכלים קו פח והקו המוזהב — home/ -->
-<link rel="stylesheet" href="home/home.css?v=f25cae859f" />
-<link rel="preload" as="script" href="home/home.js?v=f25cae859f" />
+<link rel="stylesheet" href="home/home.css?v=dbf56ec99b" />
+<link rel="preload" as="script" href="home/home.js?v=dbf56ec99b" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -155,7 +155,7 @@
     </div>
   </div>
   <!-- הסמלים, העין והגרסאות של דף הבית — לפני React, כדי שהדף הסטטי יעבוד מיד -->
-  <script src="home/home.js?v=f25cae859f"></script>
+  <script src="home/home.js?v=dbf56ec99b"></script>
   <script>try { KBH.mount(document.querySelector('#static-choice .kbh')); } catch (e) {}</script>
   <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
        שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
@@ -198,14 +198,14 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=26b3c7bc4a';
+      core.src = 'kavpach-core.js?v=10c04640c3';
       // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
       // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
       core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
       sc.async = false;
-      sc.src = 'KavPach.js?v=26b3c7bc4a';
+      sc.src = 'KavPach.js?v=10c04640c3';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);
