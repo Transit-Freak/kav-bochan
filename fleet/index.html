@@ -1306,7 +1306,7 @@ function opView(ref){
     <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · עדכון ${fd(DATA.updated)}</div></div>
     <div class="pills"><span>${fmt(act)} פעילים</span>${ret-kabR?`<span class="r">${fmt(ret-kabR)} ירדו מהשירות</span>`:''}${mvd?`<span title="רכבים שנסעו בחברה ועכשיו פעילים בחברה אחרת">${fmt(mvd)} עברו לחברה אחרת</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kabR?` · ${fmt(kabR)} ירדו`:''}</span>`:''}</div>
   </div>`;
-  const filtH=`  ${Object.keys(types).length?`<div class="panel chips"><p class="ptitle">לפי סוג רכב</p>
+  const filtH=`  ${Object.keys(types).length?`<div class="panel chips"><p class="ptitle">לפי סוג רישוי</p>
     <div class="types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([t,c])=>
       `<button class="type ${TYPEF===t?'on':''}" onclick="TYPEF=TYPEF===${JSON.stringify(t).replace(/"/g,'&quot;')}?null:${JSON.stringify(t).replace(/"/g,'&quot;')};LIMIT=200;render()"><b>${fmt(c)}</b><span>${esc(t)}</span></button>`).join('')}${armInTypes}${elCards}</div>${ofCards}</div>`:''}`;
   const yrsH=`  ${yk.length?`<div class="panel"><p class="ptitle">כמה רכבים מכל שנתון — וכמה מהם ${YEARF?`היו בשימוש בשנת ${YEARF}`:'פעילים בפועל'}</p>
@@ -1362,7 +1362,7 @@ function srt(k){if(SORTK===k)SORTD*=-1;else{SORTK=k;SORTD=-1;}render();}
 const LBL={mispar_rechev:'מספר רכב',tozeret_nm:'יצרן',tozeret_cd:'קוד יצרן',degem_nm:'דגם',
   degem_cd:'קוד דגם',kinuy_mishari:'כינוי מסחרי',shnat_yitzur:'שנת ייצור',tzeva_rechev:'צבע',
   tzeva_cd:'קוד צבע',sug_delek_nm:'סוג דלק',mispar_moshavim:'מספר מושבים',tokef_dt:'תוקף רישיון',
-  moed_aliya_lakvish:'עלייה לכביש',sug_rechev_nm:'סוג רכב',sug_rechev_cd:'קוד סוג רכב',
+  moed_aliya_lakvish:'עלייה לכביש',sug_rechev_nm:'סוג רישוי',sug_rechev_cd:'קוד סוג רישוי',
   baalut:'בעלות',misgeret:'מספר שלדה',mishkal_kolel:'משקל כולל (ק"ג)',gova:'גובה (ס"מ)',
   mispar_dlatot:'מספר דלתות',kvutzat_zihum:'קבוצת זיהום',ramat_gimur:'רמת גימור',
   mivchan_acharon_dt:'טסט אחרון',degem_manoa:'דגם מנוע',nefach_manoa:'נפח מנוע (סמ"ק)',
@@ -1624,7 +1624,7 @@ async function showV(plate){
     const km=(KM&&KM.km)?KM.km[o2.ref+':'+plate]:null;if(km&&km[1]!=null){kmT+=km[1];kmAny=true;}
     const dd=DAYS&&DAYS.d?DAYS.d[o2.ref+':'+v2[0]]:null;if(dd){dT+=dd[0];dAny=true;}
   }
-  const gen=[['יצרן',G.tozeret_nm],['דגם',G.degem_nm||G.kinuy_mishari||gM(fv)],['שנת ייצור',yr],['סוג רכב',typ],['מושבים',seats],
+  const gen=[['יצרן',G.tozeret_nm],['דגם',G.degem_nm||G.kinuy_mishari||gM(fv)],['שנת ייצור',yr],['סוג רישוי',typ],['מושבים',seats],
     ['צבע',G.tzeva_rechev],['משקל כולל',G.mishkal_kolel?fmt(+G.mishkal_kolel)+' ק"ג':''],
     ['רישיון בתוקף עד',G.tokef_dt&&!sofi?licenseHTML(gov):''],['ק"מ שנמדדו (משוער)',kmAny?'כ-'+fmt(kmT):''],['ימי פעילות שנמדדו',dAny?fmt(dT):''],['בוטל סופית',sofi?fd(sofi)+' (לפי המאגר הממשלתי)':'']]
     .filter(r=>r[1]!=null&&r[1]!=='').map(([k,v])=>`<div class="k">${k}</div><div class="v2">${k==='רישיון בתוקף עד'?v:esc(String(v))}</div>`).join('');
