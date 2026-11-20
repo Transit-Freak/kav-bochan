@@ -2128,7 +2128,10 @@ function KavPach() {
       setHashTab(tab);
     };
     window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    // "קודם"/"הבא" בין "/" ל-"/?#פח" (ה-"?" הריק ש-nav-restore.js מוסיף בשביל "אתר מותאם למחשב" בטלפון):
+    // הכתובות שונות גם לפני ה-#, ואז הדפדפן שולח רק popstate בלי hashchange (שלמה 20.11)
+    window.addEventListener('popstate', onHash);
+    return () => { window.removeEventListener('hashchange', onHash); window.removeEventListener('popstate', onHash); };
   }, []);
 
   const [trips, setTrips] = useState([]);

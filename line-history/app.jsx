@@ -29,10 +29,32 @@ const BUILD = "197-estimated-website-maps";
     const push0 = history.pushState.bind(history), rep0 = history.replaceState.bind(history);
     // קישור עם #: "?" ריק לפני ה-# — אחרת כרום מחליף לגרסת מחשב בלי טעינה וחוזר לנייד (כמו ב-nav-restore.js, שלמה 30.10)
     if (location.hash && !location.href.includes("?")) rep0(history.state, "", location.pathname + "?" + location.hash);
-    history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
-    history.replaceState = function (st, t, u) { rep0(st, t, u); save(); };
-    window.addEventListener("popstate", save);
-    window.addEventListener("hashchange", () => { note(); save(); });
+    // אותו דבר בכל מעבר בתוך הדף (שלמה 20.11, כמו ב-nav-restore.js): כתובת ששונה מהדף רק אחרי ה-# (קו פתוח,
+    // לשונית) — "אתר למחשב" טוען אותה מחדש עם זהות של טלפון, והדף נשאר צר. "?" ריק לפני ה-# בכל כתובת
+    // שהכלי כותב (pushState / replaceState / קישור #) הופך את המעבר לטעינה אמיתית במצב מחשב
+    const q = (u) => {
+      if (u == null) return u;
+      try {
+        const a = new URL(String(u), location.href);
+        if (a.hash && a.origin === location.origin && !a.href.split("#")[0].includes("?")) return a.pathname + "?" + a.hash;
+      } catch (e) { /* ignore */ }
+      return u;
+    };
+    history.pushState = function (st, t, u) { push0(st, t, q(u)); last = location.href; note(); save(); };
+    history.replaceState = function (st, t, u) { rep0(st, t, q(u)); last = location.href; save(); };
+    // "קודם"/"הבא" בין כתובת בלי "?" (הכניסה לדף) לכתובת עם "?#…": הדפדפן שולח רק popstate, בלי hashchange,
+    // כי הכתובות שונות גם לפני ה-#. הקוד שמקשיב ל-hashchange (קישורי #) מקבל אותו מכאן, אחרי ה-popstate
+    let last = location.href;
+    window.addEventListener("popstate", () => {
+      const prev = last, cur = location.href; last = cur; save();
+      const a = prev.split("#"), b = cur.split("#");
+      if (a[0] !== b[0] && (a[1] || "") !== (b[1] || ""))
+        setTimeout(() => { if (location.href === cur) window.dispatchEvent(new HashChangeEvent("hashchange", { oldURL: prev, newURL: cur })); }, 0);
+    });
+    window.addEventListener("hashchange", () => {
+      if (location.href.includes("#") && !location.href.split("#")[0].includes("?")) rep0(history.state, "", location.pathname + "?" + location.hash);
+      last = location.href; note(); save();
+    });
     save();
   } catch (e) { /* ignore */ }
 })();
