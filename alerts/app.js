@@ -475,6 +475,8 @@
     window.addEventListener("hashchange", function () {
       var k = ""; try { k = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { k = ""; }
       if (k && k !== sel) open(k, false);
+      // "אחורה" לכתובת בלי התראה — חוזרים לרשימה (בטלפון הכרטיס נשאר פתוח מעל הרשימה)
+      else if (!k && sel && document.body.classList.contains("sel") && $("back").onclick) $("back").onclick();
     });
     if (h) open(h, false);
     // במחשב: בלי התראה בקישור — הראשונה ברשימה נפתחת, במקום חלון ריק ליד הרשימה
