@@ -10,6 +10,20 @@
 var W = typeof window !== 'undefined' ? window : globalThis;
 if (W.KBH) return;
 
+/* "אתר מותאם למחשב" בטלפון (שלמה 20.11): דף הבית עובר לקו פח ולקו המוזהב בתוך הדף (‎#פח‎), וכתובת ששונה
+   מהדף רק אחרי ה-# נטענת בכרום עם זהות של טלפון. nav-restore.js (המשותף לכל הכלים) מוסיף "?" ריק לפני
+   ה-# ומשחזר את המסך האחרון. index.html נבנה אוטומטית, אז הוא נטען מכאן — בזמן קריאת הדף, כדי שירוץ
+   לפני KavPach.js (שקורא את הכתובת ומשנה אותה) */
+try {
+  var D = W.document, cs = D && D.currentScript, src = cs && cs.src || '';
+  if (D && !W.__kbNavRestore && /home\/home\.js/.test(src)) {
+    W.__kbNavRestore = 1;
+    var nr = src.replace(/home\/home\.js.*$/, 'nav-restore.js?v=20261120');
+    if (D.readyState === 'loading' && !cs.async && !cs.defer) D.write('<script src="' + nr + '"><\/script>');
+    else { var ns = D.createElement('script'); ns.src = nr; ns.async = false; D.head.appendChild(ns); }
+  }
+} catch (e) { }
+
 /* ===== העין הבוחנת ===== */
 function eye(id,stat){const E='M14 60 Q60 20 106 60 Q60 100 14 60 Z',HL='<circle cx="66" cy="54" r="3.5" fill="#fff"/>';
   const defs=`<defs><linearGradient id="kb-eye-bg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient><radialGradient id="kb-eye-ir-${id}" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".6" stop-color="#0ea5e9"/><stop offset="1" stop-color="#0369a1"/></radialGradient><clipPath id="kb-eye-clip-${id}"><path d="${E}"/></clipPath></defs>`;
