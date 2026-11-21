@@ -4,7 +4,7 @@
 // כסף נכנס בכל נסיעה (פעם אחת, גם עם מעבר) ומהסבסוד לכל ק"מ בשירות, ויוצא על ק"מ, שעות נהג וליסינג (fleet.js).
 // הנוסעים באים ממודל הביקוש (demand.js): לכל אחד מוצא ויעד, ומסלול של קו אחד עד שלושה קווים.
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
-import { Network, inHours, lineTimes } from './demand.js';
+import { Network, inHours, hoursOf, lineTimes } from './demand.js';
 import { Ops, ROLE } from './ops.js';
 import { DRIVER_WAGE } from './sched.js';
 export const BUS = {
@@ -68,7 +68,7 @@ export class Sim {
   }
   // תדירות בפועל (שנ'): ממוצע הפערים בין היציאות האחרונות, ואם מחכים עכשיו לרכב יותר מזה — ההמתנה הנוכחית
   realHeadway(L) {
-    const d = L.dispatches; if (!d.length) return null;
+    const d = L.dispatches; if (!d.length || L.off) return null;
     let avg = null;
     if (d.length >= 2) { const k = Math.min(4, d.length - 1); avg = (d[d.length - 1] - d[d.length - 1 - k]) / k; }
     const since = this.time - d[d.length - 1];
@@ -120,7 +120,7 @@ export class Sim {
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
     this.roster?.ensure(); this.roster?.pay(h);
-    this.bank?.accrue(this.lines, h);
+    this.bank?.accrue(this.lines, h, L => { if (!inHours(L.def, this.time)) return 0; const [a, b] = hoursOf(L.def), span = a < b ? b - a : 1440 - a + b; return 1440 / span; });
     this.ops.tick(h); this.ops.spawnInspectors(h);
     if (this.demand) this.spawn(h);
     // מי שסיים ללכת לקו הבא (מעבר) נכנס לתור
@@ -153,7 +153,8 @@ export class Sim {
       // יציאה מהמסוף — רק אם יש רכב פנוי. אין: היציאה מחכה, ויוצאת ברגע שרכב חוזר
       const hw = L.def.headway * 60;
       L.short = false;
-      L.off = !inHours(L.def, this.time);
+      // הקו נסגר (סוף השעות): התדירות "בפועל" נמדדת מחדש מהיציאה הראשונה של הפעם הבאה — בלי הפער של הלילה
+      const wasOff = L.off; L.off = !inHours(L.def, this.time); if (L.off && !wasOff) L.dispatches.length = 0;
       // מחוץ לשעות הפעילות לא יוצאים; כשהקו נפתח — היציאה הראשונה מיד, בלי "להשלים" את מה שהיה בלילה
       if (this.roster?.managed(L)) this.dispatchSched(L);
       else if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);

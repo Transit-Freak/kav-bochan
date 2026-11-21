@@ -2,7 +2,7 @@
  "mini": {
   "file": "bus_mini.glb",
   "tris": 41296,
-  "bytes": 2355412,
+  "bytes": 2355456,
   "type": "mini",
   "length": 8.79,
   "width": 2.55,
@@ -27,6 +27,7 @@
     "anchor": "Anchor_DoorFront"
    }
   ],
+  "validatorKind": "portrait",
   "validators": [
    {
     "name": "Validator_Front",
@@ -35,7 +36,8 @@
      -0.42,
      1.91,
      4.56
-    ]
+    ],
+    "kind": "portrait"
    }
   ],
   "wheelchair": {
@@ -461,8 +463,8 @@
  },
  "artic": {
   "file": "bus_artic.glb",
-  "tris": 87290,
-  "bytes": 4168324,
+  "tris": 87752,
+  "bytes": 4133736,
   "type": "artic",
   "length": 17.96,
   "width": 2.55,
@@ -508,15 +510,17 @@
     ]
    }
   ],
+  "validatorKind": "landscape",
   "validators": [
    {
     "name": "Validator_Front",
     "door": "Front",
     "p": [
      -0.42,
-     1.91,
-     4.56
+     1.88,
+     4.65
     ],
+    "kind": "landscape",
     "section": "front"
    },
    {
@@ -524,9 +528,10 @@
     "door": "Mid",
     "p": [
      -0.42,
-     1.91,
-     0.81
+     1.88,
+     0.9
     ],
+    "kind": "landscape",
     "section": "front"
    },
    {
@@ -537,6 +542,7 @@
      1.88,
      -0.55
     ],
+    "kind": "landscape",
     "section": "front"
    },
    {
@@ -544,9 +550,10 @@
     "door": "Rear",
     "p": [
      -0.42,
-     1.91,
-     -4.97
+     1.88,
+     -4.88
     ],
+    "kind": "landscape",
     "section": "rear"
    },
    {
@@ -557,6 +564,7 @@
      1.88,
      -6.33
     ],
+    "kind": "landscape",
     "section": "rear"
    }
   ],
@@ -1596,8 +1604,8 @@
  },
  "elec": {
   "file": "bus_elec.glb",
-  "tris": 59510,
-  "bytes": 2969876,
+  "tris": 59818,
+  "bytes": 2931724,
   "type": "elec",
   "length": 12.19,
   "width": 2.55,
@@ -1623,24 +1631,27 @@
     "anchor": "Anchor_DoorMid"
    }
   ],
+  "validatorKind": "landscape",
   "validators": [
    {
     "name": "Validator_Front",
     "door": "Front",
     "p": [
      -0.42,
-     1.91,
-     4.56
-    ]
+     1.88,
+     4.65
+    ],
+    "kind": "landscape"
    },
    {
     "name": "Validator_Mid",
     "door": "Mid",
     "p": [
      -0.42,
-     1.91,
-     0.81
-    ]
+     1.88,
+     0.9
+    ],
+    "kind": "landscape"
    },
    {
     "name": "Validator_Mid2",
@@ -1649,7 +1660,8 @@
      -0.42,
      1.88,
      -0.55
-    ]
+    ],
+    "kind": "landscape"
    }
   ],
   "seats": [

@@ -18,9 +18,12 @@ export const TYPES = {
   mini:  { name: 'מיניבוס', cap: 20, price: 3_000, lease: 300, km: 2.0, hour: 90, tint: 0xf6c453 },
   std:   { name: 'אוטובוס רגיל', cap: 80, price: 6_000, lease: 600, km: 3.5, hour: 100, tint: null },
   artic: { name: 'מפרקי', cap: 120, price: 10_000, lease: 1_000, km: 5.0, hour: 110, tint: 0xf08a8a },
+  // בין-עירוני: אותו גוף של 12 מ', בפנים מושבי נוסעים גבוהים 2+2 לכל האורך (coach.js). כולם יושבים — אין עמידה,
+  // ולכן המקומות = מספר המושבים בפנים (COACH_SEATS ב-coach.js)
+  coach: { name: 'בין-עירוני', cap: 42, price: 8_000, lease: 800, km: 3.0, hour: 100, tint: 0x8fb3d9, seated: true, hint: 'מושבים נוחים, כולם יושבים — מתאים לקווים ארוכים' },
   elec:  { name: 'חשמלי', cap: 80, price: 7_500, lease: 750, km: 0.8, hour: 100, tint: 0x7fd99a },
 };
-export const TYPE_ORDER = ['mini', 'std', 'artic', 'elec'];
+export const TYPE_ORDER = ['mini', 'std', 'artic', 'coach', 'elec'];
 // מחירי הרכבים לפי רמת הקושי (קל ×0.7): משנים את TYPES במקום, מהמחירים הבסיסיים
 const BASE = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, { price: v.price, lease: v.lease }]));
 export function applyPrices(mode) {
@@ -59,8 +62,9 @@ export const isLease = def => !!def?.lease;
 // כמה מקבלים על הרכבים של קו (מחיקה): קנויים — 60%, ליסינג — כלום
 export const fleetValue = def => isLease(def) || !def?.fleet ? 0 : Math.round(def.fleet * TYPES[typeOf(def)].price * SELL_BACK);
 
-const KEY = 'busgame.kiryat-malachi.money.v1';
-export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
+import { cityKey } from './cityconf.js';
+const KEY = cityKey('money.v1');           // לכל עיר קופה ושעון משלה (קריית מלאכי: busgame.kiryat-malachi.money.v1, כמו תמיד)
+export const emptyDay = day => ({ day, idle: 0, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
 
 export class Bank {
   constructor(save, time) {
@@ -111,18 +115,21 @@ export class Bank {
     this.money += a; this.today.subsidy += a;
     const l = this.line(lineId); l.subsidy = (l.subsidy || 0) + a;
   }
-  // דמי ליסינג, ברציפות לפי זמן המשחק (גם בלילה וגם כשהקו לא פועל)
-  accrue(lines, sec) {
+  // דמי ליסינג: אותו סכום ליום, אבל נרשם על הקו רק בשעות הפעילות שלו (share(L): 0 מחוץ לשעות, ובשעות — 24 חלקי מספר
+  // שעות הפעילות), כדי שקו שלא פועל לא "יפסיד" בלילה. בלי share — ברציפות כל היממה
+  accrue(lines, sec, share = null) {
     for (const L of lines) {
       const d = L.def;
       if (L.retired || !d.lease || !d.fleet) continue;
-      this.spend('lease', d.fleet * TYPES[typeOf(d)].lease * sec / DAY, L.id);
+      const k = share ? share(L) : 1; if (!k) continue;
+      this.spend('lease', d.fleet * TYPES[typeOf(d)].lease * sec * k / DAY, L.id);
     }
   }
   // cat: km | drivers | lease | buy | hire (גיוס נהגים)
   spend(cat, amount, lineId) {
     this.money -= amount; this.today[cat] += amount;
     if (lineId && cat !== 'buy' && cat !== 'hire') this.line(lineId).cost += amount;
+    else if (cat === 'drivers') this.today.idle = (this.today.idle || 0) + amount;      // נהגים בין נסיעות, כשאף קו שלהם לא פועל
   }
   refund(amount) { this.money += amount; this.today.sell += amount; }
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }

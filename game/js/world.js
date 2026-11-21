@@ -5,8 +5,11 @@
 // השכבות מצוירות לפי הסדר בתוך הרשת, בלי כתיבה לעומק (depthWrite: false) ולפני כל השאר (renderOrder שלילי),
 // כך שאין הבהוב בין שכבות קרובות. הבניינים — רשת אחת, קווי הגג — אחת, דודי השמש — InstancedMesh אחד,
 // העצים — InstancedMesh לגזע ולנוף בכל משבצת של 800 מ' (כדי שמה שמחוץ למסך לא יצויר).
+// מסילת הרכבת (מצע חצץ ושתי מסילות) — שכבות בתוך רשת הקרקע, לפני הרחובות (כך שכביש שחוצה אותה, או גשר מעליה, מצויר מעליה);
+// הרציפים — רשת אחת נמוכה; שם התחנה — שלט קטן אחד.
 import * as THREE from 'three';
 import { keep } from './texkeep.js';
+import { labelSprite } from './lines.js';
 
 // נקודה בעולם (x מזרחה, y צפונה, במטרים) ← וקטור של three (Y למעלה, ‎-Z צפונה)
 export const V = (x, y, h = 0) => new THREE.Vector3(x, h, -y);
@@ -29,6 +32,9 @@ export function parseCity(c) {
   city.patches = (c.patches || []).map(p => pairs(p, 0, d));
   city.trees = c.trees || [];
   city.solar = c.solar || [];
+  city.rail = (c.rail || []).map(r => pairs(r, 0, d));
+  city.platforms = (c.platforms || []).map(p => pairs(p, 0, d));
+  city.railStations = c.rail_stations || [];
   const n = c.graph.nodes;
   city.nodes = new Float32Array(n.length);
   for (let i = 0; i < n.length; i++) city.nodes[i] = n[i] / 10;
@@ -55,6 +61,7 @@ const AREA_STYLE = {
 };
 // רחובות לפי סוג (rinfo ב-city.json): 0 שירות, 1 מקומי, 2 עורק (tertiary), 3 ראשי, 4 שביל, 5 דרך עפר
 const ASPH = [0xaeaba7, 0xa29f9b, 0x989591, 0x8b8987];
+const RAIL_BED = 0x857e74, RAIL_STEEL = 0x4f5054, PLATFORM = 0xd9d6cf, PLATFORM_SIDE = 0xa9a59c;
 const CASING = 0xe2ddd1, CASING_M = 0xd9d3c6, KERB = 0xc0bbb0, FOOT = 0xf3eee2, TRACK = 0xd3c4a0, MARK = 0xf4f4f0;
 // קירות: טיח ואבן בגוונים חמים מעט שונים; גגות: אפור (0-4), רעפים (5-7), פח בהיר (8)
 const WALLS = [0xfbf8f1, 0xf7f0e2, 0xfdfbf6, 0xf3e7d0, 0xf8eedb, 0xeeebe4, 0xf9ecd8, 0xe8e2d6];
@@ -104,6 +111,8 @@ export function buildWorld(scene, city, opts = {}) {
   group.add(...buildingMeshes(city));
   if (city.solar.length) group.add(solarMesh(city));
   if (opts.trees !== false) group.add(trees(city));
+  if (city.platforms.length) group.add(platformMesh(city));
+  for (const st of city.railStations) group.add(stationSign(st));
   return group;
 }
 
@@ -131,6 +140,12 @@ function groundMesh(city) {
         for (const v of ccw ? [p, q, r] : [p, r, q]) L.pos.push(v[0], 0, -v[1]);
       }
     }
+  }
+  // מסילת הרכבת: מצע חצץ כהה ושתי מסילות אפורות (רוחב 1.435 מ'), מתחת לשבילים ולרחובות
+  if (city.rail.length) {
+    const bed = layer(RAIL_BED), steel = layer(RAIL_STEEL);
+    for (const r of city.rail) ribbon(bed.pos, r, 3.4);
+    for (const r of city.rail) { const N = miterNormals(r); for (const s of [-0.72, 0.72]) ribbon(steel.pos, r.map((p, i) => [p[0] + N[i][0] * s, p[1] + N[i][1] * s]), 0.16); }
   }
   const track = layer(TRACK), foot = layer(FOOT), casM = layer(CASING_M), cas = layer(CASING), kerb = layer(KERB);
   const asph = ASPH.map(c => layer(c)), mark = layer(MARK);
@@ -165,12 +180,12 @@ function groundMesh(city) {
   m.name = 'ground'; m.receiveShadow = true; m.renderOrder = -10; m.frustumCulled = false;
   return m;
 }
-function polyTris(out, pts) {
+function polyTris(out, pts, h = 0) {
   let tris; try { tris = THREE.ShapeUtils.triangulateShape(pts.map(([x, y]) => new THREE.Vector2(x, y)), []); } catch { return; }
   for (const t of tris) {
     const [p, q, r] = t.map(i => pts[i]);
     const ccw = (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]) > 0;
-    for (const v of ccw ? [p, q, r] : [p, r, q]) out.push(v[0], 0, -v[1]);
+    for (const v of ccw ? [p, q, r] : [p, r, q]) out.push(v[0], h, -v[1]);
   }
 }
 
@@ -279,6 +294,37 @@ function buildingMeshes(city) {
   const ln = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x9d968a, transparent: true, opacity: 0.5 }));
   ln.name = 'roof-edges';
   return [m, ln];
+}
+
+// ---------- רציפי רכבת: לוח נמוך (0.9 מ') בהיר, דפנות כהות יותר — רשת אחת לכל הרציפים
+function platformMesh(city) {
+  const pos = [], col = [], top = new THREE.Color(PLATFORM), side = new THREE.Color(PLATFORM_SIDE), H = 0.9;
+  for (const p0 of city.platforms) {
+    let a2 = 0;
+    for (let i = 0, j = p0.length - 1; i < p0.length; j = i++) a2 += p0[j][0] * p0[i][1] - p0[i][0] * p0[j][1];
+    const pts = a2 < 0 ? p0.slice().reverse() : p0, n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % n];
+      pos.push(x0, 0, -y0, x1, 0, -y1, x1, H, -y1, x0, 0, -y0, x1, H, -y1, x0, H, -y0);
+      for (let k = 0; k < 6; k++) col.push(side.r, side.g, side.b);
+    }
+    polyTris(pos, pts, H);
+    while (col.length < pos.length) col.push(top.r, top.g, top.b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  m.name = 'platforms'; m.receiveShadow = true;
+  return m;
+}
+// שם תחנת הרכבת: שלט בסגנון התוויות של הקווים, בכחול; מוסתר מאחורי בניינים (depthTest)
+function stationSign(st) {
+  const sp = labelSprite(st.name, '#1f4e8c', 0.8);
+  sp.material.depthTest = true; sp.renderOrder = 5;
+  sp.position.set(st.x, 16, -st.y); sp.name = 'rail-station';
+  return sp;
 }
 
 // ---------- דודי שמש: מכל לבן על רגליים וקולט כחול נטוי לדרום, על הגג עצמו

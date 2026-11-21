@@ -86,7 +86,7 @@ export const STAGES = [
   { title: 'השכונות הראשונות', days: 3, reward: 25000, unlock: [],
     desc: M => 'משרד התחבורה מבקש קו שמשרת את מרכז העיר ואת השכונות שלידו. מספיק קו אחד שעובר בשלוש השכונות.',
     items: [zoneItem('מרכז העיר', 0.6), zoneItem('חב"ד', 0.6), zoneItem('המ"ג', 0.6)] },
-  { title: 'חצי העיר', days: 5, reward: 40000, unlock: ['elec'],
+  { title: 'חצי העיר', days: 5, reward: 40000, unlock: ['elec', 'coach'],
     desc: M => `עכשיו ${pct(T(0.5, M))} מתושבי העיר צריכים תחנה עם קו עד 500 מ' הליכה מהבית. רחובות צרים לא חייבים קו.`,
     items: [resItem(0.5)] },
   { title: 'שירות לכל היום', days: 7, reward: 60000, unlock: ['artic'],
@@ -115,7 +115,8 @@ export class Career {
   get mode() { return this.g.bank.mode; }
   get M() { return modeOf(this.g.bank); }
   get creative() { return !this.M.stages; }
-  unlocked(type) { return this.creative || !this.st || (this.st.unlocked || START_TYPES).includes(type); }
+  unlocked(type) { const s = this.st; return this.creative || !s || (s.unlocked || START_TYPES).includes(type)
+    || STAGES.some((S, i) => i < (s.stage || 0) && S.unlock.includes(type)); }   // שמירה מלפני שנוסף סוג (בין-עירוני): נפתח לפי השלבים שכבר עברו
   // ההקשר לבדיקה: כיסוי, הקווים הפעילים, והימים האחרונים בקופה
   context() {
     const served = this.g.served(), active = this.g.lines().filter(L => this.g.sim.inService(L));

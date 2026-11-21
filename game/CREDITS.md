@@ -21,6 +21,10 @@
 | המרת ההקלטות ל-BVH | Bruce Hahne (מאגר: Shriinivas/cmubvh) | https://github.com/Shriinivas/cmubvh | ללא הגבלות שימוש |
 | Blender Agent Skills (בניית האוטובוס) | EL4CTEO | https://github.com/EL4CTEO/blender-skills | MIT |
 
+## מוזיקה
+
+מוזיקת הרקע (`js/music.js`, מנוגנת חי ב-Web Audio): שלמה הרטמן · נוצרה בעזרת בינה מלאכותית.
+
 ## תוכנה
 
 | מה | יוצר | קישור | רישיון |

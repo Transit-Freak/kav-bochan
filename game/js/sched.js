@@ -8,7 +8,7 @@
 // מספר הנהגים — כמה שגויסו (bank.drivers). אין רכב או אין נהג — הנסיעה מבוטלת, עם סיבה (לא עוברים על הכללים).
 // sim.js מריץ את הנסיעות לפי הסידור (dispatchSched), duty.js לוקח את המשמרת של השחקן מכאן, main.js מצייר את הלוח.
 import { TYPES, DEADHEAD_SPEED, typeOf, lineCycle, dayOf } from './fleet.js';
-import { hoursOf } from './demand.js';
+import { hoursOf, inHours } from './demand.js';
 
 export const MIN_LAYOVER = 240;          // שנ' — הפסקה מינימלית במסוף בין נסיעות (בתכנון)
 export const MIN_TURN = 120;             // שנ' — בפועל: רכב שחזר באיחור יוצא שוב אחרי 2 דק' לפחות
@@ -21,7 +21,7 @@ export const SIGN_ON = 10 * 60, SIGN_OFF = 5 * 60;   // התייצבות וסי�
 export const LATE_CANCEL = 20 * 60;      // רכב שלא חזר 20 דק' אחרי היציאה המתוכננת — הנסיעה מבוטלת
 export const DRIVER_HIRE = 1_000;        // ₪ גיוס נהג (פעם אחת)
 export const DRIVER_WAGE = 80;           // ₪ לשעת משמרת (גם הפסקות והמתנה במסוף). שאר "העלות לשעה" של הרכב (TYPES[].hour) — תחזוקה
-export const SIZE = { mini: 1, std: 2, elec: 2, artic: 3 };
+export const SIZE = { mini: 1, coach: 1.5, std: 2, elec: 2, artic: 3 };   // בין-עירוני: 42 מקומות — בין המיניבוס לרגיל
 export const REASON = { veh: 'אין רכב פנוי', fit: 'אין רכב מתאים', drv: 'אין נהג', late: 'הרכב לא חזר בזמן' };
 const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
@@ -56,7 +56,7 @@ export class Scheduler {
   lines() { return this.sim.lines.filter(L => this.managed(L)); }
   // המאגר: כל הרכבים שנקנו או נלקחו בליסינג, לפי סוג
   pool() {
-    const p = { mini: 0, std: 0, artic: 0, elec: 0 };
+    const p = { mini: 0, std: 0, artic: 0, coach: 0, elec: 0 };
     for (const L of this.lines()) p[typeOf(L.def)] += L.def.fleet || 0;
     return p;
   }
@@ -131,7 +131,7 @@ export class Scheduler {
   // הסידור עצמו. pool — כמה רכבים מכל סוג (null = בלי הגבלה), nDrv — כמה נהגים
   build(lines, day, pool, nDrv) {
     const trips = lines.flatMap(L => lineTrips(L, day)).sort((a, b) => a.dep - b.dep || (a.lid < b.lid ? -1 : 1));
-    const vehicles = [], drivers = [], used = { mini: 0, std: 0, artic: 0, elec: 0 };
+    const vehicles = [], drivers = [], used = { mini: 0, std: 0, artic: 0, coach: 0, elec: 0 };
     const left = t => pool ? pool[t] - used[t] : Infinity;
     const newVeh = (type, x) => { const v = { id: vehicles.length + 1, type, n: ++used[type], trips: [], readyAt: -Infinity, at: null }; vehicles.push(v); return v; };
     for (const x of trips) {
@@ -195,14 +195,17 @@ export class Scheduler {
   }
 
   // ---------- בזמן ריצה (sim.js)
-  // שכר: כל נהג בסידור מקבל שכר לכל שעה במשמרת (מההתייצבות עד הסיום), על חשבון הקו של הנסיעה הבאה שלו
+  // שכר: כל נהג בסידור מקבל שכר לכל שעה במשמרת (מההתייצבות עד הסיום). בנסיעה — על חשבון הקו של הנסיעה. בין נסיעות —
+  // על חשבון הקו של הנסיעה הבאה (או הקודמת) רק אם הקו הזה פועל עכשיו; אחרת זו הוצאה של החברה, לא של קו שלא פועל
   pay(h) {
     const P = this.plan, bank = this.bank; if (!P || !bank) return;
-    const t = this.sim.time;
+    const t = this.sim.time, on = x => x?.L && inHours(x.L.def, t);
     for (const d of P.drivers) {
       if (t < d.start || t >= d.end) continue;
-      const x = d.trips.find(x => x.arr > t) || d.trips[d.trips.length - 1];
-      bank.spend('drivers', DRIVER_WAGE * h / 3600, x?.lid);
+      let i = d.trips.findIndex(x => x.arr > t); if (i < 0) i = d.trips.length - 1;
+      const x = d.trips[i], prev = d.trips[i - 1];
+      const lid = x && x.dep <= t && t < x.arr ? x.lid : on(x) ? x.lid : on(prev) ? prev.lid : null;
+      bank.spend('drivers', DRIVER_WAGE * h / 3600, lid);
     }
   }
   // הנסיעה הבאה של קו שעוד לא יצאה (או null)
@@ -245,13 +248,15 @@ export class Scheduler {
     return d.length ? 120 : Infinity;
   }
   // "אוטובוס נוסף" של הסדרן: רכב מתאים שעומד עכשיו במאגר ולא צריך אותו בשעה הקרובה, ונהג שלא עובד היום
-  extra(L) {
+  // force (משמרת של הסדרן): אוטובוס רזרבה ונהג מחליף מחוץ לסידור, גם כשאין רכב פנוי במאגר
+  extra(L, force = false) {
     const P = this.plan; if (!P) return false;
     const t = this.sim.time, run = lineCycle(L).run, need = SIZE[typeOf(L.def)];
-    const v = P.vehicles.find(v => SIZE[v.type] >= need && !v.bus && (v.endAt == null || t >= v.endAt + this.dh(v.at, L.stops[0]) + MIN_TURN)
+    let v = force ? null : P.vehicles.find(v => SIZE[v.type] >= need && !v.bus && (v.endAt == null || t >= v.endAt + this.dh(v.at, L.stops[0]) + MIN_TURN)
       && !v.trips.some(x => x.status === 'plan' && x.dep < t + run + 600 && x.dep > t - 600));
     const spare = this.hired() - P.drivers.length;
-    if (!v || spare <= 0) return false;
+    if (force) { v = { id: P.vehicles.length + 1, type: typeOf(L.def), n: 'רזרבה', trips: [], readyAt: -Infinity, at: L.stops[0], reserve: true }; P.vehicles.push(v); }
+    else if (!v || spare <= 0) return false;
     const x = { key: `${L.id}@x${Math.round(t)}`, lid: L.id, L, dep: t, arr: t + run, from: L.stops[0], to: L.stops[L.stops.length - 1], type: typeOf(L.def), status: 'plan', veh: v, extra: true, up: SIZE[v.type] > need };
     const d = { id: P.drivers.length + 1, start: t - SIGN_ON, contStart: t, lastEnd: x.arr, end: x.arr + SIGN_OFF, at: x.to, veh: v, trips: [x], extra: true };
     x.drv = d; P.drivers.push(d); v.trips.push(x); v.trips.sort((a, b) => a.dep - b.dep);
@@ -261,6 +266,17 @@ export class Scheduler {
   }
 
   // ---------- סיכומים ובדיקה
+  // ביטולים: מה שכבר בוטל (נסיעה שהזמן שלה הגיע ולא יצאה) לעומת נסיעות בהמשך היום שכבר ברור שלא ייצאו (אין רכב או נהג
+  // בסידור). trips — הנסיעות (של קו אחד או של כולן). { past, ahead, whyPast, whyAhead }
+  cancelSplit(trips) {
+    const t = this.sim.time, o = { past: 0, ahead: 0, whyPast: {}, whyAhead: {} };
+    for (const x of trips || []) {
+      if (!x.cancel) continue;
+      const k = x.status === 'cancel' || x.dep <= t ? 'past' : 'ahead', w = k === 'past' ? o.whyPast : o.whyAhead;
+      o[k]++; w[x.reason] = (w[x.reason] || 0) + 1;
+    }
+    return o;
+  }
   stats() {
     const P = this.plan; if (!P) return null;
     const c = { trips: P.trips.length, run: 0, done: 0, cancel: 0, plan: 0, skip: 0, why: {} };
@@ -268,6 +284,7 @@ export class Scheduler {
       if (x.status === 'cancel' || (x.cancel && x.status === 'plan')) { c.cancel++; c.why[x.reason] = (c.why[x.reason] || 0) + 1; }
       else c[x.status]++;
     }
+    c.split = this.cancelSplit(P.trips);
     c.cancelPlanned = P.trips.filter(x => x.cancel).length;
     c.vehNeed = P.ideal.vehN; c.vehUsed = P.vehicles.length; c.alone = P.alone;
     c.owned = Object.values(P.pool).reduce((a, b) => a + b, 0);

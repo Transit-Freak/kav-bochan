@@ -11,7 +11,9 @@ import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
+import { DispUI } from './dispui.js';
 import { Cloud, GOOGLE, userOk, hash } from './cloud.js';
+import { CITY_ID, DEFAULT_CITY, cityKey, legacyKey, cityInfo, loadCities, switchCity, backToDefault, ownKey } from './cityconf.js';
 import { Coverage, Career, CoverageLayer, STAGES, newCareer, COVER_M } from './career.js';
 import { MODES, MODE_ORDER, modeOf, normMode, HARD_GONE } from './difficulty.js';
 import { setupLook, updateLook } from './look.js';
@@ -27,6 +29,7 @@ import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle
 import { NightFast, FAST } from './night.js';
 import { Scheduler, DRIVER_HIRE, DRIVER_WAGE, SIZE, MAX_DRIVE, MAX_SHIFT, BREAK } from './sched.js';
 import { mapTouch } from './touch.js';
+import { Music } from './music.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
 import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass, ZTYPES, symSvg, statusSvg } from './demandview.js';
 
@@ -73,14 +76,52 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+const PRESET_WARM = 1500 * 0.5;           // שנ' — הרשת המוכנה רצה קצת לפני שמתחילים, כדי שהאוטובוסים כבר בדרך
+let dispUI = null, residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+// מוזיקת רקע (music.js): כפתור השתקה בפס העליון; הקטע לפי המצב במשחק — musicState
+const music = G.music = new Music();
+{
+  const btn = $('#musicBtn');
+  const ON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  const OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+  if (music.disabled) btn.hidden = true;
+  else {
+    btn.onclick = () => music.toggle();
+    music.onChange(m => { btn.innerHTML = `<i aria-hidden="true">${m.muted ? OFF : ON}</i><span>${m.muted ? 'בלי מוזיקה' : 'מוזיקה'}</span>`; btn.setAttribute('aria-pressed', String(!m.muted)); btn.classList.toggle('off', m.muted); });
+  }
+}
+// בוקר — נהג ומשחק רגיל; שעת שיא — סדרן במשמרת או עם תקלות, ושעות העומס (07–09, 16–18:30); לילה — 21:00–05:00 ומסכי הפתיחה והסיכום
+const SCREENS_NIGHT = ['#roleAsk', '#modeAsk', '#daySum', '#stageModal', '#ifpSum'];
+const brokenBus = L => L.buses.some(b => b.broken || b.lateDrv);
+function musicMood() {
+  if (!G.ready || SCREENS_NIGHT.some(id => !$(id).hidden)) return 'night';
+  const h = sim.time / 3600 % 24;
+  if (h >= 21 || h < 5) return 'night';
+  if (bank.role === 'driver') return 'morning';
+  if (bank.role === 'dispatcher' && (sim.ops.inShift || sim.ops.jams.length || sim.lines.some(brokenBus))) return 'rush';
+  return (h >= 7 && h < 9) || (h >= 16 && h < 18.5) ? 'rush' : 'morning';
+}
+let musicT = 0;
+function musicState(dt) {
+  musicT += dt; if (musicT < 0.5 || music.disabled || !sim) return; musicT = 0;   // בזמן הטעינה עוד אין sim
+  // מהירות המשחק — רמת השכבות (×1 בסיס … ×200 הכול; גם ההאצה של הלילה); עצירה או חלון פתוח — חצי עוצמה
+  const sp = sim.speed, lvl = !G.ready ? 2 : !sp ? null : sp < 3 ? 1 : sp < 12 ? 2 : sp < 40 ? 3 : sp < 120 ? 4 : 5;
+  music.update(musicMood(), lvl, !!G.ready && (!sp || modalOpen()));
+}
 const lineGroups = new Map();
+const FAR_LABELS = 1500;   // מרחק מצלמה שמעליו מסתירים את מספרי התחנות של הקווים
+let labelsFar = false;
 let planning = null, selectedStop = null, selectedLine = null;
 
 async function init() {
   const msg = $('#loadMsg');
-  const [c, dj] = await Promise.all([loadCity('world/city.json'), fetch('world/demand.json').then(r => r.json())]);
+  // העיר (cityconf.js): השם והתיקייה מ-world/cities.json. עיר שהקבצים שלה עוד לא נבנו — חוזרים לברירת המחדל
+  const ci = await loadCities(); showCityName(ci.name);
+  let c, dj;
+  try { [c, dj] = await Promise.all([loadCity(ci.dir + 'city.json'), fetch(ci.dir + 'demand.json').then(r => { if (!r.ok) throw new Error('demand.json ' + r.status); return r.json(); })]); }
+  catch (e) { if (CITY_ID !== DEFAULT_CITY) { msg.textContent = `${ci.name} עוד לא מוכנה. חוזרים ל${cityInfo.all[DEFAULT_CITY]?.name || 'עיר הראשונה'}…`; await new Promise(r => setTimeout(r, 1800)); if (backToDefault()) return new Promise(() => { }); } throw e; }
   city = c;
+  controls.maxDistance = 2600 * Math.max(1, Math.max(...city.meta.half) / 2300);   // עיר גדולה יותר: אפשר להתרחק עד שרואים את כולה
   msg.textContent = 'בונה רחובות ובניינים…';
   await new Promise(r => setTimeout(r, 20));
   buildWorld(scene, city);
@@ -89,8 +130,8 @@ async function init() {
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
-  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera;
-  people = new PeopleLayer(scene, assets.people, graph);
+  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera; buses.clock = () => clockText(sim.time);
+  people = new PeopleLayer(scene, assets.people, graph); people.camera = camera;   // רמת פירוט: דמויות מלאות רק קרוב למצלמה
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
   const saved = Bank.load();
@@ -109,11 +150,25 @@ async function init() {
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time), nextDriverBus: prev => shift.on ? shift.next(prev) : undefined });
   shift = new DriverShift({ sim, lines: () => lines, toast, demand, setSpeed, speed: () => sim.speed || G.lastSpeed || 1, score: n => { drive.score.pts += n; },
     ui: { qBox: $('#qBox'), qText: $('#qText'), qBtns: $('#qBtns') }, ended: () => { $('#dhDuty').hidden = true; } });
-  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
+  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), busDoorActs: b => buses.map.get(b.id)?.action || null, useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
     ui: { root: $('#ifp'), top: $('#ifpTop'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
-    onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
+    onExit: pose => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow');
+      // מהמבט האחרון של הפקח (אחרי הירידה) אל המבט הרגיל — בתנועה רכה, לא בקפיצה
+      // המצלמה עולה מאחורי הפקח ומעליו (קשת), והמבט עובר בהדרגה מהנקודה שלפניו אל האוטובוס — בלי סיבוב חד. היעד זז עם האוטובוס
+      if (pose && cams.current === 'follow') { const o = buses.objectOf(cams.modes.follow.bus), f1 = camera.fov;
+        const rel = o ? { o, p: camera.position.clone().sub(o.position), t: controls.target.clone().sub(o.position) } : null;
+        const fw = pose.t.clone().sub(pose.p).setY(0).normalize(), ctrl = pose.p.clone().addScaledVector(fw, -4).add(new THREE.Vector3(0, 12, 0));
+        // הקשת עוברת מעל הכביש (לצד האוטובוס), לא מעל המדרכה — כך היא לא חותכת את גג הסככה
+        if (o) { const tb = o.position.clone().sub(pose.p).setY(0); if (tb.lengthSq() > 1e-4) ctrl.addScaledVector(tb.normalize(), 2.5); }
+        // (בזמן המעבר בלי המרחק המינימלי של OrbitControls — אחרת המצלמה נדחפת אחורה מהעיניים של הפקח בפריים הראשון)
+        const p1 = camera.position.clone(), t1 = controls.target.clone(); camAnim = null;
+        camera.position.copy(pose.p); controls.target.copy(pose.t);
+        camAnim = { t: 0, dur: 2, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1, rel, ctrl, minD: controls.minDistance, near: camera.near }; controls.minDistance = 0; camera.near = 0.05;   // (קרוב לקרקע: המדרכה לא נחתכת)
+        if (rel) { camAnim.p1.copy(o.position).add(rel.p); camAnim.t1.copy(o.position).add(rel.t); } } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
+  dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
+  G.disp = dispUI;
   buildCamButtons();
   lineDefs = loadLines();
   // קווים שנשמרו לפני שהיה כסף במשחק: מקבלים אוטובוסים רגילים במתנה, כמה שצריך לתדירות שלהם
@@ -142,7 +197,7 @@ async function init() {
     if (bank.legacy) career.tick(true);
   }
   // משחק ריק שעוד לא נבחר בו תפקיד (פעם ראשונה, או אחרי "התחל מחדש" ורענון) — מסך הפתיחה
-  let picked = false; try { picked = localStorage.getItem('busgame.rolePicked') === '1'; } catch { }
+  let picked = false; try { picked = localStorage.getItem(legacyKey('rolePicked')) === '1'; } catch { }
   if (!lineDefs.length && (!saved || !picked)) setTimeout(() => askRole(), 400);
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); applyModeUI(); renderLines(); renderMoney();
@@ -155,7 +210,9 @@ async function init() {
   // ענן: רק אם השחקן כבר בחר בזה במכשיר הזה (יש חיבור שמור). אחרת — אין גישה לרשת
   cloud = new Cloud(() => renderAccount());
   renderAccount();
-  cloud.resume().then(on => { if (on) cloudStart(); });
+  // הענן שומר משחק אחד לחשבון (של קריית מלאכי). בעיר אחרת — השמירה במכשיר בלבד, בלי ענן
+  if (CITY_ID === DEFAULT_CITY) cloud.resume().then(on => { if (on) cloudStart(); });
+  else { const ab = $('#accountBox'); if (ab) ab.hidden = true; }
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden && !wiping) bank.save(sim.time); else refreshGraphics('visible'); });
   Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES, sched: () => sim.roster, hireDrivers, setDispView: v => { dispView = v; renderDispatch(true); },
@@ -476,11 +533,13 @@ function renderForm() {
     b.className = 'vtype' + (id === form.type ? ' on' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', id === form.type);
     const locked = !career.unlocked(id) && !(form.line && typeOf(form.line.def) === id);
     const at = STAGES.findIndex(S => S.unlock.includes(id));
-    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${locked ? `נפתח אחרי שלב ${at + 1}` : form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
+    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות${T.seated ? ' ישיבה' : ''}</span><span class="vp">${locked ? `נפתח אחרי שלב ${at + 1}` : form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
     if (locked) { b.disabled = true; b.classList.add('locked'); }
     b.onclick = () => { if (locked) return; form.type = id; renderForm(); };
     box.appendChild(b);
   }
+  // הסבר קצר לסוג שנבחר (בין-עירוני)
+  const hint = TYPES[form.type]?.hint; if (hint) { const h = document.createElement('p'); h.className = 'vhint'; h.textContent = hint; box.appendChild(h); }
   $('#fMode').querySelectorAll('button').forEach(b => { const on = (b.dataset.m === 'lease') === form.lease; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   const need = formNeed();
   if (!form.touched && !form.line) form.n = form.lease ? need : Math.max(0, Math.min(need, Math.floor(bank.money / TYPES[form.type].price)));
@@ -622,7 +681,7 @@ function addLine(def, fresh) {
   if (L.error !== undefined) { console.warn('line route failed', def); return null; }
   sim.addLine(L); lines.push(L);
   const g = routeMesh(L.poly, def.color, L.stops.map(s => [s.world.x, -s.world.z]));
-  if (dview.on) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
+  if (dview.on || labelsFar) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
   lineGroups.set(def.id, g); scene.add(g);
   return L;
 }
@@ -714,8 +773,8 @@ function bindUI() {
   $('#money').onclick = () => { showTab('money'); openPanel(); };
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
   $('#stopPane').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeLook(selectedStop); });
-  canvas.addEventListener('pointerdown', () => { camAnim = null; });
-  canvas.addEventListener('wheel', () => { camAnim = null; }, { passive: true });
+  canvas.addEventListener('pointerdown', () => { if (camAnim?.minD != null) { controls.minDistance = camAnim.minD; camera.near = camAnim.near; camera.updateProjectionMatrix(); } camAnim = null; });
+  canvas.addEventListener('wheel', () => { if (camAnim?.minD != null) controls.minDistance = camAnim.minD; camAnim = null; }, { passive: true });
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm({ check: true }); };
   // קו חדש: שומרים אותו, ומיד פותחים את הכיוון ההפוך לבדיקה (רק כשהשחקן מבקש)
@@ -832,8 +891,9 @@ function updateStats() {
     set('sat', L.stats.satN ? Math.round(L.stats.satSum / L.stats.satN) : '—');
     const need = vehiclesNeeded(L), n = L.def.fleet || 0, onRoad = L.buses.filter(b => b.state === 'drive' || b.state === 'dwell').length;
     const free = Math.max(0, n - onRoad - L.returning.length);
-    const cx = sim.roster.managed(L) ? (sim.roster.plan?.byLine.get(L.id) || []).filter(x => x.cancel).length : 0;
-    if (sim.roster.managed(L)) set('need', `בדרך: ${onRoad} · מהמאגר המשותף${cx ? ` · <span class="bad">${cx} נסיעות בוטלו היום</span>` : ''}`, true);
+    // ביטולים: מה שכבר בוטל היום, ובנפרד — נסיעות בהמשך היום שלא ייצאו (אין רכב או נהג פנוי בסידור), עם הסיבה
+    const cx = sim.roster.managed(L) ? sim.roster.cancelSplit(sim.roster.plan?.byLine.get(L.id)) : null, whyTxt = w => Object.keys(w).join(' / ');
+    if (sim.roster.managed(L)) set('need', `בדרך: ${onRoad} · מהמאגר המשותף${cx?.past ? ` · <span class="bad">${cx.past} נסיעות בוטלו היום</span>` : ''}${cx?.ahead ? ` · <span class="warnt">${cx.ahead} נסיעות לא ייצאו בהמשך היום — ${whyTxt(cx.whyAhead)}</span>` : ''}`, true);
     else set('need', `בדרך: ${onRoad} · חוזרים: ${L.returning.length} · במסוף: ${free}${n < need ? ` · <span class="bad">צריך ${need}</span>` : ''}`, true);
     const hw = L.def.headway, real = sim.realHeadway(L), [ha, hb] = hoursOf(L.def);
     const hrs = `<span class="lmeta">${span(ha, hb)}</span>${L.off ? ' <span class="offnow">לא פועל עכשיו</span>' : ''}<br>`;
@@ -897,7 +957,7 @@ function renderMoney() {
   const html = `<div class="bigmoney ${bank.money < 0 ? 'neg' : ''}"><span>בקופה</span><b>${money(bank.money)}</b>${bank.money < 0 ? '<small>החברה בחובות — אי אפשר לקנות רכבים</small>' : ''}</div>
     <h4>היום · יום ${d.day}</h4>${dayRows(d)}
     ${lines.length ? `<h4>לפי קו, היום <span class="lmeta">(בלי קניית רכבים)</span></h4>
-    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}${d.idle >= 1 ? `<tr><td colspan="4" class="lmeta">נהגים בהמתנה, כשהקו שלהם לא פועל</td><td>${money(d.idle)}</td><td class="bad">−${money(d.idle)}</td></tr>` : ''}</table>` : ''}
     ${M.evade && lines.length ? `<h4>התחמקות מתשלום לפי קו</h4><table class="perline"><tr><th>קו</th><th>ביקורות (3 ימים)</th><th>מתחמקים</th></tr>${lines.filter(L => !L.retired).map(L => { const h = bank.inspHist?.[L.def.id] || [0, 0, 0];
       return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${h[0] + h[1] + h[2]}</td><td>${(sim.ops.evadeRate(L) * 100).toFixed(1)}%</td></tr>`; }).join('')}</table>
     <p class="hint">בקו שיש בו הרבה ביקורות, פחות נוסעים מעזים לנסוע בלי לשלם.</p>` : ''}
@@ -1078,14 +1138,14 @@ function paxSummaryHTML() {
   const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `<li><b>${v}</b> מבקשים: ${esc(k)}</li>`).join('');
   return `<h4>מה הנוסעים אומרים · עכשיו בתחנות</h4><p><b>${Math.round(100 * okN / n)}% מרוצים</b> · ${Math.round(100 * midN / n)}% בסדר · ${Math.round(100 * (n - okN - midN) / n)}% מתלוננים (${n} מחכים עכשיו)</p>${top ? `<ul class="dlist">${top}</ul>` : ''}<p class="hint">הקישו על נוסע בתחנה כדי לשמוע אותו.</p>`;
 }
-function paxClear() { paxSel = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
+function paxClear() { paxSel = null; if (people) people.promote = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {
   const P = people.waitPos, r = canvas.getBoundingClientRect(); let best = null, bd = 28;
   // מי שהולך עכשיו לתחנה או ממנה (commute.js)
   let wk = null; for (const c of commuters?.act || []) { const v = c.w.obj.position.clone().setY(1.3).project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; wk = c; } }
   if (wk) { const p = { id: wk.id, who: wk.who, o: wk.o, d: wk.d, legs: wk.legs, leg: 0, t0: sim.time }, D = paxDetails(p), c = $('#paxCard');
     c.innerHTML = `<b>${esc(D.lives)}</b>${D.trip ? `<span>${D.trip}</span>` : ''}<span class="op">🚶 ${wk.from ? (D.shop ? 'ירד מהאוטובוס והולך לקניות' : 'ירד מהאוטובוס והולך הביתה') : `בדרך לתחנה ${esc(wk.stop.name)} · עוד <i data-eta>1</i> דק'`}</span>`;
-    c.onclick = null; c.hidden = false; paxSel = { walker: wk }; paxUpdate(); return true; }
+    c.onclick = null; c.hidden = false; paxSel = { walker: wk }; people.promote = wk.w.pid; paxUpdate(); return true; }
   if (!P?.size) { if (paxSel) paxClear(); return false; }
   for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
   if (!best) { if (paxSel) paxClear(); return false; }
@@ -1102,7 +1162,7 @@ function paxCardAt(x, y) {
     const h = 75; controls.target.set(H.x, 0, -H.y); camera.position.set(H.x + h * 0.25, h, -H.y + h * 0.8); camera.lookAt(controls.target); camera.updateMatrixWorld();
     paxMark(H.x, -H.y, Math.max(8, H.r / 0.5), H.h + 0.4); paxHomeT = performance.now() + 7000;
     toast(`${H.street ? inStreet(H.street).replace(/^ב/, '') + ' · ' : ''}${D.zoneName || ''}`.replace(/ · $/, '') || 'כאן הוא גר'); };
-  paxSel = { pid: p.id, t0: p.t0 }; paxUpdate();
+  paxSel = { pid: p.id, t0: p.t0 }; people.promote = p.id; paxUpdate();   // מי שנבחר — דמות מלאה גם מרחוק
   return true;
 }
 function paxMark(x, z, k, y = 0.08) {
@@ -1128,20 +1188,41 @@ const ROLE_INSP = p => p.role === 'insp';
 // הקווים העירוניים האמיתיים של העיר (world/real_lines.json, tools/build_real_lines.py): לכל כיוון — התחנות והתדירות בכל שעה
 let REAL = null;
 async function realLines() {
-  if (!REAL) { try { const d = await (await fetch('world/real_lines.json')).json(); REAL = Object.values(d.cities || {})[0]?.lines || []; } catch { REAL = []; } }
+  if (!REAL) { try { const d = await (await fetch(cityInfo.dir + 'real_lines.json')).json(); REAL = Object.values(d.cities || {})[0]?.lines || []; } catch { REAL = []; } }
   return REAL;
 }
 const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
 const realHw = (def, h) => { const m = def.real?.hw?.[h]; return m ? snapHw(m) : null; };
 const LINE_COLOR = { 1: '#0ea5e9', 2: '#ef4444', 3: '#22c55e', 11: '#f59e0b' };
-const ROLE_OFF = new Set(['inspector']);
+const ROLE_OFF = new Set([]);   // תפקידים שלא מוצעים עדיין (הפקח חזר לבטא 0.5)
 const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדרן', inspector: 'פקח' };
-function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; $('#roleAsk').hidden = false; }
+function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; renderCityPick(); $('#roleAsk').hidden = false; }
+// ---------- בחירת עיר (במסך הפתיחה, מעל התפקידים): כל עיר — מפה נפרדת ושמירה נפרדת. מעבר עיר טוען את הדף מחדש
+function showCityName(name) {
+  document.title = 'משחק הקווים · ' + name;
+  for (const e of document.querySelectorAll('.cityName')) e.textContent = name;
+  $('#view')?.setAttribute('aria-label', 'מפה תלת־ממדית של ' + name);
+}
+function renderCityPick() {
+  const box = $('#cityPick'); if (!box) return;
+  const ids = Object.keys(cityInfo.all); box.hidden = ids.length < 2;
+  box.innerHTML = '<span>עיר:</span>' + ids.map(id => `<button type="button" data-city="${esc(id)}"${id === CITY_ID ? ' class="on" aria-pressed="true"' : ''}>${esc(cityInfo.all[id].name)}</button>`).join('');
+  box.onclick = e => { const b = e.target.closest('[data-city]'); if (!b || b.dataset.city === CITY_ID) return; bank.save(sim.time); switchCity(b.dataset.city); };
+}
+// החלפת עיר גם מהלוח (לשונית "קופה", ליד כפתורי המשחק): "עיר: X" פותח רשימה קטנה של הערים. עיר אחת — בלי הכפתור
+function renderCityRow() {
+  const row = $('#cityRow'), box = $('#cityChoose'); if (!row || !box) return;
+  const ids = Object.keys(cityInfo.all || {}); row.hidden = ids.length < 2; if (row.hidden) { box.hidden = true; return; }
+  box.innerHTML = ids.map(id => `<button type="button" data-city="${esc(id)}"${id === CITY_ID ? ' class="on" aria-pressed="true"' : ''}>${esc(cityInfo.all[id].name)}</button>`).join('');
+  $('#cityBtn').onclick = () => { box.hidden = !box.hidden; $('#cityBtn').setAttribute('aria-expanded', String(!box.hidden)); };
+  box.onclick = e => { const b = e.target.closest('[data-city]'); if (!b) return; if (b.dataset.city === CITY_ID) { box.hidden = true; $('#cityBtn').setAttribute('aria-expanded', 'false'); return; } bank.save(sim.time); switchCity(b.dataset.city); };
+}
 async function chooseRole(role) {
   if (ROLE_OFF.has(role)) return;
   $('#roleAsk').hidden = true;
-  try { localStorage.setItem('busgame.rolePicked', '1'); } catch { }
+  if (role !== 'dispatcher') sim.ops.shift = null;          // משמרת של סדרן נגמרת כשעוברים תפקיד
+  try { localStorage.setItem(legacyKey('rolePicked'), '1'); } catch { }
   if (role === 'planner') {
     // ממשיכים משחק של מתכנן; אחרת (רשת מוכנה או משחק ריק) — משחק חדש עם בחירת רמה
     if (bank.role === 'planner' && lineDefs.length) { applyRoleUI(false); return; }
@@ -1153,10 +1234,10 @@ async function chooseRole(role) {
 }
 // הרשת האמיתית: כל הקווים העירוניים בשני הכיוונים, בתדירות של השעה הנוכחית ובשעות הפעילות שלהם,
 // עם מספיק אוטובוסים לשעת השיא; וכמה דקות קדימה, כדי שהאוטובוסים כבר בדרך
-async function presetNetwork() {
+async function presetNetwork(t0 = 7.5 * 3600) {
   const R = await realLines();
   resetGame(false, 'creative');
-  sim.time = 7.5 * 3600;
+  sim.time = t0;
   for (const r of R) {
     const ids = r.stops.filter(id => stopsById.has(id)); if (ids.length < 2) continue;
     const hs = Object.keys(r.headway).map(Number); if (!hs.length) continue;
@@ -1171,7 +1252,7 @@ async function presetNetwork() {
     openEdit(L); saveLineFromForm({ fleet: vehiclesNeeded(L, peak) });
   }
   saveLines(lineDefs);
-  for (let i = 0; i < 1500; i++) { sim.tick(0.5); sim.events.length = 0; }
+  for (let i = 0; i < PRESET_WARM / 0.5; i++) { sim.tick(0.5); sim.events.length = 0; }
   $('#toast').hidden = true; renderLines();
 }
 // קווים אמיתיים: התדירות משתנה לפי השעה (כמו בלוח הזמנים)
@@ -1188,7 +1269,7 @@ function applyRoleUI(fresh) {
   const r = bank.role || 'planner';
   for (const k of Object.keys(ROLE_NAME)) document.body.classList.toggle('role-' + k, r === k);
   $('#inspHud').hidden = r !== 'inspector';
-  if (r === 'dispatcher') { showTab('dispatch'); openPanel(); if (fresh) toast('אתם בתפקיד הסדרן: הקישו על אוטובוס ברצועה כדי להחזיק, לשלוח למסוף או להזמין רכב חלופי'); }
+  if (r === 'dispatcher') { showTab('dispatch'); openPanel(); dispUI.enter(); }
   if (r === 'driver') { if (fresh) askLine(); else setTimeout(() => { const b = pickBus(); if (b) cams.modes.driver.drive(b); else toast('אין אוטובוס בדרך'); }, 1500); }
   plannerLayers(r !== 'inspector' && cams.current !== 'driver');
   if (r === 'inspector') { $('#panel').classList.add('min'); placeInspHud(); setTimeout(() => cams.set('follow'), fresh ? 30 : 1500); if (fresh) toast('אתם הפקחים: כשהאוטובוס עומד בתחנה — "בדיקת כרטיסים"'); }
@@ -1300,7 +1381,7 @@ function renderInsp() {
 // ---------- סדרן: כל קו כרצועה — תחנות כקווים קטנים, אוטובוסים כנקודות לפי האיחור; צפיפות ופערים מסומנים.
 // הקשה על אוטובוס בוחרת אותו: החזקה בתחנה, ישר למסוף, רכב חלופי (בתקלה). לכל קו: "אוטובוס נוסף"
 let dispSel = null, dispT = 0;
-const ICON = { cancel: '✕', break: '⚠', late: '⏱', jam: '🚦', report: '📋', fixed: '✓', hold: '⏸', express: '⏩', reserve: '🚌' };
+const ICON = { spare: '🧑', cancel: '✕', break: '⚠', late: '⏱', jam: '🚦', report: '📋', fixed: '✓', hold: '⏸', express: '⏩', reserve: '🚌' };
 function renderDispatch(force) {
   if (!$('[data-pane="dispatch"]')?.classList.contains('on')) return;
   const now = performance.now(); if (!force && now - dispT < 900) return; dispT = now;
@@ -1331,7 +1412,7 @@ function renderDispatch(force) {
     const sel = bs.find(b => b.id === dispSel);
     const late = bs.filter(b => (b.delay || 0) > 120).length, bunch = (bands.match(/bunch/g) || []).length, gaps = (bands.match(/class="gap/g) || []).length;
     const info = sel ? `<div class="dsel"><b>אוטובוס ${sel.id}</b> · ${sel.broken ? '<span class="bad">תקלה</span>' : `איחור ${Math.round((sel.delay || 0) / 60)} דק'`} · ${sel.pax.filter(p => !p.role).length} נוסעים${sel.express ? ' · ישר למסוף' : ''}
-        <div class="dbtns"><button data-act="drive" data-b="${sel.id}" data-l="${L.id}" class="primary">מבט נהג</button><button data-act="hold" data-b="${sel.id}" data-l="${L.id}">החזקה 1 דק'</button><button data-act="express" data-b="${sel.id}" data-l="${L.id}" ${sel.express ? 'disabled' : ''}>ישר למסוף</button>${sel.broken ? `<button data-act="fix" data-b="${sel.id}" data-l="${L.id}">רכב חלופי (${money(RESERVE_COST)})</button>` : ''}</div></div>` : '';
+        <div class="dbtns"><button data-act="drive" data-b="${sel.id}" data-l="${L.id}" class="primary">מבט נהג</button><button data-act="hold" data-b="${sel.id}" data-l="${L.id}">החזקה 1 דק'</button><button data-act="express" data-b="${sel.id}" data-l="${L.id}" ${sel.express ? 'disabled' : ''}>ישר למסוף</button>${sel.broken ? `<button data-act="fix" data-b="${sel.id}" data-l="${L.id}">${sim.ops.inShift ? `אוטובוס רזרבה (${sim.ops.shift.res.bus})` : `רכב חלופי (${money(RESERVE_COST)})`}</button>` : ''}${sel.lateDrv ? `<button data-act="spare" data-b="${sel.id}" data-l="${L.id}">נהג מחליף (${sim.ops.shift?.res.drv ?? 0})</button>` : ''}</div></div>` : '';
     return `<div class="dline"><div class="dhead"><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span><span class="lmeta">כל ${L.def.headway} דק' · ${bs.length} בדרך${late ? ` · <span class="bad">${late} מאחרים</span>` : ''}${bunch ? ` · <span class="bad">צפיפות</span>` : ''}${gaps ? ` · <span class="warnt">פער</span>` : ''}</span>
       <button class="dres" data-act="reserve" data-l="${L.id}">אוטובוס נוסף</button></div>
       <svg viewBox="0 0 ${W} 44" class="dstrip"><line class="track" x1="${X0}" x2="${X1}" y1="22" y2="22"/>${jams}${bands}${ticks}${dots}</svg>${info}</div>`;
@@ -1344,7 +1425,7 @@ function renderDispatch(force) {
 }
 // ---------- סידור רכבים ונהגים (sched.js): סיכום, וגאנט לכל רכב ולכל נהג. הזמן מימין לשמאל, כמו הרצועות של הסדרן
 let dispView = 'live';
-const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', elec: 'חשמלי' };
+const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', coach: 'בין-עירוני', elec: 'חשמלי' };
 const dispSwitch = () => `<div class="dsw" role="tablist"><button type="button" data-dv="live" class="${dispView === 'live' ? 'on' : ''}">מצב הקווים</button><button type="button" data-dv="sched" class="${dispView === 'sched' ? 'on' : ''}">סידור רכבים ונהגים</button></div>`;
 // נהגים חסרים (קו חדש או שינוי): מגייסים אותם יחד עם השמירה, בדמי גיוס
 function autoHire() {
@@ -1384,9 +1465,9 @@ function renderSched() {
   const dRows = P.drivers.map(d => { const a = aud.get(d.id), h = a ? (a.shift / 3600).toFixed(1) : '0', mc = a ? (a.maxCont / 3600).toFixed(1) : '0';
     return `<div class="grow${me === d.id ? ' gme' : ''}"><span class="glab">נהג ${d.id}${me === d.id ? ' (אתם)' : ''}<small>${h} ש' · רצוף ${mc}</small></span><span class="gtrk">${now}<em class="gsh" style="right:${pos(d.start)}%;width:${w(d.start, d.end)}%"></em>${d.trips.map(blk).join('')}</span></div>`; }).join('');
   const cx = P.trips.filter(x => x.cancel);
-  const cRow = cx.length ? `<div class="grow"><span class="glab">בוטלו<small>${cx.length} נסיעות</small></span><span class="gtrk">${now}${cx.map(blk).join('')}</span></div>` : '';
+  const cRow = cx.length ? `<div class="grow"><span class="glab">${cx.some(x => x.status !== 'cancel' && x.dep > sim.time) ? 'בוטלו / לא ייצאו' : 'בוטלו'}<small>${cx.length} נסיעות</small></span><span class="gtrk">${now}${cx.map(blk).join('')}</span></div>` : '';
   const types = TYPE_ORDER.filter(t => P.pool[t] || P.used[t] || P.ideal.veh[t]).map(t => `${TYPES[t].name}: ${P.used[t]} בשימוש מתוך ${P.pool[t]}${P.ideal.veh[t] > P.pool[t] ? ` <span class="bad">(צריך ${P.ideal.veh[t]})</span>` : ''}`).join(' · ');
-  const why = Object.entries(c.why).map(([r, n]) => `${r}: ${n}`).join(' · ');
+  const whyOf = w => Object.entries(w).map(([r, n]) => `${r}: ${n}`).join(' · '), sp = c.split, why = whyOf(sp.whyPast), whyA = whyOf(sp.whyAhead);
   // אזהרה: הביקוש בשעת השיא גדול מהמקומות בסוג הרכב של הקו (הסידור לא מחליף לרכב גדול לבד)
   const warn = lines.filter(L => S.managed(L)).map(L => {
     const a = P.byLine.get(L.id) || []; let worst = null;
@@ -1397,7 +1478,7 @@ function renderSched() {
     <div class="sgrid">
       <div class="scell"><b>${c.vehUsed}</b><span>רכבים בסידור · ${c.owned} בצי</span><small>צריך ${c.vehNeed} לכל הנסיעות · בלי שיתוף בין קווים: ${c.alone}</small></div>
       <div class="scell"><b>${c.drvUsed}</b><span>נהגים בסידור · ${c.hired === Infinity ? '—' : c.hired} מגויסים</span><small>צריך ${P.ideal.drvPool} לרכבים שיש</small></div>
-      <div class="scell${c.cancel ? ' sbad' : ''}"><b>${c.cancel}</b><span>נסיעות בוטלו היום · מתוך ${c.trips}</span><small>${why || 'אין ביטולים'}</small></div>
+      <div class="scell${sp.past ? ' sbad' : ''}"><b>${sp.past}</b><span>נסיעות בוטלו היום · מתוך ${c.trips}</span><small>${why || 'אין ביטולים'}${sp.ahead ? `<br><span class="warnt">ועוד ${sp.ahead} בהמשך היום לא ייצאו — ${whyA}</span>` : ''}</small></div>
     </div>
     <p class="lmeta">${types}${c.up ? ` · ${c.up} נסיעות ברכב גדול מהקו (↑)` : ''}</p>
     <div class="dbtns"><button data-hire="1">גיוס נהג (${money(DRIVER_HIRE)})</button><button data-hire="-1" ${bank.drivers ? '' : 'disabled'}>שחרור נהג</button>${P.ideal.drvPool > (bank.drivers || 0) ? `<button class="primary" data-hire="0">גיוס החסרים (${P.ideal.drvPool - (bank.drivers || 0)})</button>` : ''}</div>
@@ -1417,12 +1498,14 @@ function dispatchAction(e) {
   if (a.dataset.act === 'drive' && b) { cams.modes.driver.drive(b); return; }
   if (a.dataset.act === 'hold' && b) { sim.ops.hold(b, 60); toast('האוטובוס יחכה דקה נוספת בתחנה'); }
   if (a.dataset.act === 'express' && b) { sim.ops.express(b); toast('האוטובוס נוסע ישר למסוף — מוריד נוסעים ולא אוסף'); }
-  if (a.dataset.act === 'fix' && b) { sim.ops.reserve(L, b); toast(`רכב חלופי בדרך: ${money(RESERVE_COST)}`); }
-  if (a.dataset.act === 'reserve' && L) toast(sim.ops.reserve(L) ? 'אוטובוס נוסף יוצא עכשיו מהמסוף' : 'אין רכב פנוי במסוף — הוסיפו רכבים לקו');
+  const sh = sim.ops.inShift;
+  if (a.dataset.act === 'fix' && b) toast(sim.ops.reserve(L, b) ? (sh ? 'אוטובוס רזרבה בדרך' : `רכב חלופי בדרך: ${money(RESERVE_COST)}`) : 'לא נשארו אוטובוסי רזרבה');
+  if (a.dataset.act === 'spare' && b) { const e = sim.ops.shift?.inc.find(e => e.kind === 'late' && e.bus === b && !e.closed); toast(e && sim.ops.shift.spare(e) ? 'נהג מחליף יוצא — האוטובוס ייצא תוך דקה' : 'לא נשארו נהגים מחליפים'); }
+  if (a.dataset.act === 'reserve' && L) toast(sim.ops.reserve(L) ? (sh ? 'אוטובוס רזרבה יוצא עכשיו מהמסוף' : 'אוטובוס נוסף יוצא עכשיו מהמסוף') : sh ? 'צריך אוטובוס רזרבה ונהג מחליף — לא נשארו' : 'אין רכב פנוי במסוף — הוסיפו רכבים לקו');
   renderDispatch(true);
 }
 // ---------- משחק: התחלה מחדש, ושמירות בשם (נוסף לשמירה האוטומטית). הכל ב-localStorage בתוך try/catch
-const SLOTS_KEY = 'busgame.kiryat-malachi.slots.v1';
+const SLOTS_KEY = cityKey('slots.v1');     // לכל עיר שמירות משלה (קריית מלאכי: busgame.kiryat-malachi.slots.v1, כמו תמיד)
 function readSlots() { try { const a = JSON.parse(localStorage.getItem(SLOTS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
 function writeSlots(a) { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(a)); return true; } catch { return false; } }
 const dayTime = t => `יום ${dayOf(t)}, ${clockText(t)}`;
@@ -1447,7 +1530,7 @@ async function loadSlot(id) {
 function applySave(sl) {
   cancelPlanning(); $('#modeAsk').hidden = true;
   for (const L of [...lines]) removeLine(L, false);
-  sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = [];
+  sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = []; sim.ops.shift = null;
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
   bank.mode = nb.mode; applyPrices(nb.mode); bank.career = nb.career || (MODES[nb.mode].stages ? newCareer() : null);
   bank.inspectors = nb.inspectors; bank.drivers = nb.drivers; sim.roster.plan = null; sim.roster.dirty = true; bank.reports = nb.reports; bank.settings = nb.settings; bank.role = nb.role; renderOps();
@@ -1601,6 +1684,7 @@ function bindReset() {
   $('#dhExit').onclick = () => { shift.trips = null; $('#dhDuty').hidden = true; cams.set('free'); if (bank.role === 'driver') askRole(); };
   $('#dhSkip').onclick = () => { shift.skip(); updateDriverHud(); };
   $('#switchRole').onclick = () => askRole();
+  renderCityRow();
   $('#roleAsk').onclick = e => { const b = e.target.closest('[data-role]'); if (b) chooseRole(b.dataset.role); };
   $('#ihCheck').onclick = () => boardFP();
   $('#ihNext').onclick = () => cams.modes.follow.next();
@@ -1630,7 +1714,7 @@ async function startOver(delCloud) {
   try {
     hasAuth = Object.keys(localStorage).some(k => k.startsWith('busgame.auth'));
     const keep = k => k.startsWith('busgame.auth') || (hasAuth && k === CLOUD_META);
-    for (const k of Object.keys(localStorage)) if (k.startsWith('busgame.') && !keep(k)) localStorage.removeItem(k);
+    for (const k of Object.keys(localStorage)) if (ownKey(k) && !keep(k)) localStorage.removeItem(k);   // רק העיר הנוכחית; שמירות של ערים אחרות נשארות
     if (hasAuth && !delCloud) cloud.setMeta({ reset: Date.now() });
   } catch { }
   // מכאן לא נשמר כלום (השמירה האוטומטית, היציאה מהדף) — עד הטעינה מחדש
@@ -1644,7 +1728,7 @@ function resetGame(saved, mode = bank.mode) {
   mode = normMode(mode);
   bank.reset(sim.time, mode, MODES[mode].stages ? newCareer() : null); resetResidents(true);
   sim.roster.plan = null; sim.roster.dirty = true;
-  sim.ops.log.length = 0; sim.ops.jams.length = 0; renderOps(); applyModeUI();
+  sim.ops.log.length = 0; sim.ops.jams.length = 0; sim.ops.shift = null; renderOps(); applyModeUI();
   covLayer && drawCover(); renderMissions();
   bank.save(sim.time); renderMoney(); renderSlots(); showTab('lines');
   toast(mode === 'creative' ? `${saved ? 'המשחק נשמר. ' : ''}מצב יצירתי: כסף בלי הגבלה וכל הרכבים` : `${saved ? 'המשחק נשמר. ' : ''}רמה ${MODES[mode].label}, שלב 1: ${money(bank.money)} בקופה`);
@@ -1669,16 +1753,22 @@ function closeLook(s) {
   const tgt = frameV(f, a, f.shelter ? 2.4 : 1.2, 0.9), pos = frameV(f, a + 5.5, -10, 4.4);
   if (cams.current !== 'free') cams.set('free');
   if (innerWidth <= 820) $('#panel').classList.add('min');
+  if (camAnim?.minD != null) controls.minDistance = camAnim.minD;
   camAnim = { t: 0, dur: 1.1, p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt };
 }
 function stepCamAnim(dt) {
   if (!camAnim) return;
   const A = camAnim; A.t = Math.min(A.dur, A.t + dt);
   const k0 = A.t / A.dur, k = k0 * k0 * (3 - 2 * k0);
+  if (A.rel) { A.p1.copy(A.rel.o.position).add(A.rel.p); A.t1.copy(A.rel.o.position).add(A.rel.t); }
+  // קשת (בזייה) דרך נקודת ביניים, והמבט אל היעד בהדרגה — בלי הרמה נוספת
+  if (A.ctrl) { const a = (1 - k) * (1 - k), b2 = 2 * k * (1 - k), c2 = k * k; camera.position.set(0, 0, 0).addScaledVector(A.p0, a).addScaledVector(A.ctrl, b2).addScaledVector(A.p1, c2);
+    controls.target.lerpVectors(A.t0, A.t1, k * k * (3 - 2 * k)); camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); if (k0 >= 1) { camAnim = null; controls.minDistance = A.minD; camera.near = A.near; camera.updateProjectionMatrix(); } else if (k > 0.5) { camera.near = Math.min(A.near, 0.05 + (A.near - 0.05) * (k - 0.5) * 2); } return; }
   // דרך קשת: באמצע המעבר המצלמה קצת גבוהה יותר, כדי שלא תעבור דרך בניינים
   const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
   camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
   controls.target.lerpVectors(A.t0, A.t1, k);
+  if (A.f0 != null) { camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); }
   if (k0 >= 1) camAnim = null;
 }
 G.closeLook = id => closeLook(stopsById.get(id));
@@ -1765,7 +1855,7 @@ function setDemandView(on, hour, fit) {
     fitWide(core.map(z => dlayer.anchor[z.id]), 28, 0);
   }
   // מספרי התחנות ותוויות האוטובוסים מסתירים את קווי הביקוש — מסתירים אותם בזמן הזה
-  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on; });
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on && !labelsFar; });
   buses.hideLabels = on;
   if (!on) { controls.maxDistance = 2600; look.fogMin.near = 0; look.fogMin.far = 0; }
   if ($('[data-pane="demand"]').classList.contains('on')) renderDemand();
@@ -1960,6 +2050,13 @@ function flushToasts() { if (toastQ.length && !modalOpen() && $('#toast').hidden
 // ---------- לולאה
 const clock = new THREE.Clock();
 let acc = 0, fcount = 0, statT = 0, missionT = 0;
+// מרחוק (כל העיר על המסך) מספרי התחנות של הקווים נערמים זה על זה — מסתירים אותם עד שמתקרבים
+function farLabels() {
+  const far = camera.position.distanceTo(controls.target) > FAR_LABELS;
+  if (far === labelsFar || routeHi) return;
+  labelsFar = far;
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !far && !dview.on; });
+}
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.25);
@@ -1988,8 +2085,9 @@ function tick(dt) {
     stopView.update(camera, lines, dt);
     $('#time').textContent = clockText(sim.time);
     updateMoneyChip();
-    statT += dt; if (statT > 0.4) { statT = 0; updateStats(); updateDriverHud(); renderInsp(); realHeadways(); refreshDemandView(false); missionT++; if (missionT % 5 === 0) updateMissions(); flushToasts(); if (modalOpen()) $('#toast').hidden = true; renderDispatch(); }
+    statT += dt; if (statT > 0.4) { statT = 0; updateStats(); updateDriverHud(); renderInsp(); realHeadways(); refreshDemandView(false); missionT++; if (missionT % 5 === 0) updateMissions(); dispUI?.update(); flushToasts(); if (modalOpen()) $('#toast').hidden = true; renderDispatch(); }
   }
+  musicState(dt);
   touch.update(dt);
   stepCamAnim(dt);
   // שומרים את המצלמה מעל העיר (במבט נהג המצלמה צמודה לאוטובוס — בלי OrbitControls)
@@ -1999,6 +2097,7 @@ function tick(dt) {
     t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
     controls.update();
   }
+  farLabels();
   updateLook(look, camera, controls.target);
   renderer.render(scene, camera);
   if (dview.on && dlayer) dlayer.draw(camera);
