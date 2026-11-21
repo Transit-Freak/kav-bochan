@@ -103,7 +103,7 @@ function musicMood() {
 }
 let musicT = 0;
 function musicState(dt) {
-  musicT += dt; if (musicT < 0.5 || music.disabled) return; musicT = 0;
+  musicT += dt; if (musicT < 0.5 || music.disabled || !sim) return; musicT = 0;   // בזמן הטעינה עוד אין sim
   // מהירות המשחק — רמת השכבות (×1 בסיס … ×200 הכול; גם ההאצה של הלילה); עצירה או חלון פתוח — חצי עוצמה
   const sp = sim.speed, lvl = !G.ready ? 2 : !sp ? null : sp < 3 ? 1 : sp < 12 ? 2 : sp < 40 ? 3 : sp < 120 ? 4 : 5;
   music.update(musicMood(), lvl, !!G.ready && (!sp || modalOpen()));
