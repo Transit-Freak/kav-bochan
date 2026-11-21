@@ -570,3 +570,16 @@ a.sib.sibdir { color: #475569; }
 a.sib.sibdir.on { color: #fff; }
 /* "חזרה לקו הבוחן" (home-link.js) יושב מעל פינת הכותרת במחשב — מקום פנוי בשבילו, כדי שכפתור "עוד" וכפתור הנגישות לא יוסתרו */
 @media (min-width: 761px) and (max-width: 1420px) { .wrap > header { padding-inline-end: 140px; } }
+
+/* מקורות בשינויים לפי חודש: צבע לכל מקור (שלמה 21.11) */
+.srcrow { border-top: 1px solid #e2e8f0; padding-top: 10px; margin: 10px 0 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.srcnote { margin: 6px 0; padding: 8px 12px; border-radius: 10px; border-inline-start: 4px solid var(--sc); background: var(--sb); font-size: 13px; line-height: 1.5; color: #334155; }
+.srcnote b { color: var(--sc); }
+.srcnote .srcn { margin-inline-start: 8px; font-size: 12px; font-weight: 800; color: var(--sc); background: #fff; border-radius: 9999px; padding: 1px 8px; }
+.src-gtfs, .src-gtfs2012, .src-mot { --sc: #1d4ed8; --sb: #eff6ff; }
+.src-foi { --sc: #b45309; --sb: #fffbeb; }
+.src-web { --sc: #7c3aed; --sb: #f5f3ff; }
+.src-mag { --sc: #78350f; --sb: #fdf8f3; }
+.mchip.src-mot, .mchip.src-web, .mchip.src-mag { border-color: var(--sc); color: var(--sc); }
+.mchip.src-mot.on, .mchip.src-web.on, .mchip.src-mag.on { background: var(--sc); color: #fff; }
+.approxd.foi-tag { color: #b45309; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 9999px; padding: 0 7px; font-size: 11px; font-weight: 700; }

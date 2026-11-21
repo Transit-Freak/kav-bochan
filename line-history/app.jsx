@@ -4518,21 +4518,34 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
         {/* שנים וחודשים עם נתונים זמינים בלבד. */}
         {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
           <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" && !webSrc ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012" && !webSrc}
-            aria-label={y} aria-describedby={y === "2012" ? "source-gtfs-2012" : undefined}
-            title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, וצילומי אתרי מידע לנוסעים מהשנה הזו" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
+            aria-label={y}
+            title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}</button>
         ))}
       </div>
-      {mode === "lines" && <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, margin: "10px 0 14px" }}>
-        <span className="pdesc" style={{ marginInlineEnd: 10 }}>צילום ממקור נוסף:</span>
-        <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
-          onClick={() => { setYr("2012"); setWebSrc(false); setMon("legacy2012"); }}>2012 · אתר מגיעים</button>
-        {yr && officialOf(yr).length > 0 && webOf(yr).length > 0 && <button className={"mchip" + (webSrc && mon !== "legacy2012" ? " on" : "")} aria-pressed={webSrc && mon !== "legacy2012"}
+      {/* מקורות השנה: רק כשבוחרים שנה שיש לה יותר ממקור אחד — 2012 (משרד התחבורה ואתר מגיעים)
+          או שנה עם צילומי אתרי מידע לנוסעים (שלמה 21.11) */}
+      {mode === "lines" && yr && (yr === "2012" || (officialOf(yr).length > 0 && webOf(yr).length > 0)) && <div className="srcrow">
+        <span className="pdesc" style={{ marginInlineEnd: 10 }}>מקורות של {yr}:</span>
+        {officialOf(yr).length > 0 && <button className={"mchip src-mot" + (mon !== "legacy2012" && !showWeb ? " on" : "")} aria-pressed={mon !== "legacy2012" && !showWeb}
+          title={"נתוני משרד התחבורה, " + yr}
+          onClick={() => { const off = officialOf(yr); setWebSrc(false); if (!off.includes(mon)) setMon(off[off.length - 1]); }}>משרד התחבורה</button>}
+        {yr === "2012" && <button className={"mchip src-mag" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
+          onClick={() => { setWebSrc(false); setMon("legacy2012"); }}>צילום ממקור נוסף · אתר מגיעים</button>}
+        {officialOf(yr).length > 0 && webOf(yr).length > 0 && <button className={"mchip src-web" + (showWeb && mon !== "legacy2012" ? " on" : "")} aria-pressed={showWeb && mon !== "legacy2012"}
           title={"צילומים מאתרי מידע לנוסעים שנשמרו ב־Internet Archive, " + yr}
-          onClick={() => { const ws = webOf(yr); setWebSrc(true); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>{yr} · אתרי מידע לנוסעים</button>}
+          onClick={() => { const ws = webOf(yr); setWebSrc(true); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>צילום ממקור נוסף · אתרי מידע לנוסעים</button>}
       </div>}
-      {/* המקור לפי מה שיש בחודש שנבחר: צילומי אתרי המידע (מ־2003) אינם קובצי משרד התחבורה (שלמה 03.10) */}
-      {mode === "lines" && yr === "2012" && mon !== "legacy2012" && !showWeb && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
-      {mode === "lines" && mon !== "legacy2012" && showWeb && <p className="pdesc">מקור: אתרי מידע לנוסעים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי.</p>}
+      {/* שורת המקור של מה שמוצג, בצבע של המקור — כדי שההבדל בין המקורות ייראה מיד (שלמה 21.11) */}
+      {mode === "lines" && mon === "legacy2012" && <SrcNote k="mag" />}
+      {mode === "lines" && mon !== "legacy2012" && showWeb && <SrcNote k="web" />}
+      {mode === "lines" && mon !== "legacy2012" && !showWeb && !missingYear && chs && (() => {
+        const own = chs.filter((c) => !String(c.rd).startsWith("website") && inHistoryMode(meta[c.rd] || {}, mode));
+        const nf = own.filter((c) => c.ap).length, ng = own.length - nf;
+        return <>
+          {(ng > 0 || !nf) && <SrcNote k={yr === "2012" ? "gtfs2012" : "gtfs"} n={nf ? ng : 0} />}
+          {nf > 0 && <SrcNote k="foi" n={ng ? nf : 0} />}
+        </>;
+      })()}
       {mode === "lines" && mon !== "legacy2012" && showWeb && yr && <WebsiteYearSummary year={yr} />}
       {yr && mon !== "legacy2012" && (
         <div className="months">
@@ -4617,7 +4630,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                       <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                       <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                     </>}
-                    {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
+                    {c.ap ? <TipTag cls="approxd foi-tag" tip={"מקור: משרד התחבורה (חופש מידע) — התאריך משוער"}>חופש מידע · ≈ תאריך</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note && withNote ? <span className="lnote">{noteFix(c.note)}</span> : null}
                   </a>
@@ -6100,6 +6113,18 @@ function hasHistoricalData(record, mode) {
   const types = mode === "rail" ? ["0","2","5"] : mode === "taxi" ? ["8"] : null;
   return Object.entries(record.modes || {}).some(([type, count]) =>
     Number(count) > 0 && (types ? types.includes(type) : !["0","2","5","8"].includes(type)));
+}
+// שורת המקור בשינויים לפי חודש: לכל מקור צבע ותיאור משלו, כדי שההבדל ביניהם ייראה מיד (שלמה 21.11)
+const SRC_NOTES = {
+  gtfs: ["משרד התחבורה", "קובץ ה־GTFS היומי. התאריך מדויק ליום."],
+  gtfs2012: ["משרד התחבורה", "קובצי GTFS מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive."],
+  foi: ["משרד התחבורה (חופש מידע)", "קובץ \"מסלול לפי שנים\" שהתקבל בבקשת חופש מידע. התאריכים משוערים, ואין בו שרטוט של המסלול."],
+  web: ["צילום ממקור נוסף · אתרי מידע לנוסעים", "צילומים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי."],
+  mag: ["צילום ממקור נוסף · אתר מגיעים", "צילום של רשת האוטובוסים מ־2012, כפי שהופיעה באתר."],
+};
+function SrcNote({ k, n }) {
+  const [t, d] = SRC_NOTES[k];
+  return <p className={"srcnote src-" + k}><b>מקור: {t}</b>{n ? <span className="srcn">{n.toLocaleString()} שינויים</span> : null}<br />{d}</p>;
 }
 function useHistoricalMonths(mode) {
   const revision=useWebsiteRevision();
