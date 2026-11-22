@@ -15,6 +15,7 @@ import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
 import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData, coachSeating } from './coach.js';
+import { buildEMini } from './emini.js';
 import { addCitySigns, cityClone, cityDisplays, cityData } from './citysigns.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
@@ -256,6 +257,16 @@ export class BusLayer {
     if (!t) { t = m.clone(); t.color = new THREE.Color(color); this.tints.set(key, t); }
     return t;
   }
+  // מיניבוס חשמלי (emini.js): עותק של המיניבוס אחרי ההכנה שלו (תא הנהג, הרצפה), עם חוץ ופנים משלו. נבנה בפעם הראשונה שצריך
+  eminiAsset() {
+    if (this.variants.emini || !this.variants.mini) return this.variants.emini;
+    this.tune('mini', this.variants.mini);
+    const src = this.variants.mini, scene = src.scene.clone(true);
+    try { buildEMini(scene); } catch (e) { console.warn('emini failed', e); }
+    this.tunedSet.add('emini');
+    try { const an = this.animOf.get('mini'); if (an) { this.animOf.set('emini', an); this.liteOf.set('emini', buildLite(scene, an)); } } catch (e) { console.warn('lite emini failed', e); }
+    return (this.variants.emini = { scene, animations: src.animations, userData: src.userData || {} });
+  }
   // בין-עירוני (coach.js): עותק של הדגם הרגיל אחרי ההכנה שלו (תא הנהג, החיפוי), עם פנים וחוץ משלו. נבנה בפעם הראשונה שצריך
   coachAsset() {
     if (this.variants.coach || !this.asset) return this.variants.coach;
@@ -285,6 +296,7 @@ export class BusLayer {
   make(bus) {
     let obj, mixer = null, action = null;
     if (bus.type === 'coach') this.coachAsset();
+    if (bus.type === 'emini') this.eminiAsset();
     const kind = !this.stdOnly.has(bus.id) && this.variants[bus.type] ? bus.type : 'std', asset = kind === 'std' ? this.asset : this.variants[kind];
     if (asset) {
       if (!this.tunedSet.has(kind)) this.tune(kind, asset);
@@ -335,7 +347,7 @@ export class BusLayer {
     for (const L of lines) for (const b of L.buses) {
       alive.add(b.id);
       const v = this.map.get(b.id) || this.make(b);
-      const p = busPose(L.poly, b.s, v.kind === 'mini' ? MINI_REAR : REAR_TO_CENTER);
+      const p = busPose(L.poly, b.s, v.kind === 'mini' || v.kind === 'emini' ? MINI_REAR : REAR_TO_CENTER);
       // מפרקי: הקטע האחורי מסתובב סביב המפרק לפי הכיוון של הסרן השלישי על המסלול
       if (v.rear) { const j = atExt(L.poly, b.s - ARTIC_JOINT, [0, 0]), r = atExt(L.poly, b.s - ARTIC_REAR, [0, 0]), yr = Math.atan2(j[0] - r[0], -(j[1] - r[1]));
         let d = yr - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); v.rear.rotation.y = Math.max(-0.9, Math.min(0.9, d)); }
@@ -378,7 +390,7 @@ export class BusLayer {
   objectOf(bus) { return this.map.get(bus.id)?.obj; }
   // מבט מבפנים: מיניבוס ומפרקי מוצגים בדגם הרגיל כל עוד נמצאים בתוכם (on), וחוזרים לדגם שלהם ביציאה
   useStd(bus, on) {
-    const v = this.map.get(bus.id), want = on && (bus.type === 'mini' || bus.type === 'artic');
+    const v = this.map.get(bus.id), want = on && (bus.type === 'mini' || bus.type === 'emini' || bus.type === 'artic');
     if (want === this.stdOnly.has(bus.id)) return;
     if (want) this.stdOnly.add(bus.id); else this.stdOnly.delete(bus.id);
     if (v) { this.group.remove(v.obj); this.map.delete(bus.id); }

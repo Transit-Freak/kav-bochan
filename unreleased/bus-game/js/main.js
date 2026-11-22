@@ -1425,7 +1425,7 @@ function renderDispatch(force) {
 }
 // ---------- סידור רכבים ונהגים (sched.js): סיכום, וגאנט לכל רכב ולכל נהג. הזמן מימין לשמאל, כמו הרצועות של הסדרן
 let dispView = 'live';
-const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', coach: 'בין-עירוני', elec: 'חשמלי' };
+const SHORT = { mini: 'מיניבוס', emini: 'מיניבוס חשמלי', std: 'רגיל', artic: 'מפרקי', coach: 'בין-עירוני', elec: 'חשמלי' };
 const dispSwitch = () => `<div class="dsw" role="tablist"><button type="button" data-dv="live" class="${dispView === 'live' ? 'on' : ''}">מצב הקווים</button><button type="button" data-dv="sched" class="${dispView === 'sched' ? 'on' : ''}">סידור רכבים ונהגים</button></div>`;
 // נהגים חסרים (קו חדש או שינוי): מגייסים אותם יחד עם השמירה, בדמי גיוס
 function autoHire() {

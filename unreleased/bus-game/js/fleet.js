@@ -16,6 +16,8 @@ export const dayOf = t => Math.floor(t / DAY) + 1;
 // סוגי הרכבים: מקומות, מחיר קנייה, ליסינג ליום, עלות לק"מ (דלק/חשמל ותחזוקה), עלות לשעה (נהג)
 export const TYPES = {
   mini:  { name: 'מיניבוס', cap: 20, price: 3_000, lease: 300, km: 2.0, hour: 90, tint: 0xf6c453 },
+  // מיניבוס חשמלי (emini.js): אותו גוף של המיניבוס, במראה של מיניבוס חשמלי עירוני. זול בנסיעה, יקר יותר לקנייה
+  emini: { name: 'מיניבוס חשמלי', cap: 20, price: 4_000, lease: 400, km: 0.6, hour: 90, tint: null, hint: 'שקט וזול בנסיעה — מתאים לקווים שכונתיים קצרים' },
   std:   { name: 'אוטובוס רגיל', cap: 80, price: 6_000, lease: 600, km: 3.5, hour: 100, tint: null },
   artic: { name: 'מפרקי', cap: 120, price: 10_000, lease: 1_000, km: 5.0, hour: 110, tint: 0xf08a8a },
   // בין-עירוני: אותו גוף של 12 מ', בפנים מושבי נוסעים גבוהים 2+2 לכל האורך (coach.js). כולם יושבים — אין עמידה,
@@ -23,7 +25,7 @@ export const TYPES = {
   coach: { name: 'בין-עירוני', cap: 42, price: 8_000, lease: 800, km: 3.0, hour: 100, tint: 0x8fb3d9, seated: true, hint: 'מושבים נוחים, כולם יושבים — מתאים לקווים ארוכים' },
   elec:  { name: 'חשמלי', cap: 80, price: 7_500, lease: 750, km: 0.8, hour: 100, tint: 0x7fd99a },
 };
-export const TYPE_ORDER = ['mini', 'std', 'artic', 'coach', 'elec'];
+export const TYPE_ORDER = ['mini', 'emini', 'std', 'artic', 'coach', 'elec'];
 // מחירי הרכבים לפי רמת הקושי (קל ×0.7): משנים את TYPES במקום, מהמחירים הבסיסיים
 const BASE = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, { price: v.price, lease: v.lease }]));
 export function applyPrices(mode) {
