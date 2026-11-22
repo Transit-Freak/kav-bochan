@@ -405,7 +405,7 @@
     var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
     var to = inter ? o[1] : d.t, city0 = cs[0] || o[0] || '';
     var stop = d.f + (d.fc ? ' (' + d.fc + ')' : ''), k = p.makat + '.' + d.dir, sm = bdStopMode(), tw = bdT(k + '|w', to ? 'לכיוון ' + to : '');
-    return { p: p, d: d, key: k, first: i === 0, n: n, inter: inter, line: bdT('ln:' + p.makat, p.line), op: bdT('op:' + p.makat, p.op), color: bdOpCol(p),
+    return { p: p, d: d, key: k, first: i === 0, n: n, inter: inter, line: bdT('ln:' + p.makat, p.line), op: bdT('op:' + p.makat, p.op), color: bdOpCol(p), color2: bdOpCol2(p),
       origin: bdT(k + '|o', inter ? 'מ' + o[0] : d.f),
       // מתחת למוצא (ED.bstop): הכל — התחנה והכיוון; 'dir' — רק הכיוון; 'none' — כלום. towardAll — הכיוון גם כשהוא מוסתר (למקרא)
       stop: sm === 'all' ? bdT(k + '|s', inter ? stop : (d.fc ? 'תחנה ' + d.fc : '')) : '', hideS: sm !== 'all',
@@ -485,8 +485,11 @@
     while (contrast(c, '#ffffff') < 4.5 && f > 0.2) { f -= 0.05; c = shade(base, f); }
     return c;
   }
+  /* הצבע השני של החברה (למשל הירוק של קווים): פס בתחתית הריבוע של מספר הקו, כמו בשילוט שלהן (שלמה 22.11) */
+  function bdOpCol2(p) { var cs = COLORS[String(agOf(p))]; return cs && cs[1] ? cs[1] : null; }
   function bdLineCell(r, span) {
-    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + r.p.makat, 'badge sm num', r.add ? 'קו' : '') + ' style="background:' + r.color + ';color:#fff">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>' +
+    var bg = r.color2 ? 'background:linear-gradient(to bottom,' + r.color + ' 0 74%,' + r.color2 + ' 74%)' : 'background:' + r.color;
+    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + r.p.makat, 'badge sm num' + (r.color2 ? ' two' : ''), r.add ? 'קו' : '') + ' style="' + bg + ';color:#fff">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>' +
       (r.until ? '<small' + bdK('un:' + r.p.makat, 'un') + '>' + E(r.untilTxt) + '</small>' : '') +
       (r.p.chg === 'new' ? '<small' + bdK('nl:' + r.p.makat, 'nwl') + '>' + E(bdT('nl:' + r.p.makat, 'קו חדש')) + '</small>' : '') +
       (r.from ? '<small' + bdK('fr:' + r.p.makat, 'un') + '>' + E(r.from) + '</small>' : '') + '</td>';
@@ -742,8 +745,21 @@
         : M.cols.map(th).join('')) + '</tr>';
     return '<table class="bd-t">' + (cg || bdColgroup(M)) + '<thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
   }
-  function bdSlideHtml(M, form, sc, body, ops, pgi, rows) {
-    return '<div class="s-cur s-bd f-' + form + (D.ED.bdense ? ' dense' : '') + '" style="--bd:' + sc + '">' + bdHead(M, form) + '<div class="cu-body">' + body + '</div>' + bdFoot(M, ops, pgi, rows) + '</div>';
+  /* מראה הלוח (שמואל 22.11): יישור הכותרת (ED.btal — 'c' במרכז), כותרת רק בעמוד הראשון (ED.bt1), וצבעים (ED.bclr — {h, c}:
+     h — רקע הכותרת וכותרות העמודות, c — רקע תאי השעות, hf / cf — צבע הטקסט שלהם). המשתמש בוחר בחופשיות; בלי צבע טקסט —
+     שחור או לבן, מה שקריא יותר על הרקע */
+  function bdInk(hex) { var m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return null; var n = parseInt(m[1], 16), l = function (c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    var L = 0.2126 * l(n >> 16 & 255) + 0.7152 * l(n >> 8 & 255) + 0.0722 * l(n & 255); return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? '#111111' : '#ffffff'; }
+  function bdLookVars() {
+    var c = D.ED.bclr || {}, v = '';
+    if (bdInk(c.h)) v += ';--bdh-bg:' + c.h + ';--bdh-fg:' + (bdInk(c.hf) ? c.hf : bdInk(c.h));
+    if (bdInk(c.c)) v += ';--bdc-bg:' + c.c + ';--bdc-fg:' + (bdInk(c.cf) ? c.cf : bdInk(c.c));
+    return v;
+  }
+  function bdSlideHtml(M, form, sc, body, ops, pgi, rows, noHead) {
+    var c = D.ED.bclr || {};
+    return '<div class="s-cur s-bd f-' + form + (D.ED.bdense ? ' dense' : '') + (D.ED.btal === 'c' ? ' tal-c' : '') + (bdInk(c.h) ? ' clr-h' : '') + (bdInk(c.c) ? ' clr-c' : '') + '" style="--bd:' + sc + bdLookVars() + '">' +
+      (noHead ? '' : bdHead(M, form)) + '<div class="cu-body">' + body + '</div>' + bdFoot(M, ops, pgi, rows) + '</div>';
   }
   /* מדידה: כל השורות בעמוד אחד מחוץ למסך — הגובה של כל שורה והמקום שיש לטבלה */
   function bdMeasure(M, form, sc, items) {
@@ -751,6 +767,8 @@
     var host = bdHost(M, form, sc, bdSlideHtml(M, form, sc, bdTable(M, items.map(function (x) { return x.html; }).join(''))));
     var body = host.querySelector('.cu-body'), th = host.querySelector('thead'), trs = host.querySelectorAll('tbody > tr');
     var avail = body.clientHeight - th.offsetHeight - 4, hs = Array.prototype.map.call(trs, function (t) { return t.getBoundingClientRect().height; });
+    // כותרת רק בעמוד הראשון: בשאר העמודים יש לטבלה גם את המקום של הכותרת
+    var hd = host.querySelector('.bd-head'), headH = hd ? hd.getBoundingClientRect().height + (parseFloat(getComputedStyle(hd).marginBottom) || 0) : 0;
     // מקרא החלופות (בתחתית העמוד): הגובה של השורה של כל קו וכיוון, ומה שהמקרא מוסיף מעבר לשורות (ריווח)
     var arows = bdAltRows(items.filter(function (x) { return x.r; }).map(function (x) { return x.r; })), al = { h: {}, base: 0 };
     if (arows.length) {
@@ -761,7 +779,7 @@
       al.base = Math.max(0, ft.getBoundingClientRect().height - h0 - sum);
     }
     document.body.removeChild(host);
-    return { avail: avail, hs: hs, al: al };
+    return { avail: avail, hs: hs, al: al, headH: headH };
   }
   function bdPaginate(M, form, sc) {
     var items = [];
@@ -819,6 +837,7 @@
       if (!fb && it.sec && items[i + 1] && items[i + 1].band && brkAt(items[i + 1], i + 1) && hasRow) fb = true;
       if (cur.length && (used + need > H || fb)) {
         pgs.push(cur); cur = []; used = 0; alOn = false; ab = it.r && ms.al.h[it.r.key] ? ms.al.base : 0;
+        if (D.ED.bt1 && pgs.length === 1) H = ms.avail + ms.headH;
         if (!it.band && !it.sec && !it.b.flat) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
       }
       cur.push(it); used += h + ab;
@@ -868,7 +887,7 @@
     var out = best.pg.map(function (its, i) {
       var ops = opsOf(its.filter(function (it) { return it.r && !it.r.off; }).map(function (it) { return it.r.p; }));
       return { id: (form === 'deck' ? '' : form === 'sign' ? 'sg-' : 'st-') + 'bd' + i, label: 'לוח לפי יעד' + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
-        html: bdSlideHtml(M, form, best.sc, bdTable(M, bdPageHtml(M, its)), ops, i, its.filter(function (it) { return it.r; }).map(function (it) { return it.r; })) };
+        html: bdSlideHtml(M, form, best.sc, bdTable(M, bdPageHtml(M, its)), ops, i, its.filter(function (it) { return it.r; }).map(function (it) { return it.r; }), !!D.ED.bt1 && i > 0) };
     });
     out.pages = M.pages;   // הקווים שבלוח בפועל (לשקף הסיום)
     return out;
@@ -1058,7 +1077,7 @@
 
   // לקבצים האחרים של המצגת, ולדף (LCDeck)
   D.bdSlides = bdSlides; D.chgBoardBuild = chgBoardBuild;
-  LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
+  LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.boardInk = bdInk; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
   LCDeck.boardMove = bdMovePlan; LCDeck.boardWhere = bdWhereSel;
   LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
   LCDeck.boardWidths = function () { var g = BD_CG[BD_GEO.form + '|' + BD_GEO.sc]; return g ? { tw: g.tw, cl: g.cl, co: g.co, ws: g.ws.slice(), man: g.man, mt: g.mt, cost: bdCost(g.mt, g.ws), rows: g.mt.rows.map(function (r) { return Math.max.apply(null, [r.fl].concat(r.cells.map(function (c) { var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += g.ws[k]; return bdCellH(g.mt, c, w); }))); }) } : null; };

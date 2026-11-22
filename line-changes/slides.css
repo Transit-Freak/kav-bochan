@@ -1079,3 +1079,13 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .s-bd .bd-t td.al-r,.s-bd .bd-t td.al-r .tl,.s-bd .bd-t td.al-r .bnote{text-align:right!important}
 .s-bd .bd-t td.al-c,.s-bd .bd-t td.al-c .tl,.s-bd .bd-t td.al-c .bnote{text-align:center!important}
 .s-bd .bd-t td.al-l,.s-bd .bd-t td.al-l .tl,.s-bd .bd-t td.al-l .bnote{text-align:left!important}
+
+/* מראה הלוח (שמואל 22.11): כותרת במרכז, וצבעים לכותרות ולשעות (--bdh-*, --bdc-* מהדף; הטקסט שחור או לבן לפי הרקע) */
+.s-bd.tal-c .bd-head > .t, .s-bd.tal-c .bd-head > .t > div{text-align:center;justify-content:center}
+.s-bd.tal-c .bd-head .bd-key{justify-content:center}
+.s-bd.clr-h .bd-head{background:var(--bdh-bg);color:var(--bdh-fg);border-bottom-color:var(--bdh-bg);padding:.45em .7em .5em;border-radius:.35em .35em 0 0}
+.s-bd.clr-h .bd-head .sub{color:var(--bdh-fg);opacity:.85}
+.s-bd.clr-h .bd-t th{background:var(--bdh-bg);color:var(--bdh-fg);border-color:var(--bdh-bg)}
+.s-bd.clr-c .bd-t td.bt,.s-bd.clr-c .bd-t td.bo{background:var(--bdc-bg);color:var(--bdc-fg)}
+.s-bd.clr-c .bd-t td.bo small,.s-bd.clr-c .bd-t td.bt.off{color:var(--bdc-fg);opacity:.8}
+.s-bd .bd-t td.bl .badge.sm.two{padding-bottom:.36em;-webkit-print-color-adjust:exact;print-color-adjust:exact}

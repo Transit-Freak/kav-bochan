@@ -212,6 +212,26 @@
               <button type="button" role="radio" data-bst="dir"><b>רק כיוון</b></button>
               <button type="button" role="radio" data-bst="none"><b>כלום</b></button>
             </div>
+            <span class="flabel sm">יישור הכותרת</span>
+            <div class="seg2 tvseg" id="btalseg" role="radiogroup" aria-label="יישור הכותרת">
+              <button type="button" role="radio" data-btal="r"><b>לימין</b></button>
+              <button type="button" role="radio" data-btal="c"><b>למרכז</b></button>
+            </div>
+            <div id="bt1w" hidden><span class="flabel sm">הכותרת ושורת "בתוקף"</span>
+              <div class="seg2 tvseg" id="bt1seg" role="radiogroup" aria-label="הכותרת בכל עמוד">
+                <button type="button" role="radio" data-bt1="0"><b>בכל עמוד</b></button>
+                <button type="button" role="radio" data-bt1="1"><b>רק בעמוד הראשון</b></button>
+              </div></div>
+            <span class="flabel sm">צבעים</span>
+            <div class="seg2 tvseg bclr" id="bclrseg" role="radiogroup" aria-label="צבעים">
+              <button type="button" role="radio" data-bclr="dflt"><b>לפי העיצוב</b></button>
+              <button type="button" role="radio" data-bclr="blue"><b><i class="sw" style="background:#0b3a7a"></i>כחול</b></button>
+              <button type="button" role="radio" data-bclr="green"><b><i class="sw" style="background:#14532d"></i>ירוק</b></button>
+              <button type="button" role="radio" data-bclr="gray"><b><i class="sw" style="background:#374151"></i>אפור</b></button>
+              <button type="button" role="radio" data-bclr="yellow"><b><i class="sw" style="background:#f2c200"></i>צהוב</b></button>
+            </div>
+            <div class="bclrpick"><label>רקע הכותרות <input type="color" id="bclrh" value="#1f2937"></label><label>טקסט הכותרות <input type="color" id="bclrhf" value="#ffffff"></label>
+              <label>רקע השעות <input type="color" id="bclrc" value="#ffffff"></label><label>טקסט השעות <input type="color" id="bclrcf" value="#111111"></label></div>
             <span class="flabel sm">פיצול ימי חול</span>
             <div class="seg2 tvseg" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
               <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
