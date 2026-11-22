@@ -92,14 +92,21 @@
         while (i) h = (h * 33) ^ str.charCodeAt(--i);
         return (h >>> 0).toString(36);
       }
-      fetch("app.jsx?v=" + Date.now(), { cache: "no-cache" })
-        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      // הקוד מחולק לפי נושא ב-src/ (הסדר ב-src/files.json). החלקים מחוברים לקובץ אחד לפי הסדר ומקומפלים
+      // יחד — בדיוק כמו הקובץ האחד שהיה (app.jsx) — כך שכל השמות משותפים בין החלקים.
+      var v = Date.now();
+      function get(u) {
+        return fetch(u + "?v=" + v, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status + " " + u); return r.text(); });
+      }
+      get("src/files.json")
+        .then(function (t) { return Promise.all(JSON.parse(t).map(function (f) { return get("src/" + f); })); })
+        .then(function (parts) { return parts.join("\n"); })
         .then(function (code) {
           var key = "lh-js-190-" + hash(code);
           var cached = null;
           try { cached = localStorage.getItem(key); } catch (e) { /* מצב פרטי */ }
           if (cached) { run(cached); return; }
-          var out = Babel.transform(code, { presets: ["react"], filename: "app.jsx" }).code;
+          var out = Babel.transform(code, { presets: ["react"], filename: "line-history.jsx" }).code;
           try {
             Object.keys(localStorage).forEach(function (k) { if (k.indexOf("lh-js-") === 0 && k !== key) localStorage.removeItem(k); });
             localStorage.setItem(key, out);

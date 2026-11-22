@@ -44,7 +44,7 @@ KIND_LBL = {
 
 
 def city_tag(name):
-    """זהה ל-cityTag שב-app.jsx: djb2 xor על קוד-התו, base36."""
+    """זהה ל-cityTag שב-line-history/src/06-follow.jsx: djb2 xor על קוד-התו, base36."""
     h = 5381
     for ch in str(name or '').strip():
         h = ((h * 33) ^ ord(ch)) & 0xFFFFFFFF

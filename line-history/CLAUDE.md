@@ -18,7 +18,7 @@
 | TransitFeeds (ארכיון הפיד הארצי) | היסטוריה לפני ארכיון אופן באס (`src:"tf"`) | `tf-backfill.yml` ← `tools/backfill_tf.py` |
 | אתרי המידע לנוסעים מ-2003 | היסטוריה מוקדמת | `website-history.yml` (שם: historical-passenger-websites) ← `tools/import_website_history.py` |
 | ארכיון 2012–2018 | צילומי מסלולים ותחנות היסטוריים | `early-history.yml` (שם: historical-2012-2018), `tools/import_early_history.py` |
-| ריפו `kav-bochan-archive` | `early-patterns/` ו-`early-stops/`. נמצאות רק שם מ-11.2026 | `ARCHIVE_BASE` + `archFetch()` ב-`app.jsx` |
+| ריפו `kav-bochan-archive` | `early-patterns/` ו-`early-stops/`. נמצאות רק שם מ-11.2026 | `ARCHIVE_BASE` + `archFetch()` ב-`src/04-variants.jsx` |
 | `magihim-2012/data/` | קווים ותחנות 2012 | נקרא מהדף ב-`../magihim-2012/data/...` |
 | מאגר הרישוי (data.gov.il, API) | סוג הרכב בקו | `tools/linehistory_rishui.py` |
 | ענף `osm-roads` (`roads.json`) | שם רחוב לכל תחנה, לתיאורי החלופות | `tools/build_stop_streets.py` |
@@ -68,13 +68,13 @@
 
 ## מבנה הנתונים העיקרי
 
-**שם קובץ מ-rd:** `fsafe(rd)` ב-`app.jsx` מחליף `#`←`H` ו-`/`←`_`. לדוגמה, rd `10001-3-#` נשמר בקובץ `lines/10001-3-H.json`. בדפי השיתוף (`s/`) יש פונקציה אחרת, `ssafe`, שחייבת להתאים ל-`tools/share_stubs.py`.
+**שם קובץ מ-rd:** `fsafe(rd)` (ב-`src/01-core.jsx`) מחליף `#`←`H` ו-`/`←`_`. לדוגמה, rd `10001-3-#` נשמר בקובץ `lines/10001-3-H.json`. בדפי השיתוף (`s/`) יש פונקציה אחרת, `ssafe`, שחייבת להתאים ל-`tools/share_stubs.py`.
 
 | קובץ | שדות מרכזיים |
 |---|---|
 | `lines.json` | `gen` (תאריך הריצה), `lines[]`: `rd`, `line`, `dest`, `op`, `ty`, `tt` (סוג: rail/taxi/...), `v` (מספר גרסאות לא מוסתרות), `ks` (סוגי האירועים), `lk`/`ld` (סוג ותאריך של האירוע האחרון), `historicalOnly`, `observationOnly` |
 | `lines/<rd>.json` | `rd`, `line`, `dest`, `op`, `tt`, `versions[]`, `pool` (תחנות ייחודיות `[קוד, שם, lat, lon]`), `spool` (polylines ייחודיים) |
-| `versions[]` | `d` (תאריך), `k` (סוג, הרשימה ב-`KINDS` ב-`app.jsx` שורה ~50), `note` (טקסט בעברית), `src`, `stops` (אינדקסים ל-`pool`), `shp` (אינדקס ל-`spool`), `sd` (נראה לאחרונה), `hid` (מוסתר), `tb` (טבלת לו"ז, בגרסת `k:"times"` של `last_sched`) |
+| `versions[]` | `d` (תאריך), `k` (סוג, הרשימה ב-`KINDS` ב-`src/01-core.jsx`), `note` (טקסט בעברית), `src`, `stops` (אינדקסים ל-`pool`), `shp` (אינדקס ל-`spool`), `sd` (נראה לאחרונה), `hid` (מוסתר), `tb` (טבלת לו"ז, בגרסת `k:"times"` של `last_sched`) |
 | `changes/YYYY-MM.json` | `month`, `changes[]`: `d`, `rd`, `line`, `k`, `note` |
 | `sched/XX.json` | `g` (תאריך), `lines: { rd: { "א": ["06:00",...], "ב": [...], ..., "ש": [...] } }`. השם הוא שני התווים הראשונים של `fsafe(rd)` |
 | `months.json` | רשימת החודשים שיש להם קובץ. חייבת להתאים לקבצים שבדיסק (נבדק ב-guard) |
@@ -83,20 +83,28 @@
 
 ## הדף
 
-- `index.html` טוען את React 18 ואת Babel מ-`../vendor/`, מוריד את `app.jsx?v=<now>`, ו**מקמפל בדפדפן** (`Babel.transform`, preset react). הפלט נשמר ב-localStorage (`lh-js-190-<hash>`). **אין build.** עורכים את `app.jsx` ישירות.
-- `app.jsx` הוא קובץ אחד של כ-6,650 שורות. הנקודות החשובות בו:
+- `index.html` טוען את React 18 ואת Babel מ-`../vendor/`, מוריד את `src/files.json` ואת כל החלקים שהוא מונה (`?v=<now>`),
+  **מחבר אותם לפי הסדר ומקמפל בדפדפן** (`Babel.transform`, preset react). הפלט נשמר ב-localStorage (`lh-js-190-<hash>`). **אין build.**
+- הקוד ב-`src/`, מחולק לפי נושא (עד 11.2026 היה קובץ אחד, `app.jsx`). החלקים מקומפלים יחד כמו קובץ אחד, ולכן כל השמות משותפים
+  ביניהם, והסדר ב-`files.json` הוא סדר ההרצה — הגדרות `const` ברמה העליונה צריכות להופיע לפני מה שמשתמש בהן בזמן הטעינה.
+  חלק חדש — להוסיף ל-`files.json` במקום הנכון. כלים שקוראים את הקוד (`tools/build_alt_desc.mjs`, `tools/check_line_history_ui.mjs`,
+  `website-history.yml`) מחברים את החלקים לפי `files.json`.
 
-| מה | איפה (בערך) |
+| קובץ ב-`src/` | מה יש בו |
 |---|---|
-| `KGROUP`, `KINDS` (תוויות וצבעים לסוגי האירועים) | 43–80 |
-| `fsafe`, `ssafe` | 457–459 |
-| `dfetchGz` / `dfetch` (קודם `.json.gz`, ואם אין אז `.json`) | 577–590 |
-| `ARCHIVE_BASE`, `archFetch` (קריאה מריפו הארכיון) | 1590 |
-| `SchedBox` (לו"ז מ-`sched/`) | 2017 |
-| `LinePage` (דף הקו) | 2607 |
-| `RecentChanges`, `DayFeed`, `StopsTab`, `MapTab`, `ModesTab` | 4341–5855 |
-| `EarlyPatterns`, `HistoricalPeriod`, `HistoricalDay` (2012–2018) | 6034–6116 |
-| `App` והלשוניות הראשיות | 6252, 6460 ואילך |
+| `01-core.jsx` | `KGROUP`, `KINDS` (תוויות וצבעים לסוגי האירועים), `fsafe`/`ssafe`, `dfetchGz`/`dfetch` (קודם `.json.gz`, ואם אין אז `.json`), עזרי תאריכים |
+| `02-diff.jsx` | השוואת מסלולים (`segDiff`), השוואת זמנים (`TimesDiff`), מפת השינוי (`DiffMap`) |
+| `03-common.jsx` | קישורים (`lineHref`, `plainClick`), תגיות, אירועים זמניים, hooks לנתוני עזר (רציפים, 2012, רכבת) |
+| `04-variants.jsx` | החלופות של קו: `describeVariant`, `AlternativeSelector`, `ARCHIVE_BASE`/`archFetch` (ריפו הארכיון) |
+| `05-schedule.jsx` | קווים ממשיכים, `SchedBox` (לו"ז מ-`sched/`), `RailSched` |
+| `06-follow.jsx` | התראות ומעקב (OneSignal, `cityTag` — זהה ל-`tools/send_push.py`), `NotifyCenter`, `DigestPage` |
+| `07-line-page.jsx` | `LinePage` (עמוד הקו), מפת אירוע תחנה, `Line2012Page` |
+| `08-search.jsx` | החיפוש: תוצאות 2012, קיבוץ התוצאות, שמות ערים ושם המסלול |
+| `09-changes.jsx` | `DayFeed` (שינויים לפי יום) ו-`RecentChanges` (הדף הראשי) |
+| `10-stops.jsx` | `StopsTab` ועמוד תחנה (`LinesAtStop`) |
+| `11-map.jsx` | `MapTab` |
+| `12-sources-history.jsx` | `TABS`, `SOURCES`, `ModesTab`, הארכיון ההיסטורי (`HistoricalPeriod`, `HistoricalDay`), הודעות החברות (`NewsFeed`) |
+| `13-app.jsx` | `App`, הלשוניות הראשיות, הניתוב, והרצה |
 
 - עיצוב: `styles.css`. תמונת שיתוף: `og-image.png`.
 

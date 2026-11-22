@@ -96,7 +96,7 @@ jobs:
           python tools/check_history_claims.py
           node - <<'JS'
           const fs=require('fs'),Babel=require('./vendor/babel.min.js');
-          Babel.transform(fs.readFileSync('line-history/app.jsx','utf8'),{presets:['react']});
+          Babel.transform(JSON.parse(fs.readFileSync('line-history/src/files.json', 'utf8')).map((f) => fs.readFileSync('line-history/src/' + f, 'utf8')).join('\n'),{presets:['react']});
           console.log('JSX compiled');
           JS
       - name: Verify the final data in the browser

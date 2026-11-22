@@ -49,7 +49,7 @@ console.log(`✓ נתונים: ${listed.size} חודשי תחנות (מ-${oldest
     if (!m) fail(`חסר תג ${tag} בעמוד — כך נראה הקישור כשמשתפים אותו`);
     if (!m[1].includes(yr)) fail(`${tag} לא מזכיר את ${yr}, השנה שבה הנתונים מתחילים: "${m[1]}"`);
   }
-  const app = fs.readFileSync(path.join(LH, 'app.jsx'), 'utf8');
+  const app = JSON.parse(fs.readFileSync(path.join(LH, 'src', 'files.json'), 'utf8')).map((f) => fs.readFileSync(path.join(LH, 'src', f), 'utf8')).join('\n');
   const nsrc = (app.match(/SOURCES = \[([\s\S]*?)\n\];/) || ['', ''])[1]
     .match(/(?:^|[,{]\s*)["']?t["']?\s*:/gm)?.length || 0;
   if (nsrc < 4) fail(`רשימת המקורות באתר מונה ${nsrc} מקורות — פחות ממה שבשימוש`);
@@ -120,7 +120,7 @@ await page.route('**://fonts.gstatic.com/**', (r) => r.fulfill({ body: '' }));
 // מגבילים לשורת הלשוניות הראשית, כדי שלא יתפסו גם "תחנות שהשתנו" שבמפה.
 const SITE_TAB = '.tabs[aria-label="אזורי האתר"] .tab';
 
-// שחזור המסך האחרון (app.jsx, ההחלפה "אתר למחשב") היה מחזיר את הבדיקה למסך הקודם — הבדיקה מנקה אותו לפני כל ניווט
+// שחזור המסך האחרון (line-history/src, ההחלפה "אתר למחשב") היה מחזיר את הבדיקה למסך הקודם — הבדיקה מנקה אותו לפני כל ניווט
 await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
 await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
 await page.click(`${SITE_TAB}:has-text("תחנות")`, { timeout: 30000 });
