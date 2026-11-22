@@ -4387,6 +4387,10 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   // התחבורה, בחירת השנה מציגה רק את משרד התחבורה, והצילומים בכפתור משלהם (שלמה 03.10)
   const [webSrc, setWebSrc] = useState(false);
   const [srcMonths, setSrcMonths] = useState({ web: [], official: null });
+  // הודעות החברות מהארכיון (דן 2000–2012): מקור שלישי, עם כפתור משלו (שלמה 22.11)
+  const [newsSrc, setNewsSrc] = useState(false);
+  const news = useCompanyNews(mode);
+  const newsOf = (y) => (news || []).filter((x) => x.d.startsWith(y));
   useEffect(() => { try { sessionStorage.setItem("lh-day-yr-"+mode, yr); sessionStorage.setItem("lh-day-mon-"+mode, mon); } catch (e) { /* ignore */ } }, [yr, mon]);
   const [chs, setChs] = useState(null);
   const [q, setQ] = usePersistedQ("lh-q-day");
@@ -4516,26 +4520,30 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
       {!embedded && <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>}
       <div className="months">
         {/* שנים וחודשים עם נתונים זמינים בלבד. */}
-        {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
-          <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" && !webSrc ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012" && !webSrc}
+        {[...new Set([...months.map((m) => m.slice(0, 4)), ...(news || []).map((x) => x.d.slice(0, 4))])].sort().reverse().map((y) => (
+          <button key={y} className={"mchip" + (yr === y && (newsSrc || (mon !== "legacy2012" && !webSrc)) ? " on" : "")} aria-pressed={yr === y && (newsSrc || (mon !== "legacy2012" && !webSrc))}
             aria-label={y}
-            title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}</button>
+            title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); setNewsSrc(!months.some((m) => m.startsWith(y))); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}</button>
         ))}
       </div>
       {/* מקורות השנה: רק כשבוחרים שנה שיש לה יותר ממקור אחד — 2012 (משרד התחבורה ואתר מגיעים)
           או שנה עם צילומי אתרי מידע לנוסעים (שלמה 21.11) */}
-      {mode === "lines" && yr && (yr === "2012" || (officialOf(yr).length > 0 && webOf(yr).length > 0)) && <div className="srcrow">
+      {mode === "lines" && yr && (yr === "2012" || (officialOf(yr).length > 0 && webOf(yr).length > 0) || newsOf(yr).length > 0) && <div className="srcrow">
         <span className="pdesc" style={{ marginInlineEnd: 10 }}>מקורות של {yr}:</span>
-        {officialOf(yr).length > 0 && <button className={"mchip src-mot" + (mon !== "legacy2012" && !showWeb ? " on" : "")} aria-pressed={mon !== "legacy2012" && !showWeb}
+        {officialOf(yr).length > 0 && <button className={"mchip src-mot" + (mon !== "legacy2012" && !showWeb && !newsSrc ? " on" : "")} aria-pressed={mon !== "legacy2012" && !showWeb && !newsSrc}
           title={"נתוני משרד התחבורה, " + yr}
-          onClick={() => { const off = officialOf(yr); setWebSrc(false); if (!off.includes(mon)) setMon(off[off.length - 1]); }}>משרד התחבורה</button>}
-        {yr === "2012" && <button className={"mchip src-mag" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
-          onClick={() => { setWebSrc(false); setMon("legacy2012"); }}>צילום ממקור נוסף · אתר מגיעים</button>}
-        {officialOf(yr).length > 0 && webOf(yr).length > 0 && <button className={"mchip src-web" + (showWeb && mon !== "legacy2012" ? " on" : "")} aria-pressed={showWeb && mon !== "legacy2012"}
+          onClick={() => { const off = officialOf(yr); setWebSrc(false); setNewsSrc(false); if (!off.includes(mon)) setMon(off[off.length - 1]); }}>משרד התחבורה</button>}
+        {yr === "2012" && <button className={"mchip src-mag" + (mon === "legacy2012" && !newsSrc ? " on" : "")} aria-pressed={mon === "legacy2012" && !newsSrc} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
+          onClick={() => { setWebSrc(false); setNewsSrc(false); setMon("legacy2012"); }}>צילום ממקור נוסף · אתר מגיעים</button>}
+        {webOf(yr).length > 0 && (officialOf(yr).length > 0 || newsOf(yr).length > 0) && <button className={"mchip src-web" + (showWeb && mon !== "legacy2012" && !newsSrc ? " on" : "")} aria-pressed={showWeb && mon !== "legacy2012" && !newsSrc}
           title={"צילומים מאתרי מידע לנוסעים שנשמרו ב־Internet Archive, " + yr}
-          onClick={() => { const ws = webOf(yr); setWebSrc(true); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>צילום ממקור נוסף · אתרי מידע לנוסעים</button>}
+          onClick={() => { const ws = webOf(yr); setWebSrc(true); setNewsSrc(false); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>צילום ממקור נוסף · אתרי מידע לנוסעים</button>}
+        {newsOf(yr).length > 0 && <button className={"mchip src-news" + (newsSrc ? " on" : "")} aria-pressed={newsSrc}
+          title={"הודעות על שינויים בקווים מאתר החברה, שנשמרו ב־Internet Archive, " + yr}
+          onClick={() => setNewsSrc(true)}>הודעות החברות · דן</button>}
       </div>}
       {/* שורת המקור של מה שמוצג, בצבע של המקור — כדי שההבדל בין המקורות ייראה מיד (שלמה 21.11) */}
+      {newsSrc ? <SrcNote k="news" n={newsOf(yr).length} u="הודעות" /> : <>
       {mode === "lines" && mon === "legacy2012" && <SrcNote k="mag" />}
       {mode === "lines" && mon !== "legacy2012" && showWeb && <SrcNote k="web" />}
       {mode === "lines" && mon !== "legacy2012" && !showWeb && !missingYear && chs && (() => {
@@ -4547,16 +4555,17 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
         </>;
       })()}
       {mode === "lines" && mon !== "legacy2012" && showWeb && yr && <WebsiteYearSummary year={yr} />}
-      {yr && mon !== "legacy2012" && (
+      </>}
+      {yr && mon !== "legacy2012" && !newsSrc && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr) && (showWeb ? webSet.has(m) : isOfficial(m))).slice().reverse().map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="הצגת השינויים של החודש הזה בלבד" onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
           ))}
         </div>
       )}
-      {!missingYear && <CitySearchStatus state={citySearch} />}
-      {!missingYear && <input className="search" type="search" placeholder="סינון: מספר קו, עיר בדרך, יעד, מפעיל או מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />}
-      {missingYear ? <HistoricalPeriod key={yr} idx={idx} openLine={openLine} mode={mode} year={yr} month={mon} embedded /> : mon === "legacy2012" ? (() => {
+      {!missingYear && !newsSrc && <CitySearchStatus state={citySearch} />}
+      {(!missingYear || newsSrc) && <input className="search" type="search" placeholder={newsSrc ? "סינון: מספר קו או מילה מההודעה…" : "סינון: מספר קו, עיר בדרך, יעד, מפעיל או מק״ט…"} value={q} onChange={(e) => setQ(e.target.value)} />}
+      {newsSrc ? <NewsFeed items={newsOf(yr)} needle={needle} /> : missingYear ? <HistoricalPeriod key={yr} idx={idx} openLine={openLine} mode={mode} year={yr} month={mon} embedded /> : mon === "legacy2012" ? (() => {
         if (!a12 || !idx12) return "טוען…";
         const list12 = sort12(rows12.filter((v) => match12(v, needle)), needle);
         if (!list12.length) return <div className="empty">אין קווי 2012 תואמים.</div>;
@@ -6121,10 +6130,41 @@ const SRC_NOTES = {
   foi: ["משרד התחבורה (חופש מידע)", "קובץ \"מסלול לפי שנים\" שהתקבל בבקשת חופש מידע. התאריכים משוערים, ואין בו שרטוט של המסלול."],
   web: ["צילום ממקור נוסף · אתרי מידע לנוסעים", "צילומים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי."],
   mag: ["צילום ממקור נוסף · אתר מגיעים", "צילום של רשת האוטובוסים מ־2012, כפי שהופיעה באתר."],
+  news: ["הודעות החברות · דן", "הודעות על שינויים קבועים בקווים מאתר דן, שנשמרו ב־Internet Archive. התאריך הוא יום פרסום ההודעה; כשבהודעה כתוב ממתי השינוי, הוא מופיע בנפרד. לא כל ההודעות נשמרו."],
 };
-function SrcNote({ k, n }) {
+function SrcNote({ k, n, u = "שינויים" }) {
   const [t, d] = SRC_NOTES[k];
-  return <p className={"srcnote src-" + k}><b>מקור: {t}</b>{n ? <span className="srcn">{n.toLocaleString()} שינויים</span> : null}<br />{d}</p>;
+  return <p className={"srcnote src-" + k}><b>מקור: {t}</b>{n ? <span className="srcn">{n.toLocaleString()} {u}</span> : null}<br />{d}</p>;
+}
+// הודעות החברות מהארכיון — קובץ אחד קטן, נטען פעם אחת (רק בטאב הקווים)
+let NEWS_P = null;
+function useCompanyNews(mode) {
+  const [n, setN] = useState(null);
+  useEffect(() => {
+    if (mode !== "lines") return;
+    if (!NEWS_P) NEWS_P = dfetch("data/news-dan.json").then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    let ok = true; NEWS_P.then((d) => { if (ok) setN(d); });
+    return () => { ok = false; };
+  }, [mode]);
+  return mode === "lines" ? n : [];
+}
+const dmy = (d) => d.split("-").reverse().join(".");
+function NewsFeed({ items, needle }) {
+  const nd = needle.trim();
+  const list = items.filter((x) => !nd || (x.l || []).includes(nd) || (x.t + " " + (x.b || "")).includes(nd)).slice().reverse();
+  if (!list.length) return <div className="empty">אין הודעות תואמות בשנה הזו.</div>;
+  const byM = [];
+  for (const x of list) { const m = x.d.slice(0, 7); if (!byM.length || byM[byM.length - 1][0] !== m) byM.push([m, []]); byM[byM.length - 1][1].push(x); }
+  return <div>{byM.map(([m, xs]) => <div key={m}>
+    <div className="dayhead">{dmy(m)} · {xs.length} {xs.length === 1 ? "הודעה" : "הודעות"}</div>
+    {xs.map((x, i) => <div key={i} className="newsrow">
+      <div className="newshead">{(x.l || []).slice(0, 6).map((l) => <span key={l} className="badge sm">{l}</span>)}
+        <b>{x.t}</b></div>
+      <div className="newsmeta">{x.op} · פורסם {dmy(x.d)}{x.e && x.e !== x.d ? <> · <b>בתוקף מ־{dmy(x.e)}</b></> : null}
+        {" · "}<a href={"https://web.archive.org/web/" + x.ts + "/" + x.u} target="_blank" rel="noopener">ההודעה בארכיון ↗</a></div>
+      {x.b && <div className="newsbody">{x.b}{x.b.length >= 420 ? "…" : ""}</div>}
+    </div>)}
+  </div>)}</div>;
 }
 function useHistoricalMonths(mode) {
   const revision=useWebsiteRevision();

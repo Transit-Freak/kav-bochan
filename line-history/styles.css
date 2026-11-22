@@ -580,6 +580,14 @@ a.sib.sibdir.on { color: #fff; }
 .src-foi { --sc: #b45309; --sb: #fffbeb; }
 .src-web { --sc: #7c3aed; --sb: #f5f3ff; }
 .src-mag { --sc: #78350f; --sb: #fdf8f3; }
-.mchip.src-mot, .mchip.src-web, .mchip.src-mag { border-color: var(--sc); color: var(--sc); }
-.mchip.src-mot.on, .mchip.src-web.on, .mchip.src-mag.on { background: var(--sc); color: #fff; }
+.src-news { --sc: #0f766e; --sb: #f0fdfa; }
+.mchip.src-mot, .mchip.src-web, .mchip.src-mag, .mchip.src-news { border-color: var(--sc); color: var(--sc); }
+.mchip.src-mot.on, .mchip.src-web.on, .mchip.src-mag.on, .mchip.src-news.on { background: var(--sc); color: #fff; }
 .approxd.foi-tag { color: #b45309; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 9999px; padding: 0 7px; font-size: 11px; font-weight: 700; }
+
+/* הודעות החברות מהארכיון */
+.newsrow { padding: 10px 4px; border-bottom: 1px solid #e2e8f0; border-inline-start: 3px solid #0f766e; padding-inline-start: 10px; margin: 6px 0; }
+.newshead { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14.5px; }
+.newsmeta { font-size: 12.5px; color: #64748b; margin-top: 3px; }
+.newsmeta a { color: #0f766e; }
+.newsbody { font-size: 13px; color: #334155; margin-top: 5px; line-height: 1.55; }
