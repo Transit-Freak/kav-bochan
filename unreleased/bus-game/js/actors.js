@@ -15,8 +15,8 @@ import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
 import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData, coachSeating } from './coach.js';
-import { buildEMini } from './emini.js';
-import { addCitySigns, cityClone, cityDisplays, cityData } from './citysigns.js';
+import { buildEMini, eminiClone } from './emini.js';
+import { addCitySigns, cityClone, cityDisplays, cityData, EMINI_SIGNS } from './citysigns.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
@@ -262,7 +262,7 @@ export class BusLayer {
     if (this.variants.emini || !this.variants.mini) return this.variants.emini;
     this.tune('mini', this.variants.mini);
     const src = this.variants.mini, scene = src.scene.clone(true);
-    try { buildEMini(scene); } catch (e) { console.warn('emini failed', e); }
+    try { buildEMini(scene); addCitySigns(scene, EMINI_SIGNS); } catch (e) { console.warn('emini failed', e); }
     this.tunedSet.add('emini');
     try { const an = this.animOf.get('mini'); if (an) { this.animOf.set('emini', an); this.liteOf.set('emini', buildLite(scene, an)); } } catch (e) { console.warn('lite emini failed', e); }
     return (this.variants.emini = { scene, animations: src.animations, userData: src.userData || {} });
@@ -333,7 +333,8 @@ export class BusLayer {
     this.group.add(obj);
     const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null, lite: null, isLite: false };
     if (kind === 'coach') v.coach = coachClone(obj, bus);
-    else if (kind === 'std' || kind === 'elec') v.city = cityClone(obj);
+    else if (kind === 'std' || kind === 'elec' || kind === 'emini') v.city = cityClone(obj);
+    if (kind === 'emini') eminiClone(obj, bus);
     // הגרסה הממוזגת (לא לדגם הרגיל עם גג צבוע — שם החומרים שונים לכל אוטובוס)
     const LT = asset && !(T?.tint && kind === 'std') ? this.liteOf.get(kind) : null;
     if (LT) { const an = this.animOf.get(kind), statics = []; obj.traverse(o => { if (liteStatic(o, an)) statics.push(o); });

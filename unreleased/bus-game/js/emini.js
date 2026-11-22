@@ -10,6 +10,8 @@ import { keep } from './texkeep.js';
 
 // מידות המיניבוס (bus_variants.md): חזית z = 6.0, אחור ‎-2.615, רוחב 2.55, גג 2.90, סרנים 3.35 ו-‎-0.015, דלת אחת z 4.565–5.735 בצד ‎-X
 const HW = 1.275, FZ = 6.0, RZ = -2.615, ROOF = 2.9, AX = [3.35, -0.015], WR = 0.53, DOOR = [4.565, 5.735];
+// הבמה האחורית: מ-z ‏PLAT.z אחורה, בגובה PLAT.h מעל הרצפה
+const FL = 0.675, PLAT = { z: 0.62, h: 0.2 };
 const BLUE = 0x2d4f9e, BLUE_LIGHT = 0x4f74c8, NAVY = 0x16244a;
 
 const M4 = new THREE.Matrix4(), E = new THREE.Euler();
@@ -73,20 +75,11 @@ function chevronTex() {
     for (let i = -2; i < 6; i++) { x.beginPath(); x.moveTo(i * 16, h); x.lineTo(i * 16 + 8, h); x.lineTo(i * 16 + 8 + h, 0); x.lineTo(i * 16 + h, 0); x.closePath(); x.fill(); }
   }, true);
 }
-// שלט לד כתום "התחנה הבאה" (קבוע, בלי שם תחנה — כמו בין תחנות)
-function ledTex() {
-  return canvasTex(256, 40, (x, w, h) => {
-    x.fillStyle = '#120a04'; x.fillRect(0, 0, w, h);
-    x.fillStyle = '#ff8a1c'; x.direction = 'rtl'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.font = '700 24px "Rubik", Arial, sans-serif'; x.fillText('התחנה הבאה', w / 2, h / 2 + 1);
-    x.fillStyle = 'rgba(0,0,0,.35)'; for (let i = 0; i < w; i += 3) x.fillRect(i, 0, 1, h);
-  });
-}
 
 // ---------- החצאית הכחולה: מאחורי הגלגל הקדמי ועד האחור, עם קשת אלכסונית בקצה הקדמי וחור עגול לגלגל האחורי.
 // u — לאורך האוטובוס (z), v — גובה. בצד הדלת היא מתחילה אחרי הדלת
 function skirtShape(zFront) {
-  const yb = 0.3, yt = 1.22, r = WR + 0.07, cy = WR, za = AX[1];
+  const yb = 0.3, yt = 1.22, r = WR + 0.09, cy = WR, za = AX[1];
   const sh = new THREE.Shape();
   sh.moveTo(RZ + 0.05, yb);
   const a0 = Math.asin((yb - cy) / r);
@@ -117,7 +110,11 @@ function exteriorParts(P, M, textG) {
     P.add(M.blue, sidePlane(skirtShape(zf), s, X));
     // פס כחול בהיר דק בשפה העליונה, ופס כהה בתחתית
     P.add(M.blueLight, at(box(0.012, 0.05, zf - RZ - 0.6), X + s * 0.002, 1.2, (zf - 0.55 + RZ) / 2));
-    P.add(M.navy, at(box(0.014, 0.06, FZ - RZ - 0.2), X + s * 0.001, 0.26, (FZ + RZ) / 2));
+    // פס כהה בתחתית — בין קשתות הגלגלים בלבד (לא מול הגלגלים)
+    for (const [z0, z1] of [[RZ + 0.1, AX[1] - 0.68], [AX[1] + 0.68, AX[0] - 0.68], [AX[0] + 0.68, FZ - 0.1]]) if (!(s < 0 && z0 >= DOOR[0] - 0.2)) P.add(M.navy, at(box(0.014, 0.06, z1 - z0), X + s * 0.001, 0.26, (z0 + z1) / 2));
+    // קשתות הגלגלים: בטנה כהה בתוך הקשת (במקום הצד הפנימי הלבן של הגוף), כמו באוטובוס אמיתי
+    // (חצי טבעת כהה על פני הגוף, בין הצמיג לשפת הקשת — מסתירה את בית הגלגל הלבן של הדגם)
+    for (const az of AX) P.add(M.liner, new THREE.RingGeometry(WR + 0.005, WR + 0.1, 28, 1, -0.3, Math.PI + 0.6).rotateY(s * Math.PI / 2).translate(s * (HW + 0.004), WR, az));
     // רצועת החלונות שחורה: מסגרת כהה מעל ומתחת לחלונות לכל האורך
     for (const y of [1.3, 2.55]) P.add(M.trimDark, at(box(0.014, 0.06, FZ - RZ - 0.3), X, y, (FZ + RZ) / 2 - (s < 0 ? 0 : 0)));
     // הכיתוב "אוטובוס חשמלי" על החצאית, קרוב לאחור
@@ -168,6 +165,32 @@ function dropTris(o, root, kill) {
 // המראות של הדגם (בחיפוי הכהה, מחוץ לגוף מקדימה): ראש המראה בצד הנהג, והמראה התלויה בצד הדלת
 const MIRROR_TRI = c => c.z > 5.3 && c.y > 1.5 && (Math.abs(c.x) > HW + 0.03 || (c.z > FZ + 0.1 && c.y > 2.5 && Math.abs(c.x) > 0.95));
 
+// המושבים, הידיות והגבים שמאחורי שפת הבמה — עולים בגובה הבמה (רק הקודקודים שמעל הרצפה, באזור הבמה)
+function raiseRear(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), v = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || !/Seat/i.test([].concat(o.material).map(m => m?.name).join() + o.name)) return;
+    if (o.name.startsWith('EMini')) return;
+    const M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld), Mi = M.clone().invert(), g = o.geometry.clone(), p = g.attributes.position;
+    let moved = 0;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(M); if (v.z < PLAT.z + 0.45 && v.z > RZ && v.y > FL - 0.01) { v.y += PLAT.h; v.applyMatrix4(Mi); p.setXYZ(i, v.x, v.y, v.z); moved++; } }
+    if (moved) { p.needsUpdate = true; g.computeBoundingSphere(); o.geometry = g; }
+  });
+}
+// שלט היעד בצד, מבחוץ (בחלון שמאחורי הדלת): מספר הקו והיעד, בנקודות לד כתומות
+export function sideSignTex(num, dest) {
+  return canvasTex(512, 64, (x, w, h) => {
+    x.fillStyle = '#0a0a0a'; x.fillRect(0, 0, w, h); x.fillStyle = '#ff9a1c'; x.textBaseline = 'middle';
+    x.direction = 'ltr'; x.textAlign = 'left'; x.font = '800 46px "Rubik", Arial, sans-serif'; x.fillText(String(num || ''), 12, h / 2 + 2);
+    const nw = x.measureText(String(num || '')).width + 28;
+    x.direction = 'rtl'; x.textAlign = 'right'; let p = 40; x.font = `700 ${p}px "Rubik", Arial, sans-serif`;
+    while (p > 18 && x.measureText(dest || '').width > w - nw - 16) { p -= 2; x.font = `700 ${p}px "Rubik", Arial, sans-serif`; }
+    x.fillText(dest || '', w - 10, h / 2 + 2);
+    x.fillStyle = 'rgba(0,0,0,.45)'; for (let i = 0; i < w; i += 3) x.fillRect(i, 0, 1, h); for (let j = 0; j < h; j += 3) x.fillRect(0, j, w, 1);
+  });
+}
+
 // ---------- הבנייה: פעם אחת לדגם (העותק של המיניבוס)
 export function buildEMini(root) {
   const std = (name, o) => new THREE.MeshStandardMaterial({ name, roughness: 0.6, metalness: 0, ...o });
@@ -178,6 +201,9 @@ export function buildEMini(root) {
     blueLight: std('M_EMiniBlueL', { color: BLUE_LIGHT, roughness: 0.35, metalness: 0.15 }),
     navy: std('M_EMiniNavy', { color: NAVY, roughness: 0.45 }),
     trimDark: std('M_EMiniTrim', { color: 0x15181b, roughness: 0.4 }),
+    liner: std('M_EMiniLiner', { color: 0x101214, roughness: 0.9, side: THREE.DoubleSide }),
+    step: std('M_EMiniStep', { color: 0x2b3038, roughness: 0.85 }),
+    stepEdge: std('M_EMiniStepEdge', { color: 0xf0c000, roughness: 0.5 }),
     amber: new THREE.MeshBasicMaterial({ name: 'M_EMiniAmber', color: 0xffa31a }),
     tailRed: new THREE.MeshBasicMaterial({ name: 'M_EMiniTailR', color: 0xc8141c }),
     tailAmber: new THREE.MeshBasicMaterial({ name: 'M_EMiniTailA', color: 0xff9a1a }),
@@ -200,12 +226,19 @@ export function buildEMini(root) {
   P.build(grp, 'EMiniExterior');
   const txt = new THREE.Mesh(mergeGeometries(textG, false), new THREE.MeshStandardMaterial({ name: 'M_EMiniText', map: sideTextTex(), transparent: true, roughness: 0.4, depthWrite: false }));
   txt.name = 'EMiniExterior_Text'; grp.add(txt);
+  { const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.12), new THREE.MeshBasicMaterial({ name: 'M_EMiniSideSign', map: sideSignTex('', ''), toneMapped: false }));
+    sg.rotation.y = -Math.PI / 2; sg.position.set(-(HW + 0.022), 2.42, 3.6); sg.name = 'EMiniSideSign'; grp.add(sg);
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.16, 1.0), M.trimDark); fr.position.set(-(HW + 0.004), 2.42, 3.6); fr.name = 'EMiniExterior_SignFrame'; grp.add(fr); }
   const inn = new THREE.Group(); inn.name = 'EMiniInterior'; root.add(inn);
   const Q = new Parts(); interiorParts(Q, M); Q.build(inn, 'EMiniInterior');
-  // שלט הלד "התחנה הבאה" מקדימה, מעל המעבר, פונה לנוסעים
-  const led = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.14), new THREE.MeshBasicMaterial({ name: 'M_EMiniLED', map: ledTex(), toneMapped: false }));
-  led.position.set(0, 2.45, 3.95); led.rotation.y = Math.PI; led.name = 'EMiniInterior_LED'; inn.add(led);
-  const ledBox = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.2, 0.08), M.trimDark); ledBox.position.set(0, 2.45, 4.0); ledBox.name = 'EMiniInterior_LEDBox'; inn.add(ledBox);
+  // במה מוגבהת מאחור (כמו במיניבוס האמיתי): שלוש שורות המושבים האחוריות עומדות עליה, עם מדרגה ופס צהוב בשפה.
+  // המושבים שם עולים איתה (נוסעים יושבים בפנים רק במבט פקח, ושם המיניבוס מוצג בדגם הרגיל — useStd ב-actors.js)
+  { const P2 = new Parts(), z1 = PLAT.z, zc = (RZ + 0.05 + z1) / 2, L = z1 - RZ - 0.05;
+    P2.add(M.step, at(box(2.42, PLAT.h, L), 0, FL + PLAT.h / 2, zc));
+    P2.add(M.stepEdge, at(box(2.42, 0.006, 0.04), 0, FL + PLAT.h + 0.003, z1 - 0.02));
+    P2.add(M.stepEdge, at(box(2.42, PLAT.h, 0.006), 0, FL + PLAT.h / 2, z1 + 0.003));
+    P2.build(inn, 'EMiniInterior_Plat');
+    raiseRear(root); }
   root.traverse(o => { if (o.isMesh && /^Bus_Body/.test(o.name) && [].concat(o.material).some(m => m?.name === 'M_Trim')) dropTris(o, root, MIRROR_TRI); });
   // מראות: אין. במקומן מצלמות בפינות הגג ושני מסכים בתא הנהג, ליד העמודים הקדמיים (שלמה 22.11, לפי המיניבוס האמיתי).
   // המשטח Mirror_L/R נשאר — הוא המסך, ובמבט נהג (cameras.js) מקבל את התמונה החיה מאחור
@@ -224,4 +257,10 @@ export function buildEMini(root) {
   }
   pods.build(grp, 'EMiniExterior_Cam');
   root.userData.emini = true;
+}
+
+// לכל שכפול: שלט היעד שבצד לפי הקו (מספר ויעד)
+export function eminiClone(obj, bus) {
+  const L = bus?.line, n = String(L?.def?.number ?? ''), dest = L?.stops?.[L.stops.length - 1]?.name || '';
+  const sg = obj.getObjectByName('EMiniSideSign'); if (sg) sg.material = new THREE.MeshBasicMaterial({ name: 'M_EMiniSideSign', map: sideSignTex(n, dest), toneMapped: false });
 }

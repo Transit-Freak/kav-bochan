@@ -75,7 +75,9 @@ const idleMats = () => idle || (idle = (() => { const a = canvasMat(32, 16, 'M_C
 export function cityDisplays() { return { scr: canvasMat(1600, 488, 'M_CityDetScr', drawScreen), led: canvasMat(1024, 64, 'M_CityDetLed', drawLed) }; }
 
 // פעם אחת לדגם: מוציאים את המסך התלוי ואת התושבת שלו, ומוסיפים את השלטים
-export function addCitySigns(root) {
+// במיניבוס החשמלי (emini.js): הגג נמוך יותר (y מעל 2.1 → 2.1 + (y − 2.1) × 0.762), מסך אחד בצד הנהג קרוב לחזית, ופס הלד באותו z
+export const EMINI_SIGNS = { screens: [[1, 2.05]], k: 0.762 };
+export function addCitySigns(root, opt = null) {
   root.updateMatrixWorld(true);
   const inv = root.matrixWorld.clone().invert(), v = [0, 1, 2].map(() => new THREE.Vector3()), c = new THREE.Vector3(), list = [];
   root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && o.geometry.index && o.material.name !== 'M_CeilPerf') list.push(o); });
@@ -90,14 +92,17 @@ export function addCitySigns(root) {
   const I = idleMats(), frame = new THREE.MeshStandardMaterial({ name: 'M_CitySignFrame', color: 0x1a1c1f, roughness: 0.4 });
   const panel = new THREE.MeshStandardMaterial({ name: 'M_CitySignPanel', color: 0xd9dcdf, roughness: 0.6 }), bezel = new THREE.MeshStandardMaterial({ name: 'M_CitySignBezel', color: 0xf3f4f5, roughness: 0.35 });
   const grp = new THREE.Group(); grp.name = 'CitySigns'; root.add(grp);
-  for (const [s, z] of CITY_SCREENS) {
+  const lowY = y => opt?.k ? 2.1 + (y - 2.1) * opt.k : y, dy = lowY(SCR.y) - SCR.y, ly = lowY(LED.y) - LED.y;
+  for (const [s, z] of opt?.screens || CITY_SCREENS) {
     const p = new THREE.Mesh(onWall(new THREE.BoxGeometry(SCR.panel[0], SCR.panel[1], 0.02), s, z, 0.03), panel); p.name = 'CitySignPanel';
     const b = new THREE.Mesh(onWall(new THREE.BoxGeometry(SCR.w + 0.07, SCR.h + 0.07, 0.02), s, z, 0.012), bezel); b.name = 'CitySignBezel';
     const m = new THREE.Mesh(onWall(new THREE.PlaneGeometry(SCR.w, SCR.h), s, z), I.scr); m.name = 'CitySignScreen'; grp.add(p, b, m);
+    if (dy) for (const o of [p, b, m]) o.position.y += dy;
   }
   const lb = new THREE.Mesh(new THREE.BoxGeometry(LED.w + 0.04, LED.h + 0.04, 0.04), frame); lb.position.set(0, LED.y, LED.z + 0.025); lb.name = 'CitySignFrame';
   const led = new THREE.Mesh(new THREE.PlaneGeometry(LED.w, LED.h).rotateY(Math.PI), I.led); led.position.set(0, LED.y, LED.z); led.name = 'CitySignLed';
   const rod = new THREE.Mesh(new THREE.BoxGeometry(0.03, 3.06 - LED.y - LED.h / 2, 0.02), frame); rod.position.set(0, (3.06 + LED.y + LED.h / 2) / 2, LED.z + 0.025); rod.name = 'CitySignFrame';
+  if (ly) { lb.position.y += ly; led.position.y += ly; rod.visible = false; }   // בגג הנמוך הפס צמוד לתקרה
   grp.add(lb, led, rod);
 }
 // לכל שכפול: המסכים והפס שלו, והחומרים הכהים (לחזור אליהם כשהמצלמה יוצאת)
