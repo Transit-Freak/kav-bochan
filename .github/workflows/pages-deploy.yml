@@ -108,7 +108,7 @@ jobs:
     timeout-minutes: 60
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
       # האתר כ-3GB: מפנים מקום בשרת לפני ההעתקה והאריזה
       - name: מקום בדיסק
@@ -169,8 +169,29 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+      # 20–21.11: ארבע ריצות נכשלו ב-"No artifacts named github-pages" — חצי שנייה אחרי שההעלאה הצליחה,
+      # GitHub עוד לא הראה את הקובץ ברשימה. מחכים שיופיע (עד 3 דקות), ואם הפרסום בכל זאת נכשל — עוד ניסיון אחד.
+      - name: מחכים שהקובץ יופיע ב-GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 18); do
+            n=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+                  --jq '[.artifacts[] | select(.name=="github-pages")] | length' 2>/dev/null || echo 0)
+            [ "$n" -gt 0 ] && { echo "הקובץ מוכן"; exit 0; }
+            sleep 10
+          done
+          echo "::warning::הקובץ עוד לא מופיע אחרי 3 דקות — מנסים לפרסם בכל זאת"
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
         with:
           # האתר גדול, ו-GitHub לפעמים מסנכרן אותו יותר מ-10 הדקות של ברירת המחדל (07.11) — 30 דקות
+          timeout: 1800000
+      - if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+      - id: deployment2
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        with:
           timeout: 1800000
