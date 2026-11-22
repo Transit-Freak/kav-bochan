@@ -1,7 +1,7 @@
 /* העדכון ה-500 של הקו הבוחן (שלמה 22.11.2026: "סיבה למסיבה") — לשבוע אחד, 22.11–29.11.2026, בדף הבית בלבד:
-   - שלט קו מואר כמו בחזית אוטובוס: "קו 500", והיעד מתחלף בין כמה הודעות (המספרים — מ-versions.json);
+   - שלט קו מואר כמו בחזית אוטובוס: "עדכון 500", והיעד מתחלף בין כמה הודעות (המספרים — מ-versions.json);
    - קונפטי פעם אחת ביום לכל מבקר (ובלחיצה על מספר הקו), בלי תנועה למי שביקש "בלי תנועה";
-   - כובע מסיבה לעין שבמרכז הכלים.
+   - העין שבמרכז הכלים חוגגת: כובע מסיבה, עין שמחה (^‿^) עם סומק, קפיצה קטנה, והכלים סביבה עולים בגל.
    נכנס לתוך דף הבית (.kbh), ולכן לא מופיע בתוך הכלים. ✕ סוגר את השלט ואת הכובע, ונשאר סגור באותו דפדפן.
    תצוגה מקדימה בכל יום: ‎?c500‎ בכתובת. אחרי 29.11 הקובץ לא עושה כלום, ואפשר להוריד אותו מ-index.html. */
 (function () {
@@ -45,16 +45,21 @@
     ".kb500-hat{position:absolute;z-index:4;left:53%;top:23.6%;width:11%;aspect-ratio:1/1.15;pointer-events:none;",
     "transform:translateX(-50%) rotate(18deg);transform-origin:50% 100%;filter:drop-shadow(0 4px 6px rgba(2,6,23,.25))}",
     ".kb500-hat svg{display:block;width:100%;height:100%}",
+    /* עין שמחה: העפעף התחתון עולה (כמו ^‿^) וסומק בלחיים — שכבה מעל העין, באותו מקום ובאותה קפיצה */
+    ".kb500-joy{position:absolute;inset:33%;z-index:3;pointer-events:none}",
+    ".kb500-joy svg{display:block;width:100%;height:100%}",
+    ".kb-shabbat .kb500-joy{display:none}",
     /* העין חוגגת (שלמה: "זה סוג של יום הולדת שלה"): קפיצה קטנה כל כמה שניות, הכובע קופץ איתה, והכלים סביבה
        עולים בגל. translate/scale נפרדים מ-transform, כדי לא להתנגש בתנועות של דף הבית (העין שמסתכלת, ריחוף על כלי) */
     ".kb500-party:not(.kb-shabbat) .eye{animation:kb5hop 5.2s ease-in-out infinite}",
     ".kb500-party:not(.kb-shabbat) .kb500-hat{animation:kb5hat 5.2s ease-in-out infinite}",
+    ".kb500-party:not(.kb-shabbat) .kb500-joy{animation:kb5hop 5.2s ease-in-out infinite}",
     ".kb500-party .orb>span{animation:kb5wave 5.2s ease-in-out infinite;animation-delay:var(--kb5d,0s)}",
     "@keyframes kb5hop{0%,62%,100%{translate:0 0;scale:1}68%{translate:0 -9%;scale:.97 1.04}74%{translate:0 0;scale:1.05 .95}80%{scale:1}}",
     "@keyframes kb5hat{0%,62%,100%{translate:0 0;rotate:0deg}68%{translate:0 -26%;rotate:-10deg}74%{translate:0 0;rotate:6deg}82%{rotate:0deg}}",
     "@keyframes kb5wave{0%,8%,100%{translate:0 0}3%{translate:0 -16%}}",
-    "@media (prefers-reduced-motion:reduce){.kb500-party .eye,.kb500-party .kb500-hat,.kb500-party .orb>span{animation:none}}",
-    "html.a11y-nomotion .kb500-party .eye,html.a11y-nomotion .kb500-party .kb500-hat,html.a11y-nomotion .kb500-party .orb>span{animation:none}",
+    "@media (prefers-reduced-motion:reduce){.kb500-party .eye,.kb500-party .kb500-hat,.kb500-party .kb500-joy,.kb500-party .orb>span{animation:none}}",
+    "html.a11y-nomotion .kb500-party .eye,html.a11y-nomotion .kb500-party .kb500-hat,html.a11y-nomotion .kb500-party .kb500-joy,html.a11y-nomotion .kb500-party .orb>span{animation:none}",
     "#kb500-cv{position:fixed;inset:0;z-index:2147483000;pointer-events:none;width:100%;height:100%}",
     "@media (max-width:520px){.kb500 .rt{padding:6px 12px}.kb500 .rt b{font-size:30px}.kb500 .dst{height:58px}",
     ".kb500 .ln{font-size:15.5px;padding:0 12px}}",
@@ -105,6 +110,14 @@
     '<path d="M4 42 Q20 47 36 42" fill="none" stroke="#0369a1" stroke-width="2.4" stroke-linecap="round"/>' +
     '<circle cx="20" cy="4.5" r="4.2" fill="#ffb31a"/><circle cx="18.6" cy="3.2" r="1.3" fill="#fff" opacity=".7"/></svg>';
 
+  /* העפעף התחתון של העין השמחה — באותה מערכת צירים של העין (120×120), בצבע הרקע של ריבוע העין */
+  var JOY = '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="kb5j" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="120">' +
+    '<stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient><clipPath id="kb5jr"><rect x="1.6" y="1.6" width="116.8" height="116.8" rx="24.4"/></clipPath>' +
+    '</defs>' +
+    '<path clip-path="url(#kb5jr)" d="M0 66 L14 63 Q60 55 106 63 L120 66 L120 120 L0 120 Z" fill="url(#kb5j)"/>' +
+    '<path d="M14 63 Q60 55 106 63" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round"/>' +
+    '<ellipse cx="28" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/><ellipse cx="92" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/></svg>';
+
   var LINES = ["העדכון ה-500 של הקו הבוחן", "תודה לכל מי ששלח הערה, דיווח או רעיון"];
 
   function add() {
@@ -116,10 +129,10 @@
     el.setAttribute("role", "note");
     el.setAttribute("aria-label", "העדכון ה-500 של הקו הבוחן. תודה לכל מי ששלח הערה, דיווח או רעיון.");
     el.innerHTML = '<button type="button" class="rt" title="עוד קונפטי">' +
-      '<small aria-hidden="true">קו</small><b aria-hidden="true">500</b><span class="sr">עוד קונפטי</span></button>' +
+      '<small aria-hidden="true">עדכון</small><b aria-hidden="true">500</b><span class="sr">עוד קונפטי</span></button>' +
       '<div class="dst" aria-hidden="true"></div>' +
       '<button type="button" class="x" aria-label="סגירת החגיגה">✕</button>';
-    var dst = el.querySelector(".dst"), hat = null, i = 0, timer = 0, hover = false;
+    var dst = el.querySelector(".dst"), hat = null, joy = null, i = 0, timer = 0, hover = false;
     function draw() {
       dst.innerHTML = LINES.map(function (t, k) { return '<div class="ln' + (k === i ? " on" : "") + '">' + t + "</div>"; }).join("");
     }
@@ -136,7 +149,7 @@
     el.addEventListener("mouseleave", function () { hover = false; });
     el.querySelector(".rt").addEventListener("click", function () { boomFrom(this); });
     el.querySelector(".x").addEventListener("click", function () {
-      clearInterval(timer); el.remove(); if (hat) hat.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
+      clearInterval(timer); el.remove(); if (hat) hat.remove(); if (joy) joy.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
     });
     var top = root.querySelector("header.top");   // מתחת לפס העליון, מעל הכותרת הגדולה
     if (top) top.parentNode.insertBefore(el, top.nextSibling); else root.insertBefore(el, root.firstChild);
@@ -144,6 +157,7 @@
     var stage = root.querySelector(".stage");
     if (stage && !stage.querySelector(".kb500-hat")) {
       hat = document.createElement("div"); hat.className = "kb500-hat"; hat.innerHTML = HAT; stage.appendChild(hat);
+      joy = document.createElement("div"); joy.className = "kb500-joy"; joy.innerHTML = JOY; stage.appendChild(joy);
       // הגל של הכלים: כל כלי עולה מעט אחרי הקודם, בסדר שלהם סביב העין
       [].forEach.call(stage.querySelectorAll(".orb>span"), function (o, k) { o.style.setProperty("--kb5d", (k * 0.09).toFixed(2) + "s"); });
       stage.classList.add("kb500-party");
