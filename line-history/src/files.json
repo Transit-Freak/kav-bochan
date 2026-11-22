@@ -1,0 +1,15 @@
+[
+ "01-core.jsx",
+ "02-diff.jsx",
+ "03-common.jsx",
+ "04-variants.jsx",
+ "05-schedule.jsx",
+ "06-follow.jsx",
+ "07-line-page.jsx",
+ "08-search.jsx",
+ "09-changes.jsx",
+ "10-stops.jsx",
+ "11-map.jsx",
+ "12-sources-history.jsx",
+ "13-app.jsx"
+]

@@ -1,12 +1,12 @@
 // תיאור החלופות של כל קו ("דרך שכונת…", "דרך רחוב…", "מתחיל ב…") — מחושב כאן, מראש,
 // ולא בדפדפן (שלמה 26.09: "במקום לשמור אצלנו להכין את כל החלופות מראש, הוא עשה
 // שהתוכנה תבדוק כשנכנסים לקו"). אותו קוד בדיוק שרץ בעמוד: הפונקציות נשלפות מ-
-// line-history/app.jsx, כך שכלל שמשתנה שם משתנה גם כאן.
+// קוד הדף (line-history/src), כך שכלל שמשתנה שם משתנה גם כאן.
 // פלט: line-history/data/alt-desc/<2 ספרות ראשונות>.json = {משפחה: {מק"ט-וריאנט: תיאור}}
 // לפי המצב העדכני של כל חלופה. מצב היסטורי (בחירת גרסה ישנה, מסלולי 2012) — עדיין בעמוד.
 import fs from 'fs'; import vm from 'vm'; import zlib from 'zlib'; import path from 'path';
 const DIR = process.env.OUTDIR || 'line-history/data';
-const src = fs.readFileSync('line-history/app.jsx', 'utf8');
+const src = JSON.parse(fs.readFileSync('line-history/src/files.json', 'utf8')).map((f) => fs.readFileSync('line-history/src/' + f, 'utf8')).join('\n');   // כל חלקי הקוד של הדף, לפי הסדר
 // שליפת הגדרה עליונה לפי שם (function X / const X =) עם איזון סוגריים
 function grab(name) {
   // ההגדרות בקובץ הן ברמה העליונה: פונקציה נגמרת בשורה שהיא "}" בתחילת שורה,

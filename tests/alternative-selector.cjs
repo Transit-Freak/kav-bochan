@@ -1,6 +1,6 @@
 // Run with node tests/alternative-selector.cjs from the repository root.
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
-const src=fs.readFileSync('line-history/app.jsx','utf8');
+const src=JSON.parse(fs.readFileSync('line-history/src/files.json', 'utf8')).map((f) => fs.readFileSync('line-history/src/' + f, 'utf8')).join('\n');
 vm.runInThisContext(src.slice(src.indexOf('const variantPart ='),src.indexOf('let variantAreasPromise;')));
 const st=(id,name='הרצל/ויצמן',lat=31.005,lon=34.005)=>[id,name,lat,lon];
 const row=(rd,stops,frequency=1)=>({rd,snapshot:{stops},frequency});
