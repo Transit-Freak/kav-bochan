@@ -3,7 +3,7 @@ body { margin: 0; font-family: "Heebo", system-ui, sans-serif; background: #eef1
 .boot { padding: 70px 20px; text-align: center; color: #475569; font-weight: 800; font-size: 16px; }
 .wrap { max-width: 1150px; margin: 0 auto; padding: 14px 12px 30px; }
 header h1 { font-size: 24px; font-weight: 900; margin: 6px 0 4px; }
-.beta { background: #ddd6fe; color: #4c1d95; padding: 3px 11px; border-radius: 9999px; font-size: 11px; font-weight: 900; vertical-align: 6px; }
+
 .tag { color: #475569; font-weight: 700; font-size: 13.5px; margin: 0 0 8px; }
 .stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; font-size: 12.5px; font-weight: 800; color: #334155; }
@@ -51,10 +51,7 @@ header h1 { font-size: 24px; font-weight: 900; margin: 6px 0 4px; }
 .ttnote { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 9px;
   padding: 6px 10px; margin: 0 0 10px; font-size: 12.5px; color: #075985; line-height: 1.6; }
 .ttnote b { color: #0c4a6e; }
-/* תקופה שהקו לא היה ברישום — סיכום בולט בראש עמוד הקו */
-.offband { background: #fef2f2; border: 1px solid #fecaca; border-radius: 9px;
-  padding: 6px 10px; margin: 0 0 8px; font-size: 12.5px; color: #991b1b; line-height: 1.6; }
-.offband b { color: #7f1d1d; }
+
 /* אזהרת פער: המפה מציגה הפרש מצטבר בין שתי מדידות רחוקות, לא שינוי יחיד */
 .gapwarn { background: #fffbeb; border: 1px solid #fde68a; border-radius: 9px;
   padding: 6px 10px; margin: 0 0 8px; font-size: 12.5px; color: #92400e; line-height: 1.6; }
@@ -88,7 +85,7 @@ header h1 { font-size: 24px; font-weight: 900; margin: 6px 0 4px; }
 .legend { display: flex; gap: 14px; font-size: 12px; font-weight: 800; color: #475569; margin-top: 9px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; margin-left: 5px; vertical-align: 3px; }
 .legend .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; vertical-align: -1px; margin-left: 5px; }
-.lh-tip { font-family: "Heebo", sans-serif; font-weight: 700; direction: rtl; }
+
 .lh-pop { font-family: "Heebo", sans-serif; direction: rtl; }
 .lh-pop .leaflet-popup-content { margin: 10px 14px; font-weight: 700; font-size: 13.5px; line-height: 1.7; text-align: right; }
 .lh-pop .pst { font-size: 12px; }
@@ -182,7 +179,6 @@ footer a { color: #7c3aed; }
 .sgroup .ghead { background: #faf5ff; font-size: 14px; padding: 8px 10px; }
 .srow.sub { padding-right: 22px; }
 
-/* כפתור "הצג עוד" בסוף רשימות */
 /* קישור לקו של היום מתוך שורת 2012 — בלי לגזול את הלחיצה על השורה עצמה */
 .totoday { color: #7c3aed; font-weight: 800; font-size: 12px; white-space: nowrap; }
 
@@ -190,10 +186,6 @@ footer a { color: #7c3aed; }
 .r12 { margin-top: 14px; border-top: 1px dashed #e7e5e4; padding-top: 10px; }
 .r12head { font-size: 12.5px; font-weight: 800; color: #78350f; margin-bottom: 7px; line-height: 1.6; }
 
-/* מסך "קווים שנעלמו" */
-.gonehead { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
-  padding: 8px 12px; margin: 4px 0 10px; font-size: 13px; font-weight: 700;
-  color: #7f1d1d; line-height: 1.7; }
 .morebtn { display: block; width: 100%; border: 1.5px dashed #c4b5fd; background: #faf5ff; color: #6d28d9; border-radius: 12px; padding: 10px; margin-top: 8px; font-family: inherit; font-weight: 800; font-size: 13.5px; cursor: pointer; }
 .morebtn:hover { background: #f3e8ff; }
 /* שורות הקווים וצ'יפי הווריאנטים הם עכשיו קישורים אמיתיים (פתיחה בכרטיסייה חדשה) */
@@ -230,7 +222,7 @@ a.lrow, a.sib { text-decoration: none; color: inherit; }
 .td-removed .num:last-child { text-decoration: none; }
 .td-added .num:first-child { color: #15803d; text-decoration: none; }
 .tdiff-leg { font-size: 11.5px; color: #64748b; font-weight: 700; padding: 7px 10px; background: #f8fafc; }
-.vdetails { margin: 10px 0 6px; display: flex; flex-direction: column; gap: 8px; }
+
 .tdiff-tbl .lbl { font-weight: 900; white-space: nowrap; }
 .tdiff-tbl .val { text-align: right; direction: rtl; font-weight: 700; }
 
@@ -311,8 +303,7 @@ a.lrow, a.sib { text-decoration: none; color: inherit; }
 .recent { margin-top: 4px; }
 .rechead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 12px 0 0; }
 .rechead b { font-size: 15px; color: #1e293b; }
-.recall { border: none; background: none; color: #7c3aed; font-family: inherit;
-  font-weight: 800; font-size: 12.5px; cursor: pointer; padding: 0; }
+
 .recmore { display: block; width: 100%; border: 1.5px dashed #e2e8f0; background: #fff;
   color: #64748b; border-radius: 10px; padding: 7px; margin: 2px 0 4px; font-family: inherit;
   font-weight: 800; font-size: 12.5px; cursor: pointer; }
@@ -335,36 +326,6 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 
 /* המונה בצ׳יפ פעיל יורש את צבע הצ׳יפ — האפור נכשל בניגודיות */
 .kchip.on b { color: inherit; opacity: 1; }
-
-/* חלון "מה חדש" (בקשת שלמה) */
-.newsbtn { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; border-radius: 999px;
-  font-size: 12px; font-weight: 800; padding: 3px 12px; cursor: pointer; font-family: inherit; vertical-align: middle; }
-.newsbtn:hover { background: #ddd6fe; }
-.wnover { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 9999;
-  display: flex; align-items: center; justify-content: center; padding: 16px; }
-.wncard { background: #fff; border-radius: 18px; max-width: 560px; width: 100%; max-height: 85vh;
-  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
-.wnhead { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px;
-  border-bottom: 1px solid #e2e8f0; font-size: 17px; position: sticky; top: 0; background: #fff; }
-.wnx { border: 0; background: #f1f5f9; color: #475569; width: 30px; height: 30px; border-radius: 50%;
-  font-size: 18px; font-weight: 900; cursor: pointer; line-height: 1; }
-.wnx:hover { background: #e2e8f0; color: #0f172a; }
-.wnbody { padding: 12px 18px 18px; }
-.wnsec { font-weight: 900; color: #4c1d95; font-size: 14px; margin: 12px 0 6px; }
-.wnbody ul { margin: 0; padding-inline-start: 18px; }
-.wnbody li { font-size: 13.5px; color: #334155; margin-bottom: 7px; line-height: 1.65; }
-.wnbody li b { color: #0f172a; }
-.wnlead { font-size: 14.5px; color: #0f172a; line-height: 1.7; margin: 10px 0 4px; }
-/* עיצוב "מה חדש" — גרסת שלמה */
-.wnhero { background: linear-gradient(135deg, #4c1d95, #6d28d9); color: #ede9fe; border-radius: 14px;
-  padding: 14px 16px; font-size: 14px; line-height: 1.7; margin: 10px 0 12px; font-weight: 700; }
-.wnht { font-size: 17px; font-weight: 900; color: #fff; margin-bottom: 4px; }
-.wnmain { list-style: none; padding: 0 !important; margin: 0; }
-.wnmain li { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 12px;
-  padding: 9px 12px; margin-bottom: 8px; font-size: 13.5px; line-height: 1.65; color: #334155; }
-.wnmain li b { color: #0f172a; }
-.wnmore { font-size: 13px; color: #475569; font-weight: 700; margin: 10px 2px 14px; }
-.wnline { font-size: 12.5px; color: #475569; line-height: 1.7; margin: 2px 2px 10px; }
 
 /* ציר הקווים של תחנה (LinesAtStop) */
 .lat{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin:10px 0 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -406,14 +367,13 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 .mapwrap { position: relative; }
 .mapload { position: absolute; inset: 0; z-index: 800; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; padding: 0 12%; background: #f8fafc; }
 .mapprog-s { font-weight: 700; font-size: 12px; color: #64748b; margin-bottom: 10px; }
-.mapprog { position: absolute; inset-inline: 12px; bottom: 12px; z-index: 800; background: rgba(255,255,255,.95); border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+
 .mapprog-t { font-weight: 800; font-size: 13px; color: #334155; margin-bottom: 6px; }
 .mapprog-b { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
 .mapprog-b i { display: block; height: 100%; background: #7c3aed; transition: width .3s; }
 
-/* Historical source exploration shares the existing line-history layout. */
-.early-archive label,.early-detail label{display:block;margin:12px 0;font-weight:700}
-.early-archive input,.early-archive select,.early-detail select{max-width:100%;width:100%;padding:10px;border:1px solid #c4b5fd;border-radius:10px;background:white;color:#231744;font:inherit}
+.early-detail label{display:block;margin:12px 0;font-weight:700}
+.early-detail select{max-width:100%;width:100%;padding:10px;border:1px solid #c4b5fd;border-radius:10px;background:white;color:#231744;font:inherit}
 .early-result{display:flex;flex-direction:column;align-items:flex-start;text-align:right;width:100%;gap:5px;background:#faf8ff;border:1px solid #e4dcf7;border-radius:12px;padding:12px;margin:8px 0;color:#31204f;font:inherit;cursor:pointer}
 .early-result:hover{background:#eee7ff}.early-result small{color:#554966}
 .early-scroll{overflow:auto;max-height:480px}.early-scroll table{border-collapse:collapse;width:100%}.early-scroll td,.early-scroll th{padding:9px;border-bottom:1px solid #ddd;text-align:right;white-space:nowrap}
@@ -484,58 +444,10 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .lite-recent .lop, .lite-row .lop { display: block; font-weight: 500; color: #64748b; font-size: 12.5px; }
 .lite-recent .recmore { margin-top: 8px; }
 
-/* עמוד הקו */
-.lt .crumb { font-size: 13px; color: #64748b; font-weight: 700; margin: 0 0 10px; }
-.lt .crumb .back { background: none; border: none; box-shadow: none; padding: 0; margin: 0; color: #5b21b6; font: inherit; font-weight: 700; cursor: pointer; }
-/* כותרת הקו: רקע בהיר וטקסט כהה — הסגול הכהה עם טקסט עליו היה קשה לקריאה (שלמה 08.10) */
-.lt .linehead { background: #f5f3ff; border: 1px solid #e4dcfb; border-inline-start: 5px solid #5b21b6; color: #0f172a; border-radius: 14px; padding: 12px 14px; row-gap: 8px; }
-.lt .linehead .dest { flex: 1 1 55%; font-weight: 800; font-size: 17px; line-height: 1.4; color: #0f172a; }
-.lt .herosub { flex-basis: 100%; font-size: 13.5px; color: #334155; font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.herost { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; }
-.herost.gone { background: #fee2e2; color: #991b1b; }
-.lt .linehead + .facts, .lt .whybox + .facts { display: none; }
-.lt .kfilter, .lt .months { display: none; }
-.ovall, .evmap { border: none; background: none; color: #5b21b6; font-weight: 800; font-size: 14px; font-family: inherit; padding: 8px 0 0; cursor: pointer; }
-.lt .yh { font-size: 14px; font-weight: 800; color: #5b21b6; margin: 12px 2px 4px; }
-/* שינוי סגור: תאריך, סוג ושורה אחת; הפרטים, המקור וההשוואה — כשהוא נבחר */
-.lt .ev .evsrc { display: none; }
-.lt .ev.sel .evsrc { display: block; }
-.lt .ev:not(.sel) .sub, .lt .ev:not(.sel) .cmpbtn, .lt .ev:not(.sel) .rvflag { display: none; }
-.lt .ev:not(.sel) .evnote { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-/* עמוד אחד בלי לשוניות (שלמה 08.10): במחשב — כותרת, ומתחתיה השינויים, בעמודה אחת; המפה בעמודה השנייה
-   ונשארת במקום בגלילה. בטלפון — כותרת, מפה, שינויים, ושורות שנפתחות בלחיצה */
-.linewrap.lt { grid-template-columns: 420px 1fr; grid-template-areas: "top main" "bot main"; grid-template-rows: auto 1fr; align-items: start; }
-.lt > .lt-top { grid-area: top; }
-.lt > .lt-bot { grid-area: bot; }
-.lt > .card.main { grid-area: main; position: sticky; top: 12px; }
 @media (max-width: 860px) {
-  .linewrap.lt { grid-template-columns: 1fr; grid-template-areas: "top" "main" "bot"; }
-  .lt > .card.main { position: static; }
+
 }
-/* שיתוף והתראות: שני סמלים קטנים בפינת הכותרת */
-.lt .linehead { position: relative; }
-.lt .linehead .dest { padding-left: 86px; }
-.lt .linehead > .sharebtn.shr, .lt .linehead > .sharebtn.ico { position: absolute; top: 10px; width: 38px; height: 36px; padding: 0; display: grid; place-items: center; margin: 0; }
-.lt .linehead > .sharebtn.shr { left: 10px; }
-.lt .linehead > .sharebtn.ico { left: 54px; }
-.lt .linehead .herosub { order: 2; }
-.lt .linehead > div, .lt .linehead > small { order: 3; }
-.lthead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 4px; }
-.lthead > b { font-size: 16px; }
-.ltlink, .ltmore { border: none; background: none; color: #5b21b6; font-weight: 700; font-size: 13px; font-family: inherit; cursor: pointer; padding: 4px 0; }
-.ltlink { margin-inline-start: auto; }
-.ltmore { display: block; width: 100%; text-align: center; font-weight: 800; font-size: 14px; padding: 8px 0; }
-.ltacc { border-top: 1px solid #eef0f4; }
-.ltacc:first-of-type { margin-top: 10px; }
-.ltacc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none; background: none; font-family: inherit; text-align: inherit; padding: 12px 2px; cursor: pointer; color: #0f172a; }
-.ltacc-h b { font-size: 15px; }
-.ltacc-h small { color: #64748b; font-weight: 600; font-size: 12.5px; margin-inline-start: 8px; }
-.ltacc-h .ch { color: #94a3b8; font-size: 16px; }
-.ltacc-b { padding: 0 2px 12px; }
-.ltstops { margin: 0; padding-inline-start: 22px; font-size: 13.5px; line-height: 1.9; }
-.ltstops .pcode { color: #94a3b8; font-size: 11.5px; }
-/* בטלפון: המפה של השינוי שנבחר בתוך הכרטיס שלו */
-.evslot .card.main { box-shadow: none; border: none; padding: 0; margin: 10px 0 2px; background: transparent; }
+
 /* "לפי יום" בתצוגה החדשה: ההערה מתחת לכותרת גם בטלפון (שם .ldest מקבל order:2) */
 .lrow.lite-row .lnote, .lrow.lite-row .approxd { order: 3; }
 /* "לפי יום" בתצוגה החדשה: שינויי לו"ז/תגבור/רישום של היום בשורה אחת לכל סוג, נפתחת בלחיצה */

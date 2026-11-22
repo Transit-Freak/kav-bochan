@@ -334,13 +334,6 @@ const SKINDS = {
   // אירוע אחד לכל תחנה שהייתה ברישום אז — שם, כתובת ומיקום של 2012 (שלמה 22.09)
   gtfs2012: { label: "ברישום 2012", color: "#78350f" },
 };
-// אירועי 2012 נבנים בדפדפן מקובץ הרישום (magihim-2012/data/stops-2012.json, או השבר לפי
-// קידומת המק"ט), כדי לא לגעת בקורות החיים שהצנרת מתחזקת. dist: המרחק למיקום האחרון
-// שידוע לנו מקורות החיים של אותה תחנה, כשיש.
-function distM(a, b) {
-  const ky = 110540, kx = 111320 * Math.cos((a[0] * Math.PI) / 180);
-  return Math.hypot((a[0] - b[0]) * ky, (a[1] - b[1]) * kx);
-}
 // לכל תחנה: אירוע "ברישום 2012", ואחריו מה שהשתנה באותו מק"ט בין 2012 לתחילת
 // התיעוד שלנו (מרץ 2017): שינוי שם, הזזה (30 מ׳ ומעלה), או ביטול (המק"ט אינו
 // ברישום מ-2017 ואילך). האירועים האלה מתוארכים "בין 2012 ל-2017" — לא ידוע מתי
@@ -355,29 +348,6 @@ function expand2012(rows) {
     else if (k === 1) out.push(r.length > 5 ? { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4], reused: r[5], rdist: r[6] } : { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4] });
     else if (k === 2) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: r[5], nn: r[2], n: r[2], la: r[3], lo: r[4] });
     else if (k === 3) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: r[2], la: r[3], lo: r[4], ola: r[5], olo: r[6], dist: r[7] });
-  }
-  return out;
-}
-// לתחנה בודדת (שבר לפי קידומת) — אותה לוגיקה, על מעט תחנות
-function events2012(snap) {
-  const out = [];
-  for (const c in snap) {
-    const [n, la, lo, addr, , fn, fla, flo, dist, ren] = snap[c];
-    // מק"ט 99xxxxx (7 ספרות): מספר זמני שמשרד התחבורה נתן בקובץ 2012 לתחנה בלי מספר שלט
-    // (2,600 תחנות, כולן עם stop_id בקובץ המקורי; אף אחת לא קיימת היום באותו מספר) —
-    // אין המשכיות למק"ט, ולכן לא "בוטלה" אלא "קיבלה מק"ט אחר" (שלמה 22.09)
-    const tmp99 = c.length === 7 && c.startsWith("99");
-    // מספר זמני שאף קו ב-2012 לא עצר בו (2,516 מתוך 2,600): רשומה בקובץ בלי שירות — לא מוצגת
-    if (tmp99 && (!(snap[c][10] || 0) || snap[c][11])) continue;   // וגם כפילות של תחנה אמיתית עד 100 מ׳ — מוצגת האמיתית
-    out.push({ c, d: "2012-06-26", k: "gtfs2012", n, t: addr, la, lo, tmp99, lines12: snap[c][10] || 0 });
-    if (tmp99) continue;
-    if (fn == null) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo }); continue; }
-    // אותו מק"ט במרחק קילומטר ומעלה: זו לא הזזה אלא מק"ט שהוקצה מחדש לתחנה אחרת
-    // (למשל 59695: "בית לחם הגלילית ג׳" ב-2012, "צומת נהריה מזרח" מ-2017, 31 ק"מ) —
-    // התחנה של 2012 בוטלה, והמק"ט שימש אחר כך תחנה אחרת (שלמה 22.09)
-    if (dist >= 1000) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo, reused: fn, rdist: dist }); continue; }
-    if (ren) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: n, nn: fn, n: fn, la: fla, lo: flo });
-    if (dist >= 30) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: fn, la: fla, lo: flo, ola: la, olo: lo, dist });
   }
   return out;
 }
@@ -495,7 +465,6 @@ function noteFix(s) {
 function fmtM(d) { const p = (d || "").split("-"); return p[1] + "." + p[0]; }
 // תקופה: חודש "YYYY-MM" או שנה שלמה "Y:YYYY" (שלמה 22.09: "לפי שנה ולא רק לפי חודש")
 const isYear = (m) => typeof m === "string" && m.startsWith("Y:");
-const fmtP = (m) => isYear(m) ? "שנת " + m.slice(2) : fmtM(m);
 const bP = (m) => isYear(m) ? "בשנת " + m.slice(2) : "ב-" + fmtM(m);   // "בשנת 2025" / "ב-09.2026"
 const periodStart = (m) => isYear(m) ? m.slice(2) + "-01-01" : m + "-01";
 const periodEnd = (m) => isYear(m) ? m.slice(2) + "-12-31" : m + "-31";
@@ -1730,7 +1699,6 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : (String(s.rd).startsWith('website') ? (s.dest||'')+(variantPart(s) ? ' · חלופה '+variantPart(s) : '') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון')));
   // העיצוב הקודם של שורת החלופות (sibs/sib/sibcmp — כפתורי גלולה סגולים) — הלוגיקה של
   // בוחר החלופות נשארה כמו שהיא, רק התצוגה חזרה לעיצוב של האתר (שלמה 26.09)
-  const curItem=items && items.find(s=>s.rd===rd);
   // תיאור לתצוגה: מהקובץ המוכן, או מהחישוב בעמוד. "לא נמצאה חלופה ראשית" (קו בלי חלופה # — רכבת,
   // מוניות, חלק מהקווים) לא מוצג: זה לא מידע על המסלול
   const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
@@ -2285,19 +2253,6 @@ function restoreFromServer() {
   });
 }
 restoreFromServer();
-function FollowBtn({ tag, label, title }) {
-  const [on, setOn] = useState(() => { try { return !!JSON.parse(localStorage.kbFollow || "{}")[tag]; } catch (e) { return false; } });
-  const [st, setSt] = useState("");
-  if (!PUSH_ON) return null;
-  const toggle = () => {
-    const n = !on; setOn(n); setSt("");
-    try { const m = JSON.parse(localStorage.kbFollow || "{}"); if (n) m[tag] = label || "מעקב"; else delete m[tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
-    pushTags((r) => setSt(n ? (r.ok ? (r.srv ? (r.srv.ok ? "✓ עוקב — רשום אצל ספק ההתראות" : "✗ לא נרשם אצל ספק ההתראות" + (r.srv.err ? ": " + r.srv.err : "")) : "✓ ההתראות פעילות בדפדפן הזה") : "✗ " + r.why) : ""));
-  };
-  return <><button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
-    onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>
-    {st && <small style={{ color: st[0] === "✓" ? "#166534" : "#b91c1c", fontWeight: 700, maxWidth: 380, display: "inline-block", marginInlineStart: 6 }}>{st}</small>}</>;
-}
 // ערי הקצה מהיעד ("מוצא-עיר<->יעד-עיר") — למעקב ברמת עיר
 const destCities = (dest) => {
   // העיר = המקטע העברי האחרון; סיומות טכניות ("2#") מדולגות — זהה לצד השולח
@@ -2401,10 +2356,9 @@ function MyFollows({ bump, onChange }) {
 // הרשמה מדף הקו (שלמה 13.09): לוחצים על עיר, בוחרים סוגי שינוי ותדירות, ונרשמים —
 // זו אותה הרשמה כמו במרכז ההתראות בעמוד הראשי: העיר מצטרפת לרשימת הערים שם,
 // והתדירות וסוגי השינוי משותפים לכל הערים.
-function LineFollow({ cities, compact }) {
+function LineFollow({ cities }) {
   const readN = () => { try { const n = JSON.parse(localStorage.kbNotify || "{}"); if (n.city && !n.cities) n.cities = [n.city]; return n; } catch (e) { return {}; } };
   const [openC, setOpenC] = useState(null);
-  const [wide, setWide] = useState(false);   // תצוגה חדשה: סמל 🔔 אחד, וכפתורי הערים רק אחרי לחיצה
   const [gs, setGs] = useState(() => new Set(readN().gs || KIND_GROUPS_N.map((g) => g.tag)));
   const [freq, setFreq] = useState(() => readN().freq || "1");
   const [st, setSt] = useState("");
@@ -2422,11 +2376,6 @@ function LineFollow({ cities, compact }) {
     pushTags(); setSt("ההרשמה ל" + c + " הוסרה"); setBump((b) => b + 1);
   };
   const pill = { display: "flex", alignItems: "center", gap: 5, border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontWeight: 400 };
-  if (compact && !wide) {
-    const on = cities.some(isOn);
-    return <button className="sharebtn ico" title={on ? "רשומים להתראות על קווי העיר — לחיצה לפרטים" : "הרשמה להתראות על שינויים בקווים של העיר"}
-      aria-label="התראות" onClick={() => setWide(true)}>🔔{on ? "✓" : ""}</button>;
-  }
   return <>
     {cities.map((c) => isOn(c)
       ? <button key={c} className="sharebtn" title={"רשומים להתראות על קווי " + c + " — לחיצה מסירה את העיר מההרשמה"} onClick={() => remove(c)}>🔔 רשומים: {c} ✓</button>
@@ -2631,7 +2580,7 @@ function DigestPage({ city, days, onBack, openLine, backHref }) {
   );
 }
 
-function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, lite, backHref }) {
+function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, backHref }) {
   // "· רציף N" ליד תחנה במסוף — הרציף של הווריאנט הזה לפי שורת הרציף בקובץ
   // התחנות (platforms.json rd), מתעדכן מדי יום
   const plats = usePlatforms();
@@ -2644,7 +2593,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   const detailRef = useRef(null);
   const selectEvent = (i, event) => {
     // בתצוגה החדשה לחיצה שנייה על השינוי שנבחר סוגרת אותו (והמפה חוזרת למעלה)
-    if (lite && i === sel) { setSel(null); return; }
+    if (false) { setSel(null); return; }
     setSel(i);
     if(event.k === "sched" || event.k === "freq"){
       requestAnimationFrame(()=>{
@@ -2655,15 +2604,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
     }
   };
   const [mon, setMon] = useState("");
-  // תצוגה חדשה: עמוד אחד בלי לשוניות (שלמה 08.10: "יותר מדי כפתורים בנפרד") — "חשובים" כברירת
-  // מחדל, 8 השינויים הראשונים ו"עוד", ובטלפון המפה של שינוי שנבחר נפתחת בתוך הכרטיס שלו
-  const [impOnly, setImpOnly] = useState(true);
-  const [ltMore, setLtMore] = useState(false);
   const temps = useTempEvents(rd);
-  useEffect(() => { setImpOnly(true); setLtMore(false); }, [rd]);
-  const [isPhone, setIsPhone] = useState(() => { try { return matchMedia("(max-width: 860px)").matches; } catch (e) { return false; } });
-  useEffect(() => { try { const m = matchMedia("(max-width: 860px)"); const f = () => setIsPhone(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); } catch (e) { return undefined; } }, []);
-  const [evSlot, setEvSlot] = useState(null);
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
   const [onlyCur, setOnlyCur] = useState(false);       // מפה בלי שכבת העבר
@@ -2800,10 +2741,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shownAll = vs.map((v, i) => ({ v, i }))
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
-  const impN = shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))).length;
-  const shown = lite && impOnly && impN ? shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))) : shownAll;
-  const LT_N = 8;
-  const shownL = lite && !ltMore && shown.length > LT_N && !shown.slice(LT_N).some((x) => x.i === sel) ? shown.slice(0, LT_N) : shown;
+  const shown = shownAll;
   // הקטגוריות שקיימות בקו הזה בפועל, לפי שכיחות — סרגל כיבוי/הדלקה.
   // שלוש קבוצות מאוחדות כאן ולא בתווית שעל האירוע: בסרגל הן שאלה אחת
   // ("להציג שינויי תחנות?") ואילו על האירוע עצמו ההבחנה כן נושאת מידע.
@@ -2823,10 +2761,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   })();
   // ציר הזמן: האירועים של הקו, ובתוכם לפי התאריך השינויים הזמניים (אם הקטגוריה דלוקה)
   const tlRows = (() => {
-    const cut = shownL.length < shown.length && shownL.length ? shownL[shownL.length - 1].v.d : "";
-    const tt = offK.has("temp") ? [] : temps.filter((t) => (!mon || t.d.slice(0, 7) === mon) && t.d >= cut);
+    const tt = offK.has("temp") ? [] : temps.filter((t) => (!mon || t.d.slice(0, 7) === mon));
     const out = []; let k = 0;
-    shownL.forEach((row) => { while (k < tt.length && tt[k].d >= row.v.d) out.push({ t: tt[k++] }); out.push(row); });
+    shown.forEach((row) => { while (k < tt.length && tt[k].d >= row.v.d) out.push({ t: tt[k++] }); out.push(row); });
     while (k < tt.length) out.push({ t: tt[k++] });
     return out;
   })();
@@ -3350,341 +3287,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       </div>
   );
   // רשימת התחנות של החלופה, לפי הגרסה האחרונה שיש לה רצף תחנות
-  const ltStops = lite ? (([...vs].reverse().find((x) => (x.stops || []).length > 1) || {}).stops || null) : null;
   return (
-    <div className={"linewrap" + (lite ? " lt" : "")}>
-      {lite ? <>
-      <div className="card side lt-top">
-        {lite
-          ? <div className="crumb"><BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">הקו בזמן ‹ קווים</BackLink> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
-          : <BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
-        {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
-          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
-          {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
-            onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
-          {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
-          <button className={"sharebtn" + (lite ? " shr" : "")} title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
-            onClick={(e) => {
-              // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
-              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + ssafe(rd) + ".html";
-              const b = e.currentTarget;
-              // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
-              // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
-              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
-              const t = b.textContent;
-              const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
-              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
-            }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
-          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
-              מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
-          <LineFollow cities={destCities(lf.dest)} compact={lite} />
-        </div>
-        {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
-        {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
-            (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
-        {why && <div className="whybox" id="why">
-          <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
-          <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
-          <a href={why.url} target="_blank" rel="noopener noreferrer">המקור: {why.source}{why.published ? ", " + fmtD(why.published) : ""} ←</a>
-        </div>}
-        <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
-          {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
-          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
-          {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
-          {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
-              אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
-              נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
-              שינוי מסלול מסווג route/stops ולא access, ולכן הזיהוי נעזר גם
-              בהערה. לקווים שלא נצפה בהם שינוי — תג בלי תאריך, לא תאריך מומצא. */}
-          {/* גודל הרכב וסוג הקו מהרישוי נכתבים בביטוי אחד ליד הנגישות —
-              "מיניבוס עירוני נגיש" (שלמה 06.09); שינויים בהם — קטגוריה בציר הזמן */}
-          {vehEl}
-          {/* כמה נסיעות מתוכננות יש לחלופה היום. "קיים בפיד" אינו "פועל":
-              הפיד מפרסם קווים לפני הפתיחה, והקו הירוק בירושלים נכנס עם
-              נסיעה אחת בכיוון מול 680 של הקו הירוק בתל אביב. המספר מוצג
-              כעובדה ולא כמסקנה — שליש מהחלופות נוסעות ארבע פעמים ביום או
-              פחות (קווי תלמידים, חלופות משנה), ואזהרה עליהן הייתה רעש. */}
-          {ntr > 0 && (
-            <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
-              {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
-          )}
-          {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
-        <SuccBox rd={rd} />
-        {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
-            (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
-            מוצג בהודעת הסטטוס למטה. */}
-        {/* רק "שירות לפי דרישה" מקבל הערה, כי היא נושאת מידע שאינו במקום
-            אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
-            לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
-            הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><RailWrap rail={(lf || {}).tt === "rail"} rd={rd} onSwitch={onSwitch}><AlternativeSelector sibs={sibsShown} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></RailWrap></SafeBox>}
-        {altRd && (
-          <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
-            label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
-        )}
-        {/* הסטטוס נגזר מהרשומה האחרונה שאינה "תוכנן ולא נכנס לתוקף": תוכנית
-            להחזיר קו מבוטל שלא התממשה אינה מבטלת את הביטול */}
-        {vs.length > 0 && (() => {
-          // וגם לא אירוע נגזר (סוג רכב ברישוי) שתאריכו מאוחר מהביטול
-          let li = vs.length - 1;
-          while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
-          const lv = vs[li];
-          // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
-          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr, lf.observationOnly);
-          const stale = gd && lv.k !== "removed";
-          const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
-          const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
-          return gd && (
-          <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
-            {lineGone
-              ? <>❌ הקו בוטל — אין חלופות פעילות — {since}</>
-              : <>⚠️ החלופה הזו מבוטלת {since} (לקו יש חלופות פעילות)</>}
-            {dk === "removed-year" && !stale ? " — מעל שנה ולא חזרה" : ""}
-          </div>);
-        })()}
-        {lf.tt === "demand" && (
-          <div className="ttnote">
-            {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
-                של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
-                הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
-                הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
-            🚐 <b>שירות לפי דרישה</b> — כך הקו מסווג בפיד הארצי (route_type 715),
-            סיווג שנועד לשירות שאינו יוצא בשעה קבועה. יש קווים בסיווג הזה שכן
-            מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
-          </div>
-        )}
-      </div>
-      {isPhone && sel != null && evSlot ? ReactDOM.createPortal(mainEl, evSlot) : mainEl}
-      <div className="card side lt-bot">
-        <div className="lthead"><b>מה השתנה</b>
-          {impN > 0 && impN < shownAll.length && <button className="ltlink" aria-pressed={!impOnly} onClick={() => { setImpOnly(!impOnly); setLtMore(false); }}>
-            {impOnly ? "הצג גם לו״ז, תגבור ותיקוני רישום (" + (shownAll.length - impN).toLocaleString() + ")" : "רק השינויים החשובים"}</button>}
-        </div>
-        {cmpOn && (
-          <div className="cmpbar">
-            <b>השוואה</b> · {String(vs[pi].d).split("-").reverse().join(".")} ← {String(v.d).split("-").reverse().join(".")}
-            {cmpDiff && (
-              <span className="cmpsum">
-                {cmpDiff.add.length ? ` · ➕ ${cmpDiff.add.length} תחנות` : ""}
-                {cmpDiff.rem.length ? ` · ➖ ${cmpDiff.rem.length} תחנות` : ""}
-                {!cmpDiff.add.length && !cmpDiff.rem.length ? " · אותן תחנות בדיוק" : ""}
-              </span>
-            )}
-            <button className="cmpx" title="סיום ההשוואה — חזרה להפרש מול הגרסה הקודמת" onClick={() => setCmpI(null)}>✕ סיום</button>
-            {cmpDiff && (cmpDiff.add.length || cmpDiff.rem.length) ? (
-              <div className="cmplist">
-                {cmpDiff.add.length ? <div className="ad">➕ {dedupCount(cmpDiff.add).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
-                {cmpDiff.rem.length ? <div className="rm">➖ {dedupCount(cmpDiff.rem).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
-              </div>
-            ) : null}
-          </div>
-        )}
-        {kindsHere.length > 1 && !initCats && offK.size > 0 && (
-          <div className="khint">🔎 שינויי לו״ז, תגבור ותיקוני רישום כבויים. לחיצה על קטגוריה מדליקה אותה, ו"הכול" מציג את כל השינויים.</div>
-        )}
-        {kindsHere.length > 1 && initCats && offK.size > 0 && (
-          <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
-        )}
-        {kindsHere.length > 1 && (
-          <div className="kfilter">
-            <button className={"kchip" + (offK.size ? "" : " on")}
-              title="הצגת כל סוגי השינויים בקו הזה" onClick={() => setOffK(new Set())}>הכול</button>
-            {kindsHere.map(([g, e]) => {
-              const off = [...e.kinds].every((k) => offK.has(k));
-              return (
-                <button key={g} className={"kchip" + (off ? " off" : " on")}
-                  style={off ? null : { borderColor: catColor(g), color: catColor(g) }}
-                  title={off ? "הדלקה — האירועים האלה יחזרו לרשימה" : "כיבוי — האירועים האלה ייעלמו מהרשימה"}
-                  onClick={() => toggleK([...e.kinds], off)}>
-                  {KGLABEL[g] || (KINDS[g] || {}).label || g} <b>{e.n}</b>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {months.length > 1 && (
-          <div className="months">
-            <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
-            {months.map((m) => (
-              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>
-                {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="tl">
-          {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
-              אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
-              ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {tlRows.map((row, si) => row.t ? (
-            <React.Fragment key={"t" + row.t.id}>
-            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
-            <TempEv t={row.t} rd={rd} />
-            </React.Fragment>
-          ) : (({ v: x, i }) => (
-            <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
-            <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
-              onClick={() => selectEvent(i, x)}>
-              <div className="d">
-                {(() => { const ed = evDate(x); return ed.tip
-                  ? <TipTag cls={ed.exact ? "" : "approxd"} tip={ed.tip}>{ed.txt}{ed.exact ? "" : " ≈"}</TipTag>
-                  : <span>{ed.txt}</span>; })()}
-                {(x.shp || (x.stops || []).length > 1 || (x.pstops || []).length > 1) ? " · 🗺️" : ""}
-                {(x.shp || (x.stops || []).length > 1) && (
-                <button className={"cmpbtn" + (cmpI === i ? " on" : "")}
-                  title={cmpI === i ? "זו גרסת הבסיס להשוואה — לחיצה מבטלת" : "קביעת הגרסה הזו כבסיס, ואז לחיצה על אירוע אחר תשווה מולה"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (cmpI === i) { setCmpI(null); return; }
-                    setCmpI(i);
-                    // לחיצה אחת מספיקה: אם האירוע הפתוח הוא הבסיס עצמו אין מה
-                    // להשוות, ולכן נפתחת מולו הגרסה העדכנית ביותר.
-                    if (vs.indexOf(v) === i) {
-                      const last = vs.length - 1;
-                      setSel(last === i ? Math.max(0, i - 1) : last);
-                    }
-                  }}>
-                  {cmpI === i ? "⇄ בסיס ההשוואה" : "⇄ השווה"}</button>)}
-              </div>
-              <div className="t">
-                <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
-                  aria-current={i === vs.indexOf(v)}
-                  aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
-                  onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
-                {x.k === "redraw" && " הגאומטריה תוקנה — רצף התחנות לא השתנה"}
-                {/* שינוי שרצף התחנות חזר ממנו מיד. בלי הסימון הזה השורה
-                    אומרת שתחנות ירדו, בעוד הקו עוצר בהן עד היום. */}
-                {x.rv ? (
-                  <TipTag cls="rvflag" tip="רצף התחנות חזר בדיוק למה שהיה לפני השינוי הזה. שינוי שמתבטל מיד הוא כמעט תמיד תנודה בפרסום ולא שינוי במסלול">
-                    ↩ חזר כעבור {x.rv === 1 ? "יום" : x.rv + " ימים"}</TipTag>
-                ) : x.rvb ? (
-                  <TipTag cls="rvflag" tip="השינוי הקודם התבטל כאן — רצף התחנות חזר למה שהיה לפניו">
-                    ↩ החזרת המצב הקודם</TipTag>
-                ) : null}
-                {/* הד: אותן תחנות נוספו ואותן ירדו כבר קודם בחלופה אחרת של הקו (קווי אשדוד: 19.07 בחלופות
-                    הראשיות, 13.09 בחלופה 6). זה שינוי אמיתי בחלופה הזאת — נשאר ומדווח — אבל אומרים
-                    שהוא כבר נכנס קודם בחלופה אחרת (שלמה 16.09) */}
-                {x.echo ? (
-                  <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. עכשיו השינוי הגיע גם לחלופה הזאת"}>
-                    ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
-                ) : null}
-                {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
-              </div>
-              {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
-                  בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
-              {x.foiD && <div className="evnote">לפי נתוני משרד התחבורה (חופש מידע) השינוי נכנס בערך ב-{fmtD(x.foiD)}.</div>}
-              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
-              {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
-                  אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
-                  התחנות (שלמה 05.09) */}
-              {x.k === "planned-dropped" && (x.ps || x.pc) && (() => { const p = plannedInfo(x, i, vs); return (
-                <div className="sub">
-                  <div><PlanStatus p={p} /> · 📅 היה אמור להיכנס ב-<b>{fmtD(x.ps)}</b>
-                    {x.pc && x.ps && x.pc >= x.ps ? <> · ירד מהרישום ב-<b>{fmtD(x.pc)}</b></> : <> · בוטל ב-<b>{fmtD(x.pc || x.d)}</b>, לפני המועד</>}
-                    {x.sd && gapDays(x.sd, x.pc || x.d) > 1 ? <> (נראה לאחרונה ב-{fmtD(x.sd)})</> : null}
-                    {x.pf ? <> · פורסם לראשונה ב-{fmtD(x.pf)}</> : null}</div>
-                  <PlanLines p={p} max={8} />
-                </div>); })()}
-              {(x.add || x.rem) && (() => {
-                // הזיהוי לפי מספר תחנה (x.ac/x.rc, מיושרים לשמות) — השם תצוגה
-                const addE = (x.add || []).map((n, j) => ({ n, c: x.ac && x.ac[j] != null ? String(x.ac[j]) : null }));
-                const remE = (x.rem || []).map((n, j) => ({ n, c: x.rc && x.rc[j] != null ? String(x.rc[j]) : null }));
-                const pm = splitPlatformMoves(addE, remE);
-                // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
-                // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
-                const rn = splitRenumbers(pm.add, pm.rem, i);
-                // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
-                // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length)
-                  return rn.moves.length ? <div className="sub">
-                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
-                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
-                  </div> : null;
-                return (
-                  <div className="sub">
-                    {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
-                    {rn.add.length > 0 && <div>➕ נוספו: {labelList(rn.add, i, true)}</div>}
-                    {rn.rem.length > 0 && <div>➖ ירדו: {labelList(rn.rem, i, false)}</div>}
-                  </div>
-                );
-              })()}
-              {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
-            </div>
-            </React.Fragment>
-          ))(row))}
-        </div>
-        {lite && shownL.length < shown.length && <button className="ltmore" onClick={() => setLtMore(true)}>עוד {(shown.length - shownL.length).toLocaleString()} שינויים ⌄</button>}
-        {ltStops && <LtAcc icon="📍" title="התחנות" sub={ltStops.length + " תחנות"}>
-          <ol className="ltstops">{ltStops.map((s, j) => <li key={j}>{s[1]} <span className="pcode">{String(s[0]).startsWith("website:") ? "" : "מק״ט " + s[0]}</span></li>)}</ol>
-        </LtAcc>}
-        <LtAcc icon="🕐" title="לוח זמנים" sub="השעות לכל יום בשבוע">
-        {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
-            באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
-            יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
-        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && (lf.tt === "rail" ? <RailSched rd={rd} /> : <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
-          isLast={sel == null || sel >= vs.length - 1} />)}
-        </LtAcc>
-        {SHOW_2012_BOX && (((mot12 && mot12.length > 0) || anc) && !NO_2012.has(lf.tt || "") || lf.magihim2012Match || lf.earlyRelated?.length > 0) && <LtAcc icon="🗂️" title="תיעוד היסטורי" sub={mot12 && mot12.length ? "2012 · " + mot12.length + (mot12.length > 1 ? " מסלולים" : " מסלול") : anc ? "2012" : ""}>
-        {SHOW_2012_BOX && mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
-          <div className="a2012">
-            <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
-            {mot12.map((x) => (
-              <div key={x[0]} style={{ marginTop: 4 }}>
-                {x[1].replace("<->", " ← ")} · {x[3]} תחנות
-                <TipTag cls="a2012ov" tip="מספר התחנות (לפי מק״ט) שמופיעות גם במסלול של 2012 לפי קובץ משרד התחבורה וגם במסלול הישן ביותר שידוע לנו לקו הזה">· {x[4]} תחנות משותפות</TipTag>
-                <a className="a2012btn" href={lineHref(x[0])} title="הקו כפי שהיה ביולי 2012 לפי קובץ משרד התחבורה — רצף התחנות והמסלול המקורי על המפה">המסלול ב-2012 ←</a>
-              </div>
-            ))}
-            {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
-          </div>
-        )}
-        {SHOW_2012_BOX && anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
-          <div className="a2012">
-            <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
-            {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
-                כשההתאמה נעשתה לפי שם ומספר קו בלבד הוא לא קיים. */}
-            {anc.ov && <TipTag cls="a2012ov" tip="מספר התחנות שמופיעות גם במסלול של 2012 וגם במסלול הישן ביותר שידוע לנו — על סמך זה נקבע שמדובר באותו קו">· {anc.ov} תחנות משותפות</TipTag>}
-            <button className="a2012btn" title="הצגת רשימת התחנות של הקו כפי שהייתה ב-2012 — כולל המסלול על המפה בקו מקווקו חום" aria-expanded={show12} onClick={() => setShow12(!show12)}>
-              {show12 ? "הסתר ▲" : "רצף התחנות ▼"}
-            </button>
-            {show12 && (d12 ? (d12.routes || []).length ? (
-              <div>
-                {vis12.length > 1 && (
-                  <div className="s12chips">{vis12.map((i) => (
-                    <button key={i} className={"rchip12" + (i === sel12 ? " on" : "")} title="מסלול 2012 נוסף של אותו קו — לחיצה מציגה אותו"
-                      onClick={() => setR12(i)}>{d12.routes[i].f} ← {d12.routes[i].l} ({d12.routes[i].n})</button>
-                  ))}</div>
-                )}
-                <ol className="s12">
-                  {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
-                    <li key={s[0]}>{s[1]}{" "}
-                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
-                        : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
-                          : <span className="pcode">לא הוצלבה</span>}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : <div className="mut">הנתונים לא נטענו — נסו לרענן.</div>
-              : <div className="mut">טוען…</div>)}
-          </div>
-        )}
-        {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
-        {SHOW_2012_BOX && lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
-        {SHOW_2012_BOX && lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
-        </LtAcc>}
-      </div>
-      </> : <>
+    <div className={"linewrap" + ("")}>
+      {<>
       <div className="card side">
-        {lite
-          ? <div className="crumb"><BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">הקו בזמן ‹ קווים</BackLink> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
-          : <BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
+        {<BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
-          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{destShow(lf.dest)}</span>
+          
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
           {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
@@ -3699,10 +3309,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               const t = b.textContent;
               const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
               if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
-            }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
+            }}>{"🔗 שיתוף"}</button>
           {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
               מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
-          <LineFollow cities={destCities(lf.dest)} compact={lite} />
+          <LineFollow cities={destCities(lf.dest)} />
         </div>
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
@@ -3889,12 +3499,12 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
           {tlRows.map((row, si) => row.t ? (
             <React.Fragment key={"t" + row.t.id}>
-            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
+            
             <TempEv t={row.t} rd={rd} />
             </React.Fragment>
           ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            
             <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
@@ -3980,7 +3590,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
                   </div>
                 );
               })()}
-              {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
+              
             </div>
             </React.Fragment>
           ))(row))}
@@ -4287,17 +3897,6 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
 }
 // סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
 const LOW_KINDS = new Set(["baseline", "snapshot", "freq", "sched", "times", "redraw", "vehicle", "ltype", "access", "renum", "renamed", "board", "platform"]);
-// שורה שנפתחת בלחיצה בתחתית עמוד הקו (התצוגה החדשה). התוכן נבנה רק כשפותחים — הלו"ז נטען רק אז
-function LtAcc({ icon, title, sub, children }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={"ltacc" + (open ? " open" : "")}>
-      <button className="ltacc-h" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span>{icon} <b>{title}</b>{sub ? <small>{sub}</small> : null}</span><span className="ch" aria-hidden="true">{open ? "⌃" : "⌄"}</span>
-      </button>
-      {open && <div className="ltacc-b">{children}</div>}
-    </div>);
-}
 // התצוגה החדשה — כדי שרכיבים עמוק בעץ (כמו "שינויים לפי יום") יידעו עליה בלי להעביר prop בכל שלב
 const LiteCtx = React.createContext(false);
 // שם עיר שנחתך בתיאור הקו (במקור יש מגבלת אורך: "תל א" במקום "תל אביב יפו", שלמה 09.10) — משלימים
@@ -6083,37 +5682,6 @@ function EarlyMap({ stops, shp }) {
   return <div ref={el} style={{ height: 330, borderRadius: 14, margin: "12px 0" }} aria-label="מפת התחנות ההיסטוריות" />;
 }
 
-// Reconstruct actual service dates so different calendar periods are never counted as simultaneous trips.
-function EarlyPatternLoader({ event }) {
-  const [data,setData]=useState(null),[err,setErr]=useState("");
-  const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile.slice(0,2)+"/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
-  return <details className="early-detail" onToggle={e=>{if(e.currentTarget.open)load();}}><summary>כל תבניות המסלול ולוחות היציאה ({event.earlyPatternCount})</summary>{err?<p role="alert">{err} <button onClick={load}>ניסיון חוזר</button></p>:data?<EarlyPatterns event={{...event,earlyPatterns:data}} />:<p>טוען…</p>}</details>;
-}
-function EarlyTripTimes({ pattern, service }) {
-  const [trip,setTrip]=useState(0);
-  const profile=pattern.timeProfiles?.[service.profiles?.[trip]];
-  if(!profile)return null;
-  const parts=service.departures[trip].split(":").map(Number);
-  const base=parts[0]*3600+parts[1]*60+(parts[2]||0);
-  const time=offset=>{if(offset==null)return "לא צוין";const total=base+offset;return [Math.floor(total/3600),Math.floor(total%3600/60),total%60].map(x=>String(x).padStart(2,"0")).join(":");};
-  return <><label>זמני מעבר לפי יציאה <select value={trip} onChange={e=>setTrip(+e.target.value)}>{service.departures.map((d,i)=><option key={i} value={i}>{d}</option>)}</select></label><div className="early-scroll"><table><thead><tr><th>תחנה</th><th>הגעה מתוכננת</th><th>יציאה מתוכננת</th></tr></thead><tbody>{pattern.stops.map((stop,i)=><tr key={i}><td>{stop[1]}</td><td dir="ltr">{time(profile[i]?.[0])}</td><td dir="ltr">{time(profile[i]?.[1])}</td></tr>)}</tbody></table></div></>;
-}
-function EarlyPatterns({ event }) {
-  const [pick, setPick] = useState(0);
-  const p = (event.earlyPatterns || [])[pick];
-  if (!p) return null;
-  const weekdays = [["sunday","א׳"],["monday","ב׳"],["tuesday","ג׳"],["wednesday","ד׳"],["thursday","ה׳"],["friday","ו׳"],["saturday","שבת"]];
-  const boarding = x => ({"0":"מותר", "1":"לא", "2":"בתיאום טלפוני", "3":"בתיאום עם הנהג"}[x] || "לא צוין");
-  return <details className="early-detail"><summary>כל תבניות המסלול ולוחות היציאה מהקובץ ({event.earlyPatterns.length})</summary>
-    <label>תבנית מסלול <select value={pick} onChange={e=>setPick(+e.target.value)}>{event.earlyPatterns.map((x,i)=><option key={i} value={i}>{i+1}: {x.stops.length} תחנות · {x.trips} רשומות נסיעה</option>)}</select></label>
-    <p>הנתונים כפי שפורסמו אז. מספר הרשומות אינו מספר הנסיעות ביום. תוקף וימי פעילות מפורטים למטה.</p>
-    <EarlyMap stops={p.stops} shp={p.shp} />
-    {!p.shp && <p>לא נשמר שרטוט כביש לתבנית הזו. הקו המקווקו מחבר את מיקומי התחנות בלבד.</p>}
-    <div className="early-scroll"><table><thead><tr><th>תחנה</th><th>מק״ט</th><th>עלייה</th><th>ירידה</th></tr></thead><tbody>{p.stops.map((s,i)=><tr key={i}><td>{i+1}. {s[1]}</td><td>{s[0]}</td><td>{boarding(p.boarding[i][0])}</td><td>{boarding(p.boarding[i][1])}</td></tr>)}</tbody></table></div>
-    {p.services.map((s,i)=><details key={i}><summary>{weekdays.filter(([k])=>s.calendar[k]==="1").map(x=>x[1]).join(", ")} · {s.calendar.start_date}–{s.calendar.end_date} · {s.departures.length} יציאות</summary><p dir="ltr">{s.departures.join(" · ")}</p><EarlyTripTimes key={pick+":"+i} pattern={p} service={s} /></details>)}
-    <p>מקור: {SRC_LABEL[event.src]} · מזהה הקו בקובץ: {event.routeId}</p>
-  </details>;
-}
 // Historical snapshots share the ordinary transport categories and line pages.
 function inHistoryMode(line, mode) {
   if (mode === "lines") return !line.tt || line.tt === "bus" || line.tt === "demand";
@@ -6278,7 +5846,6 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
     {day && <>
       {day&&!railRows&&<p role="status">טוען רישומי רכבות…</p>}{railRows&&(()=>{
         // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים; בלחיצה — מפה ורשימת תחנות כמו במפה הרגילה, בלי זמנים (שלמה 26.09)
-        const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
         const trips=[];let cur=null;
         // אותו מספר רכבת משמש לכמה נסיעות ביום. נסיעה נגמרת ביציאה 0 (תחנה אחרונה) ומתחילה בהגעה 0 (תחנת מוצא); גם קפיצה של יותר משלוש שעות היא נסיעה חדשה
         const mins=v=>{const n=parseInt(v)||0;return Math.floor(n/100)*60+n%100;};
@@ -6599,7 +6166,7 @@ function App() {
         <LinePage rd={rd} lineGone={idx ? (l => !(l?.historicalOnly && !lineGoneAt(l)))(idx.lines.find(l => l.rd === rd)) && !mktAlive[rd.split("-")[0]] : false}
           sibs={lineSiblings(idx, rd)}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate} backHref={tabHrefLH(tab)}
-          initCats={[...kats].sort().join(",")} lite={false} />
+          initCats={[...kats].sort().join(",")} />
         /* עמוד הקו — בעיצוב הקודם גם בתצוגה החדשה (שלמה 08.10: "הדף הראשי בעיצוב החדש, ובכניסה לקו
            העיצוב הישן"). עמוד הקו "הקל" נשאר בקוד (lite) אם יוחלט לחזור אליו */
       ) : (
