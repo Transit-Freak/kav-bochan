@@ -779,6 +779,45 @@ async function main() {
     if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
     await pg.close();
   }
+  // מראה הלוח (גרסה 1.5): כותרת במרכז ורק בעמוד הראשון, צבעים לכותרות ולשעות, רקע לקו, מעבר לעמוד הבא —
+  // יחד, אחרי טעינה מחדש (נשמר), ובאקסל. בדיקה ישירה, בלי תמונה-במילים
+  if (!only || only === 'board-look') {
+    const key = 'board-look', pg = await ctx.newPage(), errs = [];
+    pg.on('pageerror', (e) => errs.push(e.message));
+    await pg.goto(base + '/line-changes/?m=tt&c=' + LOD); await pg.waitForSelector('.s-bd', { timeout: 30000 });
+    await pg.click('[data-form="sign"]', { force: true }); await pg.waitForTimeout(1000);
+    const ink = await pg.evaluate(() => [LCDeck.boardInk('#ffffff'), LCDeck.boardInk('#0b3a7a')]);
+    if (ink[0] !== '#111111' || ink[1] !== '#ffffff') problems.push(key + ': צבע הטקסט האוטומטי — ' + ink.join(', '));
+    // ברירת המחדל: הכותרת מימין, גם באקסל
+    const [d0] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.evaluate(() => document.getElementById('xl').click())]);
+    const f0 = fs.readFileSync(await d0.path()).toString('utf8');
+    const titleStyle = (f) => { const m = f.match(/<c r="A1" s="(\d+)"/); if (!m) return null; const xf = [...f.slice(f.indexOf('<cellXfs')).matchAll(/<xf [^>]*>(?:<alignment [^>]*\/>)?<\/xf>|<xf [^>]*\/>/g)][+m[1]]; return xf ? (xf[0].match(/horizontal="(\w+)"/) || [])[1] : null; };
+    if (titleStyle(f0) !== 'right') problems.push(key + ': באקסל, ברירת המחדל של יישור הכותרת — ' + titleStyle(f0) + ' ולא right');
+    await setEdits(pg, "e.btal = 'c'; e.bt1 = true; e.bclr = { h: '#0b3a7a', c: '#eef4fb', cf: '#c00000' }; e.bd = e.bd || {}; e.bd.bg = { 'l:36011': '#ffe08a' }; e.bbrk = ['l:68005'];");
+    const L = await pg.evaluate(() => {
+      const ps = [...document.querySelectorAll('.sitem:not(.off) .s-bd')];
+      const first = (mk) => ps.findIndex((p) => { const r = p.querySelector('tr.br'); return r && r.getAttribute('data-mk') === mk; });
+      const cs = (q) => { const e = document.querySelector('.sitem:not(.off) ' + q); return e ? getComputedStyle(e) : null; };
+      return { n: ps.length, heads: ps.map((p) => !!p.querySelector('.bd-head')), cls: ps[0] ? ps[0].className : '', align: cs('.s-bd .bd-head h1')?.textAlign,
+        th: cs('.s-bd .bd-t th')?.backgroundColor, yellow: cs('.s-bd tr.br[data-mk="36011"] td.bt')?.backgroundColor, red: [...document.querySelectorAll('.sitem:not(.off) .s-bd tr.br:not([data-mk="36011"]) td.bt')].some((t) => getComputedStyle(t).color === 'rgb(192, 0, 0)'),
+        brk: first('68005') };
+    });
+    if (L.n < 2) problems.push(key + ': הלוח בעמוד אחד — אי אפשר לבדוק "רק בעמוד הראשון"');
+    if (!L.heads[0] || L.heads.slice(1).some(Boolean)) problems.push(key + ': "רק בעמוד הראשון" — כותרות בעמודים: ' + JSON.stringify(L.heads));
+    if (!/tal-c/.test(L.cls) || !/clr-h/.test(L.cls) || !/clr-c/.test(L.cls) || L.align !== 'center') problems.push(key + ': הכותרת/הצבעים — ' + L.cls + ' · ' + L.align);
+    if (L.th !== 'rgb(11, 58, 122)') problems.push(key + ': רקע כותרות העמודות — ' + L.th);
+    if (L.yellow !== 'rgb(255, 224, 138)') problems.push(key + ': רקע לקו 11 — ' + L.yellow);
+    if (!L.red) problems.push(key + ': צבע טקסט השעות שנבחר לא מופיע');
+    if (L.brk < 1) problems.push(key + ': "מעבר לעמוד הבא" לקו 5 — הקו לא פותח עמוד (' + L.brk + ')');
+    // באקסל: הכותרת במרכז, צבע הכותרות, רקע הקו והפס בצבע השני של קווים
+    const [d1] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.evaluate(() => document.getElementById('xl').click())]);
+    const f1 = fs.readFileSync(await d1.path()).toString('utf8');
+    if (titleStyle(f1) !== 'center') problems.push(key + ': באקסל הכותרת לא במרכז (' + titleStyle(f1) + ')');
+    for (const [c, what] of [['FF0B3A7A', 'רקע הכותרות'], ['FFFFE08A', 'רקע הקו'], ['FFEEF4FB', 'רקע השעות'], ['FFC00000', 'טקסט השעות']]) if (!f1.includes(c)) problems.push(key + ': באקסל חסר ' + what + ' (' + c + ')');
+    if (!/<bottom style="thick"><color rgb="FF9CCB3B"\/>/.test(f1)) problems.push(key + ': באקסל חסר הפס בצבע השני של קווים');
+    if (errs.length) problems.push(key + ': שגיאה בדף — ' + errs.join(' | '));
+    await pg.close();
+  }
   await b.close(); srv.close();
 
   const old = fs.existsSync(SNAP) ? JSON.parse(fs.readFileSync(SNAP, 'utf8')) : {};
