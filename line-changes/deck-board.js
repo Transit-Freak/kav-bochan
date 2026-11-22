@@ -795,6 +795,14 @@
     // כמה צריך כדי להתחיל כאן: כל הכיוונים של הקו (שלא ייחתך באמצע), ופס — יחד עם הקו הראשון אחריו
     // שורה עם חלופות — גם השורה שלה במקרא החלופות בתחתית העמוד (והריווח של המקרא, בשורה הראשונה כזו בעמוד)
     var alOn = false;
+    // מעבר עמוד ידני (ED.bbrk, שמואל 22.11): פס, קו או שורה שהמשתמש ביקש שיתחילו בעמוד חדש
+    var brk = {}; (D.ED.bbrk || []).forEach(function (k) { brk[k] = 1; });
+    var brkAt = function (it, i) {
+      if (it.band) return brk['b:' + it.band.k];
+      if (!it.r) return false;
+      var prev = items[i - 1];
+      return brk['r:' + it.r.key] || (brk['l:' + it.r.p.makat] && !(prev && prev.r && prev.r.p === it.r.p));
+    };
     ms.hs = ms.hs.map(function (h, i) { return h + (items[i] && items[i].r && ms.al.h[items[i].r.key] || 0); });
     items.forEach(function (it, i) {
       var h = ms.hs[i] || 0;
@@ -803,7 +811,11 @@
       // בעמוד הבא עם "(המשך)", וגם הכיוונים של קו אחד יכולים להתחלק בין עמודים. רק שורה אחת (קו וכיוון) לא נחתכת אף פעם
       var bandNeed = function (j) { return (ms.hs[j] || 0) + (items[j + 1] && items[j + 1].r ? ms.hs[j + 1] || 0 : 0); };
       var need = (it.sec ? h + (items[i + 1] && items[i + 1].band ? bandNeed(i + 1) : 0) : it.band ? bandNeed(i) : h) + ab;
-      if (cur.length && used + need > H) {
+      var hasRow = cur.some(function (x) { return x.r || x.band || x.sec; });
+      // פס עם מעבר ידני: הכותרת של הפרק שלפניו (אם יש) עוברת איתו
+      var fb = hasRow && brkAt(it, i) && !(cur.length && cur[cur.length - 1].sec);
+      if (!fb && it.sec && items[i + 1] && items[i + 1].band && brkAt(items[i + 1], i + 1) && hasRow) fb = true;
+      if (cur.length && (used + need > H || fb)) {
         pgs.push(cur); cur = []; used = 0; alOn = false; ab = it.r && ms.al.h[it.r.key] ? ms.al.base : 0;
         if (!it.band && !it.sec && !it.b.flat) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
       }

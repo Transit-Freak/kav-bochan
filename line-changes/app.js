@@ -1038,7 +1038,7 @@
     var tv = syncTv(curPages || []);
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), tv: tv, ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
-      bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
+      bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop,
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
@@ -1422,6 +1422,8 @@
     $('kindgrp').style.display = form === 'deck' && curPages.some(function (p) { return !p.kind; }) ? '' : 'none';
     $('dlhint').textContent = t.hint;
     $('creditlbl').textContent = t.credit;
+    // בלוח זמני הנסיעות הקרדיט לא יורד (רק משנים את הניסוח) — כדי שהסימון לא ייראה כמו תקלה (שמואל 22.11)
+    $('crbd').hidden = !slides.some(function (x) { return /(^|-)bd\d/.test(x.id); });
     document.querySelectorAll('.printwrap,.dock .printbtn').forEach(function (x) { x.style.display = form === 'status' ? 'none' : ''; });
     if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = t.dl; });
     document.querySelectorAll('.pngs').forEach(function (x) { if (x.getAttribute('data-form') !== form) { x.hidden = true; x.innerHTML = ''; } });
@@ -1548,7 +1550,7 @@
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
   bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
     '<button type="button" data-t="mvup" class="mvb">העברה למעלה ↑</button><button type="button" data-t="mvdn" class="mvb">העברה למטה ↓</button>' +
-    '<button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
+    '<button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
@@ -1567,6 +1569,10 @@
     // שורה שנבחרה בלוח: "מחיקת השורה" / "מחיקת הקו", והסרגל מעל השורה או מתחתיה — לא עליה
     bar.querySelector('[data-t="rowdel"]').hidden = !bdSel || bdSel.line || !!bdSel.band;
     bar.querySelector('[data-t="linedel"]').hidden = !bdSel || !!bdSel.band;
+    // מעבר עמוד ידני (שמואל 22.11): פס, קו או שורה מתחילים בעמוד חדש; לחיצה נוספת מבטלת
+    var bk0 = bdSel && bdBrkKey(bdSel), pb = bar.querySelector('[data-t="pgbrk"]');
+    pb.hidden = !bk0;
+    if (bk0) pb.textContent = (edits.bbrk || []).indexOf(bk0) >= 0 ? 'ביטול המעבר לעמוד הבא' : 'מעבר לעמוד הבא';
     // ריקון התא: כל הטקסט בתא שנבחר (השעות של יום אחד והערה שמתחתן, או כל המוצא) — לא תופס מקום; לחיצה נוספת מחזירה
     var cc = bdSel && !bdSel.band && !bdSel.line && bdSel.cell;
     bar.querySelector('[data-t="cellclr"]').hidden = !cc;
@@ -1579,6 +1585,15 @@
     bar.style.left = Math.max(8, Math.min(window.innerWidth - bar.offsetWidth - 8, r.left + r.width / 2 - bar.offsetWidth / 2)) + 'px';
   }
   function hideBar() { bar.hidden = true; curEl = null; bdSelect(null); }
+  /* מעבר עמוד ידני בלוח (ED.bbrk): 'b:<פס>' · 'l:<מק"ט>' (הקו כולו) · 'r:<שורה>' — מתחילים בעמוד חדש */
+  function bdBrkKey(sel) { return sel.band ? 'b:' + sel.band : sel.line ? 'l:' + sel.mk : sel.rk ? 'r:' + sel.rk : null; }
+  function bdBrkToggle() {
+    var k = bdSel && bdBrkKey(bdSel); if (!k) return;
+    var a = (edits.bbrk || []).slice(), i = a.indexOf(k);
+    if (i >= 0) a.splice(i, 1); else a.push(k);
+    edits.bbrk = a.length ? a : undefined;
+    saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
+  }
   /* "טבלה לפי יעד" במצב עריכה: לחיצה על תא בוחרת את השורה שלו (על תא מספר הקו — את כל השורות של הקו),
      והסרגל מציע "מחיקת השורה" / "מחיקת הקו". Delete במקלדת (כשלא עורכים טקסט) מוחק את מה שנבחר */
   var bdSel = null;
@@ -1834,6 +1849,7 @@
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
     if (t === 'rowdel' || t === 'linedel') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdDelSel(t === 'linedel'); return; }
     if (t === 'rowadd') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdAddRow(); return; }
+    if (t === 'pgbrk') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdBrkToggle(); return; }
     if (t === 'cellclr') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdCellClear(); return; }
     if (t === 'mvup' || t === 'mvdn') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdMove(t === 'mvup' ? -1 : 1); return; }
     if (el.classList.contains('bdt')) {   // טקסט בלוח: מחיקה — ריק, שחזור — הטקסט מהנתונים
