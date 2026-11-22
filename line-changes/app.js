@@ -1039,7 +1039,7 @@
     return { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), tv: tv, ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, a4full: edits.a4full, hol: idx.hol || [],
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
-      bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop,
+      bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }
@@ -1288,6 +1288,13 @@
       $('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
       var bst = edits.bstop === 'dir' || edits.bstop === 'none' ? edits.bstop : 'all';
       $('bstseg').querySelectorAll('[data-bst]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bst') === bst ? 'true' : 'false'); });
+      $('btalseg').querySelectorAll('[data-btal]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-btal') === (edits.btal === 'c' ? 'c' : 'r') ? 'true' : 'false'); });
+      $('bt1w').hidden = !(slides.filter(function (x) { return /(^|-)bd\d/.test(x.id); }).length > 1 || edits.bt1);
+      $('bt1seg').querySelectorAll('[data-bt1]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bt1') === (edits.bt1 ? '1' : '0') ? 'true' : 'false'); });
+      var bc = edits.bclr || {}, bck = Object.keys(BCLR).filter(function (k) { return BCLR[k] && BCLR[k][0] === bc.h && BCLR[k][1] === bc.c; })[0] || (edits.bclr ? '' : 'dflt');
+      $('bclrseg').querySelectorAll('[data-bclr]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bclr') === bck ? 'true' : 'false'); });
+      [['bclrh', bc.h || '#1f2937'], ['bclrhf', bc.hf || (bc.h ? LCDeck.boardInk(bc.h) : '#ffffff')], ['bclrc', bc.c || '#ffffff'], ['bclrcf', bc.cf || (bc.c ? LCDeck.boardInk(bc.c) : '#111111')]]
+        .forEach(function (x) { if (document.activeElement !== $(x[0])) $(x[0]).value = x[1]; });
       var bord = M.ord || edits.bord || 'type', keys = M.keys || [];
       // סדר הקווים — רק כשיש בלוח יותר מקו אחד
       var tc = M.tcount || {};
@@ -1385,7 +1392,7 @@
       else if (!edits.bcw) { edits.bcw = bdColsNow() || undefined; if (!editMode) setEdit(true); }
       saveEdits(); keepScroll(function () { render(curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst]');
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -1397,6 +1404,9 @@
       else if (bo.hasAttribute('data-bpg')) edits.bpages = +bo.getAttribute('data-bpg') || undefined;
       else if (bo.hasAttribute('data-bdn')) edits.bdense = bo.getAttribute('data-bdn') === '1' || undefined;
       // מתחת למוצא: הכל (ברירת המחדל) / רק הכיוון / כלום
+      else if (bo.hasAttribute('data-btal')) edits.btal = bo.getAttribute('data-btal') === 'c' ? 'c' : undefined;
+      else if (bo.hasAttribute('data-bt1')) edits.bt1 = bo.getAttribute('data-bt1') === '1' || undefined;
+      else if (bo.hasAttribute('data-bclr')) { var pr = BCLR[bo.getAttribute('data-bclr')]; edits.bclr = pr ? { h: pr[0], c: pr[1] } : undefined; }
       else if (bo.hasAttribute('data-bst')) { var sv = bo.getAttribute('data-bst'); edits.bstop = sv === 'dir' || sv === 'none' ? sv : undefined; }
       else edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); keepScroll(function () { render(curPages); }); return;
@@ -1406,6 +1416,16 @@
     edits.tv = c.getAttribute('data-tv'); saveEdits(); keepScroll(function () { render(curPages); });
   });
 
+  /* צבעי הלוח: ערכות מוכנות [רקע הכותרות, רקע השעות] (צבע הטקסט נבחר לבד — שחור או לבן), או צבעים שבוחרים */
+  var BCLR = { dflt: null, blue: ['#0b3a7a', '#eef4fb'], green: ['#14532d', '#eefaf2'], gray: ['#374151', '#f3f4f6'], yellow: ['#f2c200', '#fffbea'] };
+  // ארבעה צבעים לבחירה חופשית: רקע וטקסט של הכותרות, רקע וטקסט של השעות (שמואל 22.11: "הבן אדם יחליט")
+  [['bclrh', 'h'], ['bclrhf', 'hf'], ['bclrc', 'c'], ['bclrcf', 'cf']].forEach(function (x) {
+    var el = $(x[0]); if (!el) return;
+    el.addEventListener('input', function () {
+      var c = Object.assign({}, edits.bclr || { h: '#1f2937', c: '#ffffff' }); c[x[1]] = el.value; edits.bclr = c;
+      saveEdits(); clearTimeout(el._t); el._t = setTimeout(function () { keepScroll(function () { render(curPages); }); }, 250);
+    });
+  });
   /* צורה: מצגת (16:9) · שלט להדפסה (A4 לאורך) · סטטוס (9:16). נשמרת עם המצגת, כמו העיצוב */
   var FORM_TXT = {
     deck: { one: 'שקף אחד', many: ' שקפים', dl: 'הורדת PDF', hint: 'קובץ PDF, שקף בכל עמוד.', credit: 'להוסיף קרדיט לקו הבוחן בסוף המצגת' },
