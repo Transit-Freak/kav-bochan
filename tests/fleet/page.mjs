@@ -200,6 +200,12 @@ async function main() {
   await expect('כרטיס רכב: הפירוט לפי חברה נפתח', () => { const d = document.querySelector('.ovl .modal .vfold'); return d && d.open && [...d.querySelectorAll('.vin .msec')].map((x) => x.textContent).sort(); }, null, ['מהשידורים (דאטאבוס) — אלקטרה אפיקים', 'נסיעות בודדות — אלקטרה אפיקים תחבורה', 'נסיעות בודדות — מטרופולין'].sort());
   await click('סגירת הכרטיס', '.ovl .modal .mhead .x');
   await expect('כרטיס רכב: נסגר, והכתובת בלי הרכב', () => [document.querySelectorAll('.ovl').length, new URLSearchParams(location.hash.slice(1)).get('v')], null, [0, null]);
+  await expect('כרטיס רכב: אחרי ✕ נשארים בדף הדגם', () => (document.querySelector('#view .ophead h2') || {}).textContent, null, M1.name);
+  // "אחורה" של הדפדפן (בטלפון) סוגר את הכרטיס ולא מחזיר את הדף שמתחתיו למסך הבית
+  await click('שורת הרכב (שוב)', row + ' td:nth-child(3)');
+  await expect('כרטיס רכב: נפתח שוב', () => document.querySelectorAll('.ovl .modal .plate').length, null, 1);
+  await pg.goBack();
+  await expect('"אחורה" סוגר את כרטיס הרכב ונשארים בדף הדגם', () => [document.querySelectorAll('.ovl').length, (document.querySelector('#view .ophead h2') || {}).textContent, new URLSearchParams(location.hash.slice(1)).get('v')], null, [0, M1.name, null]);
 
   // קישור ישיר לדף דגם עם כרטיס רכב פתוח
   await open('#m=type&model=' + encodeURIComponent(M1.name) + '&v=' + M1.plate);
