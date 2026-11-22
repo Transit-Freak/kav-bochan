@@ -24,7 +24,7 @@
   var css = document.createElement("style");
   css.textContent = [
     ".kb500{--led:#ffb31a;--panel:#16181d;--rim:#2b2f37;",
-    "position:relative;z-index:3;display:flex;align-items:stretch;margin:16px auto 0;width:calc(100% - 32px);max-width:860px;",
+    "position:relative;z-index:3;display:flex;flex-wrap:wrap;align-items:stretch;margin:16px auto 0;width:calc(100% - 32px);max-width:860px;",
     "box-sizing:border-box;border-radius:16px;background:var(--panel);border:3px solid var(--rim);",
     "box-shadow:0 14px 34px -16px rgba(2,6,23,.55),inset 0 0 0 1px rgba(255,255,255,.04);overflow:hidden;direction:rtl;font-family:'Rubik','Heebo',sans-serif}",
     /* רשת הנקודות של לוח הנוריות */
@@ -45,9 +45,9 @@
     ".kb500 .x{position:relative;z-index:1;flex:none;align-self:center;margin-inline:8px 10px;width:32px;height:32px;border-radius:50%;border:0;",
     "background:rgba(255,179,26,.12);color:var(--led);font-size:15px;font-weight:900;cursor:pointer;font-family:inherit}",
     ".kb500 .x:hover{background:rgba(255,179,26,.24)}",
-    /* הערת התודה מתחת לשלט — בכתב ובצבעים של דף הבית, ולכן מתאימה גם למצב לילה */
-    ".kb500-thx{position:relative;z-index:3;margin:10px auto 0;width:calc(100% - 32px);max-width:860px;box-sizing:border-box;padding:0 4px;",
-    "text-align:center;font:600 15px/1.6 'Rubik','Heebo',sans-serif;color:var(--muted,#5b6579);text-wrap:balance}",
+    /* הערת התודה — שורה תחתונה בתוך השלט, בכתב רגיל וחד (מעל רשת הנקודות) כדי שיהיה קל לקרוא */
+    ".kb500 .thx{position:relative;z-index:1;flex:0 0 100%;margin:0;padding:9px 16px 11px;border-top:2px solid var(--rim);",
+    "text-align:center;font:600 14.5px/1.6 'Rubik','Heebo',sans-serif;color:#f3e3c3;text-wrap:balance}",
     ".kb500-hat{position:absolute;z-index:4;left:53%;top:23.6%;width:11%;aspect-ratio:1/1.15;pointer-events:none;",
     "transform:translateX(-50%) rotate(18deg);transform-origin:50% 100%;filter:drop-shadow(0 4px 6px rgba(2,6,23,.25))}",
     ".kb500-hat svg{display:block;width:100%;height:100%}",
@@ -67,7 +67,7 @@
     "@media (prefers-reduced-motion:reduce){.kb500-party .eye,.kb500-party .kb500-hat,.kb500-party .kb500-joy,.kb500-party .orb>span{animation:none}}",
     "html.a11y-nomotion .kb500-party .eye,html.a11y-nomotion .kb500-party .kb500-hat,html.a11y-nomotion .kb500-party .kb500-joy,html.a11y-nomotion .kb500-party .orb>span{animation:none}",
     "#kb500-cv{position:fixed;inset:0;z-index:2147483000;pointer-events:none;width:100%;height:100%}",
-    "@media (max-width:520px){.kb500 .rt{padding:6px 12px}.kb500 .rt b{font-size:30px}.kb500 .dst{height:58px}",
+    "@media (max-width:520px){.kb500 .thx{font-size:13.5px;padding:8px 12px 10px}.kb500 .rt{padding:6px 12px}.kb500 .rt b{font-size:30px}.kb500 .dst{height:58px}",
     ".kb500 .ln{font-size:15.5px;padding:0 12px}}",
     "@media (prefers-reduced-motion:reduce){.kb500 .ln{transition:none}}"
   ].join("");
@@ -125,7 +125,7 @@
     '<path d="M14 63 Q60 55 106 63" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round"/>' +
     '<ellipse cx="28" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/><ellipse cx="92" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/></svg>';
 
-  var LINES = ["העדכון ה-500 של הקו הבוחן"];   // התודה כתובה מתחת לשלט (THANKS); השורה של המספרים נוספת כש-versions.json נטען
+  var LINES = ["העדכון ה-500 של הקו הבוחן"];   // התודה כתובה בשורה התחתונה של השלט (THANKS); השורה של המספרים נוספת כש-versions.json נטען
   var THANKS = "הגענו לעדכון מספר 500 של הקו הבוחן. תודה לכל מי ששלח הערה, דיווח או רעיון — ככה האתר משתפר.";
 
   function add() {
@@ -157,12 +157,11 @@
     el.addEventListener("mouseleave", function () { hover = false; });
     el.querySelector(".rt").addEventListener("click", function () { boomFrom(this); });
     el.querySelector(".x").addEventListener("click", function () {
-      clearInterval(timer); el.remove(); thx.remove(); if (hat) hat.remove(); if (joy) joy.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
+      clearInterval(timer); el.remove(); if (hat) hat.remove(); if (joy) joy.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
     });
     var top = root.querySelector("header.top");   // מתחת לפס העליון, מעל הכותרת הגדולה
     if (top) top.parentNode.insertBefore(el, top.nextSibling); else root.insertBefore(el, root.firstChild);
-    var thx = document.createElement("p"); thx.className = "kb500-thx"; thx.textContent = THANKS;
-    el.parentNode.insertBefore(thx, el.nextSibling);
+    var thx = document.createElement("p"); thx.className = "thx"; thx.textContent = THANKS; el.appendChild(thx);
 
     var stage = root.querySelector(".stage");
     if (stage && !stage.querySelector(".kb500-hat")) {
