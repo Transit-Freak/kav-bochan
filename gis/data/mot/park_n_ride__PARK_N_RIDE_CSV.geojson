@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "ID": "1.0", "NAME": "מ.א. אשכול", "AUTHORITY": "מועצה אזורית אשכול", "AUTH_CODE": "240P", "TRAFAUTH": "מועצה אזורית אשכול", "TRAFCODE": "240P", "DISTRICT": "דרום", "X": "145896.99", "Y": "579227.04", "PARK_N": "115.0", "DUNAM": "2.83", "COMMENTS": " ", "SOURCE": "תצא 2023", "D_UPDATE": "20/11/2024 00:00:00", "FLOORS": "1.0", "RAIL_MAKAT": "0.0", "FCL_MAKAT": "710031.0", "STATUS": "קיים", "BUS_SERV": "כן", "TRAIN_SERV": "לא", "LRT_SERV": "לא", "PAY": "לא", "BIC_PARK": "", "ELECTRIC": "", "Shape_Length": "349.91978538043077", "Shape_Area": "2826.7406653957387" }, "geometry": { "type": "Point", "coordinates": [ 34.43179, 31.30242 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "ID": "2.0", "NAME": "רכבת נתיבות מערב", "AUTHORITY": "נתיבות", "AUTH_CODE": "0246", "TRAFAUTH": "רכבת ישראל", "TRAFCODE": "10105", "DISTRICT": "דרום", "X": "159304.63", "Y": "591237.36", "PARK_N": "143.0", "DUNAM": "8.2", "COMMENTS": " ", "SOURCE": "תצא 2023", "D_UPDATE": "20/11/2024 00:00:00", "FLOORS": "1.0", "RAIL_MAKAT": "17108.0", "FCL_MAKAT": "710034.0", "STATUS": "קיים", "BUS_SERV": "כן", "TRAIN_SERV": "כן", "LRT_SERV": "לא", "PAY": "לא", "BIC_PARK": "", "ELECTRIC": "", "Shape_Length": "469.0314649957588", "Shape_Area": "8197.07179906778" }, "geometry": { "type": "Point", "coordinates": [ 34.57189, 31.41151 ] } },

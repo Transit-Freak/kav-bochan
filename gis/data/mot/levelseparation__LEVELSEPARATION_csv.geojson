@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "NUM": "0.400", "RAILNAME": "חיפה", "X": "201043.2414", "Y": "746065.2388", "ROAD": "כביש 22", "HEKTOMETER": "400.0", "LOCATION": "חיפה, צמוד למחלף חירם", "DESCRPTION": "גשר כביש מעל מסילה", "TRAINOVER": "לא", "STATUS": "קיימת", "YEARMONTH": "202406", "MAINTENANC": "אין מידע", "TRAFCODE": "0", "TRAFTYPE": "אין מידע" }, "geometry": { "type": "Point", "coordinates": [ 35.00784, 32.80914 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "NUM": "0.800", "RAILNAME": "שלוחת דשנים", "X": "205419.9076", "Y": "745573.8175", "ROAD": "כביש 22", "HEKTOMETER": "800.0", "LOCATION": "חיפה, מחלף ההסתדרות", "DESCRPTION": "גשר כביש מעל מסילה", "TRAINOVER": "לא", "STATUS": "קיימת", "YEARMONTH": "202406", "MAINTENANC": "נתיבי ישראל", "TRAFCODE": "10101", "TRAFTYPE": "נתיבי ישראל" }, "geometry": { "type": "Point", "coordinates": [ 35.05458, 32.80477 ] } },

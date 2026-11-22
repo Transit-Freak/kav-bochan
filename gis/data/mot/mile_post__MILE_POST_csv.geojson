@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "FID": "0", "OBJECTID": "1", "KM": "1", "X": "210170", "Y": "731543", "TYPE_ROAD": "רמפה", "ROAD": "TC03" }, "geometry": { "type": "Point", "coordinates": [ 35.10543, 32.67831 ] } },
 { "type": "Feature", "properties": { "FID": "1", "OBJECTID": "2", "KM": "1", "X": "195071", "Y": "670242", "TYPE_ROAD": "רמפה", "ROAD": "QE09" }, "geometry": { "type": "Point", "coordinates": [ 34.94603, 32.1253 ] } },

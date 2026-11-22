@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "FID": "0", "OBJECTID": "1", "LINK": "https://ims.gov.il/he/node/148", "RADIUS": "50", "ENAME": "AVNE ETAN", "NAME": "אבני איתן", "NUM": "20", "X": "271680", "Y": "747090", "LON": "35.7622", "LAT": "32.8174", "VARIABLES": "גשם, טמפ', רוח, לחות", "LOCATION": "קרקע", "ELEVATION": "375", "HEIGHT": "10", "AREA_STAT": "481.457602", "PERIM_STAT": "88.43051", "LIMITS": "בנייה כלשהיא", "Shape_Leng": "313.9525883", "Shape_Area": "7833.326633", "YEARMONTH": "202109" }, "geometry": { "type": "Point", "coordinates": [ 35.76211, 32.81729 ] } },
 { "type": "Feature", "properties": { "FID": "1", "OBJECTID": "2", "LINK": "https://ims.gov.il/he/node/138", "RADIUS": "50", "ENAME": "AYYELET HASHAHAR", "NAME": "איילת השחר", "NUM": "7", "X": "253940", "Y": "769980", "LON": "35.5735", "LAT": "33.0244", "VARIABLES": "גשם, טמפ', לחות", "LOCATION": "קרקע", "ELEVATION": "170", "HEIGHT": "אין", "AREA_STAT": "42.69948", "PERIM_STAT": "26.23222", "LIMITS": "בנייה כלשהיא", "Shape_Leng": "313.9525883", "Shape_Area": "7833.326633", "YEARMONTH": "202109" }, "geometry": { "type": "Point", "coordinates": [ 35.57353, 33.02438 ] } },

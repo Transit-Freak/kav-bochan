@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-15T13:03Z",
+ "updated": "2026-11-22T13:42Z",
  "source": "data.gov.il — משרד התחבורה",
  "topics": [
   "תחבורה ציבורית",
@@ -56,7 +56,7 @@
     "Shape_Area"
    ],
    "file": "mot/park_n_ride__PARK_N_RIDE_CSV.geojson",
-   "bytes": 137118,
+   "bytes": 137153,
    "simplify": 2e-05
   },
   {
@@ -122,7 +122,7 @@
     "Shape_Area"
    ],
    "file": "mot/bus_terminal_fcl__BUS_TERMINAL_FCL_CSV.geojson",
-   "bytes": 331482,
+   "bytes": 331517,
    "simplify": 2e-05
   },
   {
@@ -208,7 +208,7 @@
     "PTLTYPE"
    ],
    "file": "mot/nataz_kayam__NATAZ_KAYAM_CSV.geojson",
-   "bytes": 1647477,
+   "bytes": 1647512,
    "simplify": 2e-05
   },
   {
@@ -249,7 +249,7 @@
     "YEARMONTH"
    ],
    "file": "mot/ims_stat__IMS_STAT_csv.geojson",
-   "bytes": 55360,
+   "bytes": 55395,
    "simplify": 2e-05
   },
   {
@@ -280,7 +280,7 @@
     "Long"
    ],
    "file": "mot/bus_stops.geojson",
-   "bytes": 15215481,
+   "bytes": 15215516,
    "simplify": 2e-05
   },
   {
@@ -315,7 +315,7 @@
     "TRAFTYPE"
    ],
    "file": "mot/levelseparation__LEVELSEPARATION_csv.geojson",
-   "bytes": 337878,
+   "bytes": 337913,
    "simplify": 2e-05
   },
   {
@@ -384,7 +384,7 @@
     "Shape_Area"
    ],
    "file": "mot/lrt_stations_area__LRT_STATIONS_AREA_CSV.geojson",
-   "bytes": 89943,
+   "bytes": 89978,
    "simplify": 2e-05
   },
   {
@@ -421,7 +421,7 @@
     "TYPE"
    ],
    "file": "mot/lrt_entrance__LRT_ENTRANCE_CSV.geojson",
-   "bytes": 14855,
+   "bytes": 14890,
    "simplify": 2e-05
   },
   {
@@ -430,14 +430,14 @@
    "group": "מצב קיים",
    "topic": "רכבת, רק\"ל ומטרו",
    "source": "https://data.gov.il/dataset/lrt_stat",
-   "modified": "2026-03-22T11:54:00",
+   "modified": "2026-11-16T20:56:20",
    "id": "lrt_stat__LRT_STAT_CSV",
    "title": "תחנות רכבת קלה — LRT_STAT_CSV",
    "sub": "LRT_STAT_CSV",
    "resource": "LRT_STAT_CSV",
    "url": "https://data.gov.il/dataset/86fce9f0-0e5a-4012-8a84-86a233e83191/resource/b2ca8ac5-d7ea-41a5-8119-a30e98cf71e0/download/lrt_stat.csv",
    "geom": "Point",
-   "count": 332,
+   "count": 314,
    "fields": [
     "OID",
     "X",
@@ -456,7 +456,7 @@
     "ENTRC_LBL"
    ],
    "file": "mot/lrt_stat__LRT_STAT_CSV.geojson",
-   "bytes": 157287,
+   "bytes": 144970,
    "simplify": 2e-05
   },
   {
@@ -483,7 +483,7 @@
     "ROAD"
    ],
    "file": "mot/mile_post__MILE_POST_csv.geojson",
-   "bytes": 1489176,
+   "bytes": 1489211,
    "simplify": 2e-05
   },
   {
@@ -516,7 +516,7 @@
     "STREETROAD"
    ],
    "file": "mot/roundabout__ROUNDABOUT_CSV.geojson",
-   "bytes": 3494831,
+   "bytes": 3494866,
    "simplify": 2e-05
   },
   {
@@ -565,7 +565,7 @@
     "YEARMONTH"
    ],
    "file": "mot/sfirot__SFIROT_CSV.geojson",
-   "bytes": 7749244,
+   "bytes": 7749279,
    "simplify": 2e-05
   },
   {
@@ -598,7 +598,7 @@
     "NEW"
    ],
    "file": "mot/traffic_light_junction__TRAFFIC_LIGHT_JUNCTION_CSV.geojson",
-   "bytes": 1370579,
+   "bytes": 1370614,
    "simplify": 2e-05
   },
   {
@@ -632,7 +632,7 @@
     "Num_"
    ],
    "file": "mot/zmt_names__ZMT_NAMES_CSV.geojson",
-   "bytes": 184088,
+   "bytes": 184123,
    "simplify": 2e-05
   },
   {
@@ -679,7 +679,7 @@
     "Shape_Length"
    ],
    "file": "mot/nataz_strategic__NATAZ_STRATEGIC_CSV.geojson",
-   "bytes": 1369355,
+   "bytes": 1369390,
    "simplify": 2e-05
   },
   {
@@ -745,7 +745,7 @@
     "Shape_Length"
    ],
    "file": "mot/bph_infra_plan__BPH_INFRA_PLAN_CSV.geojson",
-   "bytes": 3022769,
+   "bytes": 3022804,
    "simplify": 2e-05
   }
  ],

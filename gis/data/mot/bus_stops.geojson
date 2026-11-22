@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "StationId": "2228", "CityCode": "472", "CityName": "אבו גוש", "MetropolinCode": "4", "MetropolinName": "ירושלים", "StationTypeCode": "1", "StationTypeName": "תחנה רגילה", "StationOperatorTypeCode": "1", "StationOperatorTypeName": "מפעילי אוטובוסים", "Lat": "31.806622", "Long": "35.114168" }, "geometry": { "type": "Point", "coordinates": [ 35.11417, 31.80662 ] } },
 { "type": "Feature", "properties": { "StationId": "2229", "CityCode": "472", "CityName": "אבו גוש", "MetropolinCode": "4", "MetropolinName": "ירושלים", "StationTypeCode": "1", "StationTypeName": "תחנה רגילה", "StationOperatorTypeCode": "1", "StationOperatorTypeName": "מפעילי אוטובוסים", "Lat": "31.810908", "Long": "35.10752" }, "geometry": { "type": "Point", "coordinates": [ 35.10752, 31.81091 ] } },

@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "DISTRICODE": "6", "X": "130813.252754", "Y": "569765.489966", "DOMAIN": "בין עירוני", "NEW": "לא", "JUNCTION": "", "AUTHORITY": "", "AUTHCODE": "0", "DISTRICT": "דרום", "CITY": "", "CITYCODE": "0.0", "STREETROAD": "" }, "geometry": { "type": "Point", "coordinates": [ 34.27421, 31.21605 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "DISTRICODE": "6", "X": "131039.006526", "Y": "569854.297918", "DOMAIN": "בין עירוני", "NEW": "לא", "JUNCTION": "", "AUTHORITY": "", "AUTHCODE": "0", "DISTRICT": "דרום", "CITY": "", "CITYCODE": "0.0", "STREETROAD": "" }, "geometry": { "type": "Point", "coordinates": [ 34.27657, 31.21686 ] } },

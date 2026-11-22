@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "X": "163050.61766", "Y": "620558.002036", "STATUS": "קיים", "NUM": "1.0", "HEBREW": "אבא הלל", "ARABIC": "أبا هِليل", "LATIN": "Aba Hilel", "RAODS": "3/4", "CURRENT": "צומת", "VAADA": "", "FUTURE": "", "YALKUTPIR": "", "Num_": "" }, "geometry": { "type": "Point", "coordinates": [ 34.60961, 31.67611 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "X": "226922.332768", "Y": "737001.823094", "STATUS": "קיים", "NUM": "2.0", "HEBREW": "אביהוא", "ARABIC": " أڤيهو", "LATIN": "Avihu", "RAODS": "79/700", "CURRENT": "צומת", "VAADA": "30/05/2019 00:00:00", "FUTURE": "", "YALKUTPIR": "8335 - 11/7/19", "Num_": "" }, "geometry": { "type": "Point", "coordinates": [ 35.28409, 32.72754 ] } },

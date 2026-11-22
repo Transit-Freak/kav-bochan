@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "district": "דרום", "X": "177214.273543", "Y": "622871.422582", "DISTRICODE": "6", "JUNCTION": "כניסה לקדמה", "STREETROAD": "3611 / 40", "CITY": "אביגדור", "CITYCODE": "819", "AUTHORITY": "נתיבי ישראל", "DOMAIN": "עירוני", "AUTHCODE": "10101", "NEW": "לא" }, "geometry": { "type": "Point", "coordinates": [ 34.75887, 31.69759 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "district": "צפון", "X": "230096.038724", "Y": "718214.39657", "DISTRICODE": "2", "JUNCTION": "צומת יזרעאל", "STREETROAD": "60 / 675", "CITY": "אביטל", "CITYCODE": "2052", "AUTHORITY": "נתיבי ישראל", "DOMAIN": "עירוני", "AUTHCODE": "10101", "NEW": "לא" }, "geometry": { "type": "Point", "coordinates": [ 35.31773, 32.55811 ] } },

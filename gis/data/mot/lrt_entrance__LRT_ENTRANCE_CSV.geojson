@@ -1,6 +1,7 @@
 {
 "type": "FeatureCollection",
 "name": "l",
+"xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "OID": "-1", "ID": "1.0", "STATIONN": "אליפלט", "ENTRANCEN": "1.0", "METROPOLIN": "תל אביב", "AUTHORITYN": "תל אביב", "AUTHORITYC": "5000", "X": "177829.83", "Y": "662906.94", "LOCATION": "פארק המסילה", "USE": "0.0", "ACTIVEHR": "", "COMMENTS": "", "D_UPDATE": "22/07/2026", "ACCESS": "", "BYC_PARK": "לא", "TYPE": "" }, "geometry": { "type": "Point", "coordinates": [ 34.76364, 32.05865 ] } },
 { "type": "Feature", "properties": { "OID": "-1", "ID": "2.0", "STATIONN": "אלנבי", "ENTRANCEN": "3.0", "METROPOLIN": "תל אביב", "AUTHORITYN": "תל אביב", "AUTHORITYC": "5000", "X": "178796.63", "Y": "663298.38", "LOCATION": "מנורה מבטחים", "USE": "3.0", "ACTIVEHR": "", "COMMENTS": "יציאה C", "D_UPDATE": "31/03/2026", "ACCESS": "", "BYC_PARK": "לא", "TYPE": "משולב" }, "geometry": { "type": "Point", "coordinates": [ 34.77386, 32.06221 ] } },
