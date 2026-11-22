@@ -977,7 +977,7 @@
     e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {}; e.inset = e.inset || {};
     // "טבלה לפי יעד": טקסט שנערך בלוח, שורות וקווים שהוסרו (ראו bdT ב-deck.js)
     e.mv = e.mv && typeof e.mv === 'object' ? e.mv : {};   // התצוגה של כל מפה (מרכז וזום), לפי שקף — מהזזה והגדלה במצב עריכה
-    e.bd = e.bd && typeof e.bd === 'object' ? e.bd : {}; e.bd.t = e.bd.t || {}; e.bd.offR = e.bd.offR || {}; e.bd.offL = e.bd.offL || {};
+    e.bd = e.bd && typeof e.bd === 'object' ? e.bd : {}; e.bd.t = e.bd.t || {}; e.bd.offR = e.bd.offR || {}; e.bd.offL = e.bd.offL || {}; e.bd.al = e.bd.al || {};
     e.bd.nr = Array.isArray(e.bd.nr) ? e.bd.nr : [];   // שורות שהמשתמש הוסיף ללוח: [{id, after: מפתח השורה שמעליה}]
     return e;
   }
@@ -1548,7 +1548,7 @@
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
   bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
     '<button type="button" data-t="mvup" class="mvb">העברה למעלה ↑</button><button type="button" data-t="mvdn" class="mvb">העברה למטה ↓</button>' +
-    '<button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
+    '<button type="button" data-t="al-r" class="bal" title="יישור לימין" aria-label="יישור לימין">⇥ ימין</button><button type="button" data-t="al-c" class="bal" title="יישור למרכז" aria-label="יישור למרכז">↔ מרכז</button><button type="button" data-t="al-l" class="bal" title="יישור לשמאל" aria-label="יישור לשמאל">⇤ שמאל</button><button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
@@ -1575,6 +1575,9 @@
     var cc = bdSel && !bdSel.band && !bdSel.line && bdSel.cell;
     bar.querySelector('[data-t="cellclr"]').hidden = !cc;
     if (cc) bar.querySelector('[data-t="cellclr"]').textContent = bdCellEmpty(bdSel.cell) ? 'שחזור התא' : 'ריקון התא';
+    // יישור הטקסט בתא שנבחר — ימין / מרכז / שמאל, כמו בוורד (שלמה 22.11); הכפתור של היישור שנבחר מסומן
+    var alNow = cc ? (edits.bd.al || {})[bdSel.cell[0]] : null;
+    bar.querySelectorAll('.bal').forEach(function (b) { b.hidden = !cc; b.setAttribute('aria-pressed', alNow && b.getAttribute('data-t') === 'al-' + alNow ? 'true' : 'false'); });
     if (bdSel && el.closest('.slide')) r = bdSelRect(el.closest('.slide')) || r;
     bar.hidden = false;
     var top = r.top - bar.offsetHeight - 6;
@@ -1847,6 +1850,11 @@
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
     if (t === 'rowdel' || t === 'linedel') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdDelSel(t === 'linedel'); return; }
     if (t === 'rowadd') { if (el.classList.contains('bdt')) el.removeAttribute('data-o'); bdAddRow(); return; }
+    if (/^al-[rcl]$/.test(t)) {   // יישור התא: לחיצה על היישור שכבר נבחר — חזרה לברירת המחדל
+      if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); }
+      if (bdSel && bdSel.cell) { var ak = bdSel.cell[0], av = t.slice(3); edits.bd.al = edits.bd.al || {}; if (edits.bd.al[ak] === av) delete edits.bd.al[ak]; else edits.bd.al[ak] = av; saveEdits(); hideBar(); keepScroll(function () { render(curPages); }); }
+      return;
+    }
     if (t === 'pgbrk') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdBrkToggle(); return; }
     if (t === 'cellclr') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdCellClear(); return; }
     if (t === 'mvup' || t === 'mvdn') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdMove(t === 'mvup' ? -1 : 1); return; }

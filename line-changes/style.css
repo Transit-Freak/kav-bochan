@@ -258,6 +258,7 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .etb button{min-height:40px;border:none;border-radius:8px;background:transparent;color:var(--bg);font-weight:800;font-size:14px;padding:0 12px;cursor:pointer}
 .etb button:hover{background:rgba(255,255,255,.14)}
 .etb button[hidden]{display:none}
+.etb button[aria-pressed="true"]{background:rgba(255,255,255,.22)}
 
 /* פס פעולות צף בטלפון (שלב 3) */
 .dock{position:sticky;bottom:0;z-index:800;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(6px);padding-block:var(--sp3) calc(var(--sp3) + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(19,32,27,.08)}
