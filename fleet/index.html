@@ -1445,7 +1445,9 @@ async function loadDays(){
 const OCC_MAX=60, OCC_PCT=0.02;   // עד 60 נסיעות, או פחות מ-2% מהנסיעות בחברה הראשית (יצחק 21.11: יוטונג צ'יטה של אלקטרה אפיקים "בדרך אגד")
 function occTrips(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return dd?dd[1]:null;}
 function occSet(recs){
-  const out=new Set();if(recs.length<2||isKab(recs[0][1]))return out;
+  const out=new Set();if(recs.length<2)return out;
+  // רכב קבלן נקבע לפי הרשומה האחרונה (כמו בכרטיס הרכב), לא לפי הרשומה הראשונה ברשימה — הסדר שונה בין המסכים
+  const last=recs.reduce((a,b)=>b[1][2]>a[1][2]?b:a);if(isKab(last[1]))return out;
   let main=null,mt=0;for(const r of recs){const t=occTrips(r[0],r[1])||0;if(t>mt){mt=t;main=r;}}
   if(!main)return out;
   for(const r of recs){if(r===main)continue;const t=occTrips(r[0],r[1]);
@@ -1681,14 +1683,18 @@ async function showV(plate){
   }else{
     rows+=`<div class="msec">המאגר הממשלתי</div><div class="note">הרכב לא נמצא במאגר הרכב הציבורי — ייתכן שהוסר מהרישום, שההעשרה טרם רצה, או שהמזהה בשידור אינו לוחית.</div>`;
   }
-  const ovl=document.createElement('div');ovl.className='ovl';
+  const ovl=document.createElement('div');ovl.className='ovl vovl';
   ovl.innerHTML=`<div class="modal"><div class="mhead"><span class="plate">${esc(plate)}</span>
     ${kab?`<span class="tg">רכב קבלן</span>`:gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
     ${ar?`<span class="st mv" title="לפי מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה${ARM.updated?` (${fd(ARM.updated)})`:''}">${arLbl(ar)}</span>`:''}
     <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]+(bdt?' ב-'+fd(bdt):''):sofi?' · בוטל סופית':'')}</span>${chk?'<span class="st chk">לבדיקה</span>':''}
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
     <button class="x" aria-label="סגירה">✕</button></div>${chkBox}${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
-  ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
+  // כרטיס הרכב נכנס להיסטוריה, כדי שכפתור "אחורה" (בטלפון) יסגור אותו ולא יחזיר את הדף שמתחתיו למסך הבית
+  ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;
+    if(history.state&&history.state.v){VBACK=true;history.back();}else syncUrl();}});
+  document.querySelectorAll('.vovl').forEach(o=>o.remove());
+  if(!VOPEN)try{history.pushState({sub:1,v:1},'');}catch(e){}
   document.body.appendChild(ovl);VOPEN=plate;syncUrl();
 }
 
@@ -1744,7 +1750,7 @@ async function XDL(){
     const agg={};
     const f=Q.trim();
     for(const [o,v] of allPlates()){const t=gM(v);if(!t)continue;
-      const g=agg[t]||(agg[t]={n:0,a:0,s:new Set(),ty:new Set()});g.n++;if(isActive(v))g.a++;for(const [o2] of v._recs||[[o]])g.s.add(o2.ref);const bt=gT(v);if(bt)g.ty.add(bt);}
+      const g=agg[t]||(agg[t]={n:0,a:0,s:new Set(),ty:new Set()});g.n++;if(isActive(v))g.a++;for(const [o2] of realRecs(v,o))g.s.add(o2.ref);const bt=gT(v);if(bt)g.ty.add(bt);}
     Object.entries(agg).filter(([t,g])=>!f||t.includes(f)||[...g.ty].some(x=>x.includes(f)))
       .sort((x,y)=>y[1].n-x[1].n).forEach(([t,g])=>D.push([t,g.n,g.a,g.n-g.a,g.s.size]));
   }else if(MODE==='city'&&CITYSEL&&CITIES&&CITIES.cities[CITYSEL]){
@@ -1819,7 +1825,10 @@ async function XDL(){
 }
 function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;CHKF=null;LIMIT=200;render();window.scrollTo({top:0});}
 // חץ "אחורה" של הדפדפן מחזיר למסך הבית במקום לצאת מהאתר
-window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
+window.addEventListener('popstate',()=>{
+  if(VBACK){VBACK=false;syncUrl();return;}   // הכרטיס נסגר ב-✕ והחזרנו את ההיסטוריה צעד אחד — הדף נשאר כמו שהוא
+  const vo=document.querySelector('.vovl');if(vo){vo.remove();VOPEN=null;syncUrl();return;}   // "אחורה" סוגר את כרטיס הרכב
+  VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
 function render(){
   document.body.classList.toggle('inner',!(MODE==='op'&&VIEW.t==='home'));
   $('#view').innerHTML=crumb()+(VIEW.t==='op'?opView(VIEW.ref):home());
@@ -2118,7 +2127,7 @@ function SHAREV(plate){
 }
 // כתובת ייחודית לכל מסך (שלמה 22.10): הכתובת בשורת הכתובת מתעדכנת בכל מעבר, כך שאפשר
 // להעתיק אותה ישר מהדפדפן — אותם פרמטרים שכפתור השיתוף מייצר ו-applyHash קורא
-let VOPEN=null;
+let VOPEN=null, VBACK=false;
 function stateParams(){
   const p=new URLSearchParams();
   if(MODE!=='op')p.set('m',MODE);
@@ -2218,7 +2227,7 @@ function applyHash(){
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',e=>{
   if(!nv(e))return;
   MODE=b.dataset.m;closeSugg();if(Q){Q='';$('#q').value='';}
-  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
+  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;SORTK=null;SORTD=-1;LIMIT=200;render();   // מיון של לשונית אחרת לא עובר לכאן ("כל הרכבים" חוזר ל"החדשים קודם")
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;LIMIT=200;render();suggest();});
 
