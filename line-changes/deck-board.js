@@ -761,7 +761,7 @@
   }
   function bdSlideHtml(M, form, sc, body, ops, pgi, rows, noHead) {
     var c = D.ED.bclr || {};
-    return '<div class="s-cur s-bd f-' + form + (D.ED.bdense ? ' dense' : '') + (D.ED.btal === 'c' ? ' tal-c' : '') + (bdInk(c.h) ? ' clr-h' : '') + (bdInk(c.c) ? ' clr-c' : '') + '" style="--bd:' + sc + bdLookVars() + '">' +
+    return '<div class="s-cur s-bd f-' + form + (D.ED.bdense ? ' dense' : '') + (D.ED.btal === 'c' ? ' tal-c' : D.ED.btal === 'l' ? ' tal-l' : '') + (bdInk(c.h) ? ' clr-h' : '') + (bdInk(c.c) ? ' clr-c' : '') + '" style="--bd:' + sc + bdLookVars() + '">' +
       (noHead ? '' : bdHead(M, form)) + '<div class="cu-body">' + body + '</div>' + bdFoot(M, ops, pgi, rows) + '</div>';
   }
   /* מדידה: כל השורות בעמוד אחד מחוץ למסך — הגובה של כל שורה והמקום שיש לטבלה */

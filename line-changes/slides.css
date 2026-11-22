@@ -1089,3 +1089,5 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .s-bd.clr-c .bd-t td.bt,.s-bd.clr-c .bd-t td.bo{background:var(--bdc-bg);color:var(--bdc-fg)}
 .s-bd.clr-c .bd-t td.bo small,.s-bd.clr-c .bd-t td.bt.off{color:var(--bdc-fg);opacity:.8}
 .s-bd .bd-t td.bl .badge.sm.two{padding-bottom:.36em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.s-bd.tal-l .bd-head > .t, .s-bd.tal-l .bd-head > .t > div{text-align:left;justify-content:flex-end}
+.s-bd.tal-l .bd-head .bd-key{justify-content:flex-end}

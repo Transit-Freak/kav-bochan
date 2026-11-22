@@ -191,7 +191,7 @@
           <div class="bdopts" id="bdopts" hidden>
             <h4 class="tvsh">אפשרויות ללוח המודעות</h4>
             <label class="fld"><span>כותרת</span><input type="text" id="bdtitle" maxlength="90" autocomplete="off"></label>
-            <p class="hint">במצב עריכה: לוחצים על שורה בלוח ובוחרים "מחיקת השורה" או "מחיקת הקו". כל טקסט בלוח אפשר גם לשנות או למחוק.</p>
+            <p class="hint">במצב עריכה: לוחצים על שורה בלוח ובוחרים "מחיקת השורה" או "מחיקת הקו". כל טקסט בלוח אפשר גם לשנות או למחוק. בלחיצה על הכותרת, על שורה או על תא — גם עיצוב: רקע, צבע טקסט, יישור, ערכות צבעים לכל הלוח, וכותרת רק בעמוד הראשון.</p>
             <label class="fld"><span>עדכונים והערות <small>(לא חובה — מופיע בתחתית הלוח)</small></span><textarea id="bdnote" rows="2" maxlength="400"></textarea></label>
             <span class="flabel sm">צפיפות</span>
             <div class="seg2 tvseg" id="bdnseg" role="radiogroup" aria-label="צפיפות">
@@ -212,6 +212,8 @@
               <button type="button" role="radio" data-bst="dir"><b>רק כיוון</b></button>
               <button type="button" role="radio" data-bst="none"><b>כלום</b></button>
             </div>
+            <!-- יישור הכותרת, "רק בעמוד הראשון" והצבעים — עברו לסרגל העריכה (לוחצים על הכותרת). נשארים כאן מוסתרים, כי הקוד מעדכן אותם -->
+            <div id="blookw" hidden>
             <span class="flabel sm">יישור הכותרת</span>
             <div class="seg2 tvseg" id="btalseg" role="radiogroup" aria-label="יישור הכותרת">
               <button type="button" role="radio" data-btal="r"><b>לימין</b></button>
@@ -232,6 +234,7 @@
             </div>
             <div class="bclrpick"><label>רקע הכותרות <input type="color" id="bclrh" value="#1f2937"></label><label>טקסט הכותרות <input type="color" id="bclrhf" value="#ffffff"></label>
               <label>רקע השעות <input type="color" id="bclrc" value="#ffffff"></label><label>טקסט השעות <input type="color" id="bclrcf" value="#111111"></label></div>
+            </div>
             <span class="flabel sm">פיצול ימי חול</span>
             <div class="seg2 tvseg" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
               <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
