@@ -646,7 +646,7 @@ function mount(root, opts) {
   root.__kbhOpts = opts || {};
   root.querySelectorAll('[data-cta]').forEach(el => { el.textContent = 'כניסה'; });
   adoptVer(root);
-  if (root.__kbh) return;
+  if (root.__kbh) { if (root.__kbhTick) root.__kbhTick(); return; }   // חזרה לדף הבית — העין ממשיכה לעקוב אחרי שבת
   root.__kbh = 1;
   fillIcons(root);
   loadVersions().then(V => { if (V) applyVersions(root, V); });
@@ -694,22 +694,23 @@ function mount(root, opts) {
   let sh = shabbatState();
   if (sh.state === 'sleep' || sh.state === 'wake') sleep(sh.state);
   if (sh.state === 'motzei') setLabel('שבוע טוב');
-  /* פעם בכמה שניות: מעבר בין השלבים, ובשעה האחרונה — ניסיון להתעורר כל 6–10 שניות */
-  if (sh.state) {
-    const tick = async () => {
-      sh = shabbatState();
-      if (asleep && (sh.state === 'motzei' || !sh.state)) { await wakeUp(); setLabel(sh.state ? 'שבוע טוב' : null); }
-      else if (asleep) {
-        sleep(sh.state);
-        if (sh.state === 'wake' && !RM() && root.isConnected && !document.hidden && Date.now() >= wakeT) {
-          wakeT = Date.now() + 6000 + Math.random() * 4000;
-          await tryWake(Math.min(1, Math.max(0, 1 - (sh.end - Date.now()) / HOUR)));
-        }
-      } else if (!sh.state) setLabel(null);
-      if (root.isConnected && sh.state) setTimeout(tick, asleep ? 1000 : 30000);
-    };
-    setTimeout(tick, 1000);
-  }
+  /* פעם בכמה שניות: מעבר בין השלבים, ובשעה האחרונה — ניסיון להתעורר כל 6–10 שניות.
+     הלולאה רצה תמיד (גם אם הדף נפתח לפני שבת), נעצרת כשדף הבית לא מוצג, וממשיכה כשחוזרים אליו (mount) */
+  let ticking = false;
+  const tick = async () => {
+    sh = shabbatState();
+    if (asleep && (sh.state === 'motzei' || !sh.state)) { await wakeUp(); setLabel(sh.state ? 'שבוע טוב' : null); }
+    else if (sh.state === 'sleep' || sh.state === 'wake') {
+      sleep(sh.state);
+      if (sh.state === 'wake' && !RM() && root.isConnected && !document.hidden && Date.now() >= wakeT) {
+        wakeT = Date.now() + 6000 + Math.random() * 4000;
+        await tryWake(Math.min(1, Math.max(0, 1 - (sh.end - Date.now()) / HOUR)));
+      }
+    } else setLabel(sh.state === 'motzei' ? 'שבוע טוב' : null);
+    if (root.isConnected) setTimeout(tick, asleep ? 1000 : sh.state ? 30000 : 60000); else ticking = false;
+  };
+  root.__kbhTick = () => { if (!ticking) { ticking = true; setTimeout(tick, 1000); } };
+  root.__kbhTick();
   let beamDeg = 0;
   function gaze(th) {
     if (asleep) return;

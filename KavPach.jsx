@@ -142,7 +142,7 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
     clearTimeout(timer.current);
     timer.current = setTimeout(() => submit(v), 800);
   };
-  const isDirty = local !== (value || '');
+  const isDirty = local.trim() !== (value || '');
   return (
     <form className="relative w-full" onSubmit={e => { e.preventDefault(); clearTimeout(timer.current); submit(); }} role="search">
       <input
@@ -681,7 +681,6 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
   useEffect(() => { syncTabHash('מוזהב', GOLD_TABS, goldenTab); }, [goldenTab]);
   const [filterDistrict, setFilterDistrict] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [visibleCount, setVisibleCount] = useState(60);
@@ -1033,17 +1032,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                   {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div className="relative w-full md:w-64">
-                  <input
-                    type="text"
-                    placeholder="הקלד עיר ולחץ Enter..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
-                    className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-sm flex items-center justify-center transition-colors">×</button>
-                  )}
+                  <SearchInput value={submittedSearch} onSubmit={v => { setSubmittedSearch(v); setVisibleCount(60); }} placeholder="חיפוש עיר — Enter"
+                    className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full" />
                 </div>
               </div>
             </div>
@@ -3053,7 +3043,8 @@ const DAYS_FILTER = [
     return result;
   }, [redundantLines, allScoredLines, redShowAll, redLineVals, redOperator, lineOps, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt, scoreBand]);
 
-  useEffect(() => { setVisibleLineCount(30); }, [filteredRedundant]);
+  // חוזרים ל-30 רק כשהמשתמש משנה סינון או מיון — לא כשקובץ נתונים נוסף נטען ברקע (אז הרשימה הייתה מתקפלת באמצע הגלילה)
+  useEffect(() => { setVisibleLineCount(30); }, [redShowAll, redLineVals, redOperator, searchCity, filterDistrict, filterCategory, redundantSortBy, focusMakat, pFilt, scoreBand]);
 
   const areaStats = useMemo(() => {
     if (tab !== 'areas') return [];   // מחושב רק כשהלשונית פתוחה (שלמה: lazy calculating)
@@ -3161,9 +3152,8 @@ const DAYS_FILTER = [
       };
     });
     const ws = window.XLSX.utils.json_to_sheet(exportData);
-    if (!ws['!views']) ws['!views'] = [];
-    ws['!views'].push({ rightToLeft: true });
     const wb = window.XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] }; // מימין לשמאל — SheetJS קורא את זה רק מהחוברת, לא מ-!views של הגיליון
     window.XLSX.utils.book_append_sheet(wb, ws, "קווים");
     const parts = redFilterParts().map(v => String(v).replace(/,\s*/g, '-').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim());
     window.XLSX.writeFile(wb, parts.length ? `קו_פח_${parts.join('_')}.xlsx` : 'קו_פח_קווים_לא_יעילים.xlsx');
@@ -3200,9 +3190,8 @@ const DAYS_FILTER = [
     }));
 
     const ws = window.XLSX.utils.json_to_sheet(exportData);
-    if(!ws['!views']) ws['!views'] = [];
-    ws['!views'].push({ rightToLeft: true }); // הגדרה מימין לשמאל
     const wb = window.XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] }; // מימין לשמאל — SheetJS קורא את זה רק מהחוברת, לא מ-!views של הגיליון
     window.XLSX.utils.book_append_sheet(wb, ws, "קווים_חשודים_כמיותרים");
     
     const fileName = `קווים_חשודים_כמיותרים_${areaName.replace(/\s+/g, '_')}.xlsx`;
@@ -3320,7 +3309,9 @@ const DAYS_FILTER = [
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(t);
       const countKey = `${t.makat || ''}|${t.lineNum}|${t.daysList.join('')}`;
-      lineDayCounts[countKey] = (lineDayCounts[countKey] || 0) + t.tripCount;
+      // נסיעות ביום (לא בשבוע): tripCount הוא שבועי לשורה, ולכן מחלקים במספר הימים שלה — הסף 'מינימום נסיעות ביום' וסף האיחוד הם ליום
+      const nDays = (t.daysList && t.daysList.length) || 1;
+      lineDayCounts[countKey] = (lineDayCounts[countKey] || 0) + (t.tripCount || 1) / nDays;
     });
 
     const customGapValue = parseInt(optCustomGap, 10);
@@ -3591,9 +3582,8 @@ const DAYS_FILTER = [
       }
     }
     const ws = window.XLSX.utils.json_to_sheet(exportData);
-    if(!ws['!views']) ws['!views'] = [];
-    ws['!views'].push({ rightToLeft: true });
     const wb = window.XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] }; // מימין לשמאל — SheetJS קורא את זה רק מהחוברת, לא מ-!views של הגיליון
     window.XLSX.utils.book_append_sheet(wb, ws, "המלצות_ייעול");
     if (optKm) {
       const r0 = v => Math.round(v);
@@ -3601,7 +3591,6 @@ const DAYS_FILTER = [
       kmRows.push({ 'קו': 'סה"כ', 'מוצא – יעד': '', 'ק"מ בשבוע היום': r0(optKm.total), 'נחסך בהמלצות': r0(optKm.saved), 'ק"מ אחרי ההמלצות': r0(optKm.total - optKm.saved), 'ק"מ סרק היום': r0(optKm.wasted), 'ק"מ סרק שנשאר': r0(optKm.remain) });
       KM_REASONS.forEach(([k, label]) => { if (optKm.reasons[k] > 0) kmRows.push({ 'קו': '', 'מוצא – יעד': `סרק שנשאר: ${label}`, 'ק"מ סרק שנשאר': r0(optKm.reasons[k]) }); });
       const ws2 = window.XLSX.utils.json_to_sheet(kmRows);
-      ws2['!views'] = [{ rightToLeft: true }];
       window.XLSX.utils.book_append_sheet(wb, ws2, "קמ_לפני_ואחרי");
     }
     
