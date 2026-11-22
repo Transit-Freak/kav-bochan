@@ -181,7 +181,8 @@ class Feed:
         while d <= self.d1:
             days.append(d)
             d += datetime.timedelta(days=1)
-        self.svc_dates, self.svc_start = {}, {}
+        self.svc_dates, self.svc_start, self.svc_next = {}, {}, set()
+        nxt = self.d1 + datetime.timedelta(days=1)
         for r in rd:
             if not r:
                 continue
@@ -191,7 +192,12 @@ class Feed:
             if act:
                 self.svc_dates[r[h['service_id']]] = act
                 self.svc_start[r[h['service_id']]] = s
-        self.svc_set = {k: set(v) for k, v in self.svc_dates.items()}
+                # היום שאחרי סוף החלון — רק לנסיעות שלפני 03:00 של היום האחרון בחלון (day_deps). בלי זה, ביום האחרון
+                # של שבוע ההשוואה נעלמו הנסיעות שאחרי חצות, ובכל ריצה של יום ראשון כל קו עם נסיעות לילה במוצאי
+                # שבת קיבל "שינוי בלו"ז בשבת" מדומה (קו 384 של קווים, 22.11.2026: 428 שינויים כאלה במקום 5)
+                if s <= nxt <= e and r[h[wd[nxt.weekday()]]] == '1':
+                    self.svc_next.add(r[h['service_id']])
+        self.svc_set = {k: set(v) | ({nxt} if k in self.svc_next else set()) for k, v in self.svc_dates.items()}
         h, rd = self.rows('trips.txt')
         self.trips = {}
         for r in rd:
