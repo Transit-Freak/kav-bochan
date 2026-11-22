@@ -1150,6 +1150,9 @@ function typeView(t){
   const act=all.filter(p=>isActive(p[1])).length;
   // נסיעות בודדות אצל חברה אחרת לא נספרות בגרף (יצחק 21.11)
   const byOp={}; for(const [o,v] of all) for(const [o2] of realRecs(v,o)) byOp[o2.ref]=(byOp[o2.ref]||0)+1;
+  // מה שלא נספר — מוצג בהערה מתחת לגרף (שלמה 22.11)
+  const occOp={}; for(const [,v] of all) if(v._occ) for(const r of v._occ) occOp[r[0].ref]=(occOp[r[0].ref]||0)+1;
+  const occTxt=Object.entries(occOp).sort((a,b)=>b[1]-a[1]).map(([ref,n])=>`${esc(opName(+ref))} (${n===1?'רכב אחד':fmt(n)+' רכבים'})`).join(', ');
   const ops=Object.entries(byOp).sort((a,b)=>b[1]-a[1]); const mx=ops.length?ops[0][1]:1;
   const multi=all.some(p=>new Set(realRecs(p[1],p[0]).map(r=>r[0].ref)).size>1);
   const n=all.length;
@@ -1167,6 +1170,7 @@ function typeView(t){
     <div class="panel"><p class="ptitle">אצל אילו חברות הדגם הזה נפוץ</p>
       ${ops.slice(0,14).map(([ref,n])=>`<div class="yrow lbl2"><span style="font-weight:700">${esc(opName(ref))}</span><div class="ybar"><i style="width:${Math.max(4,n/mx*100)}%;background:#1B7A3D"></i></div><span class="c">${fmt(n)}</span></div>`).join('')}
       ${multi?'<p class="note">רכב שעבר בין חברות נספר בכל אחת</p>':''}
+      ${occTxt?`<p class="note">לא נספרו נסיעות בודדות או דיווחים שגויים של רכבי הדגם אצל חברות אחרות: ${occTxt}</p>`:''}
     </div>
     ${(()=>{// אמינות הדגם (שלמה 23.10) — אותו מתג כמו במדד האמינות: השידורים שלנו / משרד התחבורה. רק רכבי קו
       const ln=all.map(p=>p[1]).filter(v=>!isKab(v)); if(!ln.length) return '';
