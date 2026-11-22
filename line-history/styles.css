@@ -179,7 +179,6 @@ footer a { color: #7c3aed; }
 .sgroup .ghead { background: #faf5ff; font-size: 14px; padding: 8px 10px; }
 .srow.sub { padding-right: 22px; }
 
-/* כפתור "הצג עוד" בסוף רשימות */
 /* קישור לקו של היום מתוך שורת 2012 — בלי לגזול את הלחיצה על השורה עצמה */
 .totoday { color: #7c3aed; font-weight: 800; font-size: 12px; white-space: nowrap; }
 
@@ -445,58 +444,10 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .lite-recent .lop, .lite-row .lop { display: block; font-weight: 500; color: #64748b; font-size: 12.5px; }
 .lite-recent .recmore { margin-top: 8px; }
 
-/* עמוד הקו */
-.lt .crumb { font-size: 13px; color: #64748b; font-weight: 700; margin: 0 0 10px; }
-.lt .crumb .back { background: none; border: none; box-shadow: none; padding: 0; margin: 0; color: #5b21b6; font: inherit; font-weight: 700; cursor: pointer; }
-/* כותרת הקו: רקע בהיר וטקסט כהה — הסגול הכהה עם טקסט עליו היה קשה לקריאה (שלמה 08.10) */
-.lt .linehead { background: #f5f3ff; border: 1px solid #e4dcfb; border-inline-start: 5px solid #5b21b6; color: #0f172a; border-radius: 14px; padding: 12px 14px; row-gap: 8px; }
-.lt .linehead .dest { flex: 1 1 55%; font-weight: 800; font-size: 17px; line-height: 1.4; color: #0f172a; }
-.lt .herosub { flex-basis: 100%; font-size: 13.5px; color: #334155; font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.herost { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; }
-.herost.gone { background: #fee2e2; color: #991b1b; }
-.lt .linehead + .facts, .lt .whybox + .facts { display: none; }
-.lt .kfilter, .lt .months { display: none; }
-
-.lt .yh { font-size: 14px; font-weight: 800; color: #5b21b6; margin: 12px 2px 4px; }
-/* שינוי סגור: תאריך, סוג ושורה אחת; הפרטים, המקור וההשוואה — כשהוא נבחר */
-.lt .ev .evsrc { display: none; }
-.lt .ev.sel .evsrc { display: block; }
-.lt .ev:not(.sel) .sub, .lt .ev:not(.sel) .cmpbtn, .lt .ev:not(.sel) .rvflag { display: none; }
-.lt .ev:not(.sel) .evnote { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-/* עמוד אחד בלי לשוניות (שלמה 08.10): במחשב — כותרת, ומתחתיה השינויים, בעמודה אחת; המפה בעמודה השנייה
-   ונשארת במקום בגלילה. בטלפון — כותרת, מפה, שינויים, ושורות שנפתחות בלחיצה */
-.linewrap.lt { grid-template-columns: 420px 1fr; grid-template-areas: "top main" "bot main"; grid-template-rows: auto 1fr; align-items: start; }
-.lt > .lt-top { grid-area: top; }
-.lt > .lt-bot { grid-area: bot; }
-.lt > .card.main { grid-area: main; position: sticky; top: 12px; }
 @media (max-width: 860px) {
-  .linewrap.lt { grid-template-columns: 1fr; grid-template-areas: "top" "main" "bot"; }
-  .lt > .card.main { position: static; }
+
 }
-/* שיתוף והתראות: שני סמלים קטנים בפינת הכותרת */
-.lt .linehead { position: relative; }
-.lt .linehead .dest { padding-left: 86px; }
-.lt .linehead > .sharebtn.shr, .lt .linehead > .sharebtn.ico { position: absolute; top: 10px; width: 38px; height: 36px; padding: 0; display: grid; place-items: center; margin: 0; }
-.lt .linehead > .sharebtn.shr { left: 10px; }
-.lt .linehead > .sharebtn.ico { left: 54px; }
-.lt .linehead .herosub { order: 2; }
-.lt .linehead > div, .lt .linehead > small { order: 3; }
-.lthead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 4px; }
-.lthead > b { font-size: 16px; }
-.ltlink, .ltmore { border: none; background: none; color: #5b21b6; font-weight: 700; font-size: 13px; font-family: inherit; cursor: pointer; padding: 4px 0; }
-.ltlink { margin-inline-start: auto; }
-.ltmore { display: block; width: 100%; text-align: center; font-weight: 800; font-size: 14px; padding: 8px 0; }
-.ltacc { border-top: 1px solid #eef0f4; }
-.ltacc:first-of-type { margin-top: 10px; }
-.ltacc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none; background: none; font-family: inherit; text-align: inherit; padding: 12px 2px; cursor: pointer; color: #0f172a; }
-.ltacc-h b { font-size: 15px; }
-.ltacc-h small { color: #64748b; font-weight: 600; font-size: 12.5px; margin-inline-start: 8px; }
-.ltacc-h .ch { color: #94a3b8; font-size: 16px; }
-.ltacc-b { padding: 0 2px 12px; }
-.ltstops { margin: 0; padding-inline-start: 22px; font-size: 13.5px; line-height: 1.9; }
-.ltstops .pcode { color: #94a3b8; font-size: 11.5px; }
-/* בטלפון: המפה של השינוי שנבחר בתוך הכרטיס שלו */
-.evslot .card.main { box-shadow: none; border: none; padding: 0; margin: 10px 0 2px; background: transparent; }
+
 /* "לפי יום" בתצוגה החדשה: ההערה מתחת לכותרת גם בטלפון (שם .ldest מקבל order:2) */
 .lrow.lite-row .lnote, .lrow.lite-row .approxd { order: 3; }
 /* "לפי יום" בתצוגה החדשה: שינויי לו"ז/תגבור/רישום של היום בשורה אחת לכל סוג, נפתחת בלחיצה */
