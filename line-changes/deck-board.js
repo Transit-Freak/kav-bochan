@@ -999,7 +999,7 @@
   }
 
   /* ===== סדר ידני במצב עריכה: הזזה של קו או של פס (↑↓) =====
-     bs — הפסים והקווים בסדר שרואים (app.js, bdOrderNow): [{k, bk, mks, nat: {מק"ט: הפס המקורי}, segs: [{k, mks, mv, lk}]}].
+     bs — הפסים והקווים בסדר שרואים (app-edit.js, bdOrderNow): [{k, bk, mks, nat: {מק"ט: הפס המקורי}, segs: [{k, mks, mv, lk}]}].
      בלוח רואים "חלקים": רצף של קווים עם אותו פס מקורי (natOf) — תחת כותרת אחת */
   function bdWhereSel(bs, sel) {
     if (sel.band) {
