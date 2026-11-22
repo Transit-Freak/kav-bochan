@@ -504,3 +504,5 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .etb .bclrb[hidden]{display:none}
 .etb .bclrb input{width:26px;height:22px;border:1px solid rgba(255,255,255,.5);border-radius:5px;padding:0;background:none;cursor:pointer}
 .etb{flex-wrap:wrap;max-width:calc(100vw - 16px)}
+.etb .bclrb select{font:inherit;font-size:13px;border-radius:6px;border:1px solid rgba(255,255,255,.5);background:#fff;color:#111;padding:2px 4px}
+.etb button[aria-pressed="true"].hal{background:rgba(255,255,255,.22)}
