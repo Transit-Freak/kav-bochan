@@ -334,13 +334,6 @@ const SKINDS = {
   // אירוע אחד לכל תחנה שהייתה ברישום אז — שם, כתובת ומיקום של 2012 (שלמה 22.09)
   gtfs2012: { label: "ברישום 2012", color: "#78350f" },
 };
-// אירועי 2012 נבנים בדפדפן מקובץ הרישום (magihim-2012/data/stops-2012.json, או השבר לפי
-// קידומת המק"ט), כדי לא לגעת בקורות החיים שהצנרת מתחזקת. dist: המרחק למיקום האחרון
-// שידוע לנו מקורות החיים של אותה תחנה, כשיש.
-function distM(a, b) {
-  const ky = 110540, kx = 111320 * Math.cos((a[0] * Math.PI) / 180);
-  return Math.hypot((a[0] - b[0]) * ky, (a[1] - b[1]) * kx);
-}
 // לכל תחנה: אירוע "ברישום 2012", ואחריו מה שהשתנה באותו מק"ט בין 2012 לתחילת
 // התיעוד שלנו (מרץ 2017): שינוי שם, הזזה (30 מ׳ ומעלה), או ביטול (המק"ט אינו
 // ברישום מ-2017 ואילך). האירועים האלה מתוארכים "בין 2012 ל-2017" — לא ידוע מתי
@@ -355,29 +348,6 @@ function expand2012(rows) {
     else if (k === 1) out.push(r.length > 5 ? { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4], reused: r[5], rdist: r[6] } : { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4] });
     else if (k === 2) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: r[5], nn: r[2], n: r[2], la: r[3], lo: r[4] });
     else if (k === 3) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: r[2], la: r[3], lo: r[4], ola: r[5], olo: r[6], dist: r[7] });
-  }
-  return out;
-}
-// לתחנה בודדת (שבר לפי קידומת) — אותה לוגיקה, על מעט תחנות
-function events2012(snap) {
-  const out = [];
-  for (const c in snap) {
-    const [n, la, lo, addr, , fn, fla, flo, dist, ren] = snap[c];
-    // מק"ט 99xxxxx (7 ספרות): מספר זמני שמשרד התחבורה נתן בקובץ 2012 לתחנה בלי מספר שלט
-    // (2,600 תחנות, כולן עם stop_id בקובץ המקורי; אף אחת לא קיימת היום באותו מספר) —
-    // אין המשכיות למק"ט, ולכן לא "בוטלה" אלא "קיבלה מק"ט אחר" (שלמה 22.09)
-    const tmp99 = c.length === 7 && c.startsWith("99");
-    // מספר זמני שאף קו ב-2012 לא עצר בו (2,516 מתוך 2,600): רשומה בקובץ בלי שירות — לא מוצגת
-    if (tmp99 && (!(snap[c][10] || 0) || snap[c][11])) continue;   // וגם כפילות של תחנה אמיתית עד 100 מ׳ — מוצגת האמיתית
-    out.push({ c, d: "2012-06-26", k: "gtfs2012", n, t: addr, la, lo, tmp99, lines12: snap[c][10] || 0 });
-    if (tmp99) continue;
-    if (fn == null) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo }); continue; }
-    // אותו מק"ט במרחק קילומטר ומעלה: זו לא הזזה אלא מק"ט שהוקצה מחדש לתחנה אחרת
-    // (למשל 59695: "בית לחם הגלילית ג׳" ב-2012, "צומת נהריה מזרח" מ-2017, 31 ק"מ) —
-    // התחנה של 2012 בוטלה, והמק"ט שימש אחר כך תחנה אחרת (שלמה 22.09)
-    if (dist >= 1000) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo, reused: fn, rdist: dist }); continue; }
-    if (ren) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: n, nn: fn, n: fn, la: fla, lo: flo });
-    if (dist >= 30) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: fn, la: fla, lo: flo, ola: la, olo: lo, dist });
   }
   return out;
 }
@@ -495,7 +465,6 @@ function noteFix(s) {
 function fmtM(d) { const p = (d || "").split("-"); return p[1] + "." + p[0]; }
 // תקופה: חודש "YYYY-MM" או שנה שלמה "Y:YYYY" (שלמה 22.09: "לפי שנה ולא רק לפי חודש")
 const isYear = (m) => typeof m === "string" && m.startsWith("Y:");
-const fmtP = (m) => isYear(m) ? "שנת " + m.slice(2) : fmtM(m);
 const bP = (m) => isYear(m) ? "בשנת " + m.slice(2) : "ב-" + fmtM(m);   // "בשנת 2025" / "ב-09.2026"
 const periodStart = (m) => isYear(m) ? m.slice(2) + "-01-01" : m + "-01";
 const periodEnd = (m) => isYear(m) ? m.slice(2) + "-12-31" : m + "-31";
@@ -1730,7 +1699,6 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : (String(s.rd).startsWith('website') ? (s.dest||'')+(variantPart(s) ? ' · חלופה '+variantPart(s) : '') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון')));
   // העיצוב הקודם של שורת החלופות (sibs/sib/sibcmp — כפתורי גלולה סגולים) — הלוגיקה של
   // בוחר החלופות נשארה כמו שהיא, רק התצוגה חזרה לעיצוב של האתר (שלמה 26.09)
-  const curItem=items && items.find(s=>s.rd===rd);
   // תיאור לתצוגה: מהקובץ המוכן, או מהחישוב בעמוד. "לא נמצאה חלופה ראשית" (קו בלי חלופה # — רכבת,
   // מוניות, חלק מהקווים) לא מוצג: זה לא מידע על המסלול
   const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
@@ -2285,19 +2253,6 @@ function restoreFromServer() {
   });
 }
 restoreFromServer();
-function FollowBtn({ tag, label, title }) {
-  const [on, setOn] = useState(() => { try { return !!JSON.parse(localStorage.kbFollow || "{}")[tag]; } catch (e) { return false; } });
-  const [st, setSt] = useState("");
-  if (!PUSH_ON) return null;
-  const toggle = () => {
-    const n = !on; setOn(n); setSt("");
-    try { const m = JSON.parse(localStorage.kbFollow || "{}"); if (n) m[tag] = label || "מעקב"; else delete m[tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
-    pushTags((r) => setSt(n ? (r.ok ? (r.srv ? (r.srv.ok ? "✓ עוקב — רשום אצל ספק ההתראות" : "✗ לא נרשם אצל ספק ההתראות" + (r.srv.err ? ": " + r.srv.err : "")) : "✓ ההתראות פעילות בדפדפן הזה") : "✗ " + r.why) : ""));
-  };
-  return <><button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
-    onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>
-    {st && <small style={{ color: st[0] === "✓" ? "#166534" : "#b91c1c", fontWeight: 700, maxWidth: 380, display: "inline-block", marginInlineStart: 6 }}>{st}</small>}</>;
-}
 // ערי הקצה מהיעד ("מוצא-עיר<->יעד-עיר") — למעקב ברמת עיר
 const destCities = (dest) => {
   // העיר = המקטע העברי האחרון; סיומות טכניות ("2#") מדולגות — זהה לצד השולח
@@ -6083,37 +6038,6 @@ function EarlyMap({ stops, shp }) {
   return <div ref={el} style={{ height: 330, borderRadius: 14, margin: "12px 0" }} aria-label="מפת התחנות ההיסטוריות" />;
 }
 
-// Reconstruct actual service dates so different calendar periods are never counted as simultaneous trips.
-function EarlyPatternLoader({ event }) {
-  const [data,setData]=useState(null),[err,setErr]=useState("");
-  const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile.slice(0,2)+"/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
-  return <details className="early-detail" onToggle={e=>{if(e.currentTarget.open)load();}}><summary>כל תבניות המסלול ולוחות היציאה ({event.earlyPatternCount})</summary>{err?<p role="alert">{err} <button onClick={load}>ניסיון חוזר</button></p>:data?<EarlyPatterns event={{...event,earlyPatterns:data}} />:<p>טוען…</p>}</details>;
-}
-function EarlyTripTimes({ pattern, service }) {
-  const [trip,setTrip]=useState(0);
-  const profile=pattern.timeProfiles?.[service.profiles?.[trip]];
-  if(!profile)return null;
-  const parts=service.departures[trip].split(":").map(Number);
-  const base=parts[0]*3600+parts[1]*60+(parts[2]||0);
-  const time=offset=>{if(offset==null)return "לא צוין";const total=base+offset;return [Math.floor(total/3600),Math.floor(total%3600/60),total%60].map(x=>String(x).padStart(2,"0")).join(":");};
-  return <><label>זמני מעבר לפי יציאה <select value={trip} onChange={e=>setTrip(+e.target.value)}>{service.departures.map((d,i)=><option key={i} value={i}>{d}</option>)}</select></label><div className="early-scroll"><table><thead><tr><th>תחנה</th><th>הגעה מתוכננת</th><th>יציאה מתוכננת</th></tr></thead><tbody>{pattern.stops.map((stop,i)=><tr key={i}><td>{stop[1]}</td><td dir="ltr">{time(profile[i]?.[0])}</td><td dir="ltr">{time(profile[i]?.[1])}</td></tr>)}</tbody></table></div></>;
-}
-function EarlyPatterns({ event }) {
-  const [pick, setPick] = useState(0);
-  const p = (event.earlyPatterns || [])[pick];
-  if (!p) return null;
-  const weekdays = [["sunday","א׳"],["monday","ב׳"],["tuesday","ג׳"],["wednesday","ד׳"],["thursday","ה׳"],["friday","ו׳"],["saturday","שבת"]];
-  const boarding = x => ({"0":"מותר", "1":"לא", "2":"בתיאום טלפוני", "3":"בתיאום עם הנהג"}[x] || "לא צוין");
-  return <details className="early-detail"><summary>כל תבניות המסלול ולוחות היציאה מהקובץ ({event.earlyPatterns.length})</summary>
-    <label>תבנית מסלול <select value={pick} onChange={e=>setPick(+e.target.value)}>{event.earlyPatterns.map((x,i)=><option key={i} value={i}>{i+1}: {x.stops.length} תחנות · {x.trips} רשומות נסיעה</option>)}</select></label>
-    <p>הנתונים כפי שפורסמו אז. מספר הרשומות אינו מספר הנסיעות ביום. תוקף וימי פעילות מפורטים למטה.</p>
-    <EarlyMap stops={p.stops} shp={p.shp} />
-    {!p.shp && <p>לא נשמר שרטוט כביש לתבנית הזו. הקו המקווקו מחבר את מיקומי התחנות בלבד.</p>}
-    <div className="early-scroll"><table><thead><tr><th>תחנה</th><th>מק״ט</th><th>עלייה</th><th>ירידה</th></tr></thead><tbody>{p.stops.map((s,i)=><tr key={i}><td>{i+1}. {s[1]}</td><td>{s[0]}</td><td>{boarding(p.boarding[i][0])}</td><td>{boarding(p.boarding[i][1])}</td></tr>)}</tbody></table></div>
-    {p.services.map((s,i)=><details key={i}><summary>{weekdays.filter(([k])=>s.calendar[k]==="1").map(x=>x[1]).join(", ")} · {s.calendar.start_date}–{s.calendar.end_date} · {s.departures.length} יציאות</summary><p dir="ltr">{s.departures.join(" · ")}</p><EarlyTripTimes key={pick+":"+i} pattern={p} service={s} /></details>)}
-    <p>מקור: {SRC_LABEL[event.src]} · מזהה הקו בקובץ: {event.routeId}</p>
-  </details>;
-}
 // Historical snapshots share the ordinary transport categories and line pages.
 function inHistoryMode(line, mode) {
   if (mode === "lines") return !line.tt || line.tt === "bus" || line.tt === "demand";
@@ -6278,7 +6202,6 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
     {day && <>
       {day&&!railRows&&<p role="status">טוען רישומי רכבות…</p>}{railRows&&(()=>{
         // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים; בלחיצה — מפה ורשימת תחנות כמו במפה הרגילה, בלי זמנים (שלמה 26.09)
-        const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
         const trips=[];let cur=null;
         // אותו מספר רכבת משמש לכמה נסיעות ביום. נסיעה נגמרת ביציאה 0 (תחנה אחרונה) ומתחילה בהגעה 0 (תחנת מוצא); גם קפיצה של יותר משלוש שעות היא נסיעה חדשה
         const mins=v=>{const n=parseInt(v)||0;return Math.floor(n/100)*60+n%100;};
