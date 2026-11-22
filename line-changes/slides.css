@@ -1088,3 +1088,4 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .s-bd.clr-h .bd-t th{background:var(--bdh-bg);color:var(--bdh-fg);border-color:var(--bdh-bg)}
 .s-bd.clr-c .bd-t td.bt,.s-bd.clr-c .bd-t td.bo{background:var(--bdc-bg);color:var(--bdc-fg)}
 .s-bd.clr-c .bd-t td.bo small,.s-bd.clr-c .bd-t td.bt.off{color:var(--bdc-fg);opacity:.8}
+.s-bd .bd-t td.bl .badge.sm.two{padding-bottom:.36em;-webkit-print-color-adjust:exact;print-color-adjust:exact}

@@ -405,7 +405,7 @@
     var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
     var to = inter ? o[1] : d.t, city0 = cs[0] || o[0] || '';
     var stop = d.f + (d.fc ? ' (' + d.fc + ')' : ''), k = p.makat + '.' + d.dir, sm = bdStopMode(), tw = bdT(k + '|w', to ? 'לכיוון ' + to : '');
-    return { p: p, d: d, key: k, first: i === 0, n: n, inter: inter, line: bdT('ln:' + p.makat, p.line), op: bdT('op:' + p.makat, p.op), color: bdOpCol(p),
+    return { p: p, d: d, key: k, first: i === 0, n: n, inter: inter, line: bdT('ln:' + p.makat, p.line), op: bdT('op:' + p.makat, p.op), color: bdOpCol(p), color2: bdOpCol2(p),
       origin: bdT(k + '|o', inter ? 'מ' + o[0] : d.f),
       // מתחת למוצא (ED.bstop): הכל — התחנה והכיוון; 'dir' — רק הכיוון; 'none' — כלום. towardAll — הכיוון גם כשהוא מוסתר (למקרא)
       stop: sm === 'all' ? bdT(k + '|s', inter ? stop : (d.fc ? 'תחנה ' + d.fc : '')) : '', hideS: sm !== 'all',
@@ -485,8 +485,11 @@
     while (contrast(c, '#ffffff') < 4.5 && f > 0.2) { f -= 0.05; c = shade(base, f); }
     return c;
   }
+  /* הצבע השני של החברה (למשל הירוק של קווים): פס בתחתית הריבוע של מספר הקו, כמו בשילוט שלהן (שלמה 22.11) */
+  function bdOpCol2(p) { var cs = COLORS[String(agOf(p))]; return cs && cs[1] ? cs[1] : null; }
   function bdLineCell(r, span) {
-    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + r.p.makat, 'badge sm num', r.add ? 'קו' : '') + ' style="background:' + r.color + ';color:#fff">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>' +
+    var bg = r.color2 ? 'background:linear-gradient(to bottom,' + r.color + ' 0 74%,' + r.color2 + ' 74%)' : 'background:' + r.color;
+    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + r.p.makat, 'badge sm num' + (r.color2 ? ' two' : ''), r.add ? 'קו' : '') + ' style="' + bg + ';color:#fff">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>' +
       (r.until ? '<small' + bdK('un:' + r.p.makat, 'un') + '>' + E(r.untilTxt) + '</small>' : '') +
       (r.p.chg === 'new' ? '<small' + bdK('nl:' + r.p.makat, 'nwl') + '>' + E(bdT('nl:' + r.p.makat, 'קו חדש')) + '</small>' : '') +
       (r.from ? '<small' + bdK('fr:' + r.p.makat, 'un') + '>' + E(r.from) + '</small>' : '') + '</td>';
