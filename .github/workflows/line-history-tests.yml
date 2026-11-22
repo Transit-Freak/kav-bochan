@@ -26,6 +26,9 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      CHROME: /usr/bin/google-chrome   # הכרום שמותקן בשרת; Playwright לא מתקין דפדפן באובונטו החדשה
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +48,6 @@ jobs:
       - name: Playwright ו-Chromium
         run: |
           npm i --no-save --no-package-lock --prefix "$RUNNER_TEMP/lh" playwright@1.49.1 leaflet@1.9.4 >/dev/null
-          cd "$RUNNER_TEMP/lh" && npx playwright install --with-deps chromium
 
       - name: הקו בזמן בדפדפן — חיפוש, עמוד קו, שינויים לפי יום, תחנה
         run: NODE_PATH="$RUNNER_TEMP/lh/node_modules" node tests/line-history/ui.mjs
