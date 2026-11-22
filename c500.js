@@ -14,8 +14,11 @@
   if (!preview && (today < FROM || today > TO)) return;
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
   if (!preview && ls(KEY)) return;
-  var noMotion = false;
-  try { noMotion = matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("a11y-nomotion"); } catch (e) { /* ignore */ }
+  // "בלי תנועה" נבדק בכל פעם מחדש — כפתור הנגישות ("עצירת אנימציות", html.a11y-nomotion) יכול להידלק גם אחרי שהדף נטען
+  function still() {
+    try { return matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("a11y-nomotion"); }
+    catch (e) { return false; }
+  }
 
   /* השלט הוא חפץ פיזי (לוח נוריות כתומות על רקע כהה), ולכן אותו מראה ביום ובלילה */
   var css = document.createElement("style");
@@ -42,6 +45,9 @@
     ".kb500 .x{position:relative;z-index:1;flex:none;align-self:center;margin-inline:8px 10px;width:32px;height:32px;border-radius:50%;border:0;",
     "background:rgba(255,179,26,.12);color:var(--led);font-size:15px;font-weight:900;cursor:pointer;font-family:inherit}",
     ".kb500 .x:hover{background:rgba(255,179,26,.24)}",
+    /* הערת התודה מתחת לשלט — בכתב ובצבעים של דף הבית, ולכן מתאימה גם למצב לילה */
+    ".kb500-thx{position:relative;z-index:3;margin:10px auto 0;width:calc(100% - 32px);max-width:860px;box-sizing:border-box;padding:0 4px;",
+    "text-align:center;font:600 15px/1.6 'Rubik','Heebo',sans-serif;color:var(--muted,#5b6579);text-wrap:balance}",
     ".kb500-hat{position:absolute;z-index:4;left:53%;top:23.6%;width:11%;aspect-ratio:1/1.15;pointer-events:none;",
     "transform:translateX(-50%) rotate(18deg);transform-origin:50% 100%;filter:drop-shadow(0 4px 6px rgba(2,6,23,.25))}",
     ".kb500-hat svg{display:block;width:100%;height:100%}",
@@ -71,7 +77,7 @@
   var cv = null, cx = null, parts = [], raf = 0;
   var COLORS = ["#ffb31a", "#0ea5e9", "#38bdf8", "#22c55e", "#f43f5e", "#a855f7", "#ffffff", "#0369a1"];
   function burst(n, x, y) {
-    if (noMotion) return;
+    if (still()) return;
     if (!cv) {
       cv = document.createElement("canvas"); cv.id = "kb500-cv"; cv.setAttribute("aria-hidden", "true");
       document.body.appendChild(cv); cx = cv.getContext("2d");
@@ -86,6 +92,7 @@
   }
   function tick() {
     cx.clearRect(0, 0, cv.width, cv.height);
+    if (still()) { parts = []; raf = 0; return; }
     for (var i = parts.length - 1; i >= 0; i--) {
       var p = parts[i];
       p.vy += .2; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life--;
@@ -118,7 +125,8 @@
     '<path d="M14 63 Q60 55 106 63" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round"/>' +
     '<ellipse cx="28" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/><ellipse cx="92" cy="78" rx="9" ry="4.5" fill="#fb7185" opacity=".4"/></svg>';
 
-  var LINES = ["העדכון ה-500 של הקו הבוחן", "תודה לכל מי ששלח הערה, דיווח או רעיון"];
+  var LINES = ["העדכון ה-500 של הקו הבוחן"];   // התודה כתובה מתחת לשלט (THANKS); השורה של המספרים נוספת כש-versions.json נטען
+  var THANKS = "הגענו לעדכון מספר 500 של הקו הבוחן. תודה לכל מי ששלח הערה, דיווח או רעיון — ככה האתר משתפר.";
 
   function add() {
     var root = document.querySelector(".kbh");
@@ -137,22 +145,24 @@
       dst.innerHTML = LINES.map(function (t, k) { return '<div class="ln' + (k === i ? " on" : "") + '">' + t + "</div>"; }).join("");
     }
     function next() {
-      if (hover || document.hidden) return;
+      if (hover || document.hidden || still()) return;
       var cur = dst.children[i]; i = (i + 1) % LINES.length; var nx = dst.children[i];
       if (!cur || !nx) return draw();
       cur.className = "ln out"; nx.className = "ln on";
       setTimeout(function () { if (cur.className === "ln out") cur.className = "ln"; }, 480);
     }
     draw();
-    if (!noMotion) timer = setInterval(next, 3600);
+    timer = setInterval(next, 3600);
     el.addEventListener("mouseenter", function () { hover = true; });
     el.addEventListener("mouseleave", function () { hover = false; });
     el.querySelector(".rt").addEventListener("click", function () { boomFrom(this); });
     el.querySelector(".x").addEventListener("click", function () {
-      clearInterval(timer); el.remove(); if (hat) hat.remove(); if (joy) joy.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
+      clearInterval(timer); el.remove(); thx.remove(); if (hat) hat.remove(); if (joy) joy.remove(); if (stage) stage.classList.remove("kb500-party"); ls(KEY, "1");
     });
     var top = root.querySelector("header.top");   // מתחת לפס העליון, מעל הכותרת הגדולה
     if (top) top.parentNode.insertBefore(el, top.nextSibling); else root.insertBefore(el, root.firstChild);
+    var thx = document.createElement("p"); thx.className = "kb500-thx"; thx.textContent = THANKS;
+    el.parentNode.insertBefore(thx, el.nextSibling);
 
     var stage = root.querySelector(".stage");
     if (stage && !stage.querySelector(".kb500-hat")) {
@@ -168,7 +178,7 @@
       if (!V) return;
       var nv = 0, ni = 0;
       Object.keys(V).forEach(function (k) { var t = V[k]; if (t && t.versions) { nv += t.versions.length; t.versions.forEach(function (x) { ni += (x.items || []).length; }); } });
-      if (nv) { LINES.push(nv.toLocaleString("he-IL") + " גרסאות · " + ni.toLocaleString("he-IL") + " שינויים ב״מה חדש״"); if (!noMotion) draw(); }
+      if (nv) { LINES.push(nv.toLocaleString("he-IL") + " גרסאות · " + ni.toLocaleString("he-IL") + " שינויים ב״מה חדש״"); draw(); }
     }).catch(function () {});
 
     // קונפטי פעם אחת ביום, אחרי שהדף התיישב
