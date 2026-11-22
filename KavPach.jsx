@@ -224,37 +224,6 @@ const fileKeyFromHeaders = (res) => {
   return `${lm}|${cl}|${et}`;
 };
 
-// ── DebouncedInput ────────────────────────────────────────────────────────
-// אינפוט חיפוש שלא מ-re-render-ר את כל העץ בכל הקלדה.
-// state פנימי מקומי לטקסט; הפרנט מקבל את הערך רק אחרי debounce.
-// אם value מבחוץ משתנה (e.g. setSearchCity(areaName) מטאב אחר) — מסונכרן.
-const DebouncedInput = React.memo(function DebouncedInput({ value, onDebouncedChange, debounceMs = 250, ...rest }) {
-  const [local, setLocal] = React.useState(value || '');
-  const lastExternal = React.useRef(value);
-  const timerRef = React.useRef(null);
-  React.useEffect(() => {
-    if (value !== lastExternal.current) {
-      lastExternal.current = value;
-      setLocal(value || '');
-    }
-  }, [value]);
-  const handleChange = (e) => {
-    const v = e.target.value;
-    setLocal(v);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      lastExternal.current = v;
-      // startTransition מסמן את העדכון הזה כעדיפות נמוכה — React רשאי לקטוע
-      // אותו אם המשתמש ממשיך להקליד. ככה הסינון הכבד לא חוסם את ה-input.
-      if (React.startTransition) {
-        React.startTransition(() => onDebouncedChange(v));
-      } else {
-        onDebouncedChange(v);
-      }
-    }, debounceMs);
-  };
-  return <input {...rest} value={local} onChange={handleChange} />;
-});
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const ICONS = {
@@ -331,7 +300,6 @@ const getLineCategory = (typeStr) => {
 // (ריק = הסף האוטומטי של האתר, לפי קטגוריית הקו). הציון תמיד מנורמל
 // ל-100 לפי סכום הנקודות של הרכיבים הדלוקים, כך שאפשר לשחק במשקלים בלי
 // לחשב שהם מסתכמים ל-100. ההגדרות נשמרות בדפדפן הזה בלבד.
-const numOrNull = (v) => { if (v === '' || v == null) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
 const mergeSettings = (dflt, saved) => {
   if (!saved || typeof saved !== 'object') return dflt;
   const out = { ...dflt };
@@ -524,14 +492,7 @@ const parseDays = (raw) => {
   return { list, text: String(raw).trim() };
 };
 
-const parseCity = (stopName) => {
-  if (!stopName) return "";
-  const s = String(stopName);
-  const idx = s.indexOf(' - ');
-  return idx > 0 ? s.slice(0, idx).trim() : s.split('/')[0].trim();
-};
 
-const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
 
 // רכיב לעיצוב המק"ט, הכיוון והחלופה בתגיות ברורות (Badge style)
 // שקלים בקריאה אנושית: 12,400 → "12.4 אלף ₪", 3,180,000 → "3.2 מיליון ₪"
@@ -938,15 +899,6 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
   }, [goldenLines]);
 
   const isLoading = !trips || trips.length === 0;
-
-  const scoreColor = (s) => s >= 85 ? '#d97706' : s >= 70 ? '#b45309' : '#92400e';
-
-  const GoldBadge = ({ score }) => (
-    <div className="flex items-center justify-center w-14 h-14 rounded-2xl flex-shrink-0 font-black text-xl shadow-inner"
-      style={{ background: 'linear-gradient(145deg,#fef3c7,#fbbf24)', color: scoreColor(score), border: '2px solid #f59e0b' }}>
-      {score}
-    </div>
-  );
 
   const selectCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-auto appearance-none cursor-pointer";
 
@@ -2194,7 +2146,6 @@ function KavPach() {
   useEffect(() => { if (appMode === 'kavpach') syncTabHash('פח', KP_TABS, tab); }, [tab, appMode]);
   useEffect(() => { if (tab === "deadhead") setDhOpened(true); }, [tab]);
   const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
-  const [dhSureOnly, setDhSureOnly] = useState(false);
   const [dhNearOnly, setDhNearOnly] = useState(false);
   const [searchCity, setSearchCity] = useState("");
   const [overlapMap, setOverlapMap] = useState(null); // חפיפת מסלולים בין קווים (kavpach-overlap.json, מתעדכן לילית)
@@ -2251,47 +2202,6 @@ function KavPach() {
   const [areaViewMode, setAreaViewMode] = useState("city");
   const [areaSortBy, setAreaSortBy] = useState("wastedKm");
 
-  const [debugLine, setDebugLine] = useState("");
-  const [debugResult, setDebugResult] = useState(null);
-
-  const runLineDebug = (line) => {
-    const ln = String(line).replace(/^0+/, '').trim();
-    if (!ln) { setDebugResult(null); return; }
-    const matches = trips.filter(x => String(x.lineNum).replace(/^0+/, '') === ln);
-    if (!matches.length) {
-      setDebugResult({ line: ln, found: false, msg: 'לא נמצא בנתונים' });
-      return;
-    }
-    // קיבוץ לפי מק"ט — כל מק"ט הוא קו שונה גם אם מספר הקו זהה
-    const byMakat = new Map();
-    for (const t of matches) {
-      const m = String(t.makat || '').replace(/^0+/, '');
-      if (!byMakat.has(m)) byMakat.set(m, []);
-      byMakat.get(m).push(t);
-    }
-    const variants = [];
-    for (const [m, arr] of byMakat) {
-      const stopsSet = lineStopsMap.get(m) || lineStopsMap.get(ln);
-      const citiesSet = lineCitiesMap.get(m) || lineCitiesMap.get(ln);
-      const normSet = lineNormStopsMap.get(m) || lineNormStopsMap.get(ln);
-      const origins = [...new Set(arr.map(x => x.origin))];
-      const dests = [...new Set(arr.map(x => x.dest))];
-      variants.push({
-        makat: m,
-        tripCount: arr.length,
-        district: arr[0].district,
-        origins,
-        dests,
-        stopCount: stopsSet?.size || 0,
-        cityCount: citiesSet?.size || 0,
-        normStopCount: normSet?.size || 0,
-        cities: citiesSet ? [...citiesSet] : [],
-        stopsFirst: stopsSet ? [...stopsSet].slice(0, 10) : [],
-      });
-    }
-    setDebugResult({ line: ln, found: true, variants });
-  };
-  
   const [optLine, setOptLine] = useState("");
   const [optCity, setOptCity] = useState("all");
   const [optOperator, setOptOperator] = useState("all");
@@ -2314,7 +2224,6 @@ function KavPach() {
 
   // ── מצב מפה ──────────────────────────────────────────────────────────────
   const [simLoading, setSimLoading] = useState(false);
-  const [simSkipped, setSimSkipped] = useState(0);   // קווים מבוטלים שהוחרגו מהסימולציה
 
   useEffect(() => {
     if (!activeExplainId) return;
@@ -3251,7 +3160,6 @@ const DAYS_FILTER = [
 
     // קווים שכבר בוטלו לפי ארכיון "הקו בזמן" לא נכנסים לסימולציה: בלעדי
     // הבדיקה הכלי המליץ "לבטל" נסיעות של קווים מתים — כולל באקסל המיוצא
-    const skippedMakats = new Set();
     const filteredTrips = trips.filter(t => {
         if (lineToUse) {
           const searchVals = String(lineToUse).split(',').map(s => s.trim()).filter(Boolean);
@@ -3283,11 +3191,10 @@ const DAYS_FILTER = [
       // בדיקת הביטול אחרונה — נספרים רק קווים שבאמת היו נכנסים לריצה
       // הזו, לא כל 338 המבוטלים שבמאגר (ציד הבאגים, סבב ב)
       const live = liveOf(t.makat);
-      if (live && live.rm) { skippedMakats.add(t.makat); return false; }
+      if (live && live.rm) return false;
       return true;
     });
 
-    setSimSkipped(skippedMakats.size);
     setOptRunInfo({ operator: operatorToUse || "all", city: cityToUse || "all" });
     setOptKm(null);
     if (filteredTrips.length === 0) {
@@ -3607,16 +3514,6 @@ const DAYS_FILTER = [
       }
     }
     window.XLSX.writeFile(wb, fileName);
-  };
-
-  const handleOptimizeLine = (lineNum, city) => {
-    setOptLine(lineNum);
-    setOptCity(city || "all");
-    setOptOperator("all");
-    setOptDirection("all");
-    setOptDays([]); 
-    setTab("simulator");
-    runOptimization(lineNum, city || "all", "all", [], "all");
   };
 
   const toggleDay = (dayId) => {
