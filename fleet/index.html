@@ -432,6 +432,8 @@ function plateV(plate){
   sv._chain=S.chain.map(ref=>op(ref)).filter(Boolean);
   return [lt[0],sv];
 }
+// הרשומות של הרכב בלי "נסיעות בודדות" אצל חברה אחרת
+const realRecs=(v,o)=>v._recs?v._recs.filter(r=>!(v._occ&&v._occ.has(r))):[[o,v]];
 // כל הרכבים (לוחית אחת = רכב אחד), אפשר עם תנאי על הרשומה (למשל דגם)
 function allPlates(pred){const out=[];for(const p in XPLATE){const l=XPLATE[p];if(pred&&!l.some(([o,v])=>pred(v,o)))continue;const x=plateV(p);if(x)out.push(x);}return out;}
 // החברות של רכב לפי הזמן: "דן ← אגד ← קווים" (בעברית החץ מצביע לחברה המאוחרת)
@@ -1021,10 +1023,10 @@ function movesHome(){
 /* מצב "דגם": כל דגמי האוטובוסים בארץ (יצרן+דגם מהרישוי), ובלחיצה —
    כל הרכבים מהדגם ואצל אילו חברות הוא מועדף */
 const TCOLORS=['#1B7A3D','#1E5BC6','#B45309','#7C3AED','#0E7490','#BE185D','#334155','#A16207','#0F766E','#B91C1C','#4D7C0F','#6D28D9'];
-const MODELS_SHOWN=48;
 function typeHome(f){
   if(!DATA.enriched) return kpis()+'<div class="panel"><div class="empty">דגמי הרכב יגיעו עם ההעשרה מהמאגר הממשלתי</div></div>';
   if(TYPESEL) return typeView(TYPESEL);
+  needDays();   // לזיהוי "נסיעות בודדות" במספר החברות של כל דגם
   const agg={};
   // רכב שעבר בין חברות נספר פעם אחת; "חברות" — כל החברות שבהן נסעו רכבי הדגם (18.11)
   for(const [o,v] of allPlates()){
@@ -1033,14 +1035,12 @@ function typeHome(f){
     if(TSORT==='g'&&isKab(v)) continue;
     const g=agg[t]||(agg[t]={n:0,act:0,gp:0,bf:0,rm:0,ops:new Set(),types:new Set()});
     g.n++; if(isActive(v))g.act++; if(v._gp)g.gp++; if(v._bf)g.bf++; if(v._bi&&/משטרה|הורדה מהכביש/.test(v._bi))g.rm++;
-    if(v._recs) for(const [o2] of v._recs) g.ops.add(o2.ref); else g.ops.add(o.ref);
+    for(const [o2] of realRecs(v,o)) g.ops.add(o2.ref);
     const bt=gT(v); if(bt)g.types.add(bt);
   }
   let rows=Object.entries(agg).filter(([t,g])=>!f||t.includes(f)||[...g.types].some(x=>x&&x.includes(f)));
   if(TSORT==='g'&&GPOK) rows=rows.filter(([t,g])=>g.n>=20).sort((a,b)=>b[1].gp/b[1].n-a[1].gp/a[1].n);
   else rows.sort((a,b)=>b[1].n-a[1].n);
-  const total=rows.length;
-  if(!f) rows=rows.slice(0,MODELS_SHOWN);
   // מתג השידורים שלנו / משרד התחבורה (שלמה 23.10) — כמו במדד האמינות: משנה מה כתוב בכל כרטיס דגם
   const MOT=!!(BSOF&&Object.keys(BSOF).length), motOn=MOT&&RSRC==='m';
   const seg=(k,l)=>`<button onclick="RSRC='${k}';render()" style="flex:1;border:0;border-radius:10px;padding:8px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;background:${(k==='m')===motOn?'var(--ink)':'transparent'};color:${(k==='m')===motOn?'#fff':'var(--mut)'}">${l}</button>`;
@@ -1058,7 +1058,7 @@ function typeHome(f){
         ?`${g.bf?`<span class="r">${fmt(g.bf)} בוטלו סופית</span>`:''}${g.rm?`<span>${fmt(g.rm)} הורדו מהכביש</span>`:''}`
         :`${g.n-g.act?`<span class="r">${fmt(g.n-g.act)} ירדו</span>`:''}${g.gp?`<span>${fmt(g.gp)} נפלו וחזרו</span>`:''}`}<span>${g.ops.size} חברות</span></div>
     </a>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
-    ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`}`;
+    `}`;
 }
 // מדד אמינות הדגמים (יצחק 22.10): רק רכבי קו — רכבי קבלן נעלמים וחוזרים לפי עבודה ולא לפי תקלה.
 // "OC500RF"/"OC500 RF", "NL323F"/"N.L.323F" הם אותו דגם — מאחדים לפי השם בלי רווחים, נקודות ומקפים
@@ -1148,9 +1148,10 @@ function typeView(t){
   // רכב שעבר בין חברות = שורה אחת (שלמה 18.11). הגרף "אצל אילו חברות" — לפי הרשומות: רכב נספר בכל חברה שבה נסע
   const all=allPlates(v=>gM(v)===t);
   const act=all.filter(p=>isActive(p[1])).length;
-  const byOp={}; for(const o of DATA.operators) for(const v of o.vehicles) if(gM(v)===t) byOp[o.ref]=(byOp[o.ref]||0)+1;
+  // נסיעות בודדות אצל חברה אחרת לא נספרות בגרף (יצחק 21.11)
+  const byOp={}; for(const [o,v] of all) for(const [o2] of realRecs(v,o)) byOp[o2.ref]=(byOp[o2.ref]||0)+1;
   const ops=Object.entries(byOp).sort((a,b)=>b[1]-a[1]); const mx=ops.length?ops[0][1]:1;
-  const multi=all.some(p=>p[1]._recs&&new Set(p[1]._recs.map(r=>r[0].ref)).size>1);
+  const multi=all.some(p=>new Set(realRecs(p[1],p[0]).map(r=>r[0].ref)).size>1);
   const n=all.length;
   const headTxt=(n===1?(act?'רכב אחד, פעיל':'רכב אחד, ירד מהשירות'):act===n?`${fmt(n)} רכבים, כולם פעילים`:`${fmt(act)} פעילים מתוך ${fmt(n)} רכבים`)
     +(ops.length>1?` · נסעו ב-${ops.length} חברות`:ops.length?` · ${esc(opName(+ops[0][0]))}`:'');
@@ -1437,14 +1438,14 @@ async function loadDays(){
 // חברה שנייה, כולה בתוך התקופה שבה הוא פעל בחברה הראשית — למשל רכב של אגד שדווח ב-SIRI בכמה נסיעות בקוד
 // של אקסטרה (נסיעה בודדת על קו שלה, או ערב העברת אשכול). זה לא מעבר בין חברות: מוצג כ"נסיעות בודדות"
 // ולא נספר ב"מעברים". לא חל על רכבי קבלן — הם נוסעים בקווים של כמה חברות לפי עבודה.
-const OCC_MAX=60;
+const OCC_MAX=60, OCC_PCT=0.02;   // עד 60 נסיעות, או פחות מ-2% מהנסיעות בחברה הראשית (יצחק 21.11: יוטונג צ'יטה של אלקטרה אפיקים "בדרך אגד")
 function occTrips(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return dd?dd[1]:null;}
 function occSet(recs){
   const out=new Set();if(recs.length<2||isKab(recs[0][1]))return out;
   let main=null,mt=0;for(const r of recs){const t=occTrips(r[0],r[1])||0;if(t>mt){mt=t;main=r;}}
   if(!main)return out;
   for(const r of recs){if(r===main)continue;const t=occTrips(r[0],r[1]);
-    if(t!=null&&t<=OCC_MAX&&t<mt*0.05&&r[1][1]>=main[1][1]&&r[1][2]<=main[1][2])out.add(r);}
+    if(t!=null&&((t<=OCC_MAX&&t<mt*0.05)||t<mt*OCC_PCT)&&r[1][1]>=main[1][1]&&r[1][2]<=main[1][2])out.add(r);}
   return out;
 }
 function occLine(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;
