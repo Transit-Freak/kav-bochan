@@ -1,0 +1,51 @@
+name: line-history-tests
+
+# בדיקה קבועה ל"הקו בזמן" בדפדפן, על נתונים קבועים וקטנים (tests/fixtures/line-history/data): חיפוש קו ועמוד הקו,
+# "שינויים לפי יום" עם שורת המקורות, לשונית התחנות ועמוד תחנה. רץ על PR שנוגע בקוד של הכלי — לא על עדכוני הנתונים.
+# מה נבדק ואיך מריצים: tests/line-history/README.md
+
+on:
+  pull_request:
+    paths:
+      - 'line-history/**'
+      - '!line-history/data/**'
+      - 'vendor/react*.js'
+      - 'vendor/babel.min.js'
+      - 'tests/line-history/**'
+      - 'tests/fixtures/line-history/**'
+      - '.github/workflows/line-history-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: line-history-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none   # בלי קבצי הנתונים הכבדים של האתר
+          sparse-checkout: |
+            /*
+            !/*/data/
+            !/*/*/data/
+            /tests/fixtures/line-history/data/
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Playwright ו-Chromium
+        run: |
+          npm i --no-save --no-package-lock --prefix "$RUNNER_TEMP/lh" playwright@1.49.1 leaflet@1.9.4 >/dev/null
+          cd "$RUNNER_TEMP/lh" && npx playwright install --with-deps chromium
+
+      - name: הקו בזמן בדפדפן — חיפוש, עמוד קו, שינויים לפי יום, תחנה
+        run: NODE_PATH="$RUNNER_TEMP/lh/node_modules" node tests/line-history/ui.mjs
