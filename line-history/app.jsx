@@ -4170,11 +4170,11 @@ function Res2012({ needle, onOpen }) {
       .then(setIdx12).catch(() => setIdx12({ lines: [] }));
   }, [needle, idx12]);
   if (!needle || !idx12) return null;
-  const list = sort12((idx12.lines || []).filter((v) => match12(v, needle)), needle).slice(0, 12);
+  const found = sort12((idx12.lines || []).filter((v) => match12(v, needle)), needle), list = found.slice(0, 12);
   if (!list.length) return null;
   return (
     <div className="r12">
-      <div className="r12head">בצילום 2012 נמצאו גם <b>{list.length}</b> קווים תואמים —
+      <div className="r12head">בצילום 2012 נמצאו גם <b>{found.length}</b> קווים תואמים{found.length > list.length ? " (מוצגים " + list.length + ")" : ""} —
         רשת מגיעים, חמש שנים לפני תחילת הארכיון</div>
       {list.map((v) => (
         <a key={v.k} className="lrow" href={"#2012/" + v.k}
@@ -4514,7 +4514,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
   days.sort().reverse();
   const WD = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-  let shown = 0;
+  let shown = 0, cut = false;   // cut — שורה או יום לא הוצגו בגלל המגבלה (רק אז יש טעם ב"הצג עוד")
   return (
     <div className={wrap}>
       {!embedded && <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>}
@@ -4613,7 +4613,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
               ))}
             </div>
           )}
-          {days.filter((d) => !dayF || d === dayF).map((d) => shown >= lim ? null : (
+          {days.filter((d) => !dayF || d === dayF).map((d) => shown >= lim ? ((cut = true), null) : (
             <React.Fragment key={d}>
               <div className="dayhead" role="button" tabIndex={0} style={{ cursor: "pointer" }}
                 title={dayF === d ? "לחיצה חוזרת מציגה שוב את כל החודש" : "לחיצה מציגה רק את היום הזה"}
@@ -4622,7 +4622,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 {fmtD(d)} · יום {WD[new Date(d).getDay()]} · {byd.get(d).length.toLocaleString()} שינויים {dayF === d ? "· 📌" : ""}</div>
               {(() => {
                 const rowOf = (c, i, withNote) => {
-                if (shown >= lim) return null;
+                if (shown >= lim) { cut = true; return null; }
                 shown++;
                 const m = meta[c.rd] || {};
                 const kk = <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>;
@@ -4669,9 +4669,9 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
               })()}
             </React.Fragment>
           ))}
-          {list.length > lim && (
+          {cut && (
             <button className="morebtn" onClick={() => setLim(lim + 500)}>
-              ⌄ הצג עוד — מוצגים {Math.min(lim, list.length).toLocaleString()} מתוך {list.length.toLocaleString()}
+              ⌄ הצג עוד — מוצגים {shown.toLocaleString()} מתוך {(dayF ? (byd.get(dayF) || []).length : list.length).toLocaleString()}
             </button>
           )}
         </div>
@@ -4752,15 +4752,19 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
   if (!rows.length) return <div className="empty">אין עדיין שינויים בחודש הזה.</div>;
   const days = [];
   const byd = new Map();
+  // רק אוטובוסים (רכבת, רק"ל ומוניות הן לשוניות משלהן) — כבר כאן, כדי שהמספרים בכותרת היום וב"ועוד N" יספרו רק את מה שמוצג
   for (const c of rows) {
+    const m = meta[c.rd] || {};
+    if (m.tt && m.tt !== "demand") continue;
     if (!byd.has(c.d)) { byd.set(c.d, []); days.push(c.d); }
     byd.get(c.d).push(c);
   }
+  if (!days.length) return <div className="empty">אין עדיין שינויים בחודש הזה.</div>;
   const top = days.slice(0, 3);
   if (lite) {
     // תצוגה חדשה (שלמה 08.10: "האתר עמוס מדי במידע"): היום האחרון בלבד — סיכום לפי סוג,
     // ו"החשובים של היום": שינויי מסלול, תחנות וביטולים לפני מאות שינויי התגבור והלו"ז
-    const d = days[0], all = byd.get(d).filter((c) => { const m = meta[c.rd] || {}; return !m.tt || m.tt === "demand"; });
+    const d = days[0], all = byd.get(d);
     const cnt = {}; all.forEach((c) => { const k = evKind(c); cnt[k] = (cnt[k] || 0) + 1; });
     const imp = all.filter((c) => !LOW_KINDS.has(evKind(c)));
     const pick = (imp.length ? imp : all).slice(0, 6);
@@ -4794,7 +4798,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
       {top.map((d) => (
         <React.Fragment key={d}>
           <div className="dayhead">{fmtD(d)} · יום {WDR[new Date(d).getDay()]} · {byd.get(d).length.toLocaleString()} שינויים</div>
-          {byd.get(d).filter((c) => { const m = meta[c.rd] || {}; return !m.tt || m.tt === "demand"; }).slice(0, 8).map((c, i) => {
+          {byd.get(d).slice(0, 8).map((c, i) => {
             const m = meta[c.rd] || {};
             return (
               <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
