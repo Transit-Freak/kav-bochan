@@ -39,7 +39,9 @@ var LCXlsx = (function () {
       var fo = add(fonts, '<font>' + (o.b ? '<b/>' : '') + '<sz val="' + (o.sz || 11) + '"/><color rgb="FF' + (o.color || '14201B') + '"/><name val="Arial"/></font>');
       var fi = o.fill ? add(fills, '<fill><patternFill patternType="solid"><fgColor rgb="FF' + o.fill + '"/><bgColor indexed="64"/></patternFill></fill>') : 0;
       var al = '<alignment horizontal="' + (o.h || 'right') + '" vertical="' + (o.v || 'center') + '"' + (o.wrap === false ? '' : ' wrapText="1"') + ' readingOrder="' + (o.ltr ? 1 : 2) + '"/>';
-      xfs.push('<xf numFmtId="49" fontId="' + fo + '" fillId="' + fi + '" borderId="' + (o.border === false ? 0 : 1) + '" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + al + '</xf>');
+      // bb — מסגרת תחתונה עבה בצבע הזה (הצבע השני של החברה בתא של מספר הקו, כמו הפס שבלוח)
+      var bo = o.border === false ? 0 : o.bb ? add(borders, '<border><left style="thin"><color rgb="FFB7C2BD"/></left><right style="thin"><color rgb="FFB7C2BD"/></right><top style="thin"><color rgb="FFB7C2BD"/></top><bottom style="thick"><color rgb="FF' + o.bb + '"/></bottom><diagonal/></border>') : 1;
+      xfs.push('<xf numFmtId="49" fontId="' + fo + '" fillId="' + fi + '" borderId="' + bo + '" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + al + '</xf>');
       return (ix[k] = xfs.length - 1);
     };
     this.xml = function () {
@@ -52,6 +54,9 @@ var LCXlsx = (function () {
   var COLS = 'ABCDEFGHIJKLMNOPQRST';
   function ref(c, r) { return COLS.charAt(c) + r; }
   function hexOf(c) { return String(c || '#0f766e').replace('#', '').toUpperCase(); }
+  // צבע טקסט קריא על רקע (שחור או לבן) — כמו בלוח
+  function inkOf(hex) { var n = parseInt(hexOf(hex), 16); if (isNaN(n)) return '14201B'; var l = function (c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    var L = 0.2126 * l(n >> 16 & 255) + 0.7152 * l(n >> 8 & 255) + 0.0722 * l(n & 255); return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? '111111' : 'FFFFFF'; }
 
   /* גיליון אחד: M — המבנה של "טבלה לפי יעד" (LCDeck.boardModel) או של לו"ז בהודעה על שינוי (LCDeck.chgModel); si — מספר הגיליון */
   function sheetOf(M, st, si) {
@@ -67,7 +72,10 @@ var LCXlsx = (function () {
     var cell = function (r, c, v, s) { (rows[r] = rows[r] || [])[c] = { v: v, s: s }; };
     var R = 1;
     // כותרת ותוקף
-    var sT = st.get({ b: 1, sz: 18, fill: 'D9DEDC', h: 'center' }), sV = st.get({ b: 1, sz: 11, color: '8A5A00', fill: 'D9DEDC', h: 'center' });
+    // מראה הלוח (M.look): יישור הכותרת, רקע וטקסט של הכותרות והשעות, ורקע ויישור לשורה ולתא — כמו בלוח
+    var LK = M.look || {}, CL = LK.clr || {}, HB = CL.h ? hexOf(CL.h) : '', HF = CL.h ? (CL.hf ? hexOf(CL.hf) : inkOf(CL.h)) : '';
+    var CB = CL.c ? hexOf(CL.c) : '', CF = CL.c ? (CL.cf ? hexOf(CL.cf) : inkOf(CL.c)) : '', TH_ = LK.tal === 'l' ? 'left' : LK.tal === 'c' ? 'center' : 'center';
+    var sT = st.get({ b: 1, sz: 18, fill: HB || 'D9DEDC', color: HF || undefined, h: TH_ }), sV = st.get({ b: 1, sz: 11, color: HF || '8A5A00', fill: HB || 'D9DEDC', h: TH_ });
     // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
     if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
     var vt = M.sub !== M.subDflt || M.chg ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
@@ -76,7 +84,7 @@ var LCXlsx = (function () {
     var CR = M.creditTxt || 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', links = [];
     var TH = M.th || {}, LB = M.lbl || {};   // כותרות ותוויות שנערכו בלוח
     if (M.credit !== false) { cell(R, 0, CR, st.get({ b: 1, sz: 10, color: '1F9152', fill: 'D9DEDC', h: 'center' })); merges.push('A' + R + ':' + ref(last, R)); links.push(ref(0, R)); R++; }
-    var sH = st.get({ b: 1, sz: 11, fill: '9BCB3B', h: 'center' });
+    var sH = st.get({ b: 1, sz: 11, fill: HB || '9BCB3B', color: HF || undefined, h: 'center' });
     var hd = ['מפעיל', TH.line != null && TH.line !== 'קו' ? TH.line : 'מס\' קו', TH.orig != null ? TH.orig : 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']);
     // ימי חול מפוצלים (א׳–ד׳ · יום ה׳): שתי שורות כותרת — "יום חול" ממוזג מעל העמודות שלהם, והשאר ממוזגים לגובה
     var headTop = R, wkc = M.cols.map(function (c, i) { return c.wk ? 3 + i : -1; }).filter(function (i) { return i >= 0; });
@@ -92,7 +100,15 @@ var LCXlsx = (function () {
     // התאים בשורות — מיושרים למעלה (כמו בלוח)
     var sOp = st.get({ b: 1, sz: 10, h: 'center', v: 'center' }), sLn = st.get({ b: 1, sz: 20, h: 'center', v: 'center' }), sOr = st.get({ b: 1, sz: 10, h: 'center', v: 'center' });
     // סדר השעות: משמאל לימין — תא בכיוון LTR, צמוד לשמאל
-    var sTm = M.tord === 'ltr' ? st.get({ sz: 10, h: 'left', ltr: 1, v: 'top' }) : st.get({ sz: 10, v: 'top' }), sOff = st.get({ b: 1, sz: 10, color: '5B6B65', h: 'center', v: 'top' }), sNt = st.get({ sz: 9, color: 'C81E1E', v: 'top' });
+    var BG = LK.bg || {}, AL = LK.al || {}, HA = { r: 'right', c: 'center', l: 'left' };
+    // תא שעות: רקע לתא / לשורה / לקו (BG), ובלי — רקע השעות של כל הלוח (CB); יישור שנבחר לתא (AL)
+    var tmS = function (key, r, off) {
+      var bg = BG[key] || BG['r:' + r.key] || BG['l:' + r.p.makat], fill = bg ? hexOf(bg) : CB, col = bg ? inkOf(bg) : CF, h = HA[AL[key]];
+      var o = off ? { b: 1, sz: 10, color: col || '5B6B65', h: h || (M.tord === 'ltr' ? 'left' : 'right'), v: 'top' } : M.tord === 'ltr' ? { sz: 10, h: h || 'left', ltr: 1, v: 'top' } : { sz: 10, h: h, v: 'top' };
+      if (fill) o.fill = fill; if (col && !off) o.color = col; return st.get(o);
+    };
+    var tmC = function (key, r) { var bg = BG[key] || BG['r:' + r.key] || BG['l:' + r.p.makat]; return bg ? inkOf(bg) : CF; };   // צבע השעות בתא (לטקסט העשיר)
+    var sNt = st.get({ sz: 9, color: 'C81E1E', v: 'top' });
     M.bands.forEach(function (b0) {
       // לפי סוג קו: כותרת הפרק (קווים עירוניים / בין-עירוניים / אזוריים) — שורה מודגשת מעל הפסים שלו
       if (b0.sec && !b0.secOff && b0.secLabel) { cell(R, 0, b0.secLabel, st.get({ b: 1, sz: 14, fill: 'EEF2F0', h: 'right' })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 24; R++; }
@@ -109,8 +125,9 @@ var LCXlsx = (function () {
         for (var k = 0; k < n; k++) {
           var r = b.rows[i + k], rr = R + k, lines = 1;
           cell(rr, 0, k ? '' : r.op, sOp);
-          cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', v: 'center', color: 'FFFFFF', fill: hexOf(r.color) }) : sLn);
-          cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), sOr);
+          cell(rr, 1, k ? '' : r.line, r.color ? st.get({ b: 1, sz: 20, h: 'center', v: 'center', color: 'FFFFFF', fill: hexOf(r.color), bb: r.color2 ? hexOf(r.color2) : undefined }) : sLn);
+          { var ob = BG[r.key + '|o'] || BG['r:' + r.key] || BG['l:' + r.p.makat], oh = HA[AL[r.key + '|o']];
+            cell(rr, 2, [r.origin, r.toward].filter(Boolean).join('\n'), ob || oh ? st.get({ b: 1, sz: 10, h: oh || 'center', v: 'center', fill: ob ? hexOf(ob) : undefined, color: ob ? inkOf(ob) : undefined }) : sOr); }
           if (!r.hideS) comments.push({ ref: ref(2, rr), t: r.comment });   // התחנה (בהערה) — רק כשהיא מוצגת בלוח
           var notes = [];
           r.cells.forEach(function (x, ci) {
@@ -118,8 +135,8 @@ var LCXlsx = (function () {
             if (x.span) merges.push(ref(3 + ci, rr) + ':' + ref(3 + ci + x.span - 1, rr));
             var pre = M.cols.length > 1 ? (x.span ? M.cols.slice(ci, ci + x.span).map(function (c) { return c.label; }).join(' + ') : M.cols[ci].label) + ': ' : '';
             if (x.ntxt) notes.push(pre + x.ntxt);
-            if (x.txt != null) { cell(rr, 3 + ci, x.txt, sTm); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
-            if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', sOff); return; }
+            if (x.txt != null) { cell(rr, 3 + ci, x.txt, tmS(x.key, r)); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
+            if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', tmS(x.key, r, true)); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
             // משמאל לימין: LRM לפני השעה, לפני הסימן (בעברית) ואחריו — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
             // (סימני LRM — ולא LRE/PDF, ש-LibreOffice מציג לא נכון). מימין לשמאל — כמו קודם
@@ -139,7 +156,7 @@ var LCXlsx = (function () {
               else if (e.nwp) notes.push(pre + e.t + ' — ' + (e.was != null ? e.nwp + ': ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm(e.was) : 'חדש ב-' + e.nwp));
             });
             (x.notes || []).forEach(function (nt) { if (nt.plain && x.ntxt == null) notes.push(pre + nt.plain); });
-            cell(rr, 3 + ci, { runs: runs }, sTm);
+            cell(rr, 3 + ci, { runs: runs, dc: tmC(x.key, r) || '' }, tmS(x.key, r));
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
             if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.L ? nt.L + ' ' : '') + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
@@ -196,7 +213,7 @@ var LCXlsx = (function () {
         var v = o.v, a = ' r="' + ref(c, r) + '" s="' + o.s + '"';
         if (v && v.runs) {
           out += '<c' + a + ' t="inlineStr"><is>' + v.runs.map(function (u, i) {
-            return '<r><rPr>' + (u.red || u.color || u.b ? '<b/>' : '') + (u.strike ? '<strike/>' : '') + '<sz val="' + (u.sz || 10) + '"/><color rgb="FF' + (u.red ? 'C81E1E' : u.color || '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? v.sep || ' ' : '')) + '</t></r>';
+            return '<r><rPr>' + (u.red || u.color || u.b ? '<b/>' : '') + (u.strike ? '<strike/>' : '') + '<sz val="' + (u.sz || 10) + '"/><color rgb="FF' + (u.red ? 'C81E1E' : u.color || v.dc || '14201B') + '"/><rFont val="Arial"/></rPr><t xml:space="preserve">' + x(u.t + (i < v.runs.length - 1 ? v.sep || ' ' : '')) + '</t></r>';
           }).join('') + '</is></c>';
         } else out += '<c' + a + ' t="inlineStr"><is><t xml:space="preserve">' + x(v) + '</t></is></c>';
       }
