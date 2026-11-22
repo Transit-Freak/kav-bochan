@@ -1422,8 +1422,6 @@
     $('kindgrp').style.display = form === 'deck' && curPages.some(function (p) { return !p.kind; }) ? '' : 'none';
     $('dlhint').textContent = t.hint;
     $('creditlbl').textContent = t.credit;
-    // בלוח זמני הנסיעות הקרדיט לא יורד (רק משנים את הניסוח) — כדי שהסימון לא ייראה כמו תקלה (שמואל 22.11)
-    $('crbd').hidden = !slides.some(function (x) { return /(^|-)bd\d/.test(x.id); });
     document.querySelectorAll('.printwrap,.dock .printbtn').forEach(function (x) { x.style.display = form === 'status' ? 'none' : ''; });
     if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = t.dl; });
     document.querySelectorAll('.pngs').forEach(function (x) { if (x.getAttribute('data-form') !== form) { x.hidden = true; x.innerHTML = ''; } });
