@@ -74,7 +74,7 @@ var LCXlsx = (function () {
     // כותרת ותוקף
     // מראה הלוח (M.look): יישור הכותרת, רקע וטקסט של הכותרות והשעות, ורקע ויישור לשורה ולתא — כמו בלוח
     var LK = M.look || {}, CL = LK.clr || {}, HB = CL.h ? hexOf(CL.h) : '', HF = CL.h ? (CL.hf ? hexOf(CL.hf) : inkOf(CL.h)) : '';
-    var CB = CL.c ? hexOf(CL.c) : '', CF = CL.c ? (CL.cf ? hexOf(CL.cf) : inkOf(CL.c)) : '', TH_ = LK.tal === 'l' ? 'left' : LK.tal === 'c' ? 'center' : 'center';
+    var CB = CL.c ? hexOf(CL.c) : '', CF = CL.c ? (CL.cf ? hexOf(CL.cf) : inkOf(CL.c)) : '', TH_ = LK.tal === 'l' ? 'left' : LK.tal === 'c' ? 'center' : 'right';   // כמו בלוח: ברירת המחדל — ימין
     var sT = st.get({ b: 1, sz: 18, fill: HB || 'D9DEDC', color: HF || undefined, h: TH_ }), sV = st.get({ b: 1, sz: 11, color: HF || '8A5A00', fill: HB || 'D9DEDC', h: TH_ });
     // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
     if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
