@@ -497,3 +497,10 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .bclrpick label{display:flex;align-items:center;gap:6px}
 .bclrpick input[type=color]{width:38px;height:28px;border:1px solid var(--line,#ccc);border-radius:6px;padding:0;background:none}
 .bclrpick .hint{flex-basis:100%;font-weight:500}
+
+/* סרגל העריכה: בוחרי צבע (כמו בוורד) */
+.etb .bclrb{display:inline-flex;align-items:center;gap:6px;color:var(--bg);font-weight:800;font-size:14px;padding:0 8px;min-height:40px;border-radius:8px;cursor:pointer}
+.etb .bclrb:hover{background:rgba(255,255,255,.14)}
+.etb .bclrb[hidden]{display:none}
+.etb .bclrb input{width:26px;height:22px;border:1px solid rgba(255,255,255,.5);border-radius:5px;padding:0;background:none;cursor:pointer}
+.etb{flex-wrap:wrap;max-width:calc(100vw - 16px)}

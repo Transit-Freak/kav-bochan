@@ -496,14 +496,17 @@
   }
   /* יישור שהמשתמש בחר לתא (ED.bd.al — המפתח של התא: השעות או המוצא): r — ימין, c — מרכז, l — שמאל */
   function bdAlC(k) { var a = D.ED.bd && D.ED.bd.al && D.ED.bd.al[k]; return a === 'r' || a === 'c' || a === 'l' ? ' al-' + a : ''; }
+  /* רקע שהמשתמש בחר (ED.bd.bg, סרגל העריכה — שמואל 22.11): לתא, לשורה או לקו כולו. הטקסט — שחור או לבן לפי הרקע */
+  function bdBgOf(k, r) { var g = (D.ED.bd && D.ED.bd.bg) || {}; return g[k] || g['r:' + r.key] || g['l:' + r.p.makat] || null; }
+  function bdBgSt(c) { var f = c && bdInk(c); return f ? ' style="background:' + c + ';color:' + f + '"' : ''; }
   function bdRowHtml(r, lineSpan) {
     // data-rk / data-mk — במצב עריכה לוחצים על שורה כדי לבחור אותה (ועל מספר הקו — את כל השורות של הקו), ואז מוחקים מהסרגל
     return '<tr class="br' + (r.first ? ' lead' : '') + (r.add ? ' badd' : '') + '" data-rk="' + E(r.key) + '" data-mk="' + E(r.p.makat) + '" data-ln="' + E(r.line) + '">' + (lineSpan ? bdLineCell(r, lineSpan) : '') +
-      '<td class="bo' + bdAlC(r.key + '|o') + '">' +
+      '<td class="bo' + bdAlC(r.key + '|o') + '"' + bdBgSt(bdBgOf(r.key + '|o', r)) + '>' +
       // טקסט שנמחק — נשאר כשדה ריק (במצב עריכה אפשר ללחוץ עליו ולשחזר; בהדפסה הוא לא תופס מקום)
       '<b' + bdK(r.key + '|o', '', r.add ? 'מוצא' : '') + '>' + E(r.origin) + '</b>' + (r.hideS ? '' : '<small' + bdK(r.key + '|s', '', r.add ? 'תחנה' : '') + '>' + E(r.stop) + '</small>') +
       (r.hideW ? '' : '<small' + bdK(r.key + '|w', r.inter ? 'tw twi' : 'tw', r.add ? 'לכיוון' : '') + '>' + E(r.toward) + '</small>') + '</td>' +
-      r.cells.map(function (x) { if (x.skip) return ''; var h = bdCellHtml(x).replace('<td class="bt', '<td class="bt' + bdAlC(x.key)); return x.span ? h.replace('<td ', '<td colspan="' + x.span + '" ') : h; }).join('') + '</tr>';
+      r.cells.map(function (x) { if (x.skip) return ''; var h = bdCellHtml(x).replace('<td class="bt', '<td' + bdBgSt(bdBgOf(x.key, r)) + ' class="bt' + bdAlC(x.key)); return x.span ? h.replace('<td ', '<td colspan="' + x.span + '" ') : h; }).join('') + '</tr>';
   }
   /* שורה או קו שהוסרו: במצב עריכה — שורה דקה ואפורה עם "להחזיר" (מחוץ לעריכה, בהדפסה ובקובץ — לא מופיעה) */
   function bdOffHtml(r, ncol, whole) {

@@ -1568,7 +1568,12 @@
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
   bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
     '<button type="button" data-t="mvup" class="mvb">העברה למעלה ↑</button><button type="button" data-t="mvdn" class="mvb">העברה למטה ↓</button>' +
-    '<button type="button" data-t="al-r" class="bal" title="יישור לימין" aria-label="יישור לימין">⇥ ימין</button><button type="button" data-t="al-c" class="bal" title="יישור למרכז" aria-label="יישור למרכז">↔ מרכז</button><button type="button" data-t="al-l" class="bal" title="יישור לשמאל" aria-label="יישור לשמאל">⇤ שמאל</button><button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
+    '<button type="button" data-t="al-r" class="bal" title="יישור לימין" aria-label="יישור לימין">⇥ ימין</button><button type="button" data-t="al-c" class="bal" title="יישור למרכז" aria-label="יישור למרכז">↔ מרכז</button><button type="button" data-t="al-l" class="bal" title="יישור לשמאל" aria-label="יישור לשמאל">⇤ שמאל</button><button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button>' +
+    // הכותרת וכותרות העמודות (כמו בוורד, שמואל 22.11): יישור, "רק בעמוד הראשון", רקע וצבע טקסט
+    '<button type="button" data-t="hal" class="bhd">יישור למרכז</button><button type="button" data-t="h1st" class="bhd">רק בעמוד הראשון</button>' +
+    '<label class="bclrb bhd bth">רקע <input type="color" data-c="hbg"></label><label class="bclrb bhd bth">טקסט <input type="color" data-c="hfg"></label>' +
+    // שורה ותא בשעות: רקע לשורה, רקע לתא, ובלי רקע
+    '<label class="bclrb brow">רקע לשורה <input type="color" data-c="rbg"></label><label class="bclrb bcell">רקע לתא <input type="color" data-c="cbg"></label><button type="button" data-t="bgx" class="brow">בלי רקע</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
@@ -1587,6 +1592,19 @@
     // שורה שנבחרה בלוח: "מחיקת השורה" / "מחיקת הקו", והסרגל מעל השורה או מתחתיה — לא עליה
     bar.querySelector('[data-t="rowdel"]').hidden = !bdSel || bdSel.line || !!bdSel.band;
     bar.querySelector('[data-t="linedel"]').hidden = !bdSel || !!bdSel.band;
+    // הכותרת (title / sub) וכותרות העמודות (th:...) — יישור, עמוד ראשון וצבעים; שורה ותא — רקע
+    var bk = isBd ? el.getAttribute('data-bk') || '' : '', isHead = bk === 'title' || bk === 'sub', isTh = /^th:/.test(bk);
+    bar.querySelectorAll('.bhd').forEach(function (b) { b.hidden = !isHead && !(isTh && b.classList.contains('bth')); });
+    if (isHead) { bar.querySelector('[data-t="hal"]').textContent = edits.btal === 'c' ? 'יישור לימין' : 'יישור למרכז';
+      var multi = slides.filter(function (x) { return /(^|-)bd\d/.test(x.id); }).length > 1;
+      bar.querySelector('[data-t="h1st"]').hidden = !multi && !edits.bt1; bar.querySelector('[data-t="h1st"]').textContent = edits.bt1 ? 'כותרת בכל עמוד' : 'רק בעמוד הראשון'; }
+    if (isHead || isTh) { var hc = edits.bclr || {}; bar.querySelector('[data-c="hbg"]').value = hc.h || '#1f2937'; bar.querySelector('[data-c="hfg"]').value = hc.hf || (hc.h ? LCDeck.boardInk(hc.h) : '#ffffff'); }
+    var rowOn = !!(bdSel && !bdSel.band);
+    bar.querySelectorAll('.brow').forEach(function (b) { b.hidden = !rowOn; });
+    bar.querySelectorAll('.bcell').forEach(function (b) { b.hidden = !(rowOn && bdSel.cell && !bdSel.line); });
+    if (rowOn) { var g = (edits.bd && edits.bd.bg) || {}; bar.querySelector('[data-c="rbg"]').value = g[bdSel.line ? 'l:' + bdSel.mk : 'r:' + bdSel.rk] || '#ffffff';
+      if (bdSel.cell) bar.querySelector('[data-c="cbg"]').value = g[bdSel.cell[0]] || '#ffffff';
+      bar.querySelector('[data-t="bgx"]').hidden = !Object.keys(g).some(function (k) { return k === 'r:' + bdSel.rk || k === 'l:' + bdSel.mk || (bdSel.cell && k === bdSel.cell[0]); }); }
     // מעבר עמוד ידני (שמואל 22.11): פס, קו או שורה מתחילים בעמוד חדש; לחיצה נוספת מבטלת
     var bk0 = bdSel && bdBrkKey(bdSel), pb = bar.querySelector('[data-t="pgbrk"]');
     pb.hidden = !bk0;
@@ -1864,7 +1882,15 @@
     if (!editMode || !el.classList || !el.classList.contains('edt') || el.innerText.trim()) return;
     setTimeout(function () { keepScroll(function () { render(curPages); }); }, 0);
   });
-  bar.addEventListener('mousedown', function (ev) { ev.preventDefault(); });   // לא לאבד את הפוקוס בטקסט
+  bar.addEventListener('mousedown', function (ev) { if (!ev.target.closest('input')) ev.preventDefault(); });   // לא לאבד את הפוקוס בטקסט (חוץ מבוחר הצבע)
+  // בוחרי הצבע בסרגל: הכותרות (ED.bclr.h / hf) או רקע לשורה / לתא (ED.bd.bg)
+  bar.addEventListener('input', function (ev) {
+    var inp = ev.target.closest('input[data-c]'); if (!inp) return;
+    var c = inp.getAttribute('data-c'), v = inp.value, sel = bdSel;
+    if (c === 'hbg' || c === 'hfg') { var o = Object.assign({}, edits.bclr || {}); o[c === 'hbg' ? 'h' : 'hf'] = v; if (!o.h) o.h = '#1f2937'; edits.bclr = o; }
+    else if (sel) { edits.bd.bg = edits.bd.bg || {}; var k = c === 'cbg' && sel.cell ? sel.cell[0] : sel.line ? 'l:' + sel.mk : 'r:' + sel.rk; edits.bd.bg[k] = v; }
+    saveEdits(); clearTimeout(inp._t); inp._t = setTimeout(function () { keepScroll(function () { render(curPages); }); }, 250);
+  });
   bar.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b || !curEl) return;
     var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
@@ -1875,6 +1901,12 @@
       if (bdSel && bdSel.cell) { var ak = bdSel.cell[0], av = t.slice(3); edits.bd.al = edits.bd.al || {}; if (edits.bd.al[ak] === av) delete edits.bd.al[ak]; else edits.bd.al[ak] = av; saveEdits(); hideBar(); keepScroll(function () { render(curPages); }); }
       return;
     }
+    if (t === 'hal' || t === 'h1st') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); }
+      if (t === 'hal') edits.btal = edits.btal === 'c' ? undefined : 'c'; else edits.bt1 = edits.bt1 ? undefined : true;
+      saveEdits(); hideBar(); keepScroll(function () { render(curPages); }); return; }
+    if (t === 'bgx') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); }
+      var g = edits.bd.bg || {}; if (bdSel) { delete g['r:' + bdSel.rk]; delete g['l:' + bdSel.mk]; if (bdSel.cell) delete g[bdSel.cell[0]]; }
+      saveEdits(); hideBar(); keepScroll(function () { render(curPages); }); return; }
     if (t === 'pgbrk') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdBrkToggle(); return; }
     if (t === 'cellclr') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdCellClear(); return; }
     if (t === 'mvup' || t === 'mvdn') { if (el.classList.contains('bdt')) { el.removeAttribute('data-o'); el.blur(); } bdMove(t === 'mvup' ? -1 : 1); return; }
