@@ -4387,7 +4387,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   // התחבורה, בחירת השנה מציגה רק את משרד התחבורה, והצילומים בכפתור משלהם (שלמה 03.10)
   const [webSrc, setWebSrc] = useState(false);
   const [srcMonths, setSrcMonths] = useState({ web: [], official: null });
-  // הודעות החברות מהארכיון (דן 2000–2012): מקור שלישי, עם כפתור משלו (שלמה 22.11)
+  // הודעות החברות מהארכיון (דן 2000–2012, אגד 2004–2012): מקור שלישי, עם כפתור משלו (שלמה 22.11)
   const [newsSrc, setNewsSrc] = useState(false);
   const news = useCompanyNews(mode);
   const newsOf = (y) => (news || []).filter((x) => x.d.startsWith(y));
@@ -4540,7 +4540,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
           onClick={() => { const ws = webOf(yr); setWebSrc(true); setNewsSrc(false); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>צילום ממקור נוסף · אתרי מידע לנוסעים</button>}
         {newsOf(yr).length > 0 && <button className={"mchip src-news" + (newsSrc ? " on" : "")} aria-pressed={newsSrc}
           title={"הודעות על שינויים בקווים מאתר החברה, שנשמרו ב־Internet Archive, " + yr}
-          onClick={() => setNewsSrc(true)}>הודעות החברות · דן</button>}
+          onClick={() => setNewsSrc(true)}>הודעות החברות · {["דן", "אגד"].filter((o) => newsOf(yr).some((x) => x.op === o)).join(" ו")}</button>}
       </div>}
       {/* שורת המקור של מה שמוצג, בצבע של המקור — כדי שההבדל בין המקורות ייראה מיד (שלמה 21.11) */}
       {newsSrc ? <SrcNote k="news" n={newsOf(yr).length} u="הודעות" /> : <>
@@ -6130,7 +6130,7 @@ const SRC_NOTES = {
   foi: ["משרד התחבורה (חופש מידע)", "קובץ \"מסלול לפי שנים\" שהתקבל בבקשת חופש מידע. התאריכים משוערים, ואין בו שרטוט של המסלול."],
   web: ["צילום ממקור נוסף · אתרי מידע לנוסעים", "צילומים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי."],
   mag: ["צילום ממקור נוסף · אתר מגיעים", "צילום של רשת האוטובוסים מ־2012, כפי שהופיעה באתר."],
-  news: ["הודעות החברות · דן", "הודעות על שינויים קבועים בקווים מאתר דן, שנשמרו ב־Internet Archive. התאריך הוא יום פרסום ההודעה; כשבהודעה כתוב ממתי השינוי, הוא מופיע בנפרד. לא כל ההודעות נשמרו."],
+  news: ["הודעות החברות · דן ואגד", "הודעות על שינויים בקווים מאתרי דן ואגד, שנשמרו ב־Internet Archive. התאריך הוא יום פרסום ההודעה; כשבהודעה כתוב ממתי השינוי, הוא מופיע בנפרד. הודעות על שינויים זמניים (עבודות, סגירת רחובות, אירועים) לא מוצגות. לא כל ההודעות נשמרו."],
 };
 function SrcNote({ k, n, u = "שינויים" }) {
   const [t, d] = SRC_NOTES[k];
@@ -6142,7 +6142,8 @@ function useCompanyNews(mode) {
   const [n, setN] = useState(null);
   useEffect(() => {
     if (mode !== "lines") return;
-    if (!NEWS_P) NEWS_P = dfetch("data/news-dan.json").then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    const one = (f) => dfetch("data/" + f).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    if (!NEWS_P) NEWS_P = Promise.all([one("news-dan.json"), one("news-egged.json")]).then(([a, b]) => a.concat(b).sort((x, y) => x.d < y.d ? -1 : x.d > y.d ? 1 : 0));
     let ok = true; NEWS_P.then((d) => { if (ok) setN(d); });
     return () => { ok = false; };
   }, [mode]);
@@ -6151,11 +6152,14 @@ function useCompanyNews(mode) {
 const dmy = (d) => d.split("-").reverse().join(".");
 function NewsFeed({ items, needle }) {
   const nd = needle.trim();
-  const list = items.filter((x) => !nd || (x.l || []).includes(nd) || (x.t + " " + (x.b || "")).includes(nd)).slice().reverse();
-  if (!list.length) return <div className="empty">אין הודעות תואמות בשנה הזו.</div>;
+  const [opF, setOpF] = useState("");
+  const ops = ["דן", "אגד"].filter((o) => items.some((x) => x.op === o));
+  const list = items.filter((x) => !opF || x.op === opF).filter((x) => !nd || (x.l || []).includes(nd) || (x.t + " " + (x.b || "")).includes(nd)).slice().reverse();
+  const chips = ops.length > 1 && <div className="months">{["", ...ops].map((o) => <button key={o} className={"mchip" + (opF === o ? " on" : "")} aria-pressed={opF === o} onClick={() => setOpF(o)}>{o || "כל החברות"}</button>)}</div>;
+  if (!list.length) return <div>{chips}<div className="empty">אין הודעות תואמות בשנה הזו.</div></div>;
   const byM = [];
   for (const x of list) { const m = x.d.slice(0, 7); if (!byM.length || byM[byM.length - 1][0] !== m) byM.push([m, []]); byM[byM.length - 1][1].push(x); }
-  return <div>{byM.map(([m, xs]) => <div key={m}>
+  return <div>{chips}{byM.map(([m, xs]) => <div key={m}>
     <div className="dayhead">{dmy(m)} · {xs.length} {xs.length === 1 ? "הודעה" : "הודעות"}</div>
     {xs.map((x, i) => <div key={i} className="newsrow">
       <div className="newshead">{(x.l || []).slice(0, 6).map((l) => <span key={l} className="badge sm">{l}</span>)}
