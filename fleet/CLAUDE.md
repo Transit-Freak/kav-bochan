@@ -89,8 +89,9 @@
 | `tests/fleet-moves.test.mjs` (`moves.js`) | `node --test tests/*.test.mjs` | `tests.yml` (push ל-`tools/**`, `tests/**`, `fleet/*.js`) |
 | `tests/test_fleet_tools.py`, `tests/test_fleet_changes.py`, `tests/test_fleet_day.py` (`fleet_day` ב-`bus_reliability.py`) | `python3 -m pytest tests -q` | `tests.yml` |
 | `tests/test_fleet_refresh_registry.py` | `python3 -m unittest discover -s tests -p 'test_fleet_refresh_registry.py'` | `fleet-registry` |
+| `tests/fleet/page.mjs` (`index.html` בדפדפן, מול הנתונים הקבועים ב-`tests/fixtures/fleet`) | `node tests/fleet/page.mjs` (ראו `tests/fleet/README.md`) | `fleet-tests.yml` (PR שנוגע ב-`fleet/` בלי `data/`) |
 
-הבדיקות לא מכסות את `index.html`. אחרי שינוי בדף צריך לבדוק אותו בעין.
+הבדיקה בדפדפן מכסה את המסכים העיקרים של `index.html` (המסך הראשי, דף חברה, דגמים, דף דגם, כרטיס רכב). ערים, אשכולות, "לפי קו" ועיצוב — עדיין צריך לבדוק בעין.
 
 ## מלכודות ידועות
 

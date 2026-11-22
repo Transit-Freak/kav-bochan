@@ -1,0 +1,52 @@
+name: fleet-tests
+
+# בדיקה קבועה ל"צי הרכבים": הדף נפתח בדפדפן מול נתונים קבועים וקטנים (tests/fixtures/fleet), ונבדקים המסך הראשי,
+# דף חברה, רשימת הדגמים, דף דגם, פתיחת שורות וכרטיס רכב. רץ על PR שנוגע בקוד של הכלי, בנתונים הקבועים או בבדיקה —
+# לא על עדכוני הנתונים. פירוט והרצה מקומית: tests/fleet/README.md
+
+on:
+  pull_request:
+    paths:
+      - 'fleet/**'
+      - '!fleet/data/**'
+      - 'tests/fleet/**'
+      - 'tests/fixtures/fleet/**'
+      - 'tests/fleet-moves.test.mjs'
+      - '.github/workflows/fleet-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none   # בלי קבצי הנתונים הכבדים של האתר
+          sparse-checkout: |
+            /*.js
+            /versions.json
+            /fleet/
+            !/fleet/data/
+            /tests/fleet/
+            /tests/fixtures/fleet/
+            /tests/fleet-moves.test.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: בדיקות יחידה — moves.js
+        run: node --test tests/fleet-moves.test.mjs
+
+      - name: Playwright ו-Chromium
+        run: |
+          npm i --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.49.1 >/dev/null
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: הדף בדפדפן מול הנתונים הקבועים
+        run: NODE_PATH="$RUNNER_TEMP/pw/node_modules" node tests/fleet/page.mjs
