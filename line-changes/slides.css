@@ -1074,3 +1074,8 @@ body.editing .s-bd .bdt.bdel[data-bk$="|s"]{top:calc(50% - .375em)}
 body.editing .s-bd .bdt.bdel[data-bk$="|w"],body.editing .s-bd .bdt.bdel.bnote{top:auto;bottom:.15em}
 body.editing .s-bd .bdt.bdel:hover{border-color:#1f5fd1;border-style:solid}
 body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-width:2.5em;min-height:1em;border-radius:3px;overflow:visible}
+
+/* יישור שנבחר לתא בלוח (סרגל העריכה) — גובר על ברירת המחדל ועל סדר השעות */
+.s-bd .bd-t td.al-r,.s-bd .bd-t td.al-r .tl,.s-bd .bd-t td.al-r .bnote{text-align:right!important}
+.s-bd .bd-t td.al-c,.s-bd .bd-t td.al-c .tl,.s-bd .bd-t td.al-c .bnote{text-align:center!important}
+.s-bd .bd-t td.al-l,.s-bd .bd-t td.al-l .tl,.s-bd .bd-t td.al-l .bnote{text-align:left!important}

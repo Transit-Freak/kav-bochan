@@ -491,14 +491,16 @@
       (r.p.chg === 'new' ? '<small' + bdK('nl:' + r.p.makat, 'nwl') + '>' + E(bdT('nl:' + r.p.makat, 'קו חדש')) + '</small>' : '') +
       (r.from ? '<small' + bdK('fr:' + r.p.makat, 'un') + '>' + E(r.from) + '</small>' : '') + '</td>';
   }
+  /* יישור שהמשתמש בחר לתא (ED.bd.al — המפתח של התא: השעות או המוצא): r — ימין, c — מרכז, l — שמאל */
+  function bdAlC(k) { var a = D.ED.bd && D.ED.bd.al && D.ED.bd.al[k]; return a === 'r' || a === 'c' || a === 'l' ? ' al-' + a : ''; }
   function bdRowHtml(r, lineSpan) {
     // data-rk / data-mk — במצב עריכה לוחצים על שורה כדי לבחור אותה (ועל מספר הקו — את כל השורות של הקו), ואז מוחקים מהסרגל
     return '<tr class="br' + (r.first ? ' lead' : '') + (r.add ? ' badd' : '') + '" data-rk="' + E(r.key) + '" data-mk="' + E(r.p.makat) + '" data-ln="' + E(r.line) + '">' + (lineSpan ? bdLineCell(r, lineSpan) : '') +
-      '<td class="bo">' +
+      '<td class="bo' + bdAlC(r.key + '|o') + '">' +
       // טקסט שנמחק — נשאר כשדה ריק (במצב עריכה אפשר ללחוץ עליו ולשחזר; בהדפסה הוא לא תופס מקום)
       '<b' + bdK(r.key + '|o', '', r.add ? 'מוצא' : '') + '>' + E(r.origin) + '</b>' + (r.hideS ? '' : '<small' + bdK(r.key + '|s', '', r.add ? 'תחנה' : '') + '>' + E(r.stop) + '</small>') +
       (r.hideW ? '' : '<small' + bdK(r.key + '|w', r.inter ? 'tw twi' : 'tw', r.add ? 'לכיוון' : '') + '>' + E(r.toward) + '</small>') + '</td>' +
-      r.cells.map(function (x) { return x.skip ? '' : x.span ? bdCellHtml(x).replace('<td ', '<td colspan="' + x.span + '" ') : bdCellHtml(x); }).join('') + '</tr>';
+      r.cells.map(function (x) { if (x.skip) return ''; var h = bdCellHtml(x).replace('<td class="bt', '<td class="bt' + bdAlC(x.key)); return x.span ? h.replace('<td ', '<td colspan="' + x.span + '" ') : h; }).join('') + '</tr>';
   }
   /* שורה או קו שהוסרו: במצב עריכה — שורה דקה ואפורה עם "להחזיר" (מחוץ לעריכה, בהדפסה ובקובץ — לא מופיעה) */
   function bdOffHtml(r, ncol, whole) {
