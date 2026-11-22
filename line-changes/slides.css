@@ -885,7 +885,8 @@ body.editing .slide .inset-x{display:block}
 .s-bd .bd-t td.bo small{display:block;color:var(--s-sub);font-weight:600;font-size:.76em;margin-top:.15em}
 .s-bd .bd-t td.bo small.tw{color:var(--s-fg);font-weight:700}
 .s-bd .bd-t td.bt{text-align:right}
-.s-bd .bd-t td.bt.off{text-align:center;color:var(--s-sub);font-weight:700}
+/* "אינו פעיל" — באותו מקום כמו השעות בתאים האחרים (שמואל 22.11) */
+.s-bd .bd-t td.bt.off{color:var(--s-sub);font-weight:700}
 .s-bd .tl{display:block;word-spacing:.18em}
 .s-bd .t{font-weight:700;white-space:nowrap;unicode-bidi:isolate}
 .s-bd .t.alt,.s-bd .alt{color:#c81e1e;font-weight:900}
@@ -977,6 +978,7 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
 .s-bd .bd-ph b.ltr{white-space:nowrap}
 
 /* סדר השעות (data-tord על .deck): משמאל לימין — בטבלה לפי יעד, ברשימות לפי שעה ובטבלאות הלו"ז */
+.deck[data-tord="ltr"] .s-bd .bd-t td.bt.off,.deck[data-tord="ltr"] .s-bd .bd-t td.bt.same{text-align:left}
 .deck[data-tord="ltr"] .s-bd .tl,.deck[data-tord="ltr"] .s-cur .ttc li.hr .ms,.deck[data-tord="ltr"] .s-mt .mt-t td.tms{direction:ltr;text-align:left}
 .deck[data-tord="ltr"] .s-cur .cu-grid{direction:ltr}
 .deck[data-tord="ltr"] .s-cur .cu-grid > li{direction:rtl}
