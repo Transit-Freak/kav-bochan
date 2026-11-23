@@ -1506,7 +1506,7 @@ def hol_lists(feed, svcs, t0, eff, by_dow):
     return out
 
 
-TT_ALTS = 4   # כמה חלופות לכל היותר מסומנות באות (א, ב, ...); השאר — "בחלופה אחרת" (האות האחרונה)
+TT_ALTS = 6   # כמה חלופות לכל היותר מסומנות בסימן (* # ^ $ ~ +); השאר — "במסלול אחר" (הסימן האחרון)
 
 
 def alt_via(main, st):
@@ -1612,7 +1612,7 @@ def alt_labels(feed, pw, stops=None):
         if lbl not in V:
             if len(V) < TT_ALTS:
                 V.append(lbl)
-            else:   # יותר מדי חלופות — האות האחרונה לכל השאר
+            else:   # יותר מדי חלופות — הסימן האחרון לכל השאר
                 V[-1] = lbl = 'במסלול אחר'
         ai[a] = V.index(lbl) + 1
         if stops is not None:
@@ -1660,9 +1660,11 @@ def vcnt(rd, dl, m):
 def current_tts(feed, t0):
     """הלו"ז העדכני של כל קווי האוטובוס, לשבוע הקרוב: לכל מק"ט ולכל כיוון — היציאות מהתחנה הראשונה לכל יום בשבוע
     (יום רגיל: התאריך הקרוב שאינו חג או ערב חג), ובתאריכי חג בשבוע הקרוב — רק אם השעות שונות מהיום הרגיל.
-    נכתב ל-data/tt/NN.json (מק"ט % 64). קו = {l: מספר, a: agency_id, o: חברה, d: {כיוון: {...}}}
+    נכתב ל-data/tt/NN.json (מק"ט % 64; w1=1 — יש בקובץ w1). קו = {l: מספר, a: agency_id, o: חברה, d: {כיוון: {...}}}
     כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, cn: כמה תחנות בכל אחת מהן (מקביל ל-cs), du: משך נסיעה טיפוסי (דק'),
              w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+),
+             w1: כמו w, לשבוע שאחריו (התאריכים valid+7..valid+13) — רק כששונה מ-w; null ליום שאין לו נתונים (סוף הקובץ).
+                 בלוח של קו שמשתנה השבוע: כל יום בשבוע לפי התאריך הראשון מיום השינוי והלאה (LC.ttFromEff),
              v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
              אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...),
              N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt)}
@@ -1725,6 +1727,12 @@ def current_tts(feed, t0):
                 N.append([[i, n] for i, (_m, _a, n) in enumerate(lst) if n > 1] or 0)
             return ix[lst]
         w = [idx(usual[x]) for x in DOWS]
+        # השבוע שאחריו (w1): לקו שמשתנה באמצע השבוע הקרוב — הלו"ז של כל יום מתאריך השינוי והלאה
+        w1 = []
+        for d in week:
+            alt = next((x for x in (d + 7 * DAY, d + 14 * DAY, d + 21 * DAY) if x not in hol and x + DAY <= feed.d1), None)
+            w1.append((dow(d), None if alt is None else idx(day_list(svcs, alt, ai, pre))))
+        w1 = [dict(w1)[x] for x in DOWS]
         x = {}
         for d in week:
             if d in hol:
@@ -1740,6 +1748,8 @@ def current_tts(feed, t0):
                    cn=stop_city_counts(st), du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
+        if w1 != w:
+            rec['w1'] = w1
         # התחנות של הנסיעות: sc — של החלופה הראשית; vs / vc — התחנות והערים של כל חלופה (לפי הסדר של v).
         # בלוח של מקום (עיר, שכונה, רחוב) מוצגים רק כיוונים וחלופות שעוצרים בו
         rec['sc'] = [scode(s0) for s0 in st]
@@ -1767,7 +1777,7 @@ def current_tts(feed, t0):
     hw = hol_week(t0)
     for i in range(TT_SHARDS):
         fn = os.path.join(out, f'{i}.json')
-        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, lines=shards.get(i, {})),
+        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, w1=1, lines=shards.get(i, {})),
                   open(fn, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
         size += os.path.getsize(fn)
     print(f'לו"ז עדכני: {sum(len(v) for v in shards.values())} קווים · {n_dirs} כיוונים · {size // 1024} KB ב-{TT_SHARDS} קבצים', flush=True)

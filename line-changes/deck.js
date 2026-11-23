@@ -1641,17 +1641,19 @@ var LCDeck = (function () {
     cuAlts(side, cols);
     return cols;
   }
-  /* החלופות שמופיעות בצד הזה: אות לכל (קו, חלופה) — א, ב, ג… לפי הסדר; side.alts — למקרא */
-  var ALT_LET = 'אבגדהוזחטיכלמנ';
+  /* החלופות שמופיעות בצד הזה: סימן לכל (קו, חלופה) — # ^ $ ~ + * לפי הסדר, כמו בלוחות של קווים; side.alts — למקרא.
+     יותר משישה (כמה קווים בצד אחד) — הסימנים כפולים: ** ## … */
+  var ALT_LET = '#^$~+*';   // * בסוף: בתחתית הלוח יש מספרי טלפון עם כוכבית (*2060)
+  function altSym(i) { var c = ALT_LET.charAt(i % ALT_LET.length); return new Array(Math.floor(i / ALT_LET.length) + 2).join(c); }
   function cuAlts(side, cols) {
     var used = {}, list = [];
     cols.forEach(function (c) { c.ents.forEach(function (e) { if (e.a) { var k = e.li + ':' + e.a; if (!used[k]) list.push(used[k] = { li: e.li, a: e.a, ms: [] }); used[k].ms.push(e.m); } }); });
     list.sort(function (x, y) { return x.li - y.li || x.a - y.a; });
-    list.forEach(function (x, i) { var it = side.items[x.li]; x.L = ALT_LET.charAt(i) || '*'; x.p = it.p; x.txt = (it.d.v || [])[x.a - 1] || 'במסלול אחר'; });
+    list.forEach(function (x, i) { var it = side.items[x.li]; x.L = altSym(i); x.p = it.p; x.txt = (it.d.v || [])[x.a - 1] || 'במסלול אחר'; });
     cols.forEach(function (c) { c.ents.forEach(function (e) { e.al = e.a ? used[e.li + ':' + e.a].L : ''; }); });
     side.alts = list;
   }
-  /* סימנים ליד השעה: אות החלופה, ו-×2 במצגת (עדין; בשלט ובסטטוס — .xn אחרי התגית) */
+  /* סימנים ליד השעה: סימן החלופה, ו-×2 במצגת (עדין; בשלט ובסטטוס — .xn אחרי התגית) */
   function cuMarks(e, form) {
     return (e.al ? '<i class="al">' + e.al + '</i>' : '') + (e.n > 1 && form === 'deck' ? '<sup class="x2">×' + e.n + '</sup>' : '');
   }
@@ -1720,10 +1722,10 @@ var LCDeck = (function () {
     var out = by.map(function (r) {
       return { h: Math.ceil(r.es.length / perLine) * lineH + 6, hour: true, es: r.es,
         html: '<li class="hr"><b class="num">' + String(r.h % 24).padStart(2, '0') + '</b><span class="ms">' + r.es.map(function (e) {
-          return '<span class="num" dir="ltr"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '*' : '') + cuMarks(e, 'deck') + '</span>';
+          return '<span class="num" dir="ltr"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '°' : '') + cuMarks(e, 'deck') + '</span>';
         }).join(' ') + '</span></li>' };
     });
-    if (c.ents.some(function (e) { return e.part; })) out.push({ h: lineH + 6, hour: true, html: '<li class="hn"><small class="nt">* רק בחלק מהימים</small></li>' });
+    if (c.ents.some(function (e) { return e.part; })) out.push({ h: lineH + 6, hour: true, html: '<li class="hn"><small class="nt">° רק בחלק מהימים</small></li>' });
     return out;
   }
   var CUM = {
@@ -2261,11 +2263,11 @@ var LCDeck = (function () {
       D.ttBlocks = ttBlocks; D.paginate = paginate; D.ttKey = ttKey; D.ttPagesHtml = ttPagesHtml; D.routeLegend = routeLegend; D.routeMap = routeMap;
       D.altList = altList; D.kTwo = kTwo; D.kDirBlocks = kDirBlocks; D.zoomOn = zoomOn; D.zoomGroups = zoomGroups; D.zoomMap = zoomMap;
       D.zoomList = zoomList; D.kindSlides = kindSlides; D.badgeTitle = badgeTitle; D.CU_COL = CU_COL; D.hm2 = hm2; D.isoDow = isoDow;
-      D.dShort = dShort; D.linesTxt = linesTxt; D.cuDay = cuDay; D.cuMerge = cuMerge; D.ALT_LET = ALT_LET; D.cuTagCol = cuTagCol; D.ttCap = ttCap;
+      D.dShort = dShort; D.linesTxt = linesTxt; D.cuDay = cuDay; D.cuMerge = cuMerge; D.ALT_LET = ALT_LET; D.altSym = altSym; D.cuTagCol = cuTagCol; D.ttCap = ttCap;
       D.mtDirs = mtDirs; D.lastStop = lastStop; D.mtFrom = mtFrom; D.mtGroups = mtGroups; D.mtDay = mtDay; D.mtWhen = mtWhen; D.mtSlides = mtSlides;
       D.sumLine = sumLine; D.FORMS = FORMS; D.isOne = isOne; D.COLORS = COLORS; D.PALETTE = PALETTE; D.contrast = contrast; D.shade = shade;
       D.agOf = agOf; D.lookVars = lookVars;
   // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
-  var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols };
+  var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols, altSym: altSym };
   return { combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };
 })();
