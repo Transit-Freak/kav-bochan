@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <!-- האתר תמיד בהיר (שלמה 06.11) — גם כשהטלפון במצב כהה -->
 <meta name="color-scheme" content="light" />
-<!-- מונע מהדפדפן להגיש גרסה ישנה של הדף מה-cache. הקוד עצמו (KavPach.jsx,
+<!-- מונע מהדפדפן להגיש גרסה ישנה של הדף מה-cache. הקוד עצמו (KavPach.js,
      xlsx-worker.js) נטען עם חותמת גרסה (?v=) שמאלצת רענון בכל פריסה. -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -158,7 +158,7 @@
   <script src="home/home.js?v=16d62c7ebe"></script>
   <script>try { KBH.mount(document.querySelector('#static-choice .kbh')); } catch (e) {}</script>
   <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
-       שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
+       שינוי ב-kavpach/src) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
   <!-- React ייצור (גרסת הפיתוח איטית משמעותית) — בסוף הדף, כדי שלא יחסמו את הציור הראשון -->
   <script src="vendor/react.production.min.js"></script>
   <script src="vendor/react-dom.production.min.js"></script>
@@ -175,7 +175,7 @@
             if (tries++ < 400) return setTimeout(go, 25);
             return;
           }
-          // דף הבית הסטטי עובר כמו שהוא ל-ChoiceScreen (KavPach.jsx) — בלי לבנות אותו מחדש
+          // דף הבית הסטטי עובר כמו שהוא ל-ChoiceScreen (kavpach/src/06-home.jsx) — בלי לבנות אותו מחדש
           window.__kbhNode = document.querySelector('#static-choice .kbh');
           var boot = document.getElementById('boot-loader');
           if (boot) boot.remove();
@@ -187,9 +187,14 @@
         var b = document.createElement('script');
         b.src = 'vendor/babel.min.js';
         b.onload = function () {
-          fetch('KavPach.jsx', { cache: 'no-cache' }).then(function (r) { return r.text(); }).then(function (src) {
+          // הקוד מחולק לפי נושא ב-kavpach/src (הסדר ב-files.json) — מחברים לפי הסדר ומקמפלים יחד, כמו קובץ אחד
+          var get = function (u) { return fetch(u, { cache: 'no-cache' }).then(function (r) { return r.text(); }); };
+          get('kavpach/src/files.json').then(function (t) {
+            return Promise.all(JSON.parse(t).map(function (f) { return get('kavpach/src/' + f); }));
+          }).then(function (parts) {
+            var src = parts.join('\n');
             var sc = document.createElement('script');
-            sc.text = Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code;
+            sc.text = Babel.transform(src, { presets: ['react'], filename: 'kavpach.jsx' }).code;
             document.body.appendChild(sc);
             mount();
           });

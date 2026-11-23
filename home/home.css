@@ -1,5 +1,5 @@
 /* דף הבית של הקו הבוחן (שלמה 06.11) — העין הבוחנת וכל הכלים סביבה. משותף לדף הסטטי (index.html)
-   ול-ChoiceScreen (KavPach.jsx); ההתנהגות והסמלים ב-home/home.js. הכול תחת .kbh, תמיד בהיר. */
+   ול-ChoiceScreen (kavpach/src/06-home.jsx); ההתנהגות והסמלים ב-home/home.js. הכול תחת .kbh, תמיד בהיר. */
 .kbh{--bg:#f7fafd; --bg2:#eef4fa; --surface:#ffffff; --surface2:#f8fafc;--ink:#0b1220; --ink2:#1e293b; --muted:#5b6579; --faint:#8a94a8;--line:rgba(15,23,42,.08); --line2:rgba(15,23,42,.14);--brand:#0ea5e9; --brand-ink:#0369a1; --navy:#0f172a;--shadow-sm:0 1px 2px rgba(15,23,42,.05);--shadow:0 1px 2px rgba(15,23,42,.04),0 10px 30px -14px rgba(15,23,42,.18);--shadow-lg:0 2px 4px rgba(15,23,42,.04),0 24px 48px -20px rgba(15,23,42,.28);--aur1:rgba(56,189,248,.26); --aur2:rgba(125,211,252,.22); --aur3:rgba(186,230,253,.35);--glass:rgba(255,255,255,.72);--r:24px;color-scheme:light;}
 .kbh,.kbh *{box-sizing:border-box}
 html:has(.kbh){direction:rtl;-webkit-text-size-adjust:100%;scroll-behavior:smooth}
@@ -231,7 +231,7 @@ html.kbh-js .kbh .rv:not(.in){opacity:0;transform:translateY(14px)}
 
 /* ===================================================================================================
    קו פח והקו המוזהב (שלמה 06.11) — אותו מראה כמו דף הבית: בהיר, תכלת, פס עליון שקוף, כרטיסים מעוגלים.
-   רק שכבת המראה: הכלים עצמם (KavPach.jsx, מחלקות Tailwind) לא השתנו. הכול תחת .kbt.
+   רק שכבת המראה: הכלים עצמם (kavpach/src, מחלקות Tailwind) לא השתנו. הכול תחת .kbt.
    =================================================================================================== */
 .kbt{--bg:#f7fafd;--surface:#fff;--ink:#0b1220;--ink2:#1e293b;--muted:#5b6579;--line:rgba(15,23,42,.08);--line2:rgba(15,23,42,.14);
   --brand:#0ea5e9;--brand-ink:#0369a1;--brand-grad:linear-gradient(180deg,#1aa7ea,#0284c7);

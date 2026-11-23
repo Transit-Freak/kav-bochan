@@ -2,7 +2,7 @@
 // הדף (index.html) נטען ב-Chromium משרת מקומי קטן, עם נתונים קבועים וקטנים (tests/fixtures/kavpach — 84 קווים
 // בערד, דימונה, שדרות וקרית מלאכי) במקום קובצי הנתונים של האתר. הבדיקה עוברת על הלשוניות, מסננת, מחפשת קו ועיר,
 // ורושמת מה יצא: אילו קווים ברשימה ובאיזה ציון, והטקסט של הכרטיסים והטבלאות. לא משווים פיקסלים.
-// KavPach.jsx מקומפל כאן (Babel המצורף), ודף הבית הקבוע נבנה כאן מ-home/home.js — כך נבדק הקוד שב-PR,
+// הקוד שב-kavpach/src (החלקים מחוברים לפי הסדר ב-files.json) מקומפל כאן (Babel המצורף), ודף הבית הקבוע נבנה כאן מ-home/home.js — כך נבדק הקוד שב-PR,
 // גם לפני שה-workflow (kavpach-build) בנה את KavPach.js ואת index.html.
 // השעה בדפדפן קבועה (22.11.2026), והרשת החיצונית חסומה (גופנים, סטטיסטיקה).
 //
@@ -37,15 +37,16 @@ const bad = (where, msg) => problems.push(where + ': ' + msg);
 const ONLY = (process.env.ONLY || '').split(',').filter(Boolean);
 const on = (k) => !ONLY.length || ONLY.includes(k);
 
-// ── KavPach.jsx → JS, כמו tools/build_kavpach.mjs (בלי מיזעור) ──
+// ── kavpach/src → JS, כמו tools/build_kavpach.mjs (בלי מיזעור) ──
 let built = null;
 function buildJs() {
   if (built) return built;
   const c = { window: {}, self: {}, console };
   vm.createContext(c);
   vm.runInContext(fs.readFileSync(path.join(REPO, 'vendor/babel.min.js'), 'utf8'), c);
-  c.src = fs.readFileSync(path.join(REPO, 'KavPach.jsx'), 'utf8');
-  built = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code", c);
+  const SRC = path.join(REPO, 'kavpach', 'src');
+  c.src = JSON.parse(fs.readFileSync(path.join(SRC, 'files.json'), 'utf8')).map((f) => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n');
+  built = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'kavpach.jsx' }).code", c);
   return built;
 }
 // index.html עם דף הבית הקבוע בנוי מחדש מ-home/home.js ומ-versions.json (שלב 3 ב-tools/build_kavpach.mjs) —

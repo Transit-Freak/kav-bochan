@@ -8,7 +8,7 @@ name: kavpach-tests
 on:
   pull_request:
     paths:
-      - 'KavPach.jsx'
+      - 'kavpach/src/**'
       - 'KavPach.js'
       - 'kavpach-core.js'
       - 'xlsx-worker.js'

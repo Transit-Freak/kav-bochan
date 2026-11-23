@@ -1,5 +1,5 @@
 /* דף הבית של הקו הבוחן (שלמה 06.11): העין הבוחנת במרכז וכל הכלים סביבה.
-   קובץ משותף אחד לדף הסטטי ב-index.html (שנבנה ממנו ב-tools/build_kavpach.mjs) ול-ChoiceScreen ב-KavPach.jsx:
+   קובץ משותף אחד לדף הסטטי ב-index.html (שנבנה ממנו ב-tools/build_kavpach.mjs) ול-ChoiceScreen ב-kavpach/src/06-home.jsx:
    - KBH.ICON  — הסמלים של כל הכלים (גם הסמל הגדול בכותרת של קו פח והקו המוזהב)
    - KBH.GROUPS / KBH.PARKS — רשימת הכלים בדף הבית: שם, תיאור, קישור ומפתח הגרסה ב-versions.json.
      כלי חדש בדף הבית = שורה חדשה כאן (ו-tools/og_cards.mjs קורא את הרשימה מכאן).

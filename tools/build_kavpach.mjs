@@ -1,6 +1,7 @@
 // קו פח — בנייה מראש (שלמה 18.09: "כל דבר שיגרום לקו פח להיות מהר יותר"):
-//   1. KavPach.jsx → KavPach.js בעזרת Babel המצורף (אותה קומפילציה שהדפדפן
+//   1. kavpach/src → KavPach.js בעזרת Babel המצורף (אותה קומפילציה שהדפדפן
 //      עשה בכל ביקור, ~2 שניות בטלפון + 650KB של Babel) — נעשית פעם אחת כאן.
+//      הקוד מחולק לפי נושא ב-kavpach/src; החלקים מחוברים לפי הסדר ב-files.json ומקומפלים יחד.
 //   2. Tailwind: CSS מוכן (vendor/kavpach.css) במקום ה-JIT בזמן ריצה.
 //   3. דף הבית הסטטי ב-index.html נבנה מ-home/home.js (בין <!-- kbh:start --> ל-<!-- kbh:end -->).
 //   4. חותמת ?v= ב-index.html לפי hash של הפלט — הדפדפן שומר בקאש ומתחלף רק בשינוי.
@@ -20,20 +21,20 @@ const wr = (p, s) => fs.writeFileSync(path.join(ROOT, p), s);
 const ctx = { window: {}, self: {}, console };
 vm.createContext(ctx);
 vm.runInContext(rd('vendor/babel.min.js'), ctx);
-ctx.src = rd('KavPach.jsx');
-let js = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code", ctx);
+ctx.src = JSON.parse(rd('kavpach/src/files.json')).map((f) => rd('kavpach/src/' + f)).join('\n');
+let js = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'kavpach.jsx' }).code", ctx);
 // מיזעור (terser) — כ-110KB פחות להורדה ופחות זמן פענוח (Lighthouse: unminified-javascript)
 try {
   const { minify } = await import('terser');
   const out = await minify(js, { compress: { passes: 2 }, mangle: true, format: { comments: false } });
   if (out.code) js = out.code;
 } catch (e) { console.warn('terser לא זמין — הקובץ לא ממוזער:', e.message); }
-wr('KavPach.js', '/* נבנה אוטומטית מ-KavPach.jsx (tools/build_kavpach.mjs) — לא לערוך ידנית */\n' + js);
+wr('KavPach.js', '/* נבנה אוטומטית מ-kavpach/src (tools/build_kavpach.mjs) — לא לערוך ידנית */\n' + js);
 
 // 2. Tailwind → CSS מוכן
 const cfg = path.join(ROOT, 'tools', 'tailwind.kavpach.config.cjs');
 fs.writeFileSync(cfg, `module.exports = {
-  content: ['${path.join(ROOT, 'KavPach.jsx')}', '${path.join(ROOT, 'index.html')}'],
+  content: ['${path.join(ROOT, 'kavpach', 'src', '*.jsx')}', '${path.join(ROOT, 'index.html')}'],
   // מחלקות שנבנות בזמן ריצה (bg-\${ac}-100 וכד') — לפי accent של לוחות ההגדרות
   safelist: [{ pattern: /^(bg|text|border)-(amber|rose|indigo|emerald|sky|slate|orange)-(50|100|200|300|400|500|600|700|800|900)$/ }],
 };
