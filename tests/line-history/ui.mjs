@@ -302,8 +302,9 @@ async function main() {
     same(await pressed('.card .srcrow button.mchip'), [SRC.mot], 'המקור המסומן בכניסה ל-2012');
     const off = MONTHS.officialMonths.filter((m) => m.startsWith('2012')), web = MONTHS.webMonths.filter((m) => m.startsWith('2012')).sort().reverse();
     same(await monthChips(), off.map(dmy), 'חודשי משרד התחבורה ב-2012');
-    await until('שורת המקור של משרד התחבורה ב-2012', () => !!document.querySelector('.card .srcnote.src-gtfs2012'));
-    ok(await $('.card .srcnote.src-gtfs2012').count() === 1 && (await text('.card .srcnote')).startsWith('מקור: ' + SRC.mot), 'שורת המקור של משרד התחבורה ב-2012: ' + await text('.card .srcnote'));
+    // מחכים לשורת מקור אחת בלבד, של 2012 — בזמן המעבר בין השנים יכולה להופיע לרגע גם השורה של השנה הקודמת
+    await until('שורת המקור של משרד התחבורה ב-2012', () => { const n = document.querySelectorAll('.card .srcnote'); return n.length === 1 && n[0].classList.contains('src-gtfs2012'); });
+    ok((await text('.card .srcnote.src-gtfs2012')).startsWith('מקור: ' + SRC.mot), 'שורת המקור של משרד התחבורה ב-2012: ' + JSON.stringify(await texts('.card .srcnote')));
     const n12 = J('changes/' + off[0] + '.json').changes.length;
     await untilText('הצילום של 2012', '.card .dayhead', n12 + ' שינויים');
     // אתרי מידע לנוסעים: חודשים משלהם, ורק שורות מהמקור הזה
