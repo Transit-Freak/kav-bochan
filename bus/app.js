@@ -1190,7 +1190,7 @@ function renderGps() {
 }
 function init() {
   $('#method').innerHTML = METHOD;
-  Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({})), load(DATA + 'gps.json').catch(() => null)]).then(([idx, cat, gps]) => {
+  Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({})), (SHOW_GPS_FREQ ? load(DATA + 'gps.json').catch(() => null) : null)]).then(([idx, cat, gps]) => {
     IDX = idx; CAT = cat || {}; GPS = gps && gps.v ? gps : null;
     // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
     DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));

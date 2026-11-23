@@ -99,9 +99,13 @@ def main():
         sh = js('fleet/data/gov-details-%d.json' % d)
         dump('gov-details-%d.json' % d, {k: v for k, v in sh.items() if k in gov})
 
-    gps = js('bus/data/gps.json')
-    gps['v'] = [x for x in gps['v'] if clean(str(x[0])) in cl]
-    dump('bus-gps.json', gps)
+    # gps.json כבר לא נבנה (23.11.2026: "כל כמה זמן הרכב משדר" כבוי, SHOW_GPS_FREQ) — רק אם הוא עוד קיים
+    try:
+        gps = js('bus/data/gps.json')
+        gps['v'] = [x for x in gps['v'] if clean(str(x[0])) in cl]
+        dump('bus-gps.json', gps)
+    except Exception:
+        pass
 
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
     print('%d רכבים, %d חברות, %d דגמים, %d KB' % (len(keep), len(ops), len(by_model), total // 1024))

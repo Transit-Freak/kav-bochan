@@ -611,6 +611,10 @@ GPS_GAP_MAX = 600    # פער של יותר מ-10 דקות בין שני דיו�
 GPS_SLOW = 90        # רכב "איטי": ממוצע מעל 90 שנ׳; מרווח "חסר": 90 שנ׳ ומעלה (הדגימה של SIRI היא פעם בדקה, כך ש-60 הוא הרצפה)
 GPS_SLOW_SHARE = 0.5  # רכב "איטי" (שלמה 29.09): לפחות 50% מהמרווחים שלו חסרים — קורה באופן קבוע, לא מדי פעם
 GPS_DAYS = 14        # חלון הצבירה לקובץ gps.json
+# "כל כמה זמן הרכב משדר" כבויה (שלמה 23.11.2026): הדאטאבוס שומר תמונה אחת בדקה, כך שזה לא מודד את הרכב, והאתר
+# כבר לא מציג את זה (SHOW_GPS_FREQ בדפים). בלי GPS_FREQ=1 לא מחשבים ולא שומרים days/D.gps.json ו-gps.json.
+# הקוד נשאר — GPS_FREQ=1 יחזיר את החישוב, אם יהיה לנו שרת שקורא את משרד התחבורה כל 15 שניות.
+GPS_FREQ = os.environ.get('GPS_FREQ') == '1'
 
 
 def gps_day(journeys, meta):
@@ -952,8 +956,9 @@ def main():
                 if key not in meta:
                     meta[key] = (line, op, dep, veh)
     print(f'רשומות: {n_rec:,} · נסיעות (מפתחות): {len(journeys):,} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
-    gps_v = gps_day(journeys, meta)
-    print(f'GPS: {len(gps_v):,} רכבים עם מרווחי שידור', flush=True)
+    gps_v = gps_day(journeys, meta) if GPS_FREQ else None
+    if GPS_FREQ:
+        print(f'GPS: {len(gps_v):,} רכבים עם מרווחי שידור', flush=True)
 
     g = load_gtfs(a.gtfs, day)
     print(f'GTFS: {len(g["trips"]):,} נסיעות פעילות · {len(g["routes"]):,} מסלולים · {len(g["stops"]):,} תחנות', flush=True)
@@ -1680,9 +1685,10 @@ def main():
                               'gap': round(sum(e['gaps']) / max(len(e['gaps']), 1) / 60, 1),
                               'end': round(e['end'] / max(e['n'], 1), 2), 'ex': e['ex']} for mkt, e in agg.items()}}
     json.dump(dh_out, open(f'{a.out}/deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    json.dump({'d': day, 'v': gps_v}, open(f'{a.out}/days/{day}.gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    # שמות מ-agency.txt: מפעיל שמשדר ב-SIRI בלי קווים ב-GTFS של היום הופיע כמספר ("22", שלמה 30.09)
-    gps_aggregate(a.out, {**g.get('agencies', {}), **{r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}}, day_obj['built'],
+    if GPS_FREQ:
+      json.dump({'d': day, 'v': gps_v}, open(f'{a.out}/days/{day}.gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+      # שמות מ-agency.txt: מפעיל שמשדר ב-SIRI בלי קווים ב-GTFS של היום הופיע כמספר ("22", שלמה 30.09)
+      gps_aggregate(a.out, {**g.get('agencies', {}), **{r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}}, day_obj['built'],
                   {str(r.get('agency_id')) for r in g['routes'].values() if r.get('type') in BUS_TYPES and r.get('agency_id')})
     idx = {'days': days, 'updated': day_obj['built'], 'fmt': FMT}
     json.dump(idx, open(f'{a.out}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
