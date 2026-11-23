@@ -71,7 +71,8 @@ async function loadSnap() {
 }
 function showAge() {
   const el = $('#age');
-  if (!SNAP) { el.textContent = 'בודק את גיל הנתונים…'; return; }
+  if (BUSY || !SNAP) { el.innerHTML = `${DOTS}${SNAP ? 'מתעדכן…' : 'טוען…'}`; el.classList.add('busy'); return; }
+  el.classList.remove('busy');
   const ago = Math.max(0, Math.round((Date.now() - SNAP) / MIN));
   el.innerHTML = `<span class="live${ago > 12 ? ' old' : ''}"></span>${ago <= 5 ? 'חי' : 'מעודכן'} · ${hm(SNAP)}${ago ? ` · לפני ${ago} דק׳` : ''}${BI > 0 ? ' · שרת גיבוי' : ''}`;
   el.title = 'השעה של תמונת המצב האחרונה מ-Open Bus';
@@ -451,15 +452,49 @@ function plan(st, target) {
 let MODE = null, VIEW = null, TOKEN = 0, MAP = null, LAYER = null, DIRF = 'all', MAPDATA = null;
 const OPEN = new Set(); // כרטיסים פתוחים — נשארים פתוחים ברענון
 const lineLike = q => /^\d{1,3}[א-ת]?$/.test(q);
+// שם עיר להשוואה: בלי גרשיים ומקפים, קריית = קרית, "ק. גת" = "קרית גת"
+const cityNorm = t => ' ' + String(t || '').replace(/["'׳״`]/g, '').replace(/קריית/g, 'קרית').replace(/(^|\s)ק\.\s*/g, '$1קרית ')
+  .replace(/[-_.,/:()]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+// "4 קרית גת" / "קרית גת 4" → { num, city }
+function parseLineCity(q) {
+  const t = String(q || '').trim().split(/\s+/);
+  if (t.length < 2) return null;
+  let num, rest;
+  if (lineLike(t[0]) && !lineLike(t[t.length - 1])) { num = t[0]; rest = t.slice(1); }
+  else if (lineLike(t[t.length - 1]) && !lineLike(t[0])) { num = t[t.length - 1]; rest = t.slice(0, -1); }
+  else return null;
+  const city = rest.join(' ');
+  return /[א-ת]/.test(city) ? { num, city } : null;
+}
+// כל שמות הערים והתחנות של קבוצת קו — מהתיאור הרשמי ומהיעד לפרסום (הקו בזמן)
+function groupHay(g) {
+  if (g.hay) return g.hay;
+  const parts = [g.agency];
+  for (const r of g.routes) {
+    const { o, d } = rparts(r);
+    parts.push(o.city, d.city, fullCity(o.city), fullCity(d.city));
+    const e = ends(r);
+    parts.push(e.fr, e.to, e.city);
+  }
+  return (g.hay = parts.filter(Boolean).map(cityNorm).join('|'));
+}
+const hayHas = (hay, q) => hay.includes(cityNorm(q).trimEnd());
 function setMode(m, keepQ) {
   MODE = m;
   document.querySelectorAll('.big').forEach(b => { const on = b.dataset.m === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   $('#f').hidden = !m;
-  $('#q').placeholder = m === 'veh' ? 'מספר רכב, למשל 62261203' : 'מספר קו, קוד תחנה או שם תחנה';
+  $('#q').placeholder = m === 'veh' ? 'מספר רכב, למשל 62261203' : 'מספר קו, קו ועיר (4 קרית גת), תחנה או שם תחנה';
   $('#q').inputMode = m === 'veh' ? 'numeric' : 'text';
   if (!keepQ) $('#q').value = '';
   hideSugg();
 }
+// מחוון טעינה: שלוש נקודות שמופיעות ונעלמות, ושורה קצרה של מה נטען עכשיו
+const DOTS = '<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+function loading(text) { $('#out').innerHTML = `<div class="loading" role="status" aria-live="polite">${DOTS}<span class="lt">${esc(text)}</span></div>`; dropMap(); }
+// מעדכן את השורה רק כשהמחוון עדיין מוצג ושייך לטעינה הנוכחית
+function stage(tok, text) { const el = $('#out .loading .lt'); if (el && tok === TOKEN) el.textContent = text; }
+let BUSY = 0;
+function busy(on) { BUSY = Math.max(0, BUSY + (on ? 1 : -1)); showAge(); }
 function msg(html, err) { $('#out').innerHTML = `<div class="msg${err ? ' err' : ''}">${html}</div>`; dropMap(); }
 function dropMap() { if (MAP) { MAP.remove(); MAP = null; LAYER = null; } }
 function go(hash) { if (location.hash !== hash) location.hash = hash; else route(); }
@@ -467,14 +502,14 @@ function route() {
   const h = new URLSearchParams(location.hash.slice(1));
   OPEN.clear();
   if (h.get('v')) { setMode('veh', true); $('#q').value = h.get('v'); VIEW = { t: 'veh', plate: norm(h.get('v')) }; }
-  else if (h.get('l')) { setMode('ls', true); $('#q').value = h.get('l'); VIEW = { t: 'line', num: h.get('l').trim(), g: h.get('g') || null, d: h.get('d') || null }; }
+  else if (h.get('l')) { setMode('ls', true); $('#q').value = h.get('l') + (h.get('c') ? ' ' + h.get('c') : ''); VIEW = { t: 'line', num: h.get('l').trim(), g: h.get('g') || null, d: h.get('d') || null, city: h.get('c') || null }; }
   else if (h.get('s')) { setMode('ls', true); VIEW = { t: 'stop', code: norm(h.get('s')) }; }
   else { VIEW = null; $('#out').innerHTML = ''; dropMap(); return; }
   load(false);
 }
 async function load(silent) {
   const tok = ++TOKEN;
-  if (!silent) msg('⏳ טוען נתונים חיים…');
+  if (!silent) loading('טוען נתונים חיים מ-Open Bus…'); else busy(true);
   try {
     if (VIEW.t === 'line') await loadLine(tok);
     else if (VIEW.t === 'stop') await loadStop(tok);
@@ -483,7 +518,7 @@ async function load(silent) {
     if (tok !== TOKEN) return;
     console.error(e);
     if (!silent) msg(`לא הצלחנו לקבל נתונים מ-Open Bus (${esc(e.message || e)}). נסו שוב בעוד דקה.`, true);
-  }
+  } finally { if (silent) busy(false); }
 }
 
 /* ---------- רכבים משובצים: מה כל אחד עושה, ומתי יתפנה ---------- */
@@ -491,8 +526,10 @@ async function load(silent) {
 async function enrich(tok, dl, extraPlates, render) {
   const now = Date.now();
   const assigned = dl.filter(d => d.ride && d.ride.vehicle_ref && !d.active).map(d => d.ride.vehicle_ref);
+  stage(tok, 'בודק מה עושים עכשיו האוטובוסים ששובצו…');
   const vs = await vehiclesNow(assigned);
   if (tok !== TOKEN) return;
+  stage(tok, FLEET.idx ? 'טוען שמות קווים…' : 'טוען את נתוני צי הרכבים…');
   const more = [], names = [];
   for (const d of dl) {
     const st = d.ride && d.ride.vehicle_ref && !d.active ? vs[norm(d.ride.vehicle_ref)] : null;
@@ -548,7 +585,7 @@ function curText(p, pending) {
 }
 function fleetGrid(plate, opRef) {
   const v = vinfo(plate, opRef);
-  if (!FLEET.idx) return `<div class="why">${FLEET.failed ? 'פרטי הרכב לא נטענו.' : 'טוען פרטי רכב…'}</div>`;
+  if (!FLEET.idx) return FLEET.failed ? '<div class="why">פרטי הרכב לא נטענו.</div>' : `<div class="loading sm">${DOTS}<span class="lt">טוען את נתוני צי הרכבים…</span></div>`;
   if (!v.known) return '<div class="why">הרכב לא נמצא בצי הרכבים של הקו הבוחן.</div>';
   const g = [['חברה', v.opName], ['שייכות', v.kab === true ? 'רכב קבלן' : v.kab === false ? 'רכב של החברה' : ''], ['גודל', [v.size, v.kind].filter(Boolean).join(' · ')],
     ['מושבים', v.seats], ['דגם', v.model], ['שנת ייצור', v.year], ['הנעה', v.prop]]
@@ -615,14 +652,30 @@ async function lineGroups(num) {
 async function loadLine(tok) {
   const num = VIEW.num;
   if (!/^[0-9א-ת]{1,5}$/.test(num)) { msg('מספר קו לא תקין.', true); return; }
+  stage(tok, `מחפש את קו ${num}…`);
+  const lhWait = setTimeout(() => stage(tok, 'טוען את רשימת הקווים והיעדים (פעם אחת)…'), 1500);
   const [groups] = await Promise.all([lineGroups(num), loadLH()]);
+  clearTimeout(lhWait);
   if (tok !== TOKEN) return;
   if (!groups.length) { msg(`לא נמצא קו ${esc(num)} שפועל היום.${/^\d+$/.test(num) ? ` <a href="#s=${esc(num)}">לחפש תחנה שהקוד שלה ${esc(num)}?</a>` : ''}`, true); return; }
-  const G = groups.find(g => g.key === VIEW.g) || (groups.length === 1 ? groups[0] : null);
-  if (!G) { renderPicker(groups, num); return; }
+  // קו ועיר ("4 קרית גת") — רק הקווים שעוברים בעיר הזאת
+  let gs = groups;
+  if (VIEW.city) {
+    gs = groups.filter(g => hayHas(groupHay(g), VIEW.city));
+    if (!gs.length) {
+      const cs = [...new Set(groups.flatMap(g => { const e = ends(g.dmain[g.dirs[0]]); return e.city ? [e.city] : [e.fr, e.to].map(x => String(x || '').split(',')[0].trim()); }).filter(Boolean))];
+      msg(`לא נמצא היום קו ${esc(num)} ב${esc(VIEW.city)}.${cs.length ? `<div class="why">קו ${esc(num)} נוסע ב: ${esc(cs.slice(0, 12).join(', '))}${cs.length > 12 ? ' ועוד' : ''}</div>` : ''}<div class="why"><a href="#l=${encodeURIComponent(num)}">לכל הקווים ${esc(num)}</a> · <a href="#" id="asStop">לחפש תחנה בשם הזה</a></div>`, true);
+      const a = $('#asStop');
+      if (a) a.addEventListener('click', e => { e.preventDefault(); $('#q').value = VIEW.city + ' ' + num; suggest(true); });
+      return;
+    }
+  }
+  const G = gs.find(g => g.key === VIEW.g) || (gs.length === 1 ? gs[0] : null);
+  if (!G) { renderPicker(gs, num, VIEW.city); return; }
   DIRF = G.dirs.includes(VIEW.d) ? VIEW.d : G.dirs[0];
   const picker = groups.length > 1;
 
+  stage(tok, 'טוען את הנסיעות ומיקומי האוטובוסים…');
   const refs = G.routes.map(r => r.line_ref);
   const now = Date.now();
   const profP = ensureProfiles(refs);
@@ -665,25 +718,27 @@ async function loadLine(tok) {
   await enrich(tok, upcoming, active.map(r => r.vehicle_ref), pending => renderLine({ G, picker, act, upcoming, num }, pending));
 }
 // בחירת קו: כרטיס לכל חברה וכיוון — מוצא ← יעד, כמו בהקו בזמן. שלוש שורות, והשאר מאחורי "עוד"
-function renderPicker(groups, num) {
+function renderPicker(groups, num, city) {
   const cards = [];
   for (const g of groups) for (const dr of g.dirs) cards.push({ g, dr, e: ends(g.dmain[dr]) });
   const per = matchMedia('(min-width:560px)').matches ? 3 : 2, lim = per * 3;
   const hid = cards.length > lim + 1 ? cards.length - lim : 0;
-  const cardsHTML = cards.map((c, i) => `<button class="pick${hid && i >= lim ? ' x' : ''}" title="${esc(c.e.title || '')}" data-g="${esc(c.g.key)}" data-d="${esc(c.dr)}">
+  const cardsHTML = cards.map((c, i) => `<button class="pick${hid && i >= lim ? ' x' : ''}" data-hay="${esc(groupHay(c.g))}" title="${esc(c.e.title || '')}" data-g="${esc(c.g.key)}" data-d="${esc(c.dr)}">
       <span class="pop">${esc(c.g.agency)}${c.e.city ? ` · <b>${esc(c.e.city)}</b>` : ''}</span>${endsHTML(c.e)}</button>`).join('');
-  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span><b>${groups.length} קווים בשם הזה</b><small>בחרו לאן</small></span></div>
-    ${cards.length > lim ? `<input id="pf" class="pf" type="search" placeholder="סינון לפי עיר, תחנה או חברה" aria-label="סינון הקווים">` : ''}
+  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span><b>${city ? `קו ${esc(num)} ב${esc(city)}` : `${groups.length} קווים בשם הזה`}</b><small>${city ? `${groups.length} קווים · ` : ''}בחרו לאן</small></span></div>
+    ${cards.length > lim ? `<input id="pf" class="pf" type="search" placeholder="סינון לפי עיר, תחנה או חברה (למשל קרית גת)" aria-label="סינון הקווים">` : ''}
     <div class="picks">${cardsHTML}</div><div id="pnone" class="msg" hidden>אין קו כזה ברשימה.</div>${hid ? `<button class="pmore" id="pmore">עוד ${hid} ▾</button>` : ''}`;
   dropMap();
   bindOut();
   const m = $('#pmore'), f = $('#pf');
   if (m) m.addEventListener('click', () => { document.querySelectorAll('.pick.x').forEach(b => b.classList.remove('x')); m.remove(); });
   if (f) f.addEventListener('input', () => {
-    const w = f.value.trim().split(/\s+/).filter(Boolean);
+    // אותה השוואה כמו בחיפוש: קריית/קרית, גרשיים, "ק. גת"; מספר הקו עצמו לא מסנן
+    const w = cityNorm(f.value).trim().split(' ').filter(x => x && x !== num);
     let n = 0;
     document.querySelectorAll('.pick').forEach(b => {
-      const ok = w.every(x => b.textContent.includes(x));
+      const hay = cityNorm(b.textContent) + '|' + b.dataset.hay;
+      const ok = w.every(x => hay.includes(x));
       b.hidden = !ok; if (ok) n++;
       if (w.length) b.classList.remove('x');
     });
@@ -721,7 +776,7 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
   const known = up.filter(d => d.ride && d.ride.vehicle_ref).length;
   $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span class="rt" title="${esc(e.title || '')}"><span class="pop">${esc(G.agency)}${e.city ? ` · <b>${esc(e.city)}</b>` : ''}</span><span class="ends">${endsHTML(e)}</span></span></div>
     ${acts0 ? `<div class="acts">${acts0}</div>` : ''}
-    <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>
+    <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}
     ${ups || '<div class="msg">אין יציאות בשעה הקרובה.</div>'}
     <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary><span>בדרך עכשיו <span class="cnt">${a.length}</span></span>${CHEV}</summary><div class="fin">
       ${a.length ? '<div id="map"></div>' + acts : '<div class="msg">אין כרגע אוטובוס של הקו בדרך (לפי הנתונים).</div>'}</div></details>`;
@@ -746,9 +801,9 @@ function findStops(q) {
   return out.sort((a, b) => a[2] - b[2] || a[1][0].localeCompare(b[1][0], 'he')).slice(0, 12);
 }
 function hideSugg() { const s = $('#sugg'); if (s) { s.hidden = true; s.innerHTML = ''; } }
-async function suggest() {
+async function suggest(force) {
   const q = $('#q').value.trim();
-  if (MODE !== 'ls' || q.length < 2 || /^\d+[א-ת]?$/.test(q)) { hideSugg(); return; }
+  if (MODE !== 'ls' || q.length < 2 || /^\d+[א-ת]?$/.test(q) || (!force && parseLineCity(q))) { hideSugg(); return; }
   await loadStops();
   if ($('#q').value.trim() !== q) return;
   const res = findStops(q), el = $('#sugg');
@@ -759,6 +814,7 @@ async function suggest() {
 const STOPID = {};
 async function loadStop(tok) {
   const code = VIEW.code, now = Date.now();
+  stage(tok, 'טוען את הנסיעות בתחנה…');
   if (!STOPID[code]) {
     const r = await api('/gtfs_stops/list', { code, date_from: ilDate(0), date_to: ilDate(0), limit: 5 });
     if (!r.length) { if (tok === TOKEN) msg(`לא נמצאה תחנה שהקוד שלה ${esc(code)}.`, true); return; }
@@ -820,7 +876,7 @@ function renderStop(S, list, pending) {
     return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', short: esc(d.active ? (s.short.replace(/^בדרך( · )?/, '') || 'בדרך לתחנה') : s.short), pill: d.active ? { cls: 'v-run', txt: 'בדרך' } : pillOf(s, pending), body: why + depBody(d, s, d.op) });
   }).join('');
   $('#out').innerHTML = `<div class="rhead"><span class="sicon" aria-hidden="true">${ICON_STOP}</span><span><b>${esc(S.name)}</b><small>${esc(S.city)} · תחנה ${esc(S.code)}</small></span></div>
-    <h2 class="sec">מגיעים בשעה הקרובה</h2>${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
+    <h2 class="sec">מגיעים בשעה הקרובה</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
   MAPDATA = null;
   bindOut();
 }
@@ -829,7 +885,10 @@ function renderStop(S, list, pending) {
 async function loadVeh(tok) {
   const plate = VIEW.plate;
   if (!plate || plate.length < 4) { msg('מספר רכב לא תקין.', true); return; }
+  const fw = setTimeout(() => stage(tok, 'טוען את נתוני צי הרכבים…'), 2000);
   const [vs] = await Promise.all([vehiclesNow([plate]), loadFleet().then(() => ensureSeats([plate]))]);
+  clearTimeout(fw);
+  stage(tok, 'טוען את מסלול הנסיעה…');
   if (tok !== TOKEN) return;
   const st = vs[plate];
   const refs = st.rides.map(r => r.siri_route__line_ref);
@@ -936,7 +995,9 @@ $('#f').addEventListener('submit', async e => {
   if (!q) return;
   hideSugg();
   if (MODE === 'veh') { go('#v=' + norm(q)); return; }
-  if (lineLike(q)) go('#l=' + encodeURIComponent(q));
+  const lc = parseLineCity(q);
+  if (lc) go('#l=' + encodeURIComponent(lc.num) + '&c=' + encodeURIComponent(lc.city));
+  else if (lineLike(q)) go('#l=' + encodeURIComponent(q));
   else if (/^\d{4,6}$/.test(q)) go('#s=' + q);
   else { await suggest(); const first = $('#sugg [data-s]'); if (first && $('#sugg').querySelectorAll('[data-s]').length === 1) go('#s=' + first.dataset.s); }
 });
