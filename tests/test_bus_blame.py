@@ -67,5 +67,51 @@ class BlameTests(unittest.TestCase):
         self.assertEqual(1, g(OF, 'next trip departure measured'))
         self.assertEqual(0, g(OF, 'of them: departed on time (-1..+3 min)'))
 
+    def test_late_departure_cause(self):
+        # לכל נסיעה שיצאה באיחור (> 3 דק') — מה עשה אותו רכב לפני כן
+        H, P = 3600, (31.73, 34.74)
+        far = (31.90, 34.74)
+        m = lambda h, mi: h * H + mi * 60
+        ag = 'אגד'
+        DQ = [
+            # רכב 1: הנסיעה של 7:00 יצאה 5 דק' באיחור והגיעה 7:35 — הבאה (7:30) יצאה 7:40: (a), והקודמת יצאה באיחור
+            (ag, 'r1', m(7, 0), m(7, 25), 300, 10 * 60, '1', P, P),     # הראשונה ביום, יצאה באיחור: (c)
+            (ag, 'r1', m(7, 30), m(7, 55), 600, 0, '1', P, P),
+            # רכב 2: הגיע 10:20, היציאה 10:30 — יצא 10:36: חיכה במסוף (b)
+            (ag, 'r1', m(10, 0), m(10, 25), 0, -5 * 60, '2', P, P),
+            (ag, 'r1', m(10, 30), m(10, 55), 360, 0, '2', P, P),
+            # רכב 3: הקודמת יצאה בזמן אבל איבדה בדרך 10 דק' — (a) בלי "הקודמת יצאה באיחור"
+            (ag, 'r1', m(12, 0), m(12, 25), 60, 10 * 60, '3', P, P),
+            (ag, 'r1', m(12, 30), m(12, 55), 300, 0, '3', P, P),
+            # רכב 4: הקודמת נגמרה רחוק — אין נסיעה קודמת שמתחברת (c); וסוף לא נמדד (d)
+            (ag, 'r1', m(13, 0), m(13, 25), 0, 0, '4', P, far),
+            (ag, 'r1', m(13, 30), m(13, 55), 400, None, '4', P, P),
+            (ag, 'r1', m(14, 0), m(14, 25), 500, 0, '4', P, P),
+            # בזמן — לא באיחור
+            (ag, 'r1', m(14, 30), m(14, 55), 120, 0, '4', P, P),
+        ]
+        r = b.cause_day(DQ, {})
+        a = dict(zip(b.CAUSE_COLS, r['agencies'][ag]))
+        PK, OF = 'peak (06-09, 15-19): ', 'off-peak: '
+        A, A1 = b._CAUSE_BLOCK[3], b._CAUSE_BLOCK[5]
+        B, C, D = b._CAUSE_BLOCK[6], b._CAUSE_BLOCK[8], b._CAUSE_BLOCK[10]
+        self.assertEqual(2, a[PK + 'departures with measured origin departure'])
+        self.assertEqual(2, a[PK + 'departed late (> +3 min)'])
+        self.assertEqual(1, a[PK + A])
+        self.assertEqual(1, a[PK + A1])
+        self.assertEqual(1, a[PK + C])
+        self.assertEqual(300, a[PK + b._CAUSE_BLOCK[9]])
+        self.assertEqual(8, a[OF + 'departures with measured origin departure'])
+        self.assertEqual(4, a[OF + 'departed late (> +3 min)'])
+        self.assertEqual(1, a[OF + A])
+        self.assertEqual(0, a[OF + A1])
+        self.assertEqual(1, a[OF + B])
+        self.assertEqual(360, a[OF + b._CAUSE_BLOCK[7]])
+        self.assertEqual(1, a[OF + C])
+        self.assertEqual(1, a[OF + D])
+        self.assertEqual(r['tot'], r['agencies'][ag])
+        self.assertIn('r1', r['lines'])
+
+
 if __name__ == '__main__':
     unittest.main()

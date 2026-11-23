@@ -847,6 +847,87 @@ def layover_day(DQ, catalog):
             'lines': {k: v for k, v in L.items() if v[0] + v[nb] >= 3}}
 
 
+_CAUSE_BLOCK = ['departures with measured origin departure', 'departed late (> +3 min)', 'late: delay sec (sum)',
+                'late, a: vehicle came late from its previous trip (previous trip ended after scheduled departure - 1 min)',
+                'late, a: delay sec (sum)', 'of a: the previous trip had itself departed late (> +3 min)',
+                'late, b: vehicle was at the terminal 1+ min before scheduled departure but left late', 'late, b: delay sec (sum)',
+                "late, c: no chainable previous trip (vehicle's first trip that day, from depot / elsewhere, or vehicle swap)",
+                'late, c: delay sec (sum)', "late, d: previous trip found but its end wasn't measured", 'late, d: delay sec (sum)']
+CAUSE_COLS = ['peak (06-09, 15-19): ' + c for c in _CAUSE_BLOCK] + ['off-peak: ' + c for c in _CAUSE_BLOCK]
+CAUSE_LATE = 180      # יצאה באיחור = יותר מ-3 דק' אחרי הזמן (כמו "יציאה בזמן" = בין דקה לפני ל-3 אחרי)
+
+
+def _trim0(v):
+    while v and not v[-1]:
+        v = v[:-1]
+    return v
+
+
+def cause_day(DQ, catalog):
+    """למה הנסיעה יצאה באיחור מתחנת המוצא (שלמה 23.11: "מה גרם לאיחורים והאם הסדרנים עשו עבודה טובה,
+    כי רואים איזה רכב זה ואיפה הוא"). לכל נסיעה שיצאה יותר מ-3 דק' אחרי הזמן — הנסיעה הקודמת של אותו
+    רכב (כמו ב-layover_day: הסוף שלה עד 90 דק' לפני היציאה המתוכננת, עד 1.5 ק"מ מתחנת המוצא):
+    a. הרכב הגיע באיחור מהנסיעה הקודמת — סיים אחרי (היציאה המתוכננת פחות דקה). ומתוכן: הקודמת יצאה
+       בעצמה באיחור (אחרת — איבדה זמן בדרך).
+    b. הרכב חיכה במסוף (הגיע לפחות דקה לפני) ובכל זאת יצא באיחור — הסדרן או הנהג.
+    c. אין נסיעה קודמת שמתחברת — הנסיעה הראשונה של הרכב ביום, הגיע מחניון או ממקום אחר, או רכב שהוחלף.
+    d. יש נסיעה קודמת אבל הסוף שלה לא נמדד — לא ידוע.
+    מונים וסכומי שניות, בשיא ובשאר היום, כך שאפשר לחבר ימים ולחלק בעמוד."""
+    byv = collections.defaultdict(list)
+    for t in DQ:
+        if t[6] and t[6] != '0':
+            byv[t[6]].append(t)
+    nb = len(_CAUSE_BLOCK)
+    agg = lambda: [0] * len(CAUSE_COLS)
+    A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
+    L = collections.defaultdict(agg)
+
+    def add(t, prev):
+        ag, rid, sdep, send, do, fin, veh, opos, epos = t
+        if do is None:
+            return
+        o = 0 if (sdep // 3600) % 24 in PEAK_H else nb
+        late = do > CAUSE_LATE
+        k = None
+        if late:
+            if prev is None:
+                k = 8
+            elif prev[5] is None:
+                k = 10
+            elif prev[3] + prev[5] > sdep - LAY_READY:
+                k = 3
+            else:
+                k = 6
+        row = catalog.get(rid) or []
+        cl = row[8] if len(row) > 8 and row[8] else ''
+        for x in (A[ag], T, L[rid]) + ((C[cl],) if cl else ()):
+            x[o] += 1
+            if late:
+                x[o + 1] += 1
+                x[o + 2] += do
+                x[o + k] += 1
+                x[o + k + 1] += do
+                if k == 3 and prev[4] is not None and prev[4] > CAUSE_LATE:
+                    x[o + 5] += 1
+
+    for lst in byv.values():
+        lst.sort(key=lambda t: t[2])
+        prv = None
+        for cur in lst:
+            p = None
+            if prv is not None:
+                gap = cur[2] - prv[3]
+                km = _km(prv[8], cur[7])
+                if 0 <= gap <= LAY_GAP and km is not None and km <= 1.5:
+                    p = prv
+            add(cur, p)
+            prv = cur
+    # נסיעות בלי מספר רכב — אי אפשר לשרשר; לא נספרות (אחרת היו נראות כ"אין נסיעה קודמת")
+    return {'cols': CAUSE_COLS, 'tot': T, 'agencies': dict(A),
+            'clusters': {k: v for k, v in C.items() if v[0] + v[nb] >= 30},
+            'lines': {k: _trim0(v) for k, v in L.items() if v[0] + v[nb] >= 3}}
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -1497,6 +1578,7 @@ def main():
     city_trips = {c: [sum(sched_per_route.get(rid, 0) for rid in rr), sum(R[rid]['obs'] for rid in rr)] for c, rr in city_routes.items()}
     blame = blame_day(BT, catalog)
     blame['lay'] = layover_day(DQ, catalog)
+    blame['cause'] = cause_day(DQ, catalog)
     day_obj = {
         'blame': blame,
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),

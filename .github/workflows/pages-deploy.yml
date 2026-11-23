@@ -23,6 +23,7 @@ on:
       - historical-passenger-websites
       - historical-2012-2018
       - line-history
+      - line-changes   # מצגת לשינוי בקו — שהאתר יתעדכן מיד כשהבנייה נגמרת (23.11)
       - line-hub
       - kavpach-build
       - bus-reliability
