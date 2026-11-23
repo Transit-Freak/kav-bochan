@@ -40,7 +40,7 @@ const TOOLS = {
 };
 
 // home/home.js — רשימת הכלים של דף הבית (KBH.ALL: כל הכרטיסים, וגם נגישות אזורי תעשייה) והסמלים (KBH.ICON).
-// ממנו נבנים גם ChoiceScreen ב-KavPach.jsx וגם הדף הסטטי ב-index.html
+// ממנו נבנים גם ChoiceScreen ב-kavpach/src/06-home.jsx וגם הדף הסטטי ב-index.html
 const HOME_JS = fs.readFileSync(path.join(ROOT, 'home', 'home.js'), 'utf8');
 const KBH = (() => { const ctx = { window: {}, console }; vm.createContext(ctx); vm.runInContext(HOME_JS, ctx); return ctx.window.KBH; })();
 // הסמל כקובץ SVG עצמאי — עם ההגדרות המשותפות (kb-sheen, kb-glass…) שבדף הבית נמצאות פעם אחת ב-DEFS

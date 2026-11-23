@@ -152,7 +152,7 @@ jobs:
           files=$(find _site -type f | wc -l); mb=$(du -sm --apparent-size _site | cut -f1)
           echo "באתר: $files קבצים · ${mb}MB (לפני כיווץ)"
           bad=""
-          for f in index.html CNAME 404.html .nojekyll versions.json version.js KavPach.js \
+          for f in index.html CNAME 404.html .nojekyll versions.json version.js KavPach.js kavpach/src/files.json \
                    line-history/index.html line-history/src/files.json line-history/data/lines.json \
                    bus/index.html bus/data/index.json fleet/index.html; do
             [ -e "_site/$f" ] || bad="$bad $f"

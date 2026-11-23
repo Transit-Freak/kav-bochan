@@ -4,7 +4,7 @@
 
 Build: `node tools/build_line_hub.mjs`. Test: `node --test tests/line-hub.test.mjs`.
 
-The builder runs the existing xlsx-worker parser and kavpach-core scores, and evaluates the exact Golden `useMemo` calculation from the repository's KavPach.jsx with its default settings. A changed source contract fails the build instead of silently inventing a score. Generated files are deterministic, split into 100 buckets, with a hash per bucket in the catalog. Each page loads the catalog and its selected bucket, not the national schedule.
+The builder runs the existing xlsx-worker parser and kavpach-core scores, and evaluates the exact Golden `useMemo` calculation from the repository's KavPach source (`kavpach/src`, parts joined in `files.json` order) with its default settings. A changed source contract fails the build instead of silently inventing a score. Generated files are deterministic, split into 100 buckets, with a hash per bucket in the catalog. Each page loads the catalog and its selected bucket, not the national schedule.
 
 Identity: one page per Ministry makat. Reliability variants join routes.json[routeId][0] to that makat, preserving direction and alternative. Legacy scores group several makats in some cases; display explicitly labels that scope. Passenger rows cannot be assigned to a particular GTFS alternative.
 

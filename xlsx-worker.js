@@ -13,7 +13,7 @@ self.importScripts("vendor/xlsx.full.min.js");
 const post = (msg) => self.postMessage(msg);
 const progress = (pct, message) => post({ type: 'progress', percent: pct, message });
 
-// ── helpers (מועתקים מ-KavPach.jsx) ───────────────────────────────────
+// ── helpers (מועתקים מ-kavpach/src) ───────────────────────────────────
 const fmtTime = (v) => {
   if (v === null || v === undefined || v === "") return "";
   if (typeof v === "number") {
