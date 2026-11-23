@@ -31,6 +31,12 @@ const km = m => (m / 1000).toLocaleString('he-IL', { maximumFractionDigits: m < 
 
 class ApiErr extends Error {}
 
+// רק דן בדרום (31) ודן באר שבע (32): רק הן משדרות מראש איזה רכב ייסע בכל נסיעה, וזה מה שהדף מוסיף על
+// כל אפליקציה אחרת (שלמה 23.11). קווים, תחנות ורכבים של חברות אחרות — הודעה קצרה במקום תוצאות
+const OPS = new Set(['31', '32']);
+const ours = op => OPS.has(String(op));
+const ONLY = 'כרגע האתר עובד רק בקווים של דן בדרום ודן באר שבע — רק הן מודיעות מראש איזה אוטובוס ייסע.';
+
 async function api(path, params, timeout = 35000) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params || {})) if (v != null && v !== '') qs.set(k, v);
@@ -637,7 +643,7 @@ function depState(d, pending) {
     return { cls: 'v-run', short: e && e.L ? `בדרך · ${km(d.loc.distance_from_journey_start || 0)} מתוך ${km(e.L)} ק״מ` : 'בדרך', long: '' };
   }
   if (!plate) {
-    return { cls: '', unk: true, short: d.t < now ? 'לא נראה רכב בנסיעה הזאת' : '', long: d.t < now ? 'בנתונים לא נראה רכב שיצא לנסיעה הזאת (הנתונים מגיעים באיחור של כמה דקות).' : 'החברה עוד לא שידרה איזה רכב ייסע בנסיעה הזאת. רוב החברות משדרות את זה רק כשהנסיעה מתחילה.' };
+    return { cls: '', unk: true, short: d.t < now ? 'לא נראה רכב בנסיעה הזאת' : '', long: d.t < now ? 'בנתונים לא נראה רכב שיצא לנסיעה הזאת (הנתונים מגיעים באיחור של כמה דקות).' : 'החברה עוד לא שידרה איזה רכב ייסע בנסיעה הזאת.' };
   }
   // עוד לא ידוע מה הרכב עושה עכשיו (הבקשה ל-Open Bus בדרך)
   if (!d.st && pending && !d.stDone) return { cls: '', short: 'בודק מה האוטובוס עושה עכשיו…', long: 'בודק מה האוטובוס עושה עכשיו…', verdict: { cls: '', txt: 'מחשב הערכה…' } };
@@ -721,7 +727,8 @@ async function lineGroups(num) {
     const k = x.operator_ref + '-' + x.route_mkt;
     (g[k] = g[k] || { key: k, op: x.operator_ref, agency: x.agency_name, mkt: x.route_mkt, routes: [] }).routes.push(x);
   }
-  const list = Object.values(g).sort((a, b) => a.agency.localeCompare(b.agency, 'he') || a.mkt.localeCompare(b.mkt));
+  const all = Object.values(g), list = all.filter(x => ours(x.op)).sort((a, b) => a.agency.localeCompare(b.agency, 'he') || a.mkt.localeCompare(b.mkt));
+  list.others = all.filter(x => !ours(x.op)); // קווים בשם הזה של חברות אחרות
   for (const G of list) {
     G.routes.sort((a, b) => a.route_direction.localeCompare(b.route_direction) || a.route_alternative.localeCompare(b.route_alternative));
     G.dirs = [...new Set(G.routes.map(r => r.route_direction))];
@@ -747,6 +754,7 @@ async function loadLine(tok) {
   };
   const groups = await lineGroups(num);
   if (tok !== TOKEN) return;
+  if (!groups.length && groups.others.length) { msg(`קו ${esc(num)} שפועל היום הוא של חברה אחרת.<div class="why">${ONLY}</div>`); return; }
   if (!groups.length) { msg(`לא נמצא קו ${esc(num)} שפועל היום.${/^\d+$/.test(num) ? ` <a href="#s=${esc(num)}">לחפש תחנה שהקוד שלה ${esc(num)}?</a>` : ''}`, true); return; }
   // קו ועיר ("4 קרית גת") — רק הקווים שעוברים בעיר הזאת
   let gs = groups;
@@ -754,6 +762,11 @@ async function loadLine(tok) {
     await waitLH();
     if (tok !== TOKEN) return;
     gs = groups.filter(g => hayHas(groupHay(g), VIEW.city));
+    // הקו בעיר הזאת קיים, אבל של חברה אחרת
+    if (!gs.length && groups.others.some(g => hayHas(groupHay(g), VIEW.city))) {
+      msg(`קו ${esc(num)} ב${esc(VIEW.city)} הוא של חברה אחרת.<div class="why">${ONLY}</div>`);
+      return;
+    }
     if (!gs.length) {
       const cs = [...new Set(groups.flatMap(g => { const e = ends(g.dmain[g.dirs[0]]); return e.city ? [e.city] : [e.fr, e.to].map(x => String(x || '').split(',')[0].trim()); }).filter(Boolean))];
       msg(`לא נמצא היום קו ${esc(num)} ב${esc(VIEW.city)}.${cs.length ? `<div class="why">קו ${esc(num)} נוסע ב: ${esc(cs.slice(0, 12).join(', '))}${cs.length > 12 ? ' ועוד' : ''}</div>` : ''}<div class="why"><a href="#l=${encodeURIComponent(num)}">לכל הקווים ${esc(num)}</a> · <a href="#" id="asStop">לחפש תחנה בשם הזה</a></div>`, true);
@@ -883,14 +896,19 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
 
 /* ===== חיפוש לפי תחנה ===== */
 let STOPS = null, stopsP = null;
+let STOPSET = null; // התחנות שבמסלולי הקווים של החברות (מהאינדקס); בלעדיו — כל התחנות
 function loadStops() {
-  if (!stopsP) stopsP = getJSON('../fares/data/stops.json').then(j => { STOPS = (j && j.stops) || {}; });
+  if (!stopsP) stopsP = Promise.all([getJSON('../fares/data/stops.json'), loadIndex()]).then(([j, ix]) => {
+    STOPS = (j && j.stops) || {};
+    if (ix && ix.stops) STOPSET = new Set(ix.stops);
+  });
   return stopsP;
 }
 function findStops(q) {
   const w = q.replace(/["'׳״]/g, '').split(/[\s,/]+/).filter(Boolean);
   const out = [];
   for (const [code, s] of Object.entries(STOPS || {})) {
+    if (STOPSET && !STOPSET.has(code)) continue;
     const hay = (s[0] + ' ' + s[1]).replace(/["'׳״]/g, '');
     if (w.every(x => hay.includes(x))) out.push([code, s, hay.startsWith(w[0]) ? 0 : 1]);
     if (out.length > 400) break;
@@ -912,6 +930,7 @@ const STOPID = {};
 async function loadStop(tok) {
   const code = VIEW.code, now = Date.now();
   stage(tok, 'טוען את הנסיעות בתחנה…');
+
   if (!STOPID[code]) {
     const r = await api('/gtfs_stops/list', { code, date_from: ilDate(0), date_to: ilDate(0), limit: 5 });
     if (!r.length) { if (tok === TOKEN) msg(`לא נמצאה תחנה שהקוד שלה ${esc(code)}.`, true); return; }
@@ -919,11 +938,17 @@ async function loadStop(tok) {
   }
   const S = STOPID[code];
   $('#q').value = S.name;
+  // תחנה שלא במסלולים של החברות (לפי האינדקס) — בלי לחפש בה נסיעות
+  const ix = await loadIndex();
+  if (tok !== TOKEN) return;
+  if (ix && ix.stops && !ix.stops.includes(String(code))) { msg(`בתחנה ${esc(S.name)} (${esc(S.city)}) לא עוברים קווים של דן בדרום או דן באר שבע.<div class="why">${ONLY}</div>`); return; }
   const rs = await api('/gtfs_ride_stops/list', { gtfs_stop_ids: S.id, arrival_time_from: iso(now - 15 * MIN), arrival_time_to: iso(now + 60 * MIN), limit: 400 });
   if (tok !== TOKEN) return;
   const deps = [];
+  if (rs.length && !rs.some(x => ours(x.gtfs_route__operator_ref))) { msg(`בשעה הקרובה לא עוברים בתחנה ${esc(S.name)} קווים של דן בדרום או דן באר שבע.<div class="why">${ONLY}</div>`); return; }
   for (const x of rs) {
     if (x.gtfs_route__route_type && x.gtfs_route__route_type !== '3') continue; // רק אוטובוסים
+    if (!ours(x.gtfs_route__operator_ref)) continue;
     if (!ROUTES[x.gtfs_route__line_ref]) ROUTES[x.gtfs_route__line_ref] = { line_ref: x.gtfs_route__line_ref, route_short_name: x.gtfs_route__route_short_name, route_long_name: x.gtfs_route__route_long_name, route_mkt: x.gtfs_route__route_mkt, route_alternative: x.gtfs_route__route_alternative, route_direction: x.gtfs_route__route_direction, agency_name: x.gtfs_route__agency_name, operator_ref: x.gtfs_route__operator_ref, date: x.gtfs_route__date };
     deps.push({ ref: x.gtfs_route__line_ref, t: T(x.gtfs_ride__start_time), at: T(x.arrival_time), sd: x.shape_dist_traveled, op: x.gtfs_route__operator_ref });
   }
@@ -991,8 +1016,18 @@ async function loadVeh(tok) {
   const plate = VIEW.plate;
   if (!plate || plate.length < 4) { msg('מספר רכב לא תקין.', true); return; }
   const fw = setTimeout(() => stage(tok, 'טוען את נתוני צי הרכבים…'), 2000);
-  const [vs] = await Promise.all([vehiclesNow([plate]), loadFleet().then(() => ensureSeats([plate]))]);
+  // רכב שבצי של חברה אחרת — עונים מיד, בלי לחכות ל-Open Bus (בלי אינדקס: מהצי המלא)
+  const vsP = vehiclesNow([plate]);
+  vsP.catch(() => {});
+  await loadFleet();
+  if (tok !== TOKEN) return;
+  const r0 = vrec(plate), mine = !!(r0 && r0.fop != null && ours(r0.fop));
+  const notOurs = () => { clearTimeout(fw); msg(`הרכב ${esc(plate)} לא נוסע בקווים של דן בדרום או דן באר שבע.<div class="why">${ONLY}</div>`); };
+  if (r0 && r0.fop != null && !mine) { notOurs(); return; }
+  const [vs] = await Promise.all([vsP, ensureSeats([plate])]);
   clearTimeout(fw);
+  if (tok !== TOKEN) return;
+  if (!mine && !vs[plate].rides.some(r => ours(r.siri_route__operator_ref))) { notOurs(); return; }
   stage(tok, 'טוען את מסלול הנסיעה…');
   if (tok !== TOKEN) return;
   const st = vs[plate];
@@ -1042,7 +1077,7 @@ function renderVeh(plate, st, trail, pending) {
     ${detail('v-why', 'הסבר ומיקום', `<div class="now">${st.rides.length || st.cur ? curText(p, pending) : 'לא נמצאו נסיעות של הרכב הזה ב-5 השעות האחרונות.'}</div>
       ${st.loc ? `<div class="why">מיקום מ-${hm(T(st.loc.recorded_at_time))}${st.loc.velocity != null ? ` · ${st.loc.velocity} קמ״ש` : ''}</div><div id="map"></div>` : ''}
       ${next ? `<div class="why">${p.state === 'busy' && p.free ? `ההערכה: הנסיעה הנוכחית תסתיים בסביבות ${hm(p.free)}${p.est && p.est.how === 'a' ? ' (לפי משך הנסיעה הממוצע בלבד)' : ''}, מול יציאה ב-${hm(T(next.scheduled_start_time))}. לא כולל נסיעה ריקה בין סוף הקו לתחנת המוצא הבאה.` : ''}</div>`
-        : '<div class="why">רוב החברות משדרות את הנסיעה הבאה רק כשהיא מתחילה (חוץ מדן בדרום ודן באר שבע, שמשדרות שעות מראש).</div>'}`)}
+        : '<div class="why">החברה עוד לא שידרה את הנסיעה הבאה של הרכב.</div>'}`)}
     ${detail('v-fleet', 'פרטי הרכב', fleetGrid(plate, op))}
     ${rows ? detail('v-trips', `הנסיעות שלו היום · ${st.rides.length}`, `<ul class="trips">${rows}</ul>`) : ''}`;
   MAPDATA = st.loc ? { points: [{ loc: st.loc, plate, label: `${plate} · קו ${lineName(st.cur.siri_route__line_ref)}`, kab: v.known ? v.kab : null }], trail } : null;
@@ -1126,6 +1161,11 @@ $('#q').addEventListener('input', () => { clearTimeout(sT); sT = setTimeout(sugg
 document.addEventListener('click', e => { if (!e.target.closest('.search')) hideSugg(); });
 window.addEventListener('hashchange', route);
 loadSnap();
+// שורת הפתיחה: הערים של הקווים (מהאינדקס — שם הן נגזרות מהקווים עצמם)
+loadIndex().then(ix => {
+  const a = ix && ix.area;
+  if (a && a.length) $('#intro').innerHTML = `בקווים של <b>דן בדרום</b> ו<b>דן באר שבע</b> (${esc(a.join(', '))}) — החברות שמודיעות מראש איזה אוטובוס ייסע.`;
+});
 loadFleet();
 loadLH();
 loadRide();
