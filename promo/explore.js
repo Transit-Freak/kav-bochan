@@ -1,0 +1,11 @@
+const {open}=require('./lib.js');
+(async()=>{const t0=Date.now();const {pg,errs,close}=await open(8931);console.log('loaded',(Date.now()-t0)/1000);
+ const info=await pg.evaluate(()=>{const G=window.__game;const ids=['27010','28111','29003','25951','27212'];
+  return {half:G.city.meta.half,n:G.city.stops.length,stops:ids.map(i=>{const s=G.stopsById.get(i);return [i,s.name,Math.round(s.world.x),Math.round(s.world.z)]}),cam:G.camera.position.toArray(),t:G.sim.time,money:G.bank.money}});
+ console.log(JSON.stringify(info));
+ const adv=n=>pg.evaluate(n=>{for(let i=0;i<n;i++)window.__game.advance(1/30)},n);
+ await adv(10);let t=Date.now();await pg.screenshot({path:__dirname+'/ex/a0.png'});console.log('shot ms',Date.now()-t);
+ t=Date.now();await adv(1);console.log('adv ms',Date.now()-t);
+ await pg.evaluate(()=>{const G=window.__game;G.controls.target.set(150,0,-100);G.camera.position.set(-300,1200,1100);});await adv(20);
+ await pg.screenshot({path:__dirname+'/ex/a1.png'});
+ console.log(errs);await close();})();
