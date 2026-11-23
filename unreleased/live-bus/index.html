@@ -11,23 +11,25 @@
 <link rel="icon" type="image/svg+xml" href="../../fleet/favicon.svg">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="3" width="18" height="15" rx="3.5" fill="#fff"/><rect x="5.5" y="5.5" width="13" height="6" rx="1.2" fill="#10172A"/><circle cx="7.5" cy="15" r="1.3" fill="#10172A"/><circle cx="16.5" cy="15" r="1.3" fill="#10172A"/><rect x="5" y="18" width="3" height="3" rx="1" fill="#fff"/><rect x="16" y="18" width="3" height="3" rx="1" fill="#fff"/></svg></div>
-    <div class="ttl"><h1>האוטובוס הבא</h1><div class="tag"><span id="age">טוען…</span></div></div>
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3.5"/><path d="M4 11h16"/><path d="M8 18v2.5M16 18v2.5"/><circle cx="8.5" cy="14.5" r=".6" fill="#fff"/><circle cx="15.5" cy="14.5" r=".6" fill="#fff"/></svg></div>
+    <div class="ttl"><h1>האוטובוס הבא</h1><span id="age" class="age">טוען…</span></div>
     <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px"></span>
   </header>
-  <p class="sub">איזה אוטובוס ייסע, מה הוא עושה עכשיו, והאם יספיק להגיע בזמן.</p>
 
   <div class="bigs" role="group" aria-label="סוג החיפוש">
-    <button class="big" data-m="veh" aria-pressed="false"><span class="ic" aria-hidden="true">🚌</span>לפי מספר רכב</button>
-    <button class="big" data-m="ls" aria-pressed="false"><span class="ic" aria-hidden="true">🚏</span>לפי קו או תחנה</button>
+    <button class="big" data-m="veh" aria-pressed="false"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3.5"/><path d="M4 11h16"/><path d="M8 18v2.5M16 18v2.5"/><circle cx="8.5" cy="14.5" r=".7" fill="currentColor"/><circle cx="15.5" cy="14.5" r=".7" fill="currentColor"/></svg></span><span class="bt">לפי מספר רכב</span><small>מה הוא עושה עכשיו</small></button>
+    <button class="big" data-m="ls" aria-pressed="false"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V11"/><rect x="6" y="2" width="12" height="9" rx="2.5"/><path d="M9.5 6.5h5"/><path d="M8 22h8"/></svg></span><span class="bt">לפי קו או תחנה</span><small>מי ייסע בנסיעה הבאה</small></button>
   </div>
   <form id="f" class="search" autocomplete="off" hidden>
-    <input id="q" type="search" aria-label="חיפוש" enterkeyhint="search">
+    <div class="qwrap">
+      <svg class="qi" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="q" type="search" aria-label="חיפוש" enterkeyhint="search">
+    </div>
     <button type="submit" class="go">חיפוש</button>
     <div id="sugg" class="sugg" hidden></div>
   </form>
@@ -35,13 +37,17 @@
   <main id="out" aria-live="polite"></main>
 
   <footer class="foot">
-    <div>מקור הנתונים: <a href="https://open-bus-stride-api.hasadna.org.il/docs" target="_blank" rel="noopener">Open Bus Stride</a> של <a href="https://www.hasadna.org.il/" target="_blank" rel="noopener">הסדנא לידע ציבורי</a>, משידורי ה-SIRI של משרד התחבורה · פרטי הרכבים: צי הרכבים של הקו הבוחן (מאגר הרישוי ו"ציי רכב אוטובוסים", data.gov.il)</div>
-    <div id="src" class="srcline"></div>
-    <div class="dimnote">"יספיק / לא יספיק" היא הערכה בלבד: לפי מיקום האוטובוס ומשך הנסיעות האחרונות באותו קו. הנתונים מגיעים באיחור של כמה דקות, ורוב החברות משדרות איזה רכב ייסע רק כשהנסיעה מתחילה.</div>
+    <div>נתונים חיים: <a href="https://open-bus-stride-api.hasadna.org.il/docs" target="_blank" rel="noopener">Open Bus</a> · <a href="https://www.hasadna.org.il/" target="_blank" rel="noopener">הסדנא לידע ציבורי</a> · פרטי הרכבים: צי הרכבים של הקו הבוחן</div>
+    <details class="how"><summary>איך זה עובד</summary>
+      <p>המיקומים ושיבוץ הרכבים מגיעים משידורי ה-SIRI של משרד התחבורה, דרך Open Bus של הסדנא לידע ציבורי, באיחור של כמה דקות. רוב החברות משדרות איזה רכב ייסע רק כשהנסיעה מתחילה (דן בדרום ודן באר שבע משדרות שעות מראש).</p>
+      <p>"יספיק / על הגבול / לא יספיק" היא הערכה בלבד: כמה זמן לוקח בדרך כלל מהמקום שבו האוטובוס נמצא עד סוף הנסיעה, לפי נסיעות שהסתיימו ביומיים האחרונים באותו קו, מול שעת היציאה של הנסיעה הבאה שלו. לא כולל נסיעה ריקה בין קווים.</p>
+      <p>פרטי הרכב: מאגר הרישוי ומאגר "ציי רכב אוטובוסים" (data.gov.il). רכב קבלן = רכב שלא רשום בצי של החברות במאגר.</p>
+      <p id="src" class="srcline"></p>
+    </details>
   </footer>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="app.js?v=1" defer></script>
+<script src="app.js?v=2" defer></script>
 <script src="../../a11y.js" defer></script>
 </body>
 </html>

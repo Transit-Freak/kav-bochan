@@ -73,7 +73,8 @@ function showAge() {
   const el = $('#age');
   if (!SNAP) { el.textContent = 'בודק את גיל הנתונים…'; return; }
   const ago = Math.max(0, Math.round((Date.now() - SNAP) / MIN));
-  el.innerHTML = `<span class="live${ago > 12 ? ' old' : ''}"></span>נתונים מ-${hm(SNAP)}, לפני ${ago} דק׳${BI > 0 ? ' · שרת גיבוי' : ''}`;
+  el.innerHTML = `<span class="live${ago > 12 ? ' old' : ''}"></span>${ago <= 5 ? 'חי' : 'מעודכן'} · ${hm(SNAP)}${ago ? ` · לפני ${ago} דק׳` : ''}${BI > 0 ? ' · שרת גיבוי' : ''}`;
+  el.title = 'השעה של תמונת המצב האחרונה מ-Open Bus';
   showSrc();
 }
 function showSrc() {
@@ -437,8 +438,8 @@ function depState(d, pending) {
     return { cls: 'v-run', short: e && e.L ? `בדרך · ${km(d.loc.distance_from_journey_start || 0)} מתוך ${km(e.L)} ק״מ` : 'בדרך', long: '' };
   }
   if (!plate) {
-    if (d.guess) return { cls: '', short: `אולי ${norm(d.guess.r.vehicle_ref)} · ניחוש`, long: `ניחוש בלבד: אוטובוס <b>${esc(norm(d.guess.r.vehicle_ref))}</b> מסיים עכשיו את הקו בכיוון ההפוך, וצפוי להגיע בסביבות ${hm(d.guess.e.end)}. החברה עוד לא שידרה איזה רכב ייסע.`, guess: d.guess };
-    return { cls: '', short: d.t < now ? 'לא ידוע אם יצא' : 'הרכב עוד לא ידוע', long: d.t < now ? 'לא נראה רכב שיצא לנסיעה הזאת (ייתכן שעוד לא הגיע לנתונים).' : 'רוב החברות משדרות איזה רכב ייסע רק כשהנסיעה מתחילה.' };
+    if (d.guess) return { cls: '', short: `מסיים עכשיו בכיוון ההפוך, בסביבות ${hm(d.guess.e.end)}`, long: `ניחוש בלבד: אוטובוס <b>${esc(norm(d.guess.r.vehicle_ref))}</b> מסיים עכשיו את הקו בכיוון ההפוך, וצפוי להגיע בסביבות ${hm(d.guess.e.end)}. החברה עוד לא שידרה איזה רכב ייסע.`, guess: d.guess };
+    return { cls: '', unk: true, short: d.t < now ? 'לא ידוע אם יצא' : 'יתברר כשהנסיעה תתחיל', long: d.t < now ? 'לא נראה רכב שיצא לנסיעה הזאת (ייתכן שעוד לא הגיע לנתונים).' : 'רוב החברות משדרות איזה רכב ייסע רק כשהנסיעה מתחילה.' };
   }
   const st = d.st, p = plan(st, r);
   if (st && st.cur && st.cur.id === r.id) return { cls: 'v-ok', short: 'ממתין בתחנת המוצא', long: 'האוטובוס כבר משדר את הנסיעה הזאת ועומד בתחנת המוצא.', verdict: { cls: 'v-ok', txt: 'מוכן ליציאה' } };
@@ -450,7 +451,7 @@ function depState(d, pending) {
   if (v && v.cls === 'v-ok' && p.state !== 'busy' && !p.chain.length) v.txt = 'פנוי · יספיק';
   const chain = p.chain.length ? `<br>לפני כן ייסע גם ב-${p.chain.length === 1 ? 'נסיעה נוספת' : p.chain.length + ' נסיעות נוספות'}: ${p.chain.map(c => 'קו ' + esc(lineName(c.siri_route__line_ref)) + ' ב-' + hm(T(c.scheduled_start_time))).join(', ')}.` : '';
   let short;
-  if (p.state === 'busy') short = `עכשיו בקו ${lineName(p.ride.siri_route__line_ref)}` + (p.free ? ` · מסיים ~${hm(p.free)}` : '');
+  if (p.state === 'busy') short = `עכשיו בקו ${lineName(p.ride.siri_route__line_ref)}` + (p.free ? ` · מסיים בסביבות ${hm(p.free)}` : '');
   else if (p.state === 'done') short = 'סיים נסיעה · פנוי';
   else short = 'לא בנסיעה כרגע';
   if (p.chain.length) short += ` · עוד ${p.chain.length === 1 ? 'נסיעה' : p.chain.length + ' נסיעות'} לפני`;
@@ -473,21 +474,35 @@ function fleetGrid(plate, opRef) {
   if (!v.known) return '<div class="why">הרכב לא נמצא בצי הרכבים של הקו הבוחן.</div>';
   const g = [['חברה', v.opName], ['שייכות', v.kab === true ? 'רכב קבלן' : v.kab === false ? 'רכב של החברה' : ''], ['גודל', [v.size, v.kind].filter(Boolean).join(' · ')],
     ['מושבים', v.seats], ['דגם', v.model], ['שנת ייצור', v.year], ['הנעה', v.prop]]
-    .filter(x => x[1]).map(([k, x]) => `<div class="k">${k}</div><div>${esc(x)}</div>`).join('');
+    .filter(x => x[1]).map(([k, x]) => `<div class="k">${k}</div><div class="v">${esc(x)}</div>`).join('');
   return `<div class="grid">${g}</div>${v.other ? `<div class="why">בצי הרכבים רשום אצל ${esc(v.other)}.</div>` : ''}${v.kab ? '<div class="why">רכב קבלן = לא רשום בצי של החברות במאגר "ציי רכב אוטובוסים" של משרד התחבורה.</div>' : ''}`;
 }
+// התווית הצבעונית הקטנה בשורה הסגורה
+function pillOf(s, pending) {
+  if (s.cls === 'v-run') return { cls: 'v-run', txt: 'בדרך' };
+  if (s.guess) return { cls: 'p-guess', txt: 'ניחוש' };
+  if (s.unk) return null;
+  if (!s.verdict) return { cls: 'p-unk', txt: 'לא ידוע' };
+  const c = s.verdict.cls;
+  if (c === 'v-ok') return { cls: c, txt: s.short === 'ממתין בתחנת המוצא' ? 'מוכן' : 'יספיק' };
+  if (c === 'v-warn') return { cls: c, txt: 'על הגבול' };
+  if (c === 'v-bad') return { cls: c, txt: s.verdict.txt === 'הרכב כבר בנסיעה אחרת' ? 'הוחלף?' : 'לא יספיק' };
+  return { cls: 'p-unk', txt: pending ? 'מחשב…' : 'אין הערכה' };
+}
+const ICON_STOP = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 22V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="6" y="2" width="12" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 6.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 22h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const CHEV = '<svg class="arr" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // כרטיס קומפקטי: שורה אחת סגורה, והפרטים בפנים
-function card(id, { time, sub, line, plate, plateCls, short, stripe, body }) {
+function card(id, { time, sub, line, plate, plateCls, short, pill, body }) {
   const open = OPEN.has(id) ? ' open' : '';
-  return `<details class="card c ${stripe || ''}" data-id="${esc(id)}"${open}><summary>
-    <span class="t">${time}${sub ? `<small>${sub}</small>` : ''}</span>
-    <span class="mid">${line ? `<span class="badge line">${esc(line)}</span> ` : ''}${plate ? `<span class="plate ${plateCls || ''}">${esc(plate)}</span>` : ''}<span class="short">${short}</span></span>
-    <span class="arr" aria-hidden="true">▾</span></summary><div class="inner">${body}</div></details>`;
+  return `<details class="card c" data-id="${esc(id)}"${open}><summary>
+    <span class="t"><b>${time}</b>${sub ? `<small>${sub}</small>` : ''}</span>
+    <span class="mid"><span class="r1">${line ? `<span class="lchip">${esc(line)}</span>` : ''}${plate ? `<span class="plate ${plateCls || ''}">${esc(plate)}</span>` : '<span class="plate none">רכב לא ידוע</span>'}${pill ? `<span class="pill ${pill.cls}">${pill.txt}</span>` : ''}</span>
+      ${short ? `<span class="short">${short}</span>` : ''}</span>${CHEV}</summary><div class="inner">${body}</div></details>`;
 }
 function depBody(d, s, opRef) {
   const plate = d.ride && d.ride.vehicle_ref;
   let h = '';
-  if (s.verdict) h += `<div class="vline"><span class="badge ${s.verdict.cls}">${s.verdict.txt}</span> <span class="why">הערכה בלבד</span></div>`;
+  if (s.verdict) h += `<div class="vline ${s.verdict.cls ? 't-' + s.verdict.cls : ''}"><b>${s.verdict.txt}</b><span class="why">· הערכה בלבד</span></div>`;
   if (s.long) h += `<div class="now">${s.long}</div>`;
   if (plate) h += fleetGrid(plate, opRef) + `<button class="more" data-v="${esc(norm(plate))}">כל הנסיעות של הרכב ←</button>`;
   else if (s.guess) h += fleetGrid(s.guess.r.vehicle_ref, opRef) + `<button class="more" data-v="${esc(norm(s.guess.r.vehicle_ref))}">הרכב המשוער ←</button>`;
@@ -525,7 +540,7 @@ async function loadLine(tok) {
   if (!groups.length) { msg(`לא נמצא קו ${esc(num)} שפועל היום.${/^\d+$/.test(num) ? ` <a href="#s=${esc(num)}">לחפש תחנה שהקוד שלה ${esc(num)}?</a>` : ''}`, true); return; }
   const G = groups.find(g => g.key === VIEW.g) || (groups.length === 1 ? groups[0] : null);
   const chipsHTML = groups.map(g => `<button class="chip${G === g ? ' on' : ''}" data-g="${esc(g.key)}">${esc(g.agency)}<small>${esc(g.label)}</small></button>`).join('');
-  if (!G) { $('#out').innerHTML = `<div class="sec">יש ${groups.length} קווים ${esc(num)} — איזה?</div><div class="chips">${chipsHTML}</div>`; dropMap(); bindOut(); return; }
+  if (!G) { $('#out').innerHTML = `<h2 class="sec">יש ${groups.length} קווים ${esc(num)} — איזה?</h2><div class="chips">${chipsHTML}</div>`; dropMap(); bindOut(); return; }
   const picker = groups.length > 1 ? `<details class="other"><summary>קו ${esc(num)} אחר (${groups.length - 1})</summary><div class="chips">${chipsHTML}</div></details>` : '';
 
   const refs = G.routes.map(r => r.line_ref);
@@ -592,7 +607,7 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
     const dirT = G.dirs.length > 1 && DIRF === 'all' ? `<div class="why">${esc(toLabel(ROUTES[d.ref]))}</div>` : '';
     return card('d' + d.ref + '-' + d.t, {
       time: hm(d.t), sub: d.t < now ? 'היה אמור לצאת' : 'בעוד ' + Math.max(0, Math.round((d.t - now) / MIN)) + ' דק׳',
-      plate: plate ? norm(plate) : '', short: esc(s.short), stripe: s.verdict ? 's-' + s.verdict.cls : '', body: dirT + depBody(d, s, G.op),
+      plate: plate ? norm(plate) : s.guess ? norm(s.guess.r.vehicle_ref) : '', plateCls: plate ? '' : 'guess', short: esc(s.short), pill: pillOf(s, pending), body: dirT + depBody(d, s, G.op),
     });
   }).join('');
   const a = act.filter(d => fd(d.ref)).sort((x, y) => x.t - y.t);
@@ -602,14 +617,14 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
       ${e && e.frac != null ? `<div class="prog"><i style="width:${Math.round(e.frac * 100)}%"></i></div>` : ''}
       <div class="why">מיקום מ-${hm(T(l.recorded_at_time))}${l.velocity != null ? ` · ${l.velocity} קמ״ש` : ''}</div>
       ${fleetGrid(d.ride.vehicle_ref, G.op)}<button class="more" data-v="${esc(norm(d.ride.vehicle_ref))}">כל הנסיעות של הרכב ←</button>`;
-    return card('a' + d.ride.id, { time: hm(d.t), sub: 'יצא', plate: norm(d.ride.vehicle_ref), short: esc(depState(d).short), stripe: 's-v-run', body });
+    return card('a' + d.ride.id, { time: hm(d.t), sub: 'יצא', plate: norm(d.ride.vehicle_ref), short: esc(depState(d).short.replace(/^בדרך · /, '')), pill: { cls: 'v-run', txt: 'בדרך' }, body });
   }).join('');
   const known = up.filter(d => d.ride && d.ride.vehicle_ref).length;
-  $('#out').innerHTML = `<div class="rhead"><b>קו ${esc(num)}</b> · ${esc(G.agency)} <span class="n">${esc(G.label)}</span></div>${picker}${dchips}
-    <div class="sec">היציאות בשעה הקרובה <span class="n">רכב ידוע ל-${known} מתוך ${up.length}</span></div>
+  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span><b>${esc(G.agency)}</b><small>${esc(G.label)}</small></span></div>${picker}${dchips}
+    <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>
     ${ups || '<div class="msg">אין יציאות בשעה הקרובה.</div>'}
-    <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary>בדרך עכשיו · ${a.length} אוטובוסים</summary>
-      ${a.length ? '<div id="map"></div>' + acts : '<div class="msg">אין כרגע אוטובוס של הקו בדרך (לפי הנתונים).</div>'}</details>`;
+    <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary><span>בדרך עכשיו <span class="cnt">${a.length}</span></span>${CHEV}</summary><div class="fin">
+      ${a.length ? '<div id="map"></div>' + acts : '<div class="msg">אין כרגע אוטובוס של הקו בדרך (לפי הנתונים).</div>'}</div></details>`;
   MAPDATA = { points: a.map(d => ({ loc: d.loc, plate: norm(d.ride.vehicle_ref), label: norm(d.ride.vehicle_ref) })) };
   bindOut();
 }
@@ -699,12 +714,12 @@ function renderStop(S, list, pending) {
   const rows = list.slice(0, 40).map(d => {
     const s = depState(d, pending), plate = d.ride && d.ride.vehicle_ref;
     const mins = Math.round((d.eta - now) / MIN);
-    const sub = d.etaHow === 'live' ? (mins <= 0 ? 'מגיע עכשיו' : `בעוד ${mins} דק׳`) : d.etaHow === 'late' ? 'צפוי לאחר' : 'לפי הלו״ז';
+    const sub = d.etaHow === 'live' ? (mins <= 0 ? 'מגיע עכשיו' : `בעוד ${mins} דק׳`) : d.etaHow === 'late' ? 'צפוי באיחור' : 'לפי הלו״ז';
     const why = `<div class="why">${esc(toLabel(ROUTES[d.ref]))} · ${esc((ROUTES[d.ref] || {}).agency_name || '')} · בלו״ז: ${hm(d.at)}, יציאה מתחנת המוצא ${hm(d.t)}${d.etaHow === 'live' ? ' · זמן ההגעה מחושב לפי מיקום האוטובוס' : ''}</div>`;
-    return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', short: esc(d.active ? 'בדרך לתחנה' : s.short), stripe: s.verdict ? 's-' + s.verdict.cls : d.active ? 's-v-run' : '', body: why + depBody(d, s, d.op) });
+    return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', short: esc(d.active ? (s.short.replace(/^בדרך( · )?/, '') || 'בדרך לתחנה') : s.short), pill: d.active ? { cls: 'v-run', txt: 'בדרך' } : pillOf(s, pending), plateCls: plate ? '' : s.guess ? 'guess' : '', body: why + depBody(d, s, d.op) });
   }).join('');
-  $('#out').innerHTML = `<div class="rhead"><b>${esc(S.name)}</b> · ${esc(S.city)} <span class="n">תחנה ${esc(S.code)}</span></div>
-    <div class="sec">מגיעים בשעה הקרובה</div>${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
+  $('#out').innerHTML = `<div class="rhead"><span class="sicon" aria-hidden="true">${ICON_STOP}</span><span><b>${esc(S.name)}</b><small>${esc(S.city)} · תחנה ${esc(S.code)}</small></span></div>
+    <h2 class="sec">מגיעים בשעה הקרובה</h2>${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
   MAPDATA = null;
   bindOut();
 }
@@ -736,7 +751,7 @@ function renderVeh(plate, st, trail) {
   const nexts = st.rides.filter(r => T(r.scheduled_start_time) > after && T(r.scheduled_start_time) >= now - 5 * MIN && (!st.cur || r.id !== st.cur.id));
   const next = nexts[0];
   const nowLine = p.state === 'busy'
-    ? `<span class="badge line">קו ${esc(lineName(p.ride.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[p.ride.siri_route__line_ref]))}${p.free ? ` · מסיים ~${hm(p.free)}` : ''}`
+    ? `<span class="lchip" title="קו">${esc(lineName(p.ride.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[p.ride.siri_route__line_ref]))}${p.free ? ` · מסיים בסביבות ${hm(p.free)}` : ''}`
     : p.state === 'done' ? `סיים נסיעה בקו ${esc(lineName(p.ride.siri_route__line_ref))} · פנוי` : st.rides.length ? 'לא בנסיעה כרגע' : 'לא נמצאו נסיעות ב-5 השעות האחרונות';
   let vd = null;
   if (next) {
@@ -744,18 +759,18 @@ function renderVeh(plate, st, trail) {
     vd = pn.ready != null ? verdict(pn.ready, T(next.scheduled_start_time)) : { cls: '', txt: 'אין מספיק נתונים להערכה' };
     if (vd.cls === 'v-ok' && p.state !== 'busy') vd.txt = 'פנוי · יספיק';
   }
-  const nextLine = next ? `${hm(T(next.scheduled_start_time))} · <span class="badge line">קו ${esc(lineName(next.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[next.siri_route__line_ref]))}` : 'עוד לא ידוע';
+  const nextLine = next ? `<b class="ntm">${hm(T(next.scheduled_start_time))}</b> <span class="lchip" title="קו">${esc(lineName(next.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[next.siri_route__line_ref]))}` : 'עוד לא ידוע';
   const rows = st.rides.map(r => {
     const s = T(r.scheduled_start_time), isCur = st.cur && r.id === st.cur.id;
     const cls = isCur ? 'cur' : s < after ? 'past' : '';
     const stt = isCur ? (p.state === 'done' ? 'הסתיימה' : 'עכשיו') : s < after ? '' : s < now - 5 * MIN ? 'לא נראתה' : 'מתוכננת';
-    return `<li class="${cls}"><span class="tm">${hm(s)}</span><span><span class="badge line">קו ${esc(lineName(r.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[r.siri_route__line_ref]))}</span><span class="st">${stt}</span></li>`;
+    return `<li class="${cls}"><span class="tm">${hm(s)}</span><span><span class="lchip" title="קו">${esc(lineName(r.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[r.siri_route__line_ref]))}</span><span class="st">${stt}</span></li>`;
   }).join('');
   const prog = p.state === 'busy' && p.est && p.est.frac != null ? `<div class="prog"><i style="width:${Math.round(p.est.frac * 100)}%"></i></div>` : '';
-  const detail = (id, title, body) => `<details class="fold" data-id="${id}"${OPEN.has(id) ? ' open' : ''}><summary>${title}</summary>${body}</details>`;
-  $('#out').innerHTML = `<div class="card vcard"><div class="vhead"><span class="plate big-plate">${esc(plate)}</span><span class="vop">${esc(v.opName || '')}${v.kab ? ' · <span class="badge kab">קבלן</span>' : ''}</span></div>
+  const detail = (id, title, body) => `<details class="fold" data-id="${id}"${OPEN.has(id) ? ' open' : ''}><summary><span>${title}</span>${CHEV}</summary><div class="fin">${body}</div></details>`;
+  $('#out').innerHTML = `<div class="card vcard"><div class="vhead"><span class="plate big-plate">${esc(plate)}</span><span class="vop">${esc(v.opName || '')}</span>${v.kab ? '<span class="pill kab">קבלן</span>' : ''}</div>
       <div class="kv"><span class="k">עכשיו</span><span>${nowLine}${prog}</span></div>
-      <div class="kv"><span class="k">הנסיעה הבאה</span><span>${nextLine}${vd ? ` <span class="badge ${vd.cls}">${vd.txt}</span>` : ''}</span></div>
+      <div class="kv"><span class="k">הנסיעה הבאה</span><span>${nextLine}${vd ? `<span class="kvp"><span class="pill ${vd.cls || 'p-unk'}">${vd.txt}</span></span>` : ''}</span></div>
     </div>
     ${detail('v-why', 'הסבר ומיקום', `<div class="now">${st.rides.length || st.cur ? curText(p) : 'לא נמצאו נסיעות של הרכב הזה ב-5 השעות האחרונות.'}</div>
       ${st.loc ? `<div class="why">מיקום מ-${hm(T(st.loc.recorded_at_time))}${st.loc.velocity != null ? ` · ${st.loc.velocity} קמ״ש` : ''}</div><div id="map"></div>` : ''}
