@@ -8,6 +8,7 @@
   --accent:#0ea5e9; --accent2:#0369a1; --brand-lt:#e0f2fe; --brand-xl:#f0f9ff;
   --em:#059669; --em2:#10b981; --em-dk:#047857; --em-lt:#ecfdf5; --em-ln:#a7f3d0;
   --ok:#00A65A; --warn:#F4B400; --late:#F26B1D; --bad:#D7263D; --none:#C4CBD6; --early:#7C3AED;
+  --k-a:#0369a1; --k-b:#38bdf8; --k-c:#a78bfa; --k-d:var(--none);
   --mono:'Heebo','IBM Plex Sans Hebrew',sans-serif; --disp:'Heebo','IBM Plex Sans Hebrew',system-ui,sans-serif; --disp-w:800; --body:'IBM Plex Sans Hebrew','Heebo',system-ui,sans-serif;
   --radius:20px; --radius-sm:12px; --tag-ink:#fff; --scheme:light; --tip-bg:#0b1220; --tip-ink:#fff; --ovl:rgba(15,23,42,.34);
   --shadow-sm:0 1px 2px rgba(15,23,42,.05);
@@ -268,8 +269,10 @@ button:focus-visible,input:focus-visible,tr:focus-visible,a:focus-visible{outlin
 .lsc.g{background:var(--ok)}.lsc.y{background:var(--warn);color:var(--ink)}.lsc.o{background:var(--late)}.lsc.r{background:var(--bad)}.lsc.na{background:var(--panel2);color:var(--dim)}
 /* למה הנסיעות יצאו באיחור */
 .ktiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 8px}
-.ktiles>div{display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--line);border-top:4px solid var(--line2);border-radius:16px;padding:12px 14px;background:var(--panel);min-width:0;box-shadow:var(--shadow-sm)}
+.ktiles>div{display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:var(--panel);min-width:0;box-shadow:var(--shadow-sm)}
 .ktiles span{display:block;font-size:12.5px;font-weight:600;color:var(--mut);line-height:1.4;margin-bottom:4px}
+.ktiles span i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:-1px}
+.lsc.kn{background:var(--panel2);color:var(--ink);border:1px solid var(--line2)}
 .ktiles b{font-family:var(--disp);font-size:28px;font-weight:800;line-height:1.2}
 .kbar{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--panel2);min-width:60px}.kbar span{display:block;height:100%}
 .khead,.krow{display:grid;grid-template-columns:minmax(120px,1fr) 70px 2fr;gap:14px;align-items:center}

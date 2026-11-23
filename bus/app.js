@@ -272,7 +272,8 @@ function triBars(b, scale, lab) {
 // רכב זה ואיפה הוא"). לכל נסיעה שיצאה יותר מ-3 דק' אחרי הזמן — מה עשה אותו אוטובוס לפני כן
 // (tools/bus_reliability.py, cause_day). בכל בלוק (שיא, שאר היום) 12 עמודות.
 const KB = 12;
-const KCOL = {a: '#F26B1D', b: '#D7263D', c: '#1E5BC6', d: '#C4CBD6'};
+// הצבעים ב-theme.css (--k-a..--k-d), עם גרסה כהה ב-tools/dark-extra/bus.css
+const KCOL = {a: 'var(--k-a)', b: 'var(--k-b)', c: 'var(--k-c)', d: 'var(--k-d)'};
 const KLAB = {a: 'הגיע באיחור מהנסיעה הקודמת', b: 'חיכה במסוף ויצא באיחור', c: 'אין נסיעה קודמת', d: 'לא ידוע'};
 function causeRow(v) {
   const g = i => (v[i] || 0) + (v[KB + i] || 0);
@@ -296,7 +297,7 @@ function causeHtml(M) {
   const tot = causeRow(K.tot);
   const rows = Object.entries(K.A).map(([nm, v]) => Object.assign(causeRow(v), {nm})).filter(r => r.late >= 20).sort((x, y) => y.late - x.late);
   const sh = (r, k) => r.late ? pc(r[k] / r.late) : '—';
-  const tile = k => `<div style="border-top-color:${KCOL[k]}"><span>${KLAB[k]}</span><b>${sh(tot, k)}</b></div>`;
+  const tile = k => `<div><span><i style="background:${KCOL[k]}"></i>${KLAB[k]}</span><b>${sh(tot, k)}</b></div>`;
   return `${head}
     <div class="ktiles">${tile('a')}${tile('b')}${tile('c')}</div>
     <p class="note">${num(tot.late)} נסיעות יצאו באיחור — ${pc(tot.lateSh)} מהנסיעות שנמדדו. האיחור הממוצע ביציאה: ${dmin(tot.avg)} דק׳. מהנסיעות שהגיעו באיחור מהנסיעה הקודמת, ${sh({late: tot.a, a1: tot.a1}, 'a1')} כי גם הקודמת יצאה באיחור, והשאר כי איבדו זמן בדרך.${tot.d ? ` ב-${pc(tot.d / tot.late)} לא ידוע, כי סוף הנסיעה הקודמת לא נמדד.` : ''}</p>
@@ -304,7 +305,7 @@ function causeHtml(M) {
     <div class="khead"><span>חברה</span><span>יצאו באיחור</span><span>למה</span></div>
     ${rows.map(r => `<div class="krow">
       <div class="bn"><b>${esc(r.nm)}</b><small>${num(r.late)} נסיעות באיחור</small></div>
-      <div class="lsc ${r.lateSh == null ? 'na' : r.lateSh <= .1 ? 'g' : r.lateSh <= .2 ? 'y' : r.lateSh <= .3 ? 'o' : 'r'}">${pc(r.lateSh)}</div>
+      <div class="lsc kn">${pc(r.lateSh)}</div>
       <div>${causeBar(r)}<small class="ksub">מהנסיעה הקודמת ${sh(r, 'a')} · במסוף ${sh(r, 'b')} · בלי קודמת ${sh(r, 'c')}</small></div>
     </div>`).join('') || '<div class="empty">אין מספיק נסיעות</div>'}
     <p class="note">לפי ${num(K.days)} ימים.${since}</p>`;

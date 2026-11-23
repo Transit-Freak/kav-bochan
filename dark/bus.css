@@ -4,6 +4,8 @@
 html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
 html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
 html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver .kb-gtfs{color:#8b9cb5}
+html.kb-dark.kb-dark #kb-ver .kb-gtfs{color:rgb(151, 162, 184)}
 html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
 html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
 html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
@@ -134,7 +136,7 @@ html.kb-dark .msg{color:var(--mut)}
 html.kb-dark button:focus-visible,html.kb-dark input:focus-visible,html.kb-dark tr:focus-visible{outline-color:var(--accent--kb-border)}
 html.kb-dark .leaflet-container{background:var(--panel2)}
 html.kb-dark .tblbox tr.on td{background:var(--panel2)}
-:root.kb-dark{--bg:#181b20;--bg--kb-fg:#f7fafd;--bg2:#191c22;--panel:#17191f;--panel2:#191c22;--surface2:#181b20;--line:rgba(195,208,234,0.08);--line--kb-bg:rgba(255,255,255,0.128);--line2:rgba(195,208,234,0.14);--line2--kb-border:rgba(195,208,234,0.14);--line2--kb-bg:rgba(255,255,255,0.224);--ink:#c9d4e8;--ink--kb-bg:#2c3444;--ink--kb-border:#c9d4e8;--ink--kb-keep:#0b1220;--ink2:#b7c5dd;--mut:#97a2b8;--dim:#8a94a8;--accent:#0ea5e9;--accent--kb-border:#0ea5e9;--accent2:#59abe7;--accent2--kb-bg:#0369a1;--accent2--kb-border:#0369a1;--brand-lt:#111f27;--brand-xl:#161c20;--em:#059669;--em2:#10b981;--em2--kb-fg:#10b981;--em-dk:#5ab792;--em-lt:#121e19;--em-lt--kb-shadow:#121e19;--em-ln:#034a33;--ok:#00A65A;--ok--kb-fg:#11aa5e;--ok--kb-border:#00A65A;--warn:#F4B400;--warn--kb-border:#F4B400;--warn--kb-fg:#F4B400;--late:#F26B1D;--late--kb-fg:#F26B1D;--late--kb-border:#F26B1D;--bad:#fc5760;--bad--kb-bg:#D7263D;--bad--kb-border:#D7263D;--none:#3f444d;--early:#a385fb;--early--kb-bg:#7C3AED;--early--kb-border:#7C3AED;--tag-ink:#fff;--tag-ink--kb-keep:#fff;--tip-bg:#2c3444;--tip-ink:#fff;--ovl:rgba(15,23,42,.34);--shadow-sm:0 1px 2px rgba(0,0,0,0.11);--shadow:0 1px 2px rgba(0,0,0,0.088),0 10px 30px -14px rgba(0,0,0,0.396);--shadow-lg:0 2px 4px rgba(0,0,0,0.088),0 24px 48px -20px rgba(0,0,0,0.616);--ring:0 0 0 3px rgba(14,165,233,.22);color-scheme:dark}
+:root.kb-dark{--bg:#181b20;--bg--kb-fg:#f7fafd;--bg2:#191c22;--panel:#17191f;--panel2:#191c22;--surface2:#181b20;--line:rgba(195,208,234,0.08);--line--kb-bg:rgba(255,255,255,0.128);--line2:rgba(195,208,234,0.14);--line2--kb-border:rgba(195,208,234,0.14);--line2--kb-bg:rgba(255,255,255,0.224);--ink:#c9d4e8;--ink--kb-bg:#2c3444;--ink--kb-border:#c9d4e8;--ink--kb-keep:#0b1220;--ink2:#b7c5dd;--mut:#97a2b8;--dim:#8a94a8;--accent:#0ea5e9;--accent--kb-border:#0ea5e9;--accent2:#59abe7;--accent2--kb-bg:#0369a1;--accent2--kb-border:#0369a1;--brand-lt:#111f27;--brand-xl:#161c20;--em:#059669;--em2:#10b981;--em2--kb-fg:#10b981;--em-dk:#5ab792;--em-lt:#121e19;--em-lt--kb-shadow:#121e19;--em-ln:#034a33;--ok:#00A65A;--ok--kb-fg:#11aa5e;--ok--kb-border:#00A65A;--warn:#F4B400;--warn--kb-border:#F4B400;--warn--kb-fg:#F4B400;--late:#F26B1D;--late--kb-fg:#F26B1D;--late--kb-border:#F26B1D;--bad:#fc5760;--bad--kb-bg:#D7263D;--bad--kb-border:#D7263D;--none:#3f444d;--early:#a385fb;--early--kb-bg:#7C3AED;--early--kb-border:#7C3AED;--k-a:#0369a1;--k-b:#38bdf8;--k-c:#a78bfa;--tag-ink:#fff;--tag-ink--kb-keep:#fff;--tip-bg:#2c3444;--tip-ink:#fff;--ovl:rgba(15,23,42,.34);--shadow-sm:0 1px 2px rgba(0,0,0,0.11);--shadow:0 1px 2px rgba(0,0,0,0.088),0 10px 30px -14px rgba(0,0,0,0.396);--shadow-lg:0 2px 4px rgba(0,0,0,0.088),0 24px 48px -20px rgba(0,0,0,0.616);--ring:0 0 0 3px rgba(14,165,233,.22);color-scheme:dark}
 html.kb-dark{background-color:var(--bg)}
 html.kb-dark body{background-color:var(--bg);background-image:radial-gradient(640px 380px at 88% -80px, rgba(56, 189, 248, 0.24), transparent 70%), radial-gradient(560px 340px at 10% 20px, rgba(16, 185, 129, 0.12), transparent 70%), radial-gradient(760px 420px at 50% 300px, rgba(186, 230, 253, 0.3), transparent 70%);background-repeat:no-repeat}
 html.kb-dark ::selection{background-image:initial;background-color:#002535}
@@ -321,6 +323,13 @@ html.kb-dark .lsc.y{color:var(--ink--kb-keep, var(--ink));background:var(--warn)
 html.kb-dark .lsc.o{background:var(--late)}
 html.kb-dark .lsc.r{background:var(--bad--kb-bg)}
 html.kb-dark .lsc.na{color:var(--dim);background:var(--panel2)}
+html.kb-dark .ktiles > div{box-shadow:var(--shadow-sm);background:var(--panel);border-color:var(--line)}
+html.kb-dark .ktiles span{color:var(--mut)}
+html.kb-dark .lsc.kn{color:var(--ink);background:var(--panel2);border-color:var(--line2--kb-border)}
+html.kb-dark .kbar{background:var(--panel2)}
+html.kb-dark .khead{color:var(--dim);border-bottom-color:var(--line2--kb-border)}
+html.kb-dark .krow{border-bottom-color:var(--line)}
+html.kb-dark .ksub{color:var(--mut)}
 html.kb-dark .lhow{color:var(--ink2)}
 @media (max-width: 760px){
 html.kb-dark .crumb{border-inline-start-color:var(--line2--kb-border)}
@@ -329,3 +338,7 @@ html.kb-dark button.lnk{color:var(--accent2);border-color:#1b4356;text-decoratio
 html.kb-dark button.lnk:hover{border-color:rgba(14, 165, 233, 0.45);color:var(--ink);background:var(--brand-lt)}
 html.kb-dark button.lnk:focus-visible{outline-color:var(--accent--kb-border)}
 html.kb-dark .tabbar a.tab{text-decoration-color:initial}
+
+/* ידני */
+/* למה הנסיעות יצאו באיחור — צבעי הסיבות בלילה (נכתבים מ-JS כ-var) */
+:root.kb-dark{--k-a:#3b8fd4;--k-b:#7dd3fc;--k-c:#c4b5fd;--k-d:#5b6270}
