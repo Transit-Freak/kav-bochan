@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
-from gtfs_gate import decide, lm_key  # noqa: E402
+from gtfs_gate import decide, lm_key, lm_from_listing  # noqa: E402
 
 LM = "Sun, 22 Nov 2026 17:31:19 GMT"   # הקובץ שעלה אתמול ב-19:31 שעון ישראל
 
@@ -42,5 +42,22 @@ def test_missing_or_broken_header_waits():
 
 
 def test_lm_key_is_stable():
-    assert lm_key(LM) == lm_key("  " + LM + "\r\n") == "1795368679"
+    assert lm_key(LM) == lm_key("  " + LM + "\r\n") == "1795368660"
     assert lm_key("") == ""
+
+
+# שורה מדף הקבצים של משרד התחבורה (https://gtfs.mot.gov.il/gtfsfiles/), כמו שהיא מגיעה מהשרת
+LISTING = ('<pre><A HREF="/">[To Parent Directory]</A><br><br>11/22/2026  7:27 PM        24363 '
+           '<A HREF="/gtfsfiles/ClusterToLine.zip">ClusterToLine.zip</A><br>11/22/2026  7:31 PM    139351097 '
+           '<A HREF="/gtfsfiles/israel-public-transportation.zip">israel-public-transportation.zip</A><br></pre>')
+
+
+def test_listing_fallback_gives_same_key_as_head():
+    lm = lm_from_listing(LISTING)
+    assert lm == "Sun, 22 Nov 2026 17:31:00 GMT"   # 19:31 שעון ישראל
+    assert lm_key(lm) == lm_key(LM)
+
+
+def test_listing_without_the_file():
+    assert lm_from_listing("<pre>nothing here</pre>") == ""
+    assert lm_from_listing("") == ""

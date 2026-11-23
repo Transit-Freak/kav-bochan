@@ -43,6 +43,12 @@ jobs:
           lm=$(curl -fsSI -A "Mozilla/5.0" --max-time 60 --retry 2 --retry-delay 20 \
                  "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip" \
                | tr -d '\r' | sed -n 's/^[Ll]ast-[Mm]odified: *//p' | tail -1) || true
+          if [ -z "$lm" ]; then
+            # גיבוי: התאריך שליד הקובץ בדף הקבצים של המשרד (tools/gtfs_gate.py, lm_from_listing)
+            curl -fsS -A "Mozilla/5.0" --max-time 60 --retry 2 -o listing.html "https://gtfs.mot.gov.il/gtfsfiles/" || true
+            lm=$(python3 -c "import sys; sys.path.insert(0,'tools'); from gtfs_gate import lm_from_listing; print(lm_from_listing(open('listing.html',errors='replace').read()) if __import__('os').path.exists('listing.html') else '')")
+            [ -n "$lm" ] && echo "השרת לא ענה על השאלה הישירה — התאריך נלקח מדף הקבצים"
+          fi
           echo "lm=$lm" >> "$GITHUB_OUTPUT"
           echo "הקובץ במשרד התחבורה: ${lm:-לא ידוע}"
 

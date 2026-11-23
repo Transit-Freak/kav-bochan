@@ -19,13 +19,35 @@ START = (0, 30)   # 00:30 שעון ישראל — מכאן בודקים כל 10 
 
 
 def lm_key(last_modified):
-    """מפתח יציב לקובץ לפי Last-Modified (שניות מאז 1970), או '' אם אין כותרת תקינה."""
+    """מפתח יציב לקובץ לפי Last-Modified, מעוגל לדקה (כמו בדף הקבצים, כדי שהשאלה הישירה והגיבוי ייתנו
+    אותו מפתח לאותו קובץ), או '' אם אין כותרת תקינה."""
     if not last_modified:
         return ""
     try:
-        return str(int(parsedate_to_datetime(last_modified.strip()).timestamp()))
+        return str(int(parsedate_to_datetime(last_modified.strip()).timestamp()) // 60 * 60)
     except (TypeError, ValueError):
         return ""
+
+
+def lm_from_listing(html, name="israel-public-transportation.zip"):
+    """גיבוי, כשהשרת לא עונה על בקשת HEAD: התאריך שליד הקובץ בדף הקבצים של משרד התחבורה
+    (https://gtfs.mot.gov.il/gtfsfiles/), למשל "11/22/2026  7:31 PM". זה שעון ישראל, עד הדקה —
+    מוחזר כ-Last-Modified (GMT) כדי שאותו מפתח ישמש בשני המקרים."""
+    import re
+    from zoneinfo import ZoneInfo
+    from datetime import timezone
+    from email.utils import format_datetime
+    for row in re.split(r"<br>", html or "", flags=re.I):
+        if f">{name}<" not in row:
+            continue
+        m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}):(\d{2})\s*([AP]M)", row, re.I)
+        if not m:
+            return ""
+        mo, d, y, h, mi, ap = m.groups()
+        h = int(h) % 12 + (12 if ap.upper() == "PM" else 0)
+        t = datetime(int(y), int(mo), int(d), h, int(mi), tzinfo=ZoneInfo("Asia/Jerusalem"))
+        return format_datetime(t.astimezone(timezone.utc), usegmt=True)
+    return ""
 
 
 def decide(now_il, last_modified, day_done, file_done):
