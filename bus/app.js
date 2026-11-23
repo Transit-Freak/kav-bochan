@@ -268,6 +268,47 @@ function triBars(b, scale, lab) {
   const one = (k, t) => `<div class="tb"><i style="width:${b[k] == null ? 0 : Math.min(100, 100 * b[k] / scale)}%;background:${LCOL[k]}"></i><b>${dmin(b[k])}</b><small>${t}</small></div>`;
   return `<div class="tri"><span class="rl">${lab}</span><div>${one('off', 'בלו״ז')}${one('giv', 'ניתנו')}${one('act', 'בפועל')}</div></div>`;
 }
+// למה הנסיעות יצאו באיחור (שלמה 23.11: "מה גרם לאיחורים והאם הסדרנים עשו עבודה טובה, כי רואים איזה
+// רכב זה ואיפה הוא"). לכל נסיעה שיצאה יותר מ-3 דק' אחרי הזמן — מה עשה אותו אוטובוס לפני כן
+// (tools/bus_reliability.py, cause_day). בכל בלוק (שיא, שאר היום) 12 עמודות.
+const KB = 12;
+const KCOL = {a: '#F26B1D', b: '#D7263D', c: '#1E5BC6', d: '#C4CBD6'};
+const KLAB = {a: 'הגיע באיחור מהנסיעה הקודמת', b: 'חיכה במסוף ויצא באיחור', c: 'אין נסיעה קודמת', d: 'לא ידוע'};
+function causeRow(v) {
+  const g = i => (v[i] || 0) + (v[KB + i] || 0);
+  const late = g(1);
+  return {n: g(0), late, lateSh: g(0) ? late / g(0) : null, a: g(3), a1: g(5), b: g(6), c: g(8), d: g(10),
+    avg: late ? g(2) / late / 60 : null};
+}
+const dmyK = d => d ? d.split('-').reverse().join('.') : '';
+function causeBar(r) {
+  if (!r.late) return '<div class="kbar"></div>';
+  const seg = k => r[k] ? `<span style="width:${100 * r[k] / r.late}%;background:${KCOL[k]}" title="${KLAB[k]}: ${num(r[k])} (${pc(r[k] / r.late)})"></span>` : '';
+  return `<div class="kbar">${seg('a')}${seg('b')}${seg('c')}${seg('d')}</div>`;
+}
+function causeHtml(M) {
+  const K = M.Bl && M.Bl.K;
+  const head = `<div class="ptitle" style="margin-top:18px">למה הנסיעות יצאו באיחור</div>
+    <p class="blead">לכל נסיעה שיצאה מהתחנה הראשונה יותר מ-3 דקות אחרי הזמן, בדקנו מה עשה אותו אוטובוס לפני כן.</p>`;
+  if (!K || !K.days) return `${head}<div class="empty">החישוב מתחיל מהימים שמעובדים מ-23.11.2026.</div>`;
+  const first = (M.days || [])[0];
+  const since = K.from && first && K.from > first ? ` לימים שלפני ${dmyK(K.from)} אין את החישוב הזה.` : '';
+  const tot = causeRow(K.tot);
+  const rows = Object.entries(K.A).map(([nm, v]) => Object.assign(causeRow(v), {nm})).filter(r => r.late >= 20).sort((x, y) => y.late - x.late);
+  const sh = (r, k) => r.late ? pc(r[k] / r.late) : '—';
+  const tile = k => `<div style="border-top-color:${KCOL[k]}"><span>${KLAB[k]}</span><b>${sh(tot, k)}</b></div>`;
+  return `${head}
+    <div class="ktiles">${tile('a')}${tile('b')}${tile('c')}</div>
+    <p class="note">${num(tot.late)} נסיעות יצאו באיחור — ${pc(tot.lateSh)} מהנסיעות שנמדדו. האיחור הממוצע ביציאה: ${dmin(tot.avg)} דק׳. מהנסיעות שהגיעו באיחור מהנסיעה הקודמת, ${sh({late: tot.a, a1: tot.a1}, 'a1')} כי גם הקודמת יצאה באיחור, והשאר כי איבדו זמן בדרך.${tot.d ? ` ב-${pc(tot.d / tot.late)} לא ידוע, כי סוף הנסיעה הקודמת לא נמדד.` : ''}</p>
+    <div class="blegend">${['a', 'b', 'c', 'd'].map(k => `<span><i style="background:${KCOL[k]}"></i>${KLAB[k]}</span>`).join('')}</div>
+    <div class="khead"><span>חברה</span><span>יצאו באיחור</span><span>למה</span></div>
+    ${rows.map(r => `<div class="krow">
+      <div class="bn"><b>${esc(r.nm)}</b><small>${num(r.late)} נסיעות באיחור</small></div>
+      <div class="lsc ${r.lateSh == null ? 'na' : r.lateSh <= .1 ? 'g' : r.lateSh <= .2 ? 'y' : r.lateSh <= .3 ? 'o' : 'r'}">${pc(r.lateSh)}</div>
+      <div>${causeBar(r)}<small class="ksub">מהנסיעה הקודמת ${sh(r, 'a')} · במסוף ${sh(r, 'b')} · בלי קודמת ${sh(r, 'c')}</small></div>
+    </div>`).join('') || '<div class="empty">אין מספיק נסיעות</div>'}
+    <p class="note">לפי ${num(K.days)} ימים.${since}</p>`;
+}
 function layHtml(M) {
   const Lx = M.Bl && M.Bl.L;
   const head = `<div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
@@ -289,6 +330,7 @@ function layHtml(M) {
       <div class="lsc ${absCls(r.made)}" title="האוטובוס הגיע לסוף הנסיעה לפחות דקה לפני הנסיעה הבאה שלו">${pc(r.made)}</div>
       ${triBars(r.P, scale, 'שיא')}${triBars(r.O, scale, 'שאר היום')}
     </div>`).join('') || '<div class="empty">אין מספיק נסיעות</div>'}
+    ${causeHtml(M)}
     <div class="ptitle" style="margin-top:16px" id="lay-lt">כל הקווים</div>
     <div class="filters" id="lay-f"></div>
     <div id="lay-lines"></div>
@@ -299,6 +341,7 @@ function layHtml(M) {
       <li><b>בפועל</b>: כמה הנסיעה לקחה, מהיציאה שנמדדה עד ההגעה לסוף.</li>
       <li><b>הספיק</b>: האוטובוס הגיע לסוף לפחות דקה לפני היציאה הבאה שלו.</li>
       <li>שעות שיא: יציאה בין 06:00 ל-09:00 או בין 15:00 ל-19:00. כשהאוטובוס יוצא שוב יותר מ-90 דקות אחרי הסוף (חניון, הפסקה), זה לא נחשב.</li>
+      <li><b>למה יצאו באיחור</b>: נסיעה יצאה באיחור אם יצאה יותר מ-3 דקות אחרי הזמן. <b>הגיע באיחור מהנסיעה הקודמת</b>: האוטובוס סיים את הנסיעה הקודמת שלו פחות מדקה לפני הזמן של היציאה. <b>חיכה במסוף</b>: הגיע לפחות דקה לפני ובכל זאת יצא באיחור. <b>אין נסיעה קודמת</b>: הנסיעה הראשונה שלו ביום, או שהגיע ממקום אחר או מהחניון. <b>לא ידוע</b>: סוף הנסיעה הקודמת לא נמדד.</li>
     </ul></details>
   </div>`;
 }
@@ -319,8 +362,10 @@ function renderLayLines() {
   const gap = x => x.r.P.act != null && x.r.P.giv != null ? x.r.P.act - x.r.P.giv : -99;
   const key = {n: x => -x.r.n, made: x => x.r.made ?? 2, gap: x => -gap(x), num: x => (parseInt(x.short) || 9999) * 10 + (x.short.length)}[laySort] || (x => -x.r.n);
   list.sort((a, b) => key(a) - key(b) || a.short.localeCompare(b.short, 'he'));
+  const KL = M.Bl.K && M.Bl.K.days ? M.Bl.K.lines : null;
+  const kcell = rid => { const v = KL && KL[rid]; if (!v) return '<td>—</td>'; const r = causeRow(v); return `<td class="kcell" title="${r.late ? ['a', 'b', 'c', 'd'].filter(k => r[k]).map(k => `${KLAB[k]}: ${num(r[k])}`).join(' · ') : ''}"><b>${pc(r.lateSh)}</b>${causeBar(r)}</td>`; };
   const shown = list.slice(0, layMore), t3 = b => b && b.n ? `${dmin(b.off)} · <b style="color:${LCOL.giv}">${dmin(b.giv)}</b> · <b style="color:${LCOL.act}">${dmin(b.act)}</b>` : '—';
-  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th>${layAg ? '' : '<th>חברה</th>'}<th>נסיעות</th><th>שעות שיא<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>שאר היום<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>הספיק</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td>${layAg ? '' : `<td>${esc(x.ag)}</td>`}<td>${num(x.r.n)}</td><td>${t3(x.r.P)}</td><td>${t3(x.r.O)}</td><td><b class="bsct ${absCls(x.r.made)}">${pc(x.r.made)}</b></td></tr>`).join('')}</tbody></table></div>
+  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th>${layAg ? '' : '<th>חברה</th>'}<th>נסיעות</th><th>שעות שיא<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>שאר היום<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>הספיק</th>${KL ? '<th>יצאו באיחור<br><small>ולמה</small></th>' : ''}</tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td>${layAg ? '' : `<td>${esc(x.ag)}</td>`}<td>${num(x.r.n)}</td><td>${t3(x.r.P)}</td><td>${t3(x.r.O)}</td><td><b class="bsct ${absCls(x.r.made)}">${pc(x.r.made)}</b></td>${KL ? kcell(x.rid) : ''}</tr>`).join('')}</tbody></table></div>
     <p class="note">${num(list.length)} כיווני קו עם 5 נסיעות לפחות.${list.length > shown.length ? ` <button class="lnk" id="lay-more">עוד ${num(Math.min(100, list.length - shown.length))} ←</button>` : ''}</p>` : '<div class="empty">לא נמצא קו עם 5 נסיעות לפחות</div>';
   $('#lay-ag').onchange = e => { layAg = e.target.value; layMore = 60; renderLayLines(); };
   $('#lay-s').onchange = e => { laySort = e.target.value; renderLayLines(); };
@@ -337,7 +382,7 @@ function renderBlame() {
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [], Rg = {};
   const Bn = {tot: [0, 0, 0], A: {}, Cc: {}, Rg: {}, Rr: {}, H: {}, stops: {}, ex: [], days: 0, missing: []};
-  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}};   // Bl.L = האם הסדרנים מתחשבים בפקקים (מ-07.10.2026); שאר Bl (מי אשם באיחור) כבר לא מוצג (13.10)
+  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}, K: {tot: [], A: {}, C: {}, lines: {}, days: 0, from: ''}};   // Bl.K = למה יצאו באיחור (מ-23.11.2026)   // Bl.L = האם הסדרנים מתחשבים בפקקים (מ-07.10.2026); שאר Bl (מי אשם באיחור) כבר לא מוצג (13.10)
   const addV = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = []); v.forEach((n, i) => x[i] = (x[i] || 0) + n); };
   const addB = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = [0, 0, 0]); v.forEach((n, i) => x[i] += n); };
   for (const d of days) {
@@ -355,6 +400,16 @@ function mergeDays(days) {
         for (const [nm, v] of Object.entries(r.agencies || {})) addV(Bl.L.A, nm, v);
         for (const [nm, v] of Object.entries(r.clusters || {})) addV(Bl.L.C, nm, v);
         for (const [rid, v] of Object.entries(r.lines || {})) addV(Bl.L.lines, rid, v);
+      }
+      const k = d.blame.cause;
+      if (k) {
+        Bl.K.days += k.nd || 1;
+        const f = k.from || d.d;
+        if (f && (!Bl.K.from || f < Bl.K.from)) Bl.K.from = f;
+        addV(Bl.K, 'tot', k.tot || []);
+        for (const [nm, v] of Object.entries(k.agencies || {})) addV(Bl.K.A, nm, v);
+        for (const [nm, v] of Object.entries(k.clusters || {})) addV(Bl.K.C, nm, v);
+        for (const [rid, v] of Object.entries(k.lines || {})) addV(Bl.K.lines, rid, v);
       }
     }
     // התקבצות (מ-21.09.2026)
