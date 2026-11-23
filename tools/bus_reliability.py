@@ -855,6 +855,26 @@ _CAUSE_BLOCK = ['departures with measured origin departure', 'departed late (> +
                 'late, c: delay sec (sum)', "late, d: previous trip found but its end wasn't measured", 'late, d: delay sec (sum)']
 CAUSE_COLS = ['peak (06-09, 15-19): ' + c for c in _CAUSE_BLOCK] + ['off-peak: ' + c for c in _CAUSE_BLOCK]
 CAUSE_LATE = 180      # יצאה באיחור = יותר מ-3 דק' אחרי הזמן (כמו "יציאה בזמן" = בין דקה לפני ל-3 אחרי)
+# נסיעה מנהלית (ריקה) מסוף הנסיעה הקודמת למוצא של הבאה, כשהן רחוקות (שלמה 23.11). האוטובוס לא משדר
+# בדרך, ולכן הזמן הוא הערכה: מרחק בקו אווירי × מקדם כביש / מהירות ממוצעת.
+DH_NEAR_KM = 1.5      # עד כאן — אותו מסוף, בלי נסיעה מנהלית
+DH_MAX_KM = 40        # מעבר לזה לא משרשרים (כמעט תמיד רכב אחר או מספר רכב שגוי)
+DH_ROAD = 1.3         # הערכה: כמה הדרך בכביש ארוכה מהקו האווירי
+DH_KMH = 30           # הערכה: מהירות ממוצעת בנסיעה מנהלית
+DH_MIN_SHARE = 0.5    # משרשרים רק אם לפי הלו"ז יש לפחות חצי מהזמן המשוער לנסיעה המנהלית —
+                      # פחות מזה זו כנראה לא אותה משמרת (בין חצי לכולו: נספר, ובעיית תכנון של הסדרנים)
+_DH_BLOCK = ['departed late (> +3 min), all — same as the main block, for days that have this array',
+             'of them: came by deadhead (previous trip of the vehicle ended 1.5-40 km away)', 'of them: delay sec (sum)',
+             'of them, a: came late (previous trip measured end + estimated deadhead > scheduled departure - 1 min)',
+             'of them, a: delay sec (sum)',
+             "of a: the schedule didn't leave even the estimated deadhead time (scheduled end + deadhead > scheduled departure)",
+             'departures with measured origin departure that came by deadhead (late or not)']
+DH_COLS = ['peak (06-09, 15-19): ' + c for c in _DH_BLOCK] + ['off-peak: ' + c for c in _DH_BLOCK]
+
+
+def deadhead_sec(km):
+    """זמן משוער לנסיעה מנהלית (שניות). עד DH_NEAR_KM — אפס (אותו מסוף)."""
+    return 0 if km <= DH_NEAR_KM else km * DH_ROAD / DH_KMH * 3600
 
 
 def _trim0(v):
@@ -866,13 +886,15 @@ def _trim0(v):
 def cause_day(DQ, catalog):
     """למה הנסיעה יצאה באיחור מתחנת המוצא (שלמה 23.11: "מה גרם לאיחורים והאם הסדרנים עשו עבודה טובה,
     כי רואים איזה רכב זה ואיפה הוא"). לכל נסיעה שיצאה יותר מ-3 דק' אחרי הזמן — הנסיעה הקודמת של אותו
-    רכב (כמו ב-layover_day: הסוף שלה עד 90 דק' לפני היציאה המתוכננת, עד 1.5 ק"מ מתחנת המוצא):
-    a. הרכב הגיע באיחור מהנסיעה הקודמת — סיים אחרי (היציאה המתוכננת פחות דקה). ומתוכן: הקודמת יצאה
+    רכב (הסוף המתוכנן שלה עד 90 דק' לפני היציאה המתוכננת; עד 1.5 ק"מ — אותו מסוף, ועד 40 ק"מ — נסיעה
+    מנהלית בזמן משוער, אם הלו"ז נותן לפחות חצי ממנו):
+    a. הרכב הגיע באיחור מהנסיעה הקודמת — סיים (ועוד הנסיעה המנהלית) אחרי (היציאה המתוכננת פחות דקה). ומתוכן: הקודמת יצאה
        בעצמה באיחור (אחרת — איבדה זמן בדרך).
     b. הרכב חיכה במסוף (הגיע לפחות דקה לפני) ובכל זאת יצא באיחור — הסדרן או הנהג.
     c. אין נסיעה קודמת שמתחברת — הנסיעה הראשונה של הרכב ביום, הגיע מחניון או ממקום אחר, או רכב שהוחלף.
     d. יש נסיעה קודמת אבל הסוף שלה לא נמדד — לא ידוע.
-    מונים וסכומי שניות, בשיא ובשאר היום, כך שאפשר לחבר ימים ולחלק בעמוד."""
+    מונים וסכומי שניות, בשיא ובשאר היום, כך שאפשר לחבר ימים ולחלק בעמוד. הנסיעות המנהליות בנפרד
+    ב-'dh' (DH_COLS) — כך שהעמודות של הבלוק הראשי נשארות כמו בקבצים הישנים."""
     byv = collections.defaultdict(list)
     for t in DQ:
         if t[6] and t[6] != '0':
@@ -881,8 +903,11 @@ def cause_day(DQ, catalog):
     agg = lambda: [0] * len(CAUSE_COLS)
     A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
     L = collections.defaultdict(agg)
+    nd = len(_DH_BLOCK)
+    dagg = lambda: [0] * len(DH_COLS)
+    DA, DC, DT = collections.defaultdict(dagg), collections.defaultdict(dagg), dagg()
 
-    def add(t, prev):
+    def add(t, prev, dh):
         ag, rid, sdep, send, do, fin, veh, opos, epos = t
         if do is None:
             return
@@ -894,7 +919,7 @@ def cause_day(DQ, catalog):
                 k = 8
             elif prev[5] is None:
                 k = 10
-            elif prev[3] + prev[5] > sdep - LAY_READY:
+            elif prev[3] + prev[5] + dh > sdep - LAY_READY:
                 k = 3
             else:
                 k = 6
@@ -909,23 +934,43 @@ def cause_day(DQ, catalog):
                 x[o + k + 1] += do
                 if k == 3 and prev[4] is not None and prev[4] > CAUSE_LATE:
                     x[o + 5] += 1
+        od = 0 if o == 0 else nd
+        for x in (DA[ag], DT) + ((DC[cl],) if cl else ()):
+            if late:
+                x[od] += 1
+            if prev is None or not dh:
+                continue
+            x[od + 6] += 1
+            if late:
+                x[od + 1] += 1
+                x[od + 2] += do
+                if k == 3:
+                    x[od + 3] += 1
+                    x[od + 4] += do
+                    if prev[3] + dh > sdep:
+                        x[od + 5] += 1
 
     for lst in byv.values():
         lst.sort(key=lambda t: t[2])
         prv = None
         for cur in lst:
-            p = None
+            p, dh = None, 0
             if prv is not None:
                 gap = cur[2] - prv[3]
                 km = _km(prv[8], cur[7])
-                if 0 <= gap <= LAY_GAP and km is not None and km <= 1.5:
-                    p = prv
-            add(cur, p)
+                if 0 <= gap <= LAY_GAP and km is not None and km <= DH_MAX_KM:
+                    dh = deadhead_sec(km)
+                    if gap >= dh * DH_MIN_SHARE:
+                        p = prv
+                    else:
+                        dh = 0
+            add(cur, p, dh)
             prv = cur
     # נסיעות בלי מספר רכב — אי אפשר לשרשר; לא נספרות (אחרת היו נראות כ"אין נסיעה קודמת")
     return {'cols': CAUSE_COLS, 'tot': T, 'agencies': dict(A),
             'clusters': {k: v for k, v in C.items() if v[0] + v[nb] >= 30},
-            'lines': {k: _trim0(v) for k, v in L.items() if v[0] + v[nb] >= 3}}
+            'lines': {k: _trim0(v) for k, v in L.items() if v[0] + v[nb] >= 3},
+            'dh': {'cols': DH_COLS, 'tot': DT, 'agencies': dict(DA), 'clusters': {k: v for k, v in DC.items() if k in C and C[k][0] + C[k][nb] >= 30}}}
 
 
 def gps_aggregate(out, agency_names, updated, bus_ops=None):

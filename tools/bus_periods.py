@@ -104,6 +104,8 @@ def build(days, files, catalog):
     Bl = {'tot': [], 'agencies': {}, 'clusters': {}}
     L = {'tot': [], 'agencies': {}, 'clusters': {}, 'lines': {}}
     K = {'tot': [], 'agencies': {}, 'clusters': {}, 'lines': {}}    # למה יצאו באיחור (מ-23.11.2026)
+    DH = {'tot': [], 'agencies': {}, 'clusters': {}}                 # ומתוכן נסיעות מנהליות (מ-24.11.2026)
+    dh_nd = 0
     bunch_nd = blame_nd = lay_nd = cause_nd = 0
     cause_from = None
     for i, d in enumerate(files):
@@ -202,6 +204,13 @@ def build(days, files, catalog):
                 for key in ('agencies', 'clusters', 'lines'):
                     for nm, v in (ca.get(key) or {}).items():
                         addl(K[key].setdefault(nm, []), v)
+                dh = ca.get('dh')
+                if dh:
+                    dh_nd += 1
+                    addl(DH['tot'], dh.get('tot') or [])
+                    for key in ('agencies', 'clusters'):
+                        for nm, v in (dh.get(key) or {}).items():
+                            addl(DH[key].setdefault(nm, []), v)
 
     # הגרועות: הדף ממיין לפי האיחור (w[3]) ומציג 40 — גם אחרי סינון לפי חברה או אשכול
     worst.sort(key=lambda w: -w[3])
@@ -242,7 +251,7 @@ def build(days, files, catalog):
         'bunch_missing': bunch_missing,
         'blame': {'tot': Bl['tot'], 'agencies': Bl['agencies'], 'clusters': Bl['clusters'], 'nd': blame_nd,
                   'lay': dict(L, nd=lay_nd) if lay_nd else None,
-                  'cause': dict(K, nd=cause_nd, **{'from': cause_from}) if cause_nd else None} if blame_nd else None,
+                  'cause': dict(K, nd=cause_nd, dh=dict(DH, nd=dh_nd) if dh_nd else None, **{'from': cause_from}) if cause_nd else None} if blame_nd else None,
     }
     return out
 

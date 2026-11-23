@@ -287,6 +287,12 @@ function causeBar(r) {
   const seg = k => r[k] ? `<span style="width:${100 * r[k] / r.late}%;background:${KCOL[k]}" title="${KLAB[k]}: ${num(r[k])} (${pc(r[k] / r.late)})"></span>` : '';
   return `<div class="kbar">${seg('a')}${seg('b')}${seg('c')}${seg('d')}</div>`;
 }
+// נסיעה מנהלית: בכל בלוק 7 עמודות (DH_COLS ב-bus_reliability.py)
+function dhLine(D) {
+  const v = D && D.tot || [], g = i => (v[i] || 0) + (v[7 + i] || 0);
+  if (!g(0) || !g(1)) return '';
+  return `<p class="note">${pc(g(1) / g(0))} מהנסיעות שיצאו באיחור הגיעו בנסיעה מנהלית ממקום אחר.${g(5) ? ` ב-${num(g(5))} מהן לוח הזמנים לא השאיר מספיק זמן לדרך.` : ''}</p>`;
+}
 function causeHtml(M) {
   const K = M.Bl && M.Bl.K;
   const head = `<div class="ptitle" style="margin-top:18px">למה הנסיעות יצאו באיחור</div>
@@ -301,6 +307,7 @@ function causeHtml(M) {
   return `${head}
     <div class="ktiles">${tile('a')}${tile('b')}${tile('c')}</div>
     <p class="note">${num(tot.late)} נסיעות יצאו באיחור — ${pc(tot.lateSh)} מהנסיעות שנמדדו. האיחור הממוצע ביציאה: ${dmin(tot.avg)} דק׳. מהנסיעות שהגיעו באיחור מהנסיעה הקודמת, ${sh({late: tot.a, a1: tot.a1}, 'a1')} כי גם הקודמת יצאה באיחור, והשאר כי איבדו זמן בדרך.${tot.d ? ` ב-${pc(tot.d / tot.late)} לא ידוע, כי סוף הנסיעה הקודמת לא נמדד.` : ''}</p>
+    ${dhLine(K.dh)}
     <div class="blegend">${['a', 'b', 'c', 'd'].map(k => `<span><i style="background:${KCOL[k]}"></i>${KLAB[k]}</span>`).join('')}</div>
     <div class="khead"><span>חברה</span><span>יצאו באיחור</span><span>למה</span></div>
     ${rows.map(r => `<div class="krow">
@@ -342,7 +349,8 @@ function layHtml(M) {
       <li><b>בפועל</b>: כמה הנסיעה לקחה, מהיציאה שנמדדה עד ההגעה לסוף.</li>
       <li><b>הספיק</b>: האוטובוס הגיע לסוף לפחות דקה לפני היציאה הבאה שלו.</li>
       <li>שעות שיא: יציאה בין 06:00 ל-09:00 או בין 15:00 ל-19:00. כשהאוטובוס יוצא שוב יותר מ-90 דקות אחרי הסוף (חניון, הפסקה), זה לא נחשב.</li>
-      <li><b>למה יצאו באיחור</b>: נסיעה יצאה באיחור אם יצאה יותר מ-3 דקות אחרי הזמן. <b>הגיע באיחור מהנסיעה הקודמת</b>: האוטובוס סיים את הנסיעה הקודמת שלו פחות מדקה לפני הזמן של היציאה. <b>חיכה במסוף</b>: הגיע לפחות דקה לפני ובכל זאת יצא באיחור. <b>אין נסיעה קודמת</b>: הנסיעה הראשונה שלו ביום, או שהגיע ממקום אחר או מהחניון. <b>לא ידוע</b>: סוף הנסיעה הקודמת לא נמדד.</li>
+      <li><b>למה יצאו באיחור</b>: נסיעה יצאה באיחור אם יצאה יותר מ-3 דקות אחרי הזמן. <b>הגיע באיחור מהנסיעה הקודמת</b>: האוטובוס סיים את הנסיעה הקודמת שלו פחות מדקה לפני הזמן של היציאה. <b>חיכה במסוף</b>: הגיע לפחות דקה לפני ובכל זאת יצא באיחור. <b>אין נסיעה קודמת</b>: הנסיעה הראשונה שלו ביום, או שהגיע מהחניון. <b>לא ידוע</b>: סוף הנסיעה הקודמת לא נמדד.</li>
+      <li><b>נסיעה מנהלית</b>: זמן משוער לפי המרחק, כי האוטובוס לא משדר בדרך.</li>
     </ul></details>
   </div>`;
 }
@@ -383,7 +391,7 @@ function renderBlame() {
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [], Rg = {};
   const Bn = {tot: [0, 0, 0], A: {}, Cc: {}, Rg: {}, Rr: {}, H: {}, stops: {}, ex: [], days: 0, missing: []};
-  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}, K: {tot: [], A: {}, C: {}, lines: {}, days: 0, from: ''}};   // Bl.K = למה יצאו באיחור (מ-23.11.2026)   // Bl.L = האם הסדרנים מתחשבים בפקקים (מ-07.10.2026); שאר Bl (מי אשם באיחור) כבר לא מוצג (13.10)
+  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}, K: {tot: [], A: {}, C: {}, lines: {}, days: 0, from: '', dh: {tot: [], A: {}, C: {}}}};   // Bl.K = למה יצאו באיחור (מ-23.11.2026)   // Bl.L = האם הסדרנים מתחשבים בפקקים (מ-07.10.2026); שאר Bl (מי אשם באיחור) כבר לא מוצג (13.10)
   const addV = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = []); v.forEach((n, i) => x[i] = (x[i] || 0) + n); };
   const addB = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = [0, 0, 0]); v.forEach((n, i) => x[i] += n); };
   for (const d of days) {
@@ -411,6 +419,11 @@ function mergeDays(days) {
         for (const [nm, v] of Object.entries(k.agencies || {})) addV(Bl.K.A, nm, v);
         for (const [nm, v] of Object.entries(k.clusters || {})) addV(Bl.K.C, nm, v);
         for (const [rid, v] of Object.entries(k.lines || {})) addV(Bl.K.lines, rid, v);
+        if (k.dh) {   // נסיעות מנהליות (מ-24.11.2026)
+          addV(Bl.K.dh, 'tot', k.dh.tot || []);
+          for (const [nm, v] of Object.entries(k.dh.agencies || {})) addV(Bl.K.dh.A, nm, v);
+          for (const [nm, v] of Object.entries(k.dh.clusters || {})) addV(Bl.K.dh.C, nm, v);
+        }
       }
     }
     // התקבצות (מ-21.09.2026)
