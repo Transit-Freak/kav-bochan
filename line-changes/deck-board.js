@@ -64,11 +64,12 @@
      כשכל עמודה נוספת "עולה" כמו סימון וחצי ועוד BD_SPLIT_COST לכל שורה (כדי שלא יתפצל בגלל נסיעה אחת). בלי סיבה טובה — עמודה אחת.
      שורה שבה כל ימי החול זהים — תא אחד על פני כל העמודות, כך שהיא לא "משלמת" על הפיצול */
   var BD_SPLIT_COST = 0.05;
-  function bdWkSplit(rows) {
-    var cands = [[[0, 1, 2, 3, 4]]];
-    for (var a = 1; a < 5; a++) {
-      cands.push([[0, 1, 2, 3, 4].slice(0, a), [0, 1, 2, 3, 4].slice(a)]);
-      for (var b = a + 1; b < 5; b++) cands.push([[0, 1, 2, 3, 4].slice(0, a), [0, 1, 2, 3, 4].slice(a, b), [0, 1, 2, 3, 4].slice(b)]);
+  function bdWkSplit(rows, W) {
+    W = W || [0, 1, 2, 3, 4];   // ימי החול שבלוח (בלוח של השבוע עד השינוי — רק מהיום)
+    var cands = [[W]];
+    for (var a = 1; a < W.length; a++) {
+      cands.push([W.slice(0, a), W.slice(a)]);
+      for (var b = a + 1; b < W.length; b++) cands.push([W.slice(0, a), W.slice(a, b), W.slice(b)]);
     }
     var marks = function (g) {   // כמה שעות בשורות מסומנות כ"רק בחלק מהימים" בקבוצה g; שורה שכל הימים בה זהים — אפס
       var n = 0;
@@ -228,6 +229,10 @@
     // בשורת המשנה; אחרת — ליד כל קו כזה
     var fes = ps.map(function (p) { return p.fromEff || ''; });
     BD_FE = fes.length && fes.every(function (f) { return f && f === fes[0]; }) ? fes[0] : '';
+    // הלוח של השבוע עד השינוי (curPre): היום האחרון שלו, והימים בשבוע שבו (רק מהיום ועד יום לפני השינוי)
+    var WK = D.curWk(pages), AV = null;
+    if (WK) { AV = {}; pages.forEach(function (p) { (p.dow || []).forEach(function (w) { AV[w] = 1; }); }); }
+    var inAv = function (w) { return !AV || AV[w]; };
     var home = bdQ(D.ED.bpl && D.ED.bpl.c ? D.ED.bpl.c : bdHome(ps));
     // סוג הקו: לפי משרד התחבורה (ED.ltype — מ-lines.json: u עירוני, i בינעירוני, r אזורי). בלי הנתון — נגזר:
     // עירוני — אותה עיר בשני הקצוות, שני קצוות שהם ערים של קווים עירוניים, או קו בין ערים סמוכות שרוב התחנות שלו בעיר אחת (לוד–רמלה);
@@ -331,9 +336,9 @@
     var cols = [], wk = [[0, 1, 2, 3, 4]];
     if (D.ED.bsplit !== false) {
       var rowsV = []; bands.forEach(function (b) { b.rows.forEach(function (r) { if (vis(r) && !r.add) rowsV.push(r); }); });
-      wk = bdWkSplit(rowsV);
-    }
-    var cgs = wk.concat([[5], [6]]);
+      wk = bdWkSplit(rowsV, [0, 1, 2, 3, 4].filter(inAv));
+    } else wk = [[0, 1, 2, 3, 4].filter(inAv)];
+    var cgs = wk.concat([[5], [6]]).map(function (g) { return g.filter(inAv); }).filter(function (g) { return g.length; });
     cgs.forEach(function (days, gi) {
       var any = false, eve = true;
       bands.forEach(function (b) { b.rows.filter(vis).forEach(function (r) { if (r.add) return; days.forEach(function (w) { var l = r.d.days[w] || []; if (l.length || (r.d.same && r.d.same[w])) any = true; if (r.d.same && r.d.same[w]) eve = false; l.forEach(function (m) { if (m < 16 * 60) eve = false; }); }); }); });
@@ -346,6 +351,7 @@
     if (nWk === 1) cols.forEach(function (c) { if (c.wk) { c.wk = false; c.label = bdT('th:' + c.days.join(''), 'ימים ' + dShort(c.days)); } });
     // לאקסל: עמודה לחג בשבוע הקרוב — רק כשהשעות בו שונות מהיום הרגיל באחד הקווים (כמו ב"משולב")
     if (xo && xo.hol) ((D.ED.hol && D.ED.hol.length ? D.ED.hol : (pages[0] || {}).hol) || []).forEach(function (h) {
+      if (WK && h[0] > WK) return;
       if (bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.d && r.d.x && r.d.x[h[0]]; }); }))
         cols.push({ days: [isoDow(h[0])], hol: h, label: h[2] + ' ' + LC.dm(h[0]) });
     });
@@ -374,11 +380,12 @@
     var chg = ps.some(function (p) { return p.chg; });
     var dflt = chg ? 'לוח הזמנים החדש · ' + linesTxt(ps) : 'זמני נסיעות · ' + (D.ED.bplace || (ps.length <= 3 ? linesTxt(ps) : cities.join(', ')) || linesTxt(ps));
     var alts = bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.cells.some(function (x) { return x.notes.length && x.ntxt == null && x.txt == null; }); }); });
-    var sub = [BD_FROM ? 'בתוקף מהתאריך שליד כל קו' : BD_FE ? 'החל מ-' + LC.dm(BD_FE) + (until ? ' עד ' + LC.dm(until) : '') : valid ? 'בתוקף מ-' + LC.dmy(valid) + (until ? ' עד ' + LC.dmy(until) : '') : '', vps.length ? linesTxt(vps) : ''].filter(Boolean).join(' · ');
+    // השבוע עד השינוי: "עד 28.11 · מ-29.11 — לוח זמנים חדש" (הלוח שאחריו — "החל מ-29.11")
+    var sub = [WK ? 'מ-' + LC.dm(valid) + ' עד ' + LC.dm(WK) + ' · מ-' + LC.dm(LC.addDays(WK, 1)) + ' — לוח זמנים חדש' : BD_FROM ? 'בתוקף מהתאריך שליד כל קו' : BD_FE ? 'החל מ-' + LC.dm(BD_FE) + (until ? ' עד ' + LC.dm(until) : '') : valid ? 'בתוקף מ-' + LC.dmy(valid) + (until ? ' עד ' + LC.dmy(until) : '') : '', vps.length ? linesTxt(vps) : ''].filter(Boolean).join(' · ');
     var contacts = ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]])
       .map(function (c) { return [bdT('phn:' + c[0], c[0]), bdT('php:' + c[0], c[1]), c[0]]; }).filter(function (c) { return c[0] || c[1]; });
     // מראה הלוח — גם לייצוא לאקסל: יישור הכותרת, צבעים, רקע ויישור לשורה ולתא
-    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', (D.ED.btitle || '').trim() || dflt), dflt: dflt, valid: valid, fe: BD_FE, until: until, sub: bdT('sub', sub), subDflt: sub, home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
+    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', ((D.ED.btitle || '').trim() || dflt) + (WK ? ' · עד ' + LC.dm(WK) : BD_FE ? ' · החל מ-' + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (D.ED.bnote || '').trim() || (alts ? 'נסיעות שמסומנות בסימן ובצבע (# ^ $…) עוברות בדרך אחרת' : '')), contacts: contacts,
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: D.ED.credit !== false, tord: D.ED.tord || 'ltr',
@@ -457,11 +464,18 @@
   }
   function BD_SAME() { return BD_M ? BD_M.lbl.same : 'ללא שינוי'; }
   /* ההערה מתחת לתא: "* 08:00 — מארבע עונות" (בצפוף — רק "* — מארבע עונות": השעות כבר מסומנות בסימן בתא) */
-  function bdNoteLine(nt) { return nt.plain || ((nt.L ? nt.L + ' ' : '') + (nt.all ? 'כל הנסיעות' : D.ED.bdense ? '' : nt.times.join(' ')) + ' — ' + nt.txt).replace(/ {2,}/g, ' ').replace(/^ /, ''); }
+  // הסימן לפני כל שעה ("#08:00 #09:00 — מארבע עונות"); כל הנסיעות / צפוף — הסימן לבד ("# — מארבע עונות")
+  function bdNoteLine(nt) {
+    if (nt.plain) return nt.plain;
+    var L = nt.L || '', ts = nt.all || D.ED.bdense ? '' : nt.times.map(function (t) { return L + t; }).join(' ');
+    return ((ts ? ts : L + (nt.all ? ' כל הנסיעות' : '')) + ' — ' + nt.txt).replace(/ {2,}/g, ' ').replace(/^ /, '');
+  }
   function bdNoteTxt(x) { return x.ntxt != null ? x.ntxt : x.txt != null && !x.same ? '' : x.notes.map(bdNoteLine).join('\n'); }
   function bdNoteHtml(x) {
     if (x.ntxt != null || (x.txt != null && !x.same)) return E(bdNoteTxt(x)).replace(/\n/g, '<br>');
-    return x.notes.map(function (nt) { return nt.c ? '<span class="bna" style="color:' + nt.c + '">' + E(bdNoteLine(nt)) + '</span>' : E(bdNoteLine(nt)); }).join('<br>');
+    // "#08:00" — יחידה משמאל לימין, כדי שגם ^ ~ + יישארו משמאל לשעה בשורה בעברית
+    var h = function (nt) { return E(bdNoteLine(nt)).replace(/([#^$~+*]+)(\d\d:\d\d)/g, function (m, L, t) { return '<bdi dir="ltr">' + L + t + '</bdi>'; }); };
+    return x.notes.map(function (nt) { return nt.c ? '<span class="bna" style="color:' + nt.c + '">' + h(nt) + '</span>' : h(nt); }).join('<br>');
   }
   function bdCellHtml(x) {
     var nt = bdNoteTxt(x), nh = nt ? '<span' + bdK(x.nkey, 'bnote') + '>' + bdNoteHtml(x) + '</span>' : x.ntxt === '' && x.notes.length ? '<span' + bdK(x.nkey, 'bnote') + '></span>' : '';
@@ -476,9 +490,10 @@
       var k = e.rm ? ' rm' : e.k ? ' nw' : '', sr = e.rm ? 'בוטלה' : e.k === 'nw' ? 'חדשה' : '';
       var was = e.k === 'sh' ? '<small class="was" dir="rtl">' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) + '</small>' :
         e.nwp ? '<small class="was" dir="rtl">' + (e.was != null ? e.nwp + ': ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) : 'חדש ב-' + e.nwp) + '</small>' : '';
-      // חלופה: השעה בצבע של החלופה, ואחריה הסימן שלה (# ^ $…) — בתוך אותה יחידה
-      // היחידה בכיוון של סדר השעות: השעה, ואחריה (בכיוון הקריאה) הסימן, ×N והימים — משמאל לימין מימין לשעה, מימין לשמאל משמאל לה
-      return '<span class="t num' + (e.a ? ' alt' : '') + k + '" dir="' + (D.ED.tord === 'rtl' ? 'rtl' : 'ltr') + '"' + (e.ac && !e.rm ? ' style="color:' + e.ac + '"' : '') + '>' + e.t + (e.al ? '<bdi dir="ltr" class="al">' + e.al + '</bdi>' : '') +
+      // חלופה: השעה בצבע של החלופה, והסימן שלה (# ^ $…) לפניה — "#07:00", הסימן משמאל לשעה (שלמה 23.11), בתוך אותה יחידה
+      // היחידה בכיוון של סדר השעות: הסימן והשעה (תמיד משמאל לימין), ואחריהם (בכיוון הקריאה) ×N והימים — משמאל לימין מימין לשעה, מימין לשמאל משמאל לה
+      var tm = e.al ? '<bdi dir="ltr" class="tu"><bdi dir="ltr" class="al">' + e.al + '</bdi>' + e.t + '</bdi>' : e.t;
+      return '<span class="t num' + (e.a ? ' alt' : '') + k + '" dir="' + (D.ED.tord === 'rtl' ? 'rtl' : 'ltr') + '"' + (e.ac && !e.rm ? ' style="color:' + e.ac + '"' : '') + '>' + tm +
         (sr ? '<span class="vh"> (' + sr + ')</span>' : '') + (e.n > 1 ? '<bdi dir="ltr" class="xn">×' + e.n + '</bdi>' : '') +
         (e.part ? '<sup dir="rtl">' + E(e.part) + '</sup>' : '') + was + '</span>';
     }).join(' ') + '</span>' + rmLine + nh + '</td>';
@@ -719,7 +734,7 @@
   }
   function bdHead(M, form) {
     return '<div class="cu-head bd-head"><div class="t"><div>' + (M.title ? '<h1' + bdK('title', 'hd') + '>' + E(M.title) + '</h1>' : '') +
-      (M.sub ? '<p' + bdK('sub', 'sub') + '>' + E(M.sub) + '</p>' : '') +
+      (M.sub ? '<p' + bdK(M.subK || 'sub', 'sub') + '>' + E(M.sub) + '</p>' : '') +
       (M.key && (M.key.hasNw || M.key.hasRm) ? '<p class="bd-key">' + (M.key.hasNw ? '<span' + bdK('lbl:knwx', 't num nw') + ' dir="ltr">' + E(bdT('lbl:knwx', '07:00')) + '</span> <span' + bdK('lbl:knw') + '>' + E(M.key.nw) + '</span>' : '') +
         (M.key.hasRm ? '<span' + bdK('lbl:krmx', 't num rm') + ' dir="ltr">' + E(bdT('lbl:krmx', '07:00')) + '</span> <span' + bdK('lbl:krm') + '>' + E(M.key.rm) + '</span>' : '') + '</p>' : '') + '</div></div></div>';
   }

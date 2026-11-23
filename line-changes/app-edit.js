@@ -76,7 +76,7 @@
     bar.querySelector('[data-t="rowdel"]').hidden = !bdSel || bdSel.line || !!bdSel.band;
     bar.querySelector('[data-t="linedel"]').hidden = !bdSel || !!bdSel.band;
     // הכותרת (title / sub) וכותרות העמודות (th:...) — יישור, עמוד ראשון וצבעים; שורה ותא — רקע
-    var bk = isBd ? el.getAttribute('data-bk') || '' : '', isHead = bk === 'title' || bk === 'sub', isTh = /^th:/.test(bk);
+    var bk = isBd ? el.getAttribute('data-bk') || '' : '', isHead = bk === 'title' || bk === 'sub' || bk === 'wsub', isTh = /^th:/.test(bk);
     bar.querySelectorAll('.bhd').forEach(function (b) { b.hidden = !isHead && !(isTh && b.classList.contains('bth')); });
     if (isHead) { var al0 = A.edits.btal === 'c' || A.edits.btal === 'l' ? A.edits.btal : 'r';
       bar.querySelectorAll('.hal').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-t') === 'hal-' + al0 ? 'true' : 'false'); });
@@ -166,8 +166,8 @@
     return { k: k, cols: ths, top: (tr.top - sr.top) / k, h: tr.height / k, hh: hr.height / k, tw: tr.width / k };
   }
   /* הרוחב שעל המסך, כחלקים (ED.bcw): המוצא ('o') וכל עמודת ימים (לפי data-ck), מהרוחב שאחרי עמודת הקו */
-  function bdColsNow() {
-    var tb = A.$('deck').querySelector('.sitem:not(.off) .s-bd table.bd-t'); if (!tb) return null;
+  function bdColsNow(tb) {   // tb — הטבלה שגררו בה (כשיש שני לוחות — עד השינוי ומהשינוי); בלי — הראשונה
+    tb = tb || A.$('deck').querySelector('.sitem:not(.off) .s-bd table.bd-t'); if (!tb) return null;
     var g = bdColRects(tb), cks = Array.prototype.map.call(tb.querySelectorAll('col[data-ck]'), function (c) { return c.getAttribute('data-ck'); });
     if (g.cols.length !== cks.length + 2) return null;
     var w = g.cols.map(function (c) { return c.r - c.l; }), av = g.tw - w[0], o = { o: +(w[1] / av).toFixed(4) };
@@ -197,7 +197,7 @@
     var tb = h.closest('.slide').querySelector('table.bd-t'), g = bdColRects(tb), i = +h.getAttribute('data-cb');
     // הכי צר: השעה הרחבה בטבלה (עם הריווח בתא); המוצא — לא פחות מ-48
     var big = 0; tb.querySelectorAll('td.bt .t').forEach(function (t) { var w = t.getBoundingClientRect().width / g.k; if (w > big) big = w; });
-    bcwDrag = { h: h, i: i, x0: ev.clientX, k: g.k, w: g.cols.map(function (c) { return c.r - c.l; }), tw: g.tw, d: 0, min: Math.max(28, big + 12) };
+    bcwDrag = { tb: tb, h: h, i: i, x0: ev.clientX, k: g.k, w: g.cols.map(function (c) { return c.r - c.l; }), tw: g.tw, d: 0, min: Math.max(28, big + 12) };
     h.classList.add('on');
     try { h.setPointerCapture(ev.pointerId); } catch (e) {}
   }, true);
@@ -211,6 +211,7 @@
     // תצוגה מיידית: אותו רוחב בכל הטבלאות של הלוח
     A.$('deck').querySelectorAll('.sitem:not(.off) .s-bd table.bd-t').forEach(function (tb) {
       var cs = tb.querySelectorAll('col');
+      if (cs.length !== D0.w.length) return;   // הלוח השני (עד השינוי / מהשינוי) עם עמודות אחרות
       for (var j = 1; j < cs.length && j < w.length; j++) cs[j].style.width = (w[j] / D0.tw * 100).toFixed(3) + '%';
     });
     var l = D0.h.parentNode, gs = l.querySelectorAll('.bcw-g'), hs = l.querySelectorAll('.bcw-h');
@@ -220,7 +221,7 @@
     if (!bcwDrag) return;
     var D0 = bcwDrag; bcwDrag = null; D0.h.classList.remove('on');
     if (Math.abs(D0.d) < 1) return;
-    A.edits.bcw = bdColsNow() || A.edits.bcw;
+    A.edits.bcw = bdColsNow(D0.tb) || A.edits.bcw;
     A.saveEdits(); keepScroll(function () { A.render(A.curPages); });
   }
   A.$('deck').addEventListener('pointerup', bcwEnd);

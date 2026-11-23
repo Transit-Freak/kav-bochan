@@ -1653,9 +1653,10 @@ var LCDeck = (function () {
     cols.forEach(function (c) { c.ents.forEach(function (e) { e.al = e.a ? used[e.li + ':' + e.a].L : ''; }); });
     side.alts = list;
   }
-  /* סימנים ליד השעה: סימן החלופה, ו-×2 במצגת (עדין; בשלט ובסטטוס — .xn אחרי התגית) */
+  /* סימנים ליד השעה: סימן החלופה — לפני השעה (#07:00, שלמה 23.11; היחידה משמאל לימין), ו-×2 אחריה במצגת (עדין; בשלט ובסטטוס — .xn אחרי התגית) */
+  function cuAl(e) { return e.al ? '<i class="al">' + e.al + '</i>' : ''; }
   function cuMarks(e, form) {
-    return (e.al ? '<i class="al">' + e.al + '</i>' : '') + (e.n > 1 && form === 'deck' ? '<sup class="x2">×' + e.n + '</sup>' : '');
+    return e.n > 1 && form === 'deck' ? '<sup class="x2">×' + e.n + '</sup>' : '';
   }
   /* מקרא לסימנים: רק מה שמופיע ברשימה ents. multi — יש כמה קווים (אז גם מספר הקו ליד החלופה) */
   function cuKey(side, ents, multi) {
@@ -1707,7 +1708,7 @@ var LCDeck = (function () {
   /* שורה ברשימה: שעה · תגית הקו · ×2 (רק בשלט ובסטטוס) · הערה ("ה׳ בלבד", "בלילה") */
   function cuRow(e, c, form) {
     var nt = cuNote(e, c), night = e.m >= 1440;
-    return '<li' + (nt || night ? ' class="hn"' : '') + '><span class="tm num">' + hm2(e.m) + cuMarks(e, form) + '</span>' + cuLb(e.p) +
+    return '<li' + (nt || night ? ' class="hn"' : '') + '><span class="tm num">' + cuAl(e) + hm2(e.m) + cuMarks(e, form) + '</span>' + cuLb(e.p) +
       (e.n > 1 && form !== 'deck' ? '<small class="xn num">×' + e.n + '</small>' : '') +
       (nt || night ? '<small class="nt">' + E([nt, night ? 'בלילה' : ''].filter(Boolean).join(' · ')) + '</small>' : '') + '</li>';
   }
@@ -1722,7 +1723,7 @@ var LCDeck = (function () {
     var out = by.map(function (r) {
       return { h: Math.ceil(r.es.length / perLine) * lineH + 6, hour: true, es: r.es,
         html: '<li class="hr"><b class="num">' + String(r.h % 24).padStart(2, '0') + '</b><span class="ms">' + r.es.map(function (e) {
-          return '<span class="num" dir="ltr"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '°' : '') + cuMarks(e, 'deck') + '</span>';
+          return '<span class="num" dir="ltr"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + cuAl(e) + String(e.m % 60).padStart(2, '0') + (e.part ? '°' : '') + cuMarks(e, 'deck') + '</span>';
         }).join(' ') + '</span></li>' };
     });
     if (c.ents.some(function (e) { return e.part; })) out.push({ h: lineH + 6, hour: true, html: '<li class="hn"><small class="nt">° רק בחלק מהימים</small></li>' });
@@ -1772,7 +1773,12 @@ var LCDeck = (function () {
     var o = g.od;
     return o[0] && o[1] && o[0] !== o[1] ? o[0] + ' ↔ ' + o[1] : 'קו ' + g.pages[0].line + (o[0] ? ' · ' + o[0] : '');
   }
-  function cuValid(g) { var v = g.pages.map(function (p) { return p.valid || p.eff; }).filter(Boolean).sort()[0]; return v ? 'בתוקף מ-' + LC.dmy(v) : ''; }
+  function cuValid(g) {
+    var v = g.pages.map(function (p) { return p.valid || p.eff; }).filter(Boolean).sort()[0], wu = curWk(g.pages);
+    return v ? 'בתוקף מ-' + LC.dmy(v) + (wu ? ' עד ' + LC.dmy(wu) : '') : '';
+  }
+  /* הלוח של השבוע עד השינוי (curPre): היום האחרון שלו */
+  function curWk(pages) { var u = pages.map(function (p) { return p.wkUntil || ''; }).sort(); return u.length && u[0] ? u[0] : ''; }
   function cuHead(g, big) {
     var ops = opsOf(g.pages);
     return '<div class="cu-head"><div class="t">' + (g.pages.length === 1 ? '<span class="badge sm num">' + E(g.pages[0].line) + '</span>' : '') +
@@ -1896,7 +1902,40 @@ var LCDeck = (function () {
     });
     return out;
   }
+  /* קו שמשתנה בימים הקרובים (p.pre מ-ttPick): קודם הלוח של השבוע עד השינוי ("עד 28.11" — מהיום ועד יום לפני השינוי),
+     ואחריו הלוח מהשינוי ("החל מ-29.11"). בלוח הראשון: הקו שמשתנה — הלו"ז של הימים האלה (pre), ושאר הקווים — רק אותם ימים.
+     מחזיר את הקווים ללוח הראשון, או null כשאף קו לא משתנה השבוע */
+  function curPre(pages) {
+    var ps = pages.filter(function (p) { return p.pre; });
+    if (!ps.length) return null;
+    var wu = ps.map(function (p) { return p.pre.wkUntil; }).sort()[0], dow = ps[0].pre.dow;
+    return pages.map(function (p) {
+      var q = {}; Object.keys(p).forEach(function (k) { q[k] = p[k]; });
+      q.pre = null; q.fromEff = ''; q.until = ''; q.wkUntil = wu;
+      if (p.pre) { q.dirs = p.pre.dirs; q.valid = q.eff = p.pre.valid; q.dow = p.pre.dow; q.hol = p.pre.hol; return q; }
+      // קו שלא משתנה: רק הימים של הלוח הזה (מהיום ועד wu)
+      q.dow = dow;
+      q.dirs = p.dirs.map(function (d) {
+        var o = {}; Object.keys(d).forEach(function (k) { o[k] = d[k]; });
+        o.days = d.days.map(function (x, w) { return dow.indexOf(w) >= 0 ? x : []; });
+        o.x = {}; Object.keys(d.x || {}).forEach(function (iso) { if (iso <= wu) o.x[iso] = d.x[iso]; });
+        return o;
+      });
+      q.hol = (p.hol || []).filter(function (h) { return h[0] <= wu; });
+      return q;
+    });
+  }
   function curBuild(pages, feed) {
+    var pre = curPre(pages);
+    if (!pre) return curBuild1(pages, feed);
+    var wu = pre[0].wkUntil, fe = LC.addDays(wu, 1);
+    var a = curBuild1(pre, feed).filter(function (s) { return s.id !== 'close'; }), b = curBuild1(pages, feed), out = [];
+    a.forEach(function (s) { s.id = 'wk-' + s.id; s.label = 'עד ' + LC.dm(wu) + ' · ' + s.label; out.push(s); });
+    b.forEach(function (s) { if (s.id !== 'close') s.label = 'החל מ-' + LC.dm(fe) + ' · ' + s.label; out.push(s); });
+    out.pages = b.pages;
+    return out;
+  }
+  function curBuild1(pages, feed) {
     var hol = D.ED.hol || [];
     if (D.ED.ttc === 'board') {
       var bs = D.bdSlides(pages, D.ED.form === 'sign' || D.ED.form === 'status' ? D.ED.form : 'deck');
@@ -2263,11 +2302,11 @@ var LCDeck = (function () {
       D.ttBlocks = ttBlocks; D.paginate = paginate; D.ttKey = ttKey; D.ttPagesHtml = ttPagesHtml; D.routeLegend = routeLegend; D.routeMap = routeMap;
       D.altList = altList; D.kTwo = kTwo; D.kDirBlocks = kDirBlocks; D.zoomOn = zoomOn; D.zoomGroups = zoomGroups; D.zoomMap = zoomMap;
       D.zoomList = zoomList; D.kindSlides = kindSlides; D.badgeTitle = badgeTitle; D.CU_COL = CU_COL; D.hm2 = hm2; D.isoDow = isoDow;
-      D.dShort = dShort; D.linesTxt = linesTxt; D.cuDay = cuDay; D.cuMerge = cuMerge; D.ALT_LET = ALT_LET; D.altSym = altSym; D.cuTagCol = cuTagCol; D.ttCap = ttCap;
+      D.dShort = dShort; D.linesTxt = linesTxt; D.cuDay = cuDay; D.cuMerge = cuMerge; D.ALT_LET = ALT_LET; D.altSym = altSym; D.cuTagCol = cuTagCol; D.ttCap = ttCap; D.curWk = curWk;
       D.mtDirs = mtDirs; D.lastStop = lastStop; D.mtFrom = mtFrom; D.mtGroups = mtGroups; D.mtDay = mtDay; D.mtWhen = mtWhen; D.mtSlides = mtSlides;
       D.sumLine = sumLine; D.FORMS = FORMS; D.isOne = isOne; D.COLORS = COLORS; D.PALETTE = PALETTE; D.contrast = contrast; D.shade = shade;
       D.agOf = agOf; D.lookVars = lookVars;
   // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
   var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols, altSym: altSym };
-  return { combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };
+  return { curPre: curPre, combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };
 })();

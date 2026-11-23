@@ -598,23 +598,37 @@
       var fe = ups.filter(function (d) { return LC.daysBetween(sh.valid, d) <= 6; }).pop() || '', wk = {};
       Object.keys(e.d).forEach(function (k) { if (fe) wk[k] = LC.ttFromEff(e.d[k], sh.valid, fe, !!sh.w1); });
       if (Object.keys(wk).some(function (k) { return !wk[k]; })) fe = '';
-      var dirs = Object.keys(e.d).sort().map(function (k) {
-        var r = e.d[k], W = fe ? wk[k] : r.w, x = {}, xa = {}, xn = {}, A = r.A || [], N = r.N || [];
-        Object.keys(r.x || {}).forEach(function (iso) { if (fe && iso < fe) return; x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; xn[iso] = N[r.x[iso]] || 0; });
-        // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
-        // sc / vs / vc — התחנות והערים של החלופה הראשית ושל כל חלופה (ללוח של מקום: רק מה שעוצר בו)
-        // cn — כמה תחנות בכל עיר (מקביל ל-cs): קו בין ערים סמוכות שרוב התחנות שלו בעיר אחת — עירוני בלוח
-        return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, cn: r.cn || null, sc: r.sc || null, vs: r.vs || null, vc: r.vc || null, du: r.du, days: W.map(function (i) { return r.L[i] || []; }), x: x,
-          v: r.v || [], da: W.map(function (i) { return A[i] || 0; }), xa: xa,
-          // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
-          dn: W.map(function (i) { return N[i] || 0; }), xn: xn };
-      });
+      // in — באילו ימים בשבוע יש נתונים (בלו"ז של השבוע עד השינוי — רק הימים מהיום ועד יום לפני השינוי); xin — אילו תאריכים חריגים
+      var mkDirs = function (Wof, inW, xin) {
+        return Object.keys(e.d).sort().map(function (k) {
+          var r = e.d[k], W = Wof(k, r), x = {}, xa = {}, xn = {}, A = r.A || [], N = r.N || [];
+          var at = function (L, w) { return inW(w) && W[w] != null ? L[W[w]] : null; };
+          Object.keys(r.x || {}).forEach(function (iso) { if (!xin(iso)) return; x[iso] = r.L[r.x[iso]]; xa[iso] = A[r.x[iso]] || 0; xn[iso] = N[r.x[iso]] || 0; });
+          // חלופות: v — תיאור לכל חלופה שאינה הראשית; da/xa — לכל יציאה, באיזו חלופה (0 = ראשית)
+          // sc / vs / vc — התחנות והערים של החלופה הראשית ושל כל חלופה (ללוח של מקום: רק מה שעוצר בו)
+          // cn — כמה תחנות בכל עיר (מקביל ל-cs): קו בין ערים סמוכות שרוב התחנות שלו בעיר אחת — עירוני בלוח
+          return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, cn: r.cn || null, sc: r.sc || null, vs: r.vs || null, vc: r.vc || null, du: r.du, days: W.map(function (i, w) { return at(r.L, w) || []; }), x: x,
+            v: r.v || [], da: W.map(function (i, w) { return at(A, w) || 0; }), xa: xa,
+            // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
+            dn: W.map(function (i, w) { return at(N, w) || 0; }), xn: xn };
+        });
+      };
+      var all7 = function () { return true; };
+      var dirs = mkDirs(function (k, r) { return fe ? wk[k] : r.w; }, all7, function (iso) { return !fe || iso >= fe; });
+      // הקו משתנה השבוע: גם הלו"ז של הימים שעד השינוי (pre — מהיום ועד יום לפני השינוי, מ-r.w), ללוח נפרד "עד 28.11" לפני הלוח "החל מ-29.11"
+      var pre = null;
+      if (fe) {
+        var d0 = new Date(sh.valid + 'T12:00:00').getDay(), inPre = function (w) { return LC.addDays(sh.valid, (w - d0 + 7) % 7) < fe; };
+        var wu = LC.addDays(fe, -1), dow = [0, 1, 2, 3, 4, 5, 6].filter(inPre);
+        pre = { dirs: mkDirs(function (k, r) { return r.w; }, inPre, function (iso) { return iso < fe; }), valid: sh.valid, eff: sh.valid, wkUntil: wu, dow: dow,
+          hol: (sh.hol || []).filter(function (h) { return h[0] < fe; }) };
+      }
       // עד מתי: היום שלפני השינוי הקרוב בקו (אם יש; בלו"ז מתאריך השינוי — השינוי שאחריו)
       var nx = ups.filter(function (d) { return d > (fe || sh.valid); })[0];
       // מוצא ויעד: מהכיוונים בלו"ז (הנסיעות שמוצגות), לא מהשם של הקו ברשימה — שם שנלקח לפעמים מחלופה אחרת של הקו
       var dod = dirs.filter(function (d) { return d.od && d.od[0] && d.od[1] && d.days.some(function (x) { return x && x.length; }); }).map(function (d) { return d.od; })[0];
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: dod ? dod.slice() : l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
-        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, tot: { kind: 'current' } };
+        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, pre: pre, tot: { kind: 'current' } };
     });
   }
   $('results').addEventListener('click', function (ev) {
