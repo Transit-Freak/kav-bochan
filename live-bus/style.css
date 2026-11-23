@@ -95,7 +95,6 @@ html.kb-dark .frac i{background:rgba(141,182,255,.22)}
 .plate{display:inline-flex;align-items:center;height:26px;background:#FACC15;color:#111827;border:1.5px solid #111827;border-radius:6px;padding:0 7px;font:700 13.5px 'Rubik',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.3px;direction:ltr;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
 .plate.none{background:var(--chip);color:var(--mut);border:1.5px dashed var(--line);direction:rtl;font-weight:600;font-size:12.5px;letter-spacing:0;box-shadow:none}
 html.kb-dark .plate.none{border-color:#34405a}
-.plate.guess{background:transparent;color:var(--ink);border-style:dashed;border-color:var(--dim);box-shadow:none}
 .pill{display:inline-flex;align-items:center;gap:5px;height:24px;border-radius:999px;padding:0 10px;font-size:12px;font-weight:700;white-space:nowrap}
 .pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
 .v-ok{background:var(--ok-bg);color:var(--ok)}
@@ -103,7 +102,6 @@ html.kb-dark .plate.none{border-color:#34405a}
 .v-bad{background:var(--bad-bg);color:var(--bad)}
 .v-run{background:var(--acc-bg);color:var(--acc)}
 .p-unk{background:var(--chip);color:var(--mut)}
-.p-guess{background:transparent;color:var(--mut);border:1.5px dashed var(--dim)}
 .pill.kab{background:#FDE7D3;color:#9A3412}
 html.kb-dark .pill.kab{background:#3B2414;color:#FDBA74}
 
@@ -172,3 +170,24 @@ details.c .inner{margin:0 14px;padding:12px 0 14px;border-top:1px solid var(--li
 .ntm{font-variant-numeric:tabular-nums;margin-inline-end:4px}
 .vline{font-size:14px}
 .t-v-ok b{color:var(--ok)}.t-v-warn b{color:var(--warn)}.t-v-bad b{color:var(--bad)}
+
+/* בחירת קו: רשת כרטיסים — חברה, מוצא ויעד */
+.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){.picks{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pick{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:right;border:1.5px solid transparent;background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:12px 13px 13px;color:var(--ink);cursor:pointer;min-height:96px;transition:border-color .15s}
+.pick:hover,.pick:focus-visible{border-color:var(--ink);outline:none}
+.pick.x{display:none}
+.pop{font-size:11.5px;font-weight:700;color:var(--mut);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e1{font-size:15px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.e2{font-size:12.5px;font-weight:500;color:var(--mut);line-height:1.35;margin-top:3px;overflow-wrap:anywhere}
+.pmore{display:block;margin:12px auto 0;border:none;background:var(--chip);color:var(--ink);font:700 13.5px 'Rubik',sans-serif;border-radius:999px;padding:10px 20px;cursor:pointer}
+.rt{display:flex;flex-direction:column;min-width:0}
+.rt .pop{margin:0}
+.ends{display:flex;flex-wrap:wrap;column-gap:6px}
+.ends{flex-direction:column}.ends .e1{font-size:17px}.ends .e2{margin-top:1px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+.act{display:inline-flex;align-items:center;gap:6px;height:38px;border:none;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font:700 13px 'Rubik',sans-serif;border-radius:999px;padding:0 14px;cursor:pointer}
+.act svg{color:var(--acc)}
+.pop b,.rhead .pop b{display:inline;font-size:inherit;color:var(--ink);font-weight:700}
+.pf{width:100%;height:44px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:600 14.5px 'Rubik',sans-serif;padding:0 14px;margin:0 0 10px;outline:none}
+.pf:focus{border-color:var(--ink)}
