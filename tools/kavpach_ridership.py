@@ -3,7 +3,8 @@
 
 ממאגר "נסועה בקווי אוטובוס" של משרד התחבורה (data.gov.il, דרך ה-API): לכל קו (מק"ט) ולכל רבעון —
 נוסעים בשבוע (סכום הכיוונים והחלופות), ומהרבעון האחרון — המלצת המשרד ודירוג ההוספה.
-כותב kavpach-ridership.json: {"gen", "q": [רבעונים], "m": {מק"ט: {"w": [נוסעים לכל רבעון או null], "rec", "add"}}}.
+כותב kavpach-ridership.json: {"gen", "q": [רבעונים], "m": {מק"ט: {"w": [נוסעים לכל רבעון או null], "rec", "add", "r"}}}
+(r — נסיעות בשבוע ברבעון האחרון, לממוצע הנוסעים בנסיעה ב"האוטובוס הבא").
 כשל או קובץ שנראה חסר — הקובץ הקיים נשאר.
 """
 import collections, json, os, sys, time, urllib.parse, urllib.request
@@ -51,7 +52,7 @@ def main():
             while True:
                 # בלי fields: בשנים הישנות אין עמודות המלצה/דירוג, והבקשה נכשלת
                 r = get('datastore_search', resource_id=res['id'], limit=5000, offset=off)
-                rows += [{k: x.get(k) for k in ('RouteID', 'year', 'Q', 'WeeklyPassengers', 'המלצה', 'דרוג הוספה')} for x in r['records']]
+                rows += [{k: x.get(k) for k in ('RouteID', 'year', 'Q', 'WeeklyPassengers', 'WeekyRides', 'המלצה', 'דרוג הוספה')} for x in r['records']]
                 off += 5000
                 if off >= r['total']:
                     break
@@ -63,7 +64,20 @@ def main():
     if len(rows) < 20000 and os.path.exists(OUT):
         print('נסועה: רק', len(rows), 'שורות — נראה חסר, הקובץ הקיים נשאר')
         return 0
+    out = build(rows)
+    with open(OUT, 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+    print('נסועה:', len(rows), 'שורות ·', len(out['m']), 'קווים · רבעונים:', out['q'], '· עם המלצה:',
+          sum('rec' in e for e in out['m'].values()), '· לתגבור:', sum('add' in e for e in out['m'].values()))
+    return 0
+
+
+def build(rows):
+    """השורות של המאגר (כיוון/חלופה ברבעון) ← הקובץ. r — נסיעות בשבוע ברבעון האחרון של הקו (שדה WeekyRides,
+    כך במקור), רק כשבכל השורות של אותו רבעון יש מספר נסיעות: נוסעים לנסיעה = w האחרון חלקי r (האוטובוס הבא)."""
     week = collections.defaultdict(lambda: collections.defaultdict(float))
+    rides = collections.defaultdict(lambda: collections.defaultdict(float))
+    no_rides = set()
     seen = collections.defaultdict(set)
     rec, add = {}, {}
     for x in rows:
@@ -75,6 +89,11 @@ def main():
         w = num(x.get('WeeklyPassengers'))
         if w is not None:
             week[mk][key] += w; seen[mk].add(key)
+            n = num(x.get('WeekyRides'))
+            if n and n > 0:
+                rides[mk][key] += n
+            else:
+                no_rides.add((mk, key))
         r = (x.get('המלצה') or '').strip()
         if r and rank(r) < rank(rec.get(mk)):
             rec[mk] = r
@@ -87,11 +106,11 @@ def main():
         e = {'w': [round(week[mk][k]) if k in seen[mk] else None for k in qs]}
         if mk in rec: e['rec'] = rec[mk]
         if add.get(mk): e['add'] = add[mk]
+        last = max(seen[mk])
+        if rides[mk].get(last) and (mk, last) not in no_rides:
+            e['r'] = round(rides[mk][last])
         out['m'][mk] = e
-    with open(OUT, 'w', encoding='utf-8') as f:
-        json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
-    print('נסועה:', len(rows), 'שורות ·', len(out['m']), 'קווים · רבעונים:', out['q'], '· עם המלצה:', len(rec), '· לתגבור:', len(add))
-    return 0
+    return out
 
 
 if __name__ == '__main__':

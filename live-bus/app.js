@@ -21,10 +21,12 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const iso = ms => new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
 const hm = ms => new Date(ms).toLocaleTimeString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false });
-const ilDate = (dd = 0) => new Date(Date.now() + dd * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+const ilDay = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+const ilDate = (dd = 0) => ilDay(Date.now() + dd * 864e5);
 const median = a => { const b = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); if (!b.length) return null; const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 const norm = p => String(p || '').replace(/\D/g, '').replace(/^0+/, '');
 const T = s => Date.parse(s);
+const chunks = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 const km = m => (m / 1000).toLocaleString('he-IL', { maximumFractionDigits: m < 10000 ? 1 : 0 });
 
 class ApiErr extends Error {}
@@ -84,13 +86,31 @@ function showSrc() {
 }
 const freshCut = () => (SNAP || Date.now() - 3 * MIN) - 6 * MIN;
 
+/* ---------- האינדקס הקטן ----------
+   live-bus/index.json נבנה בכל פריסה (tools/live_bus_index.py) ומחזיק רק מה שהדף צריך מצי הרכבים, מהקו בזמן
+   ומהנסועה של משרד התחבורה — כ-260KB מכווץ, במקום כ-1.5MB של fleet.json, fleet-official.json ו-lines.json
+   (ועוד gov-details-N.json). כשאין אינדקס, או שחסר בו חלק — אותו חלק נטען מהקבצים הגדולים, כמו קודם. */
+let idxP = null;
+function loadIndex() {
+  if (!idxP) idxP = (async () => {
+    const urls = ['index.json'];
+    if (!/kavbochan\.app$/.test(location.hostname)) urls.push('https://kavbochan.app/live-bus/index.json');
+    for (const u of urls) {
+      try { const r = await fetch(u, { cache: 'no-cache' }); if (r.ok) { const j = await r.json(); if (j && j.v === 1) return j; } } catch (e) { /* הבא */ }
+    }
+    return null;
+  })();
+  return idxP;
+}
+
 /* ---------- צי הרכבים ---------- */
 const TNAMES = { 'צבורי עירוני': 'אוטובוס עירוני', 'צבורי בין-עירוני': 'אוטובוס בין-עירוני', 'צבורי להסע מיוחד': 'אוטובוס הסעות',
   'זעצ הסעות מיוחדות': 'מיניבוס הסעות', 'זעיר צבורי': 'מיניבוס', 'זעיר צבורי סיור': 'מיניבוס תיור', 'צבורי עיר מפרק': 'אוטובוס מפרקי',
   'צבורי בע קומתים': 'אוטובוס דו-קומתי', 'עירוני קומותיים': 'אוטובוס דו-קומתי עירוני', 'צבורי לסיור': 'אוטובוס תיור', 'פרטי': 'אוטובוס פרטי' };
 const fixT = t => { if (!t) return ''; const c = t.replace(/["״]/g, '').replace(/\s+/g, ' ').trim().replace(/^אוטובוס /, ''); return TNAMES[c] || t.replace('צבורי', 'ציבורי'); };
 const kabType = t => !!t && /הסע|מיוחד|סיור|טיולית|פרטי|תיור/.test(t);
-const FLEET = { idx: null, ofc: null, ops: {}, cov: {}, gov: {}, updated: null, failed: false };
+// veh/vs/nocov — מהאינדקס; idx/ofc/cov/gov — מהקבצים הגדולים (כשאין אינדקס). ready — אחד מהם נטען
+const FLEET = { ready: false, veh: null, vs: null, nocov: null, hasOfc: false, idx: null, ofc: null, ops: {}, cov: {}, gov: {}, updated: null, failed: false };
 async function getJSON(rel) {
   const urls = [rel, 'https://kavbochan.app/' + rel.replace(/^(\.\.\/)+/, '')];
   for (const u of urls) {
@@ -102,6 +122,11 @@ let fleetP = null;
 function loadFleet() {
   if (fleetP) return fleetP;
   fleetP = (async () => {
+    const ix = await loadIndex();
+    if (ix && ix.veh) {
+      Object.assign(FLEET, { veh: ix.veh, vs: ix.vs || [''], ops: ix.ops || {}, nocov: new Set(ix.nocov || []), hasOfc: !!ix.ofc, updated: ix.fleet_updated, ready: true });
+      return;
+    }
     const [f, o] = await Promise.all([getJSON('../fleet/data/fleet.json'), getJSON('../fleet/data/fleet-official.json')]);
     if (!f) { FLEET.failed = true; return; }
     const off = f.v === 2 ? 1 : 0, idx = {};
@@ -120,6 +145,8 @@ function loadFleet() {
       FLEET.cov[op.ref] = !(FLEET.ofc && !inOfc && op.vehicles.length >= 10);
     }
     FLEET.idx = idx;
+    FLEET.hasOfc = !!FLEET.ofc;
+    FLEET.ready = true;
   })();
   return fleetP;
 }
@@ -131,6 +158,7 @@ function shard(d) {
 // מושבים לרכבים שאינם במאגר הרשמי (בעיקר קבלן) — מהרישוי, בעצלתיים
 async function ensureSeats(plates) {
   await loadFleet();
+  if (FLEET.veh || !FLEET.idx) return; // באינדקס המושבים כבר בפנים
   const need = plates.map(norm).filter(p => p && !(FLEET.ofc && FLEET.ofc[p] && FLEET.ofc[p][1]) && !(p in FLEET.gov));
   const ds = [...new Set(need.map(p => p.slice(-1)))].slice(0, 4);
   await Promise.all(ds.map(async d => {
@@ -150,37 +178,54 @@ function sizeLbl(o5, type) {
   if (/מפרק/.test(t)) return 'מפרקי (אקורדיון)';
   return t ? 'אוטובוס רגיל' : '';
 }
-function vinfo(plate, opRef) {
-  const p = norm(plate), f = FLEET.idx && FLEET.idx[p], o = FLEET.ofc && FLEET.ofc[p];
+// רשומת רכב אחידה — מהאינדקס (tools/live_bus_index.py, אותו חישוב) או מהקבצים הגדולים.
+// fop: החברה שבצי הרכבים (null — לא בצי), inOfc: במאגר "ציי רכב אוטובוסים", kt: סוג רכב של הסעות/תיור
+function vrec(p) {
+  if (FLEET.veh) {
+    const r = FLEET.veh[p];
+    if (!r) return null;
+    const s = i => FLEET.vs[i || 0] || '';
+    return { fop: r[0] != null ? r[0] : null, inOfc: r[1] === 2, kt: r[1] === 1, seats: r[2] || null, size: s(r[3]), year: r[4], model: s(r[5]), kind: s(r[6]), prop: s(r[7]) };
+  }
+  const f = FLEET.idx && FLEET.idx[p], o = FLEET.ofc && FLEET.ofc[p];
+  if (!f && !o) return null;
   const type = f ? fixT(f.type) : '';
-  const op = opRef != null ? opRef : f && f.op;
+  return { fop: f ? f.op : null, inOfc: !!o, kt: !!f && kabType(type), seats: (o && +o[1]) || FLEET.gov[p] || null, size: sizeLbl(o && o[5], type),
+    year: f && f.year, model: f && f.model, kind: o && o[4] && o[4] !== 'לא ידוע' ? o[4] : '', prop: o && o[3] && o[3] !== 'לא ידוע' ? o[3] : '' };
+}
+// חברה שהמאגר הרשמי לא מכסה בכלל
+const noCov = op => FLEET.nocov ? FLEET.nocov.has(String(op)) : FLEET.cov[op] === false;
+function vinfo(plate, opRef) {
+  const p = norm(plate), r = vrec(p);
+  const inFleet = !!(r && r.fop != null);
+  const op = opRef != null ? opRef : r && r.fop;
   let kab = null;
-  if (FLEET.idx) {
-    if (o) kab = false;
-    else if (!FLEET.ofc) kab = f ? kabType(type) : null;
-    else if (FLEET.cov[op] === false) kab = f ? kabType(type) : null;
+  if (FLEET.ready) {
+    if (r && r.inOfc) kab = false;
+    else if (!FLEET.hasOfc || noCov(op)) kab = inFleet ? r.kt : null;
     else kab = true;
   }
-  const seats = (o && +o[1]) || FLEET.gov[p] || null;
   return {
-    plate: p, known: !!(f || o), opName: (op != null && FLEET.ops[op]) || (f && f.opName) || '',
-    model: f && f.model, year: f && f.year, type, kab, seats,
-    size: sizeLbl(o && o[5], type), kind: o && o[4] && o[4] !== 'לא ידוע' ? o[4] : '', prop: o && o[3] && o[3] !== 'לא ידוע' ? o[3] : '',
-    other: f && op != null && f.op !== op ? f.opName : '',
+    plate: p, known: !!r, opName: (op != null && FLEET.ops[op]) || (inFleet && FLEET.ops[r.fop]) || '',
+    model: r && r.model, year: r && r.year, kab, seats: r ? r.seats : null,
+    size: r ? r.size : '', kind: r ? r.kind : '', prop: r ? r.prop : '',
+    other: inFleet && op != null && r.fop !== op ? FLEET.ops[r.fop] || '' : '',
   };
 }
+// רכב קבלן (true), של החברה (false) או לא ידוע (null) — לצבע של לוחית הרישוי ושל הסמן במפה
+const vkab = (plate, op) => { const v = vinfo(plate, op); return v.known && v.kab != null ? v.kab : null; };
+const isKab = (plate, op) => vkab(plate, op) === true;
 /* ---------- קווים ושמות ---------- */
 const ROUTES = {}; // line_ref -> מסלול GTFS (או null)
 async function routesFor(refs) {
   const miss = [...new Set(refs)].filter(l => l != null && !(l in ROUTES));
-  for (let i = 0; i < miss.length; i += 60) {
-    const part = miss.slice(i, i + 60);
+  await Promise.all(chunks(miss, 60).map(async part => {
     try {
       const r = await api('/gtfs_routes/list', { line_refs: part.join(','), date_from: ilDate(-1), date_to: ilDate(0), limit: 400 });
       for (const x of r) if (!ROUTES[x.line_ref] || ROUTES[x.line_ref].date < x.date) ROUTES[x.line_ref] = x;
     } catch (e) { /* בלי שם */ }
     for (const l of part) if (!(l in ROUTES)) ROUTES[l] = null;
-  }
+  }));
 }
 function rparts(r) {
   const s = (r && r.route_long_name) || '';
@@ -245,23 +290,59 @@ function routeTitle(dest, m) {
   if (p.circ) return (p.city ? p.city + ", " : "") + p.fr + " (מעגלי)";
   return (p.city ? p.city + ": " : "") + p.fr + " – " + p.to;
 }
-// אינדקס הקווים של הקו בזמן (‎1.1MB מכווץ) — לפי מק"ט-כיוון-חלופה, ולפי מק"ט-כיוון לחלופה הראשית
+// אינדקס הקווים של הקו בזמן — לפי מק"ט-כיוון-חלופה, ולפי מק"ט-כיוון לחלופה הראשית.
+// מהאינדקס הקטן (הקווים הפעילים וערי היעד), ובלעדיו מ-lines.json (‎1.1MB מכווץ)
 const LH = {};
 let lhP = null;
+function addLH(l) {
+  const q = String(l.rd).split('-');
+  if (q.length < 3 || !/^\d+$/.test(q[0])) return;
+  LH[l.rd] = l;
+  const k = q[0] + '-' + q[1];
+  if (!LH[k] || q[2] === '#' || q[2] === '0') LH[k] = l;
+}
 function loadLH() {
-  if (!lhP) lhP = getJSON('../line-history/data/lines.json').then(j => {
-    const L = (j && j.lines) || [];
-    setKnownCities(L);
-    for (const l of L) {
-      if (l.historicalOnly || l.observationOnly || l.lk === 'removed') continue;
-      const q = String(l.rd).split('-');
-      if (q.length < 3 || !/^\d+$/.test(q[0])) continue;
-      LH[l.rd] = l;
-      const k = q[0] + '-' + q[1];
-      if (!LH[k] || q[2] === '#' || q[2] === '0') LH[k] = l;
+  if (!lhP) lhP = loadIndex().then(ix => {
+    if (ix && ix.lines && ix.cities) {
+      KNOWN_CITIES = ix.cities;
+      for (const [rd, dest, hs, hso] of ix.lines) addLH({ rd, dest, hs, hso });
+      return;
     }
+    return getJSON('../line-history/data/lines.json').then(j => {
+      const L = (j && j.lines) || [];
+      setKnownCities(L);
+      for (const l of L) if (!(l.historicalOnly || l.observationOnly || l.lk === 'removed')) addLH(l);
+    });
   }).catch(() => {});
   return lhP;
+}
+/* ---------- נוסעים בקו — כמו בקו פח (kavpach/src/05-shared-ui.jsx, RidershipBlock) ----------
+   מהמאגר "נסועה בקווי אוטובוס" של משרד התחבורה (kavpach-ridership.json, tools/kavpach_ridership.py):
+   נוסעים בשבוע ברבעון האחרון שיש לו נתונים, כל הכיוונים יחד. ממוצע לנסיעה — רק כשבמאגר יש גם מספר נסיעות. */
+const QHE = ['', 'א', 'ב', 'ג', 'ד'];
+let RIDE = null, rideP = null;
+function loadRide() {
+  if (!rideP) rideP = loadIndex().then(async ix => {
+    if (ix && ix.ride && ix.rq) { RIDE = { q: ix.rq, m: ix.ride }; return; }
+    const d = await getJSON('../kavpach-ridership.json');
+    if (!d || !d.m || !d.q) return;
+    const m = {};
+    for (const [mk, e] of Object.entries(d.m)) {
+      const w = e.w || [];
+      let i = w.length - 1;
+      while (i >= 0 && w[i] == null) i--;
+      if (i >= 0 && i < d.q.length) m[String(mk).replace(/^0+/, '')] = e.r ? [w[i], i, e.r] : [w[i], i];
+    }
+    RIDE = { q: d.q, m };
+  }).catch(() => {});
+  return rideP;
+}
+function rideHTML(mkt) {
+  const e = RIDE && RIDE.m[String(mkt || '').replace(/^0+/, '')];
+  if (!e || !(e[0] > 0)) return '';
+  const q = RIDE.q[e[1]] || '', lab = q ? `רבעון ${QHE[+q.slice(-1)] || ''}׳ ${q.slice(0, 4)}` : '';
+  const per = e[2] > 0 ? Math.round(e[0] / e[2]) : null;
+  return `<span class="ride" title='מקור: "נסועה בקווי אוטובוס", משרד התחבורה · כל הכיוונים יחד'>כ-${Math.round(e[0]).toLocaleString('he-IL')} נוסעים בשבוע${per != null ? ` · כ-${per.toLocaleString('he-IL')} בממוצע בנסיעה` : ''}${lab ? ` (${lab})` : ''}</span>`;
 }
 // מוצא ויעד של מסלול GTFS, לפי הקו בזמן; בלי האינדקס — מהתיאור הרשמי בלבד (אותה פונקציה, בלי שלטים)
 function ends(r) {
@@ -380,11 +461,8 @@ async function vehiclesNow(plates) {
   const now = Date.now(), out = {};
   plates = [...new Set(plates.map(norm).filter(Boolean))];
   if (!plates.length) return out;
-  let rides = [];
-  for (let i = 0; i < plates.length; i += 40) {
-    const part = await api('/siri_rides/list', { vehicle_refs: plates.slice(i, i + 40).join(','), scheduled_start_time_from: iso(now - 5 * HOUR), scheduled_start_time_to: iso(now + 4 * HOUR), limit: 2000 });
-    rides = rides.concat(part);
-  }
+  const rides = (await Promise.all(chunks(plates, 40).map(part =>
+    api('/siri_rides/list', { vehicle_refs: part.join(','), scheduled_start_time_from: iso(now - 5 * HOUR), scheduled_start_time_to: iso(now + 4 * HOUR), limit: 2000 })))).flat();
   for (const p of plates) out[p] = { rides: [], cur: null, loc: null, last: null };
   for (const r of rides) { const p = norm(r.vehicle_ref); if (out[p]) out[p].rides.push(r); }
   for (const p of plates) out[p].rides.sort((a, b) => T(a.scheduled_start_time) - T(b.scheduled_start_time));
@@ -401,12 +479,9 @@ async function vehiclesNow(plates) {
 }
 async function latestLocs(ids) {
   const res = {};
-  ids = [...new Set(ids)];
-  for (let i = 0; i < ids.length; i += 120) {
-    const part = ids.slice(i, i + 120);
-    const r = await api('/siri_vehicle_locations/list', { siri_rides__ids: part.join(','), recorded_at_time_from: iso(Date.now() - 20 * MIN), order_by: 'recorded_at_time desc', limit: 5000 });
-    for (const x of r) if (!res[x.siri_ride__id]) res[x.siri_ride__id] = x;
-  }
+  const parts = await Promise.all(chunks([...new Set(ids)], 120).map(part =>
+    api('/siri_vehicle_locations/list', { siri_rides__ids: part.join(','), recorded_at_time_from: iso(Date.now() - 20 * MIN), order_by: 'recorded_at_time desc', limit: 5000 })));
+  for (const r of parts) for (const x of r) if (!res[x.siri_ride__id]) res[x.siri_ride__id] = x;
   return res;
 }
 // האם הנסיעה הנוכחית כבר הסתיימה (הגיע לסוף המסלול)
@@ -523,15 +598,21 @@ async function load(silent) {
 
 /* ---------- רכבים משובצים: מה כל אחד עושה, ומתי יתפנה ---------- */
 // dl: יציאות {ref, t, ride}. מחזיר vs ומשלים פרופילים — קודם מה שמהיר, ואז render שני עם ההערכות
-async function enrich(tok, dl, extraPlates, render) {
+// קודם מציגים את היציאות עצמן (render(true) — בלי "מה הרכב עושה"), ואז משלימים. wait — עוד הבטחה שצריך
+// לחכות לה לפני ההצגה הסופית (פרופיל משך הנסיעה של הקו עצמו)
+async function enrich(tok, dl, extraPlates, render, wait) {
   const now = Date.now();
   const assigned = dl.filter(d => d.ride && d.ride.vehicle_ref && !d.active).map(d => d.ride.vehicle_ref);
-  stage(tok, 'בודק מה עושים עכשיו האוטובוסים ששובצו…');
+  render(true);
+  // צי הרכבים (לצבע של רכבי הקבלן) — כשמגיע, מציגים שוב בלי לחכות ל-Open Bus
+  let vsDone = false;
+  loadFleet().then(() => { if (tok === TOKEN && !vsDone) render(true); });
   const vs = await vehiclesNow(assigned);
+  vsDone = true;
   if (tok !== TOKEN) return;
-  stage(tok, FLEET.idx ? 'טוען שמות קווים…' : 'טוען את נתוני צי הרכבים…');
   const more = [], names = [];
   for (const d of dl) {
+    d.stDone = true;
     const st = d.ride && d.ride.vehicle_ref && !d.active ? vs[norm(d.ride.vehicle_ref)] : null;
     if (!st) continue;
     d.st = st;
@@ -540,10 +621,12 @@ async function enrich(tok, dl, extraPlates, render) {
     for (const r of st.rides) { const t = T(r.scheduled_start_time); if (t > from && t < d.t) more.push(r.siri_route__line_ref); }
   }
   for (const p in vs) for (const r of vs[p].rides) names.push(r.siri_route__line_ref);
+  const profMore = Promise.all([ensureProfiles(more), wait]);
   await Promise.all([routesFor(names), loadFleet().then(() => ensureSeats(assigned.concat(extraPlates)))]);
   if (tok !== TOKEN) return;
-  const profMore = ensureProfiles(more);
-  if ([...new Set(more)].some(l => !(l in PROF))) { render(true); await profMore; if (tok !== TOKEN) return; }
+  render(true);
+  await profMore;
+  if (tok !== TOKEN) return;
   render(false);
 }
 // מצב יציאה אחת שעוד לא יצאה: טקסט קצר, צבע ופירוט
@@ -556,6 +639,8 @@ function depState(d, pending) {
   if (!plate) {
     return { cls: '', unk: true, short: d.t < now ? 'לא נראה רכב בנסיעה הזאת' : '', long: d.t < now ? 'בנתונים לא נראה רכב שיצא לנסיעה הזאת (הנתונים מגיעים באיחור של כמה דקות).' : 'החברה עוד לא שידרה איזה רכב ייסע בנסיעה הזאת. רוב החברות משדרות את זה רק כשהנסיעה מתחילה.' };
   }
+  // עוד לא ידוע מה הרכב עושה עכשיו (הבקשה ל-Open Bus בדרך)
+  if (!d.st && pending && !d.stDone) return { cls: '', short: 'בודק מה האוטובוס עושה עכשיו…', long: 'בודק מה האוטובוס עושה עכשיו…', verdict: { cls: '', txt: 'מחשב הערכה…' } };
   const st = d.st, p = plan(st, r);
   if (st && st.cur && st.cur.id === r.id) return { cls: 'v-ok', short: 'ממתין בתחנת המוצא', long: 'האוטובוס כבר משדר את הנסיעה הזאת ועומד בתחנת המוצא.', verdict: { cls: 'v-ok', txt: 'מוכן ליציאה' } };
   // לפי הנתונים: הרכב ששובץ כבר יצא לנסיעה שמתחילה אחרי הנסיעה הזאת
@@ -585,7 +670,7 @@ function curText(p, pending) {
 }
 function fleetGrid(plate, opRef) {
   const v = vinfo(plate, opRef);
-  if (!FLEET.idx) return FLEET.failed ? '<div class="why">פרטי הרכב לא נטענו.</div>' : `<div class="loading sm">${DOTS}<span class="lt">טוען את נתוני צי הרכבים…</span></div>`;
+  if (!FLEET.ready) return FLEET.failed ? '<div class="why">פרטי הרכב לא נטענו.</div>' : `<div class="loading sm">${DOTS}<span class="lt">טוען את נתוני צי הרכבים…</span></div>`;
   if (!v.known) return '<div class="why">הרכב לא נמצא בצי הרכבים של הקו הבוחן.</div>';
   const g = [['חברה', v.opName], ['שייכות', v.kab === true ? 'רכב קבלן' : v.kab === false ? 'רכב של החברה' : ''], ['גודל', [v.size, v.kind].filter(Boolean).join(' · ')],
     ['מושבים', v.seats], ['דגם', v.model], ['שנת ייצור', v.year], ['הנעה', v.prop]]
@@ -607,11 +692,11 @@ function pillOf(s, pending) {
 const ICON_STOP = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 22V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="6" y="2" width="12" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 6.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 22h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const CHEV = '<svg class="arr" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // כרטיס קומפקטי: שורה אחת סגורה, והפרטים בפנים
-function card(id, { time, sub, line, plate, plateCls, short, pill, body }) {
+function card(id, { time, sub, line, plate, kab, short, pill, body }) {
   const open = OPEN.has(id) ? ' open' : '';
   return `<details class="card c" data-id="${esc(id)}"${open}><summary>
     <span class="t"><b>${time}</b>${sub ? `<small>${sub}</small>` : ''}</span>
-    <span class="mid"><span class="r1">${line ? `<span class="lchip">${esc(line)}</span>` : ''}${plate ? `<span class="plate ${plateCls || ''}">${esc(plate)}</span>` : '<span class="plate none">אין מידע</span>'}${pill ? `<span class="pill ${pill.cls}">${pill.txt}</span>` : ''}</span>
+    <span class="mid"><span class="r1">${line ? `<span class="lchip">${esc(line)}</span>` : ''}${plate ? `<span class="plate${kab ? ' kab' : ''}"${kab ? ' title="רכב קבלן"' : ''}>${esc(plate)}</span>${kab ? '<span class="ktag">קבלן</span>' : ''}` : '<span class="plate none">אין מידע</span>'}${pill ? `<span class="pill ${pill.cls}">${pill.txt}</span>` : ''}</span>
       ${short ? `<span class="short">${short}</span>` : ''}</span>${CHEV}</summary><div class="inner">${body}</div></details>`;
 }
 function depBody(d, s, opRef) {
@@ -653,14 +738,21 @@ async function loadLine(tok) {
   const num = VIEW.num;
   if (!/^[0-9א-ת]{1,5}$/.test(num)) { msg('מספר קו לא תקין.', true); return; }
   stage(tok, `מחפש את קו ${num}…`);
-  const lhWait = setTimeout(() => stage(tok, 'טוען את רשימת הקווים והיעדים (פעם אחת)…'), 1500);
-  const [groups] = await Promise.all([lineGroups(num), loadLH()]);
-  clearTimeout(lhWait);
+  // היעדים (הקו בזמן) והנוסעים נטענים ברקע; מחכים להם רק כשצריך אותם להצגה
+  const lhP = loadLH(), rideP = loadRide();
+  const waitLH = async () => {
+    const lhWait = setTimeout(() => stage(tok, 'טוען את רשימת הקווים והיעדים (פעם אחת)…'), 1500);
+    await lhP;
+    clearTimeout(lhWait);
+  };
+  const groups = await lineGroups(num);
   if (tok !== TOKEN) return;
   if (!groups.length) { msg(`לא נמצא קו ${esc(num)} שפועל היום.${/^\d+$/.test(num) ? ` <a href="#s=${esc(num)}">לחפש תחנה שהקוד שלה ${esc(num)}?</a>` : ''}`, true); return; }
   // קו ועיר ("4 קרית גת") — רק הקווים שעוברים בעיר הזאת
   let gs = groups;
   if (VIEW.city) {
+    await waitLH();
+    if (tok !== TOKEN) return;
     gs = groups.filter(g => hayHas(groupHay(g), VIEW.city));
     if (!gs.length) {
       const cs = [...new Set(groups.flatMap(g => { const e = ends(g.dmain[g.dirs[0]]); return e.city ? [e.city] : [e.fr, e.to].map(x => String(x || '').split(',')[0].trim()); }).filter(Boolean))];
@@ -671,30 +763,27 @@ async function loadLine(tok) {
     }
   }
   const G = gs.find(g => g.key === VIEW.g) || (gs.length === 1 ? gs[0] : null);
-  if (!G) { renderPicker(gs, num, VIEW.city); return; }
+  if (!G) { await waitLH(); if (tok === TOKEN) renderPicker(gs, num, VIEW.city); return; }
   DIRF = G.dirs.includes(VIEW.d) ? VIEW.d : G.dirs[0];
   const picker = groups.length > 1;
 
   stage(tok, 'טוען את הנסיעות ומיקומי האוטובוסים…');
   const refs = G.routes.map(r => r.line_ref);
   const now = Date.now();
+  // כל הבקשות יוצאות יחד: הנסיעות ב-SIRI, לוח הזמנים ומשך הנסיעה הרגיל (לא מחכים לו להצגה הראשונה)
   const profP = ensureProfiles(refs);
-  // לוח הזמנים (GTFS) איטי יחסית — נשמר עשר דקות, ורץ במקביל לשאר
+  // לוח הזמנים (GTFS) — נשמר עשר דקות. עם תאריך הקו (gtfs_route__date) השרת עונה בעשירית שנייה במקום כמה שניות
   const pk = G.key;
   if (!PLANNED[pk] || now - PLANNED[pk].at > 10 * MIN) {
-    PLANNED[pk] = { at: now, p: api('/gtfs_rides/list', { gtfs_route__line_refs: refs.join(','), start_time_from: iso(now - 25 * MIN), start_time_to: iso(now + 75 * MIN), limit: 500 }).catch(() => { PLANNED[pk].at = 0; return []; }) };
+    PLANNED[pk] = { at: now, p: api('/gtfs_rides/list', { gtfs_route__line_refs: refs.join(','), gtfs_route__date_from: ilDate(-1), gtfs_route__date_to: ilDay(now + 75 * MIN), start_time_from: iso(now - 25 * MIN), start_time_to: iso(now + 75 * MIN), limit: 500 }).catch(() => { PLANNED[pk].at = 0; return []; }) };
   }
   const plannedP = PLANNED[pk].p;
   const siri = await api('/siri_rides/list', { siri_route__line_refs: refs.join(','), scheduled_start_time_from: iso(now - 4 * HOUR), scheduled_start_time_to: iso(now + 65 * MIN), limit: 3000 });
   if (tok !== TOKEN) return;
   const started = siri.filter(r => T(r.scheduled_start_time) <= now + 10 * MIN);
-  const locs = await latestLocs(started.map(r => r.id));
-  await profP;
-  const planned = (await plannedP).filter(p => T(p.start_time) >= now - 20 * MIN && T(p.start_time) <= now + 60 * MIN);
+  const [locs, planned0] = await Promise.all([latestLocs(started.map(r => r.id)), plannedP, waitLH(), rideP]);
   if (tok !== TOKEN) return;
-  const fc = freshCut();
-  const active = started.filter(r => locs[r.id] && T(locs[r.id].recorded_at_time) >= fc && !finished(r, locs[r.id]) && (locs[r.id].distance_from_journey_start || 0) > 150);
-  const activeIds = new Set(active.map(r => r.id));
+  const planned = planned0.filter(p => T(p.start_time) >= now - 20 * MIN && T(p.start_time) <= now + 60 * MIN);
 
   // היציאות: לוח הזמנים (GTFS), מותאם לנסיעות שב-SIRI לפי קו ושעה
   const sKey = r => r.siri_route__line_ref + '|' + T(r.scheduled_start_time);
@@ -712,10 +801,18 @@ async function loadLine(tok) {
     const t = T(r.scheduled_start_time);
     if (t >= now - 20 * MIN && !seen.has(sKey(r))) { seen.add(sKey(r)); deps.push({ ref: r.siri_route__line_ref, t, ride: r }); }
   }
-  const upcoming = deps.filter(d => !(d.ride && activeIds.has(d.ride.id)) && !(d.ride && locs[d.ride.id] && finished(d.ride, locs[d.ride.id]))).sort((a, b) => a.t - b.t);
-  const act = active.map(r => ({ ref: r.siri_route__line_ref, t: T(r.scheduled_start_time), ride: r, active: true, loc: locs[r.id], est: estEnd(r, locs[r.id]) }));
-
-  await enrich(tok, upcoming, active.map(r => r.vehicle_ref), pending => renderLine({ G, picker, act, upcoming, num }, pending));
+  deps.sort((a, b) => a.t - b.t);
+  // מה בדרך ומה עוד לא יצא — מחושב מחדש בכל הצגה, כי "הסתיים" תלוי במשך הנסיעה (שמגיע אחר כך)
+  const split = () => {
+    const fc = freshCut();
+    const active = started.filter(r => locs[r.id] && T(locs[r.id].recorded_at_time) >= fc && !finished(r, locs[r.id]) && (locs[r.id].distance_from_journey_start || 0) > 150);
+    const activeIds = new Set(active.map(r => r.id));
+    const upcoming = deps.filter(d => !(d.ride && activeIds.has(d.ride.id)) && !(d.ride && locs[d.ride.id] && finished(d.ride, locs[d.ride.id])));
+    const act = active.map(r => ({ ref: r.siri_route__line_ref, t: T(r.scheduled_start_time), ride: r, active: true, loc: locs[r.id], est: estEnd(r, locs[r.id]) }));
+    return { upcoming, act, active };
+  };
+  const first = split();
+  await enrich(tok, first.upcoming, first.active.map(r => r.vehicle_ref), pending => { const x = split(); renderLine({ G, picker, act: x.act, upcoming: x.upcoming, num }, pending); }, profP);
 }
 // בחירת קו: כרטיס לכל חברה וכיוון — מוצא ← יעד, כמו בהקו בזמן. שלוש שורות, והשאר מאחורי "עוד"
 function renderPicker(groups, num, city) {
@@ -761,7 +858,7 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
     const dirT = '';
     return card('d' + d.ref + '-' + d.t, {
       time: hm(d.t), sub: d.t < now ? 'היה אמור לצאת' : 'בעוד ' + Math.max(0, Math.round((d.t - now) / MIN)) + ' דק׳',
-      plate: plate ? norm(plate) : '', short: esc(s.short), pill: pillOf(s, pending), body: dirT + depBody(d, s, G.op),
+      plate: plate ? norm(plate) : '', kab: plate && isKab(plate, G.op), short: esc(s.short), pill: pillOf(s, pending), body: dirT + depBody(d, s, G.op),
     });
   }).join('');
   const a = act.filter(d => fd(d.ref)).sort((x, y) => x.t - y.t);
@@ -771,16 +868,16 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
       ${e && e.frac != null ? `<div class="prog"><i style="width:${Math.round(e.frac * 100)}%"></i></div>` : ''}
       <div class="why">מיקום מ-${hm(T(l.recorded_at_time))}${l.velocity != null ? ` · ${l.velocity} קמ״ש` : ''}</div>
       ${fleetGrid(d.ride.vehicle_ref, G.op)}<button class="more" data-v="${esc(norm(d.ride.vehicle_ref))}">כל הנסיעות של הרכב ←</button>`;
-    return card('a' + d.ride.id, { time: hm(d.t), sub: 'יצא', plate: norm(d.ride.vehicle_ref), short: esc(depState(d).short.replace(/^בדרך · /, '')), pill: { cls: 'v-run', txt: 'בדרך' }, body });
+    return card('a' + d.ride.id, { time: hm(d.t), sub: 'יצא', plate: norm(d.ride.vehicle_ref), kab: isKab(d.ride.vehicle_ref, G.op), short: esc(depState(d).short.replace(/^בדרך · /, '')), pill: { cls: 'v-run', txt: 'בדרך' }, body });
   }).join('');
   const known = up.filter(d => d.ride && d.ride.vehicle_ref).length;
-  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span class="rt" title="${esc(e.title || '')}"><span class="pop">${esc(G.agency)}${e.city ? ` · <b>${esc(e.city)}</b>` : ''}</span><span class="ends">${endsHTML(e)}</span></span></div>
+  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span class="rt" title="${esc(e.title || '')}"><span class="pop">${esc(G.agency)}${e.city ? ` · <b>${esc(e.city)}</b>` : ''}</span><span class="ends">${endsHTML(e)}</span>${rideHTML(G.mkt)}</span></div>
     ${acts0 ? `<div class="acts">${acts0}</div>` : ''}
     <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}
     ${ups || '<div class="msg">אין יציאות בשעה הקרובה.</div>'}
     <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary><span>בדרך עכשיו <span class="cnt">${a.length}</span></span>${CHEV}</summary><div class="fin">
       ${a.length ? '<div id="map"></div>' + acts : '<div class="msg">אין כרגע אוטובוס של הקו בדרך (לפי הנתונים).</div>'}</div></details>`;
-  MAPDATA = { points: a.map(d => ({ loc: d.loc, plate: norm(d.ride.vehicle_ref), label: norm(d.ride.vehicle_ref) })) };
+  MAPDATA = { points: a.map(d => ({ loc: d.loc, plate: norm(d.ride.vehicle_ref), label: norm(d.ride.vehicle_ref), kab: vkab(d.ride.vehicle_ref, G.op) })) };
   bindOut();
 }
 
@@ -834,35 +931,43 @@ async function loadStop(tok) {
   let siri = [];
   if (deps.length) {
     const t0 = Math.min(...deps.map(d => d.t)), t1 = Math.max(...deps.map(d => d.t));
-    for (let i = 0; i < refs.length; i += 50)
-      siri = siri.concat(await api('/siri_rides/list', { siri_route__line_refs: refs.slice(i, i + 50).join(','), scheduled_start_time_from: iso(t0), scheduled_start_time_to: iso(t1 + 1000), limit: 3000 }));
+    siri = (await Promise.all(chunks(refs, 50).map(part =>
+      api('/siri_rides/list', { siri_route__line_refs: part.join(','), scheduled_start_time_from: iso(t0), scheduled_start_time_to: iso(t1 + 1000), limit: 3000 })))).flat();
   }
   if (tok !== TOKEN) return;
   const sBy = {};
   for (const r of siri) { const k = r.siri_route__line_ref + '|' + T(r.scheduled_start_time); if (!sBy[k] || sBy[k].id < r.id) sBy[k] = r; }
   for (const d of deps) d.ride = sBy[d.ref + '|' + d.t] || null;
   const started = deps.filter(d => d.ride && d.t <= now + 10 * MIN).map(d => d.ride);
-  const [locs] = await Promise.all([latestLocs(started.map(r => r.id)), ensureProfiles(refs.filter(l => deps.some(d => d.ref === l && d.ride && d.t <= now)))]);
+  // משך הנסיעה הרגיל (לזמן ההגעה של אוטובוס שבדרך) — ברקע; קודם מציגים לפי הלו"ז
+  const profP = ensureProfiles(refs.filter(l => deps.some(d => d.ref === l && d.ride && d.t <= now)));
+  const [locs] = await Promise.all([latestLocs(started.map(r => r.id)), loadLH()]);
   if (tok !== TOKEN) return;
   const fc = freshCut();
   const list = [];
   for (const d of deps) {
     const l = d.ride && locs[d.ride.id];
-    d.eta = d.at; d.etaHow = 'plan';
     if (l && T(l.recorded_at_time) >= fc && (l.distance_from_journey_start || 0) > 150) {
-      const dist = l.distance_from_journey_start;
-      if (d.sd != null && dist > d.sd + 100) continue; // כבר עבר בתחנה
-      d.active = true; d.loc = l; d.est = estEnd(d.ride, l);
+      if (d.sd != null && l.distance_from_journey_start > d.sd + 100) continue; // כבר עבר בתחנה
+      d.active = true; d.loc = l;
+    } else if (d.at < now - 3 * MIN) continue; // זמנה עבר ולא נראה בדרך
+    list.push(d);
+  }
+  // זמן ההגעה — לפי הלו"ז, ולאוטובוס שבדרך לפי המיקום שלו (כשמשך הנסיעה כבר ידוע)
+  const calc = () => {
+    for (const d of list) {
+      d.eta = d.at; d.etaHow = 'plan';
+      if (!d.active) continue;
+      const l = d.loc, dist = l.distance_from_journey_start;
+      d.est = estEnd(d.ride, l);
       const P = PROF[d.ref];
       if (P && P.samples.length && d.sd != null) {
         const toStop = median(P.samples.map(s => remainingFrom(s, Math.min(dist, s.L)) - remainingFrom(s, Math.min(d.sd, s.L))));
         if (toStop != null) { d.eta = T(l.recorded_at_time) + Math.max(0, toStop); d.etaHow = 'live'; }
       }
-    } else if (d.at < now - 3 * MIN) continue; // זמנה עבר ולא נראה בדרך
-    list.push(d);
-  }
-  await loadLH();
-  await enrich(tok, list, list.filter(d => d.active).map(d => d.ride.vehicle_ref), pending => renderStop(S, list, pending));
+    }
+  };
+  await enrich(tok, list, list.filter(d => d.active).map(d => d.ride.vehicle_ref), pending => { calc(); renderStop(S, list, pending); }, profP);
 }
 function renderStop(S, list, pending) {
   const now = Date.now();
@@ -873,7 +978,7 @@ function renderStop(S, list, pending) {
     const mins = Math.round((d.eta - now) / MIN);
     const sub = d.etaHow === 'live' ? (mins <= 0 ? 'מגיע עכשיו' : `בעוד ${mins} דק׳`) : d.etaHow === 'late' ? 'צפוי באיחור' : 'לפי הלו״ז';
     const why = `<div class="why">${esc(toLabel(ROUTES[d.ref]))} · ${esc((ROUTES[d.ref] || {}).agency_name || '')} · בלו״ז: ${hm(d.at)}, יציאה מתחנת המוצא ${hm(d.t)}${d.etaHow === 'live' ? ' · זמן ההגעה מחושב לפי מיקום האוטובוס' : ''}</div>`;
-    return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', short: esc(d.active ? (s.short.replace(/^בדרך( · )?/, '') || 'בדרך לתחנה') : s.short), pill: d.active ? { cls: 'v-run', txt: 'בדרך' } : pillOf(s, pending), body: why + depBody(d, s, d.op) });
+    return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', kab: plate && isKab(plate, d.op), short: esc(d.active ? (s.short.replace(/^בדרך( · )?/, '') || 'בדרך לתחנה') : s.short), pill: d.active ? { cls: 'v-run', txt: 'בדרך' } : pillOf(s, pending), body: why + depBody(d, s, d.op) });
   }).join('');
   $('#out').innerHTML = `<div class="rhead"><span class="sicon" aria-hidden="true">${ICON_STOP}</span><span><b>${esc(S.name)}</b><small>${esc(S.city)} · תחנה ${esc(S.code)}</small></span></div>
     <h2 class="sec">מגיעים בשעה הקרובה</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
@@ -892,16 +997,18 @@ async function loadVeh(tok) {
   if (tok !== TOKEN) return;
   const st = vs[plate];
   const refs = st.rides.map(r => r.siri_route__line_ref);
-  await Promise.all([ensureProfiles(st.cur ? [st.cur.siri_route__line_ref] : []), routesFor(refs), loadLH()]);
+  // משך הנסיעה ומסלול הנסיעה הנוכחית — במקביל; קודם מציגים את הרכב ואת הנסיעות שלו
+  const profP = ensureProfiles(st.cur ? [st.cur.siri_route__line_ref] : []);
+  const trailP = st.cur ? api('/siri_vehicle_locations/list', { siri_rides__ids: st.cur.id, order_by: 'recorded_at_time asc', limit: 600 }).catch(() => []) : Promise.resolve([]);
+  await Promise.all([routesFor(refs), loadLH()]);
   if (tok !== TOKEN) return;
-  let trail = [];
-  if (st.cur) {
-    try { trail = await api('/siri_vehicle_locations/list', { siri_rides__ids: st.cur.id, order_by: 'recorded_at_time asc', limit: 600 }); } catch (e) { trail = []; }
-  }
+  const curP = st.cur && !(st.cur.siri_route__line_ref in PROF);
+  renderVeh(plate, st, [], curP);
+  const [, trail] = await Promise.all([profP, trailP]);
   if (tok !== TOKEN) return;
-  renderVeh(plate, st, trail);
+  renderVeh(plate, st, trail, false);
 }
-function renderVeh(plate, st, trail) {
+function renderVeh(plate, st, trail, pending) {
   const now = Date.now();
   const op = st.cur ? st.cur.siri_route__operator_ref : st.rides.length ? st.rides[st.rides.length - 1].siri_route__operator_ref : null;
   const v = vinfo(plate, op);
@@ -916,7 +1023,7 @@ function renderVeh(plate, st, trail) {
   let vd = null;
   if (next) {
     const pn = plan(st, next);
-    vd = pn.ready != null ? verdict(pn.ready, T(next.scheduled_start_time)) : { cls: '', txt: 'אין מספיק נתונים להערכה' };
+    vd = pn.ready != null ? verdict(pn.ready, T(next.scheduled_start_time)) : { cls: '', txt: pending ? 'מחשב הערכה…' : 'אין מספיק נתונים להערכה' };
     if (vd.cls === 'v-ok' && p.state !== 'busy') vd.txt = 'פנוי · יספיק';
   }
   const nextLine = next ? `<b class="ntm">${hm(T(next.scheduled_start_time))}</b> <span class="lchip" title="קו">${esc(lineName(next.siri_route__line_ref))}</span> ${esc(toLabel(ROUTES[next.siri_route__line_ref]))}` : 'עוד לא ידוע';
@@ -928,21 +1035,23 @@ function renderVeh(plate, st, trail) {
   }).join('');
   const prog = p.state === 'busy' && p.est && p.est.frac != null ? `<div class="prog"><i style="width:${Math.round(p.est.frac * 100)}%"></i></div>` : '';
   const detail = (id, title, body) => `<details class="fold" data-id="${id}"${OPEN.has(id) ? ' open' : ''}><summary><span>${title}</span>${CHEV}</summary><div class="fin">${body}</div></details>`;
-  $('#out').innerHTML = `<div class="card vcard"><div class="vhead"><span class="plate big-plate">${esc(plate)}</span><span class="vop">${esc(v.opName || '')}</span>${v.kab ? '<span class="pill kab">קבלן</span>' : ''}</div>
+  $('#out').innerHTML = `<div class="card vcard"><div class="vhead"><span class="plate big-plate${v.known && v.kab ? ' kab' : ''}">${esc(plate)}</span><span class="vop">${esc(v.opName || '')}</span>${v.kab ? '<span class="pill kab">קבלן</span>' : ''}</div>
       <div class="kv"><span class="k">עכשיו</span><span>${nowLine}${prog}</span></div>
       <div class="kv"><span class="k">הנסיעה הבאה</span><span>${nextLine}${vd ? `<span class="kvp"><span class="pill ${vd.cls || 'p-unk'}">${vd.txt}</span></span>` : ''}</span></div>
     </div>
-    ${detail('v-why', 'הסבר ומיקום', `<div class="now">${st.rides.length || st.cur ? curText(p) : 'לא נמצאו נסיעות של הרכב הזה ב-5 השעות האחרונות.'}</div>
+    ${detail('v-why', 'הסבר ומיקום', `<div class="now">${st.rides.length || st.cur ? curText(p, pending) : 'לא נמצאו נסיעות של הרכב הזה ב-5 השעות האחרונות.'}</div>
       ${st.loc ? `<div class="why">מיקום מ-${hm(T(st.loc.recorded_at_time))}${st.loc.velocity != null ? ` · ${st.loc.velocity} קמ״ש` : ''}</div><div id="map"></div>` : ''}
       ${next ? `<div class="why">${p.state === 'busy' && p.free ? `ההערכה: הנסיעה הנוכחית תסתיים בסביבות ${hm(p.free)}${p.est && p.est.how === 'a' ? ' (לפי משך הנסיעה הממוצע בלבד)' : ''}, מול יציאה ב-${hm(T(next.scheduled_start_time))}. לא כולל נסיעה ריקה בין סוף הקו לתחנת המוצא הבאה.` : ''}</div>`
         : '<div class="why">רוב החברות משדרות את הנסיעה הבאה רק כשהיא מתחילה (חוץ מדן בדרום ודן באר שבע, שמשדרות שעות מראש).</div>'}`)}
     ${detail('v-fleet', 'פרטי הרכב', fleetGrid(plate, op))}
     ${rows ? detail('v-trips', `הנסיעות שלו היום · ${st.rides.length}`, `<ul class="trips">${rows}</ul>`) : ''}`;
-  MAPDATA = st.loc ? { points: [{ loc: st.loc, plate, label: `${plate} · קו ${lineName(st.cur.siri_route__line_ref)}` }], trail } : null;
+  MAPDATA = st.loc ? { points: [{ loc: st.loc, plate, label: `${plate} · קו ${lineName(st.cur.siri_route__line_ref)}`, kab: v.known ? v.kab : null }], trail } : null;
   bindOut();
 }
 
 /* ---------- מפה (נפתחת רק כשפותחים את החלק שלה) ---------- */
+// צבע הסמן לפי השייכות של הרכב (vkab): קבלן — כתום, של החברה — כהה, לא ידוע — אפור
+const MK = { true: { c: '#EA580C', t: 'רכב קבלן' }, false: { c: '#10172A', t: 'רכב של החברה' }, null: { c: '#8B93A7', t: 'לא ידוע' } };
 function drawMap() {
   const el = $('#map');
   dropMap();
@@ -957,13 +1066,24 @@ function drawMap() {
     L.polyline(line, { color: '#1E5BC6', weight: 4, opacity: .55 }).addTo(LAYER);
     ll.push(...line);
   }
+  const seen = new Set();
   for (const p of points) {
     if (!p.loc) continue;
-    const m = L.circleMarker([p.loc.lat, p.loc.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#10172A', fillOpacity: 1 }).addTo(LAYER);
-    m.bindTooltip(esc(p.label), { direction: 'top', offset: [0, -8], permanent: points.length <= 6 });
+    const k = MK[String(p.kab == null ? null : p.kab)];
+    seen.add(k);
+    const m = L.circleMarker([p.loc.lat, p.loc.lon], { radius: 8, color: '#fff', weight: 2, fillColor: k.c, fillOpacity: 1 }).addTo(LAYER);
+    m.bindTooltip(esc(p.label) + (p.kab ? ' · קבלן' : ''), { direction: 'top', offset: [0, -8], permanent: points.length <= 6, className: p.kab ? 'tt-kab' : '' });
     m.on('click', () => go('#v=' + p.plate));
     ll.push([p.loc.lat, p.loc.lon]);
   }
+  // מקרא: רק הסוגים שמופיעים במפה
+  const leg = L.control({ position: 'bottomleft' });
+  leg.onAdd = () => {
+    const d = L.DomUtil.create('div', 'mleg');
+    d.innerHTML = Object.values(MK).filter(k => seen.has(k)).map(k => `<span><i style="background:${k.c}"></i>${k.t}</span>`).join('');
+    return d;
+  };
+  if (seen.size) leg.addTo(MAP);
   if (ll.length === 1) MAP.setView(ll[0], 14);
   else if (ll.length) MAP.fitBounds(ll, { padding: [30, 30], maxZoom: 15 });
 }
@@ -1008,6 +1128,7 @@ window.addEventListener('hashchange', route);
 loadSnap();
 loadFleet();
 loadLH();
+loadRide();
 route();
 // רענון פעם בדקה, רק כשהלשונית גלויה
 setInterval(() => {
