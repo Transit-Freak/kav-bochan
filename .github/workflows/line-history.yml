@@ -80,12 +80,18 @@ jobs:
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           # gov.il לא תמיד עונה לשרתי GitHub (03.10: אין חיבור 20 דקות, והיום לא נסרק).
           # אז אחרי כמה ניסיונות — אותו קובץ מהארכיון היומי של דאטאבוס ב-S3 (נשמר ב-00:01 UTC).
-          if ! curl -fSL --connect-timeout 20 --max-time 1200 --retry 5 --retry-all-errors --retry-delay 30 -A "$UA" \
+          # -R: זמן הקובץ בדיסק = Last-Modified של השרת, כדי לרשום מתי משרד התחבורה עדכן אותו (gtfs-info.json למטה)
+          SRC=mot
+          if ! curl -fSLR --connect-timeout 20 --max-time 1200 --retry 5 --retry-all-errors --retry-delay 30 -A "$UA" \
             -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"; then
             echo "gov.il לא ענה — GTFS מהארכיון היומי של דאטאבוס"
-            curl -fsS --retry 3 -o gtfs.zip \
+            SRC=archive
+            curl -fsSR --retry 3 -o gtfs.zip \
               "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/$(date -u +%Y/%m/%d)/israel-public-transportation.zip"
           fi
+          # מתי משרד התחבורה עדכן את הקובץ שנסרק — מוצג בתחתית כל הכלים (version.js, שלמה 23.11.2026)
+          SRC=$SRC MOT=$(date -u -r gtfs.zip +%Y-%m-%dT%H:%M:%SZ) python3 -c "import json,os,datetime; json.dump({'mot':os.environ['MOT'],'source':os.environ['SRC'],'scanned':datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')},open('line-history/data/gtfs-info.json','w'))"
+          cat line-history/data/gtfs-info.json; echo
           unzip -o gtfs.zip stops.txt stop_times.txt trips.txt routes.txt shapes.txt agency.txt calendar.txt
           # רשימת האשכולות של המשרד (סוג הקו + אשכול) — מהארכיון היומי של דאטאבוס, אחרת מ-gov.il
           D=$(TZ=Asia/Jerusalem date +%Y/%m/%d)
