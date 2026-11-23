@@ -2,8 +2,8 @@
 """מצגת לשינוי בקו — הנתונים: שינויי מסלול ותחנות שעומדים להיכנס לתוקף, לכל קו "לפני ← אחרי".
 הדף (line-changes/) בונה מהם מצגת PDF.
 
-העיקרון: משווים בין מה שהקו עשה בשבוע האחרון (ה-GTFS מלפני REF_DAYS ימים, בתאריכים
-שכבר עברו) לבין מה שה-GTFS של היום כבר מכיל לימים הקרובים (HORIZON ימים).
+העיקרון: משווים בין מה שהקו עשה בשבוע האחרון (REF_DAYS הימים שעברו — לכל יום הפרוסה היומית שלו, ראו למטה)
+לבין מה שה-GTFS של היום כבר מכיל לימים הקרובים (HORIZON ימים).
 לכל וריאנט קו (route_desc = מק"ט-כיוון-חלופה) נבחר "הדפוס הראשי" — רצף התחנות והשרטוט
 שהיו ברוב הנסיעות. כשבימים הקרובים מופיע דפוס חדש שלא היה בשבוע שעבר, משווים את
 הדפוס הראשי של השבוע שעבר לדפוס הראשי של השבוע שמתחיל בתאריך השינוי.
@@ -26,8 +26,17 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 (המשרד ביטל אותו) — יורד. כשה-GTFS של השבוע שעבר עוד לא ידע על שינוי שכבר התחיל, הוא "יימצא" שוב בכל לילה
 עם תאריך של היום — אז נשאר התאריך המקורי מהריצה הקודמת (keep_prev).
 
-הקלט — ישר מהארכיון היומי של דאטאבוס ב-S3 (tools/gtfs_zip.py, קריאה בטווחים בלי להוריד
-את כל ה-zip ובלי לכתוב לדיסק). הפלט תחת OUTDIR (ברירת מחדל line-changes):
+הקלט:
+  היום והימים הקרובים — ה-GTFS המלא של היום: NEW_GTFS (zip מקומי — ה-artifact gtfs-daily של line-history, או
+                        ישר ממשרד התחבורה; NEW_GTFS_DAY — התאריך שלו). בלי — מהארכיון היומי של דאטאבוס ב-S3.
+  השבוע שעבר         — SLICES_DIR: הפרוסות היומיות slice-YYYY-MM-DD.zip (tools/gtfs_slice.py, נכתבות כל יום
+                        ב-line-history.yml לשחרור gtfs-slices): הנסיעות של כל יום מה-GTFS של אותו יום, וכל פרוסה
+                        תורמת רק את התאריך שלה (BaseFeed). יום בלי פרוסה (השבוע הראשון, יום שלא נשמר, קובץ פגום
+                        או ריק) — אוטומטית מה-GTFS של לפני REF_DAYS ימים בארכיון ב-S3, כמו קודם; בלי אף פרוסה —
+                        בדיוק כמו קודם.
+                        ב-index.json (base) רשום מאיפה הגיע כל יום.
+  הקריאה מ-S3 — tools/gtfs_zip.py, בטווחים בלי להוריד את כל ה-zip ובלי לכתוב לדיסק (אותן פונקציות קוראות גם zip מקומי).
+הפלט תחת OUTDIR (ברירת מחדל line-changes):
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
   data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשבועיים האחרונים)
@@ -35,7 +44,7 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
   data/tt/<NN>.json      לו"ז עדכני של כל קווי האוטובוס לשבוע הקרוב (מק"ט % 64; הדף טוען רק את הקובץ של הקו שנבחר) — current_tts
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
-רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
+רץ כל יום אחרי "הקו בזמן" (.github/workflows/line-changes.yml) על כל הארץ, כמה דקות. ב-16.11.2026: 2,849 קווים באינדקס,
 235 כיוונים משתנים ב-184 קווים, 27 שינויים קטנים סוננו. עם LH_CHANGES (line-history/data/changes) נוספים
 לאינדקס השינויים מהשבועיים האחרונים של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
 חלופה שהוחלפה במק"ט-כיוון-חלופה אחר (find_renamed) — נבדקת כשינוי, גם כשההחלפה כבר הייתה בשבוע שעבר
@@ -43,7 +52,8 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 פלט נוסף: data/lines.json — כל הקווים (לחיפוש בדף).
 
 משתנים: TODAY (YYYY-MM-DD, ברירת מחדל היום בשעון ישראל), REF_DAYS (7), HORIZON (14),
-CITIES (רשימת ערים מופרדת בפסיקים לבדיקה מקומית; ריק = כל הארץ, ברירת המחדל), KEEP_DAYS (14), OUTDIR.
+CITIES (רשימת ערים מופרדת בפסיקים לבדיקה מקומית; ריק = כל הארץ, ברירת המחדל), KEEP_DAYS (14), OUTDIR,
+NEW_GTFS, NEW_GTFS_DAY, SLICES_DIR (למעלה).
 """
 import datetime
 import json
@@ -136,10 +146,13 @@ def dist_m(a, b):
 class Feed:
     """GTFS של יום אחד, מסונן לחלון תאריכים [d0, d1]."""
 
-    def __init__(self, day, d0, d1):
-        self.day, self.d0, self.d1 = day, d0, d1
-        self.url = gtfs_zip.archive_url(day)
-        print(f'GTFS {day} · תאריכים {d0}–{d1}', flush=True)
+    def __init__(self, day, d0, d1, src=None, night=False):
+        """src: נתיב ל-zip מקומי (ה-GTFS שהורד היום, או פרוסה יומית); בלי — הארכיון של דאטאבוס ב-S3 ליום day.
+        night: גם שירותים שפעילים רק ביום שאחרי החלון (לא בחלון עצמו) — רק בשביל הנסיעות שלפני 03:00 שלהם (svc_next,
+        בלי תאריכים בחלון). לפרוסה יומית, שבה נסיעות כאלה הן הערב של היום (tools/gtfs_slice.py)."""
+        self.day, self.d0, self.d1, self.night = day, d0, d1, night
+        self.url = src or gtfs_zip.archive_url(day)
+        print(f'GTFS {day} · תאריכים {d0}–{d1}' + (f' · {os.path.basename(src)}' if src else ''), flush=True)
         self.members = gtfs_zip.central_dir(self.url)
         self._read_small()
         self._read_stop_times()
@@ -189,6 +202,11 @@ class Feed:
             s = datetime.datetime.strptime(r[h['start_date']], '%Y%m%d').date()
             e = datetime.datetime.strptime(r[h['end_date']], '%Y%m%d').date()
             act = tuple(x for x in days if s <= x <= e and r[h[wd[x.weekday()]]] == '1')
+            if not act and self.night and s <= nxt <= e and r[h[wd[nxt.weekday()]]] == '1':
+                self.svc_dates[r[h['service_id']]] = ()
+                self.svc_start[r[h['service_id']]] = s
+                self.svc_next.add(r[h['service_id']])
+                continue
             if act:
                 self.svc_dates[r[h['service_id']]] = act
                 self.svc_start[r[h['service_id']]] = s
@@ -358,6 +376,134 @@ def open_feed(day, d0, d1, back=4):
         except OSError as e:
             print(f'  אין GTFS ל-{dd}: {e}', flush=True)
     raise SystemExit('לא נמצא GTFS בארכיון')
+
+
+def open_new_feed(t0, d1):
+    """ה-GTFS של היום (לימים הקרובים): הקובץ המלא שהורד היום (NEW_GTFS — מה-artifact של line-history או ממשרד
+    התחבורה; NEW_GTFS_DAY — התאריך שלו, ברירת מחדל היום), ואם אין — מהארכיון של דאטאבוס ב-S3 כמו קודם."""
+    src = os.environ.get('NEW_GTFS', '')
+    if src and os.path.exists(src):
+        day = os.environ.get('NEW_GTFS_DAY', '')
+        day = min(datetime.date.fromisoformat(day), t0) if day else t0
+        try:
+            return Feed(day, t0, d1, src=src)
+        except Exception as e:  # noqa: BLE001
+            print(f'  ה-GTFS של היום ({src}) לא נקרא: {e} — מהארכיון ב-S3', flush=True)
+    elif src:
+        print(f'  אין קובץ {src} — ה-GTFS של היום מהארכיון ב-S3', flush=True)
+    return open_feed(t0, t0, d1)
+
+
+class BaseFeed(Feed):
+    """"מה הקו עשה בפועל" בשבוע שעבר, מכמה מקורות: לכל תאריך הפרוסה היומית שלו (tools/gtfs_slice.py — הנסיעות
+    של אותו יום, מה-GTFS של אותו יום), ולתאריכים שאין להם פרוסה — ה-GTFS מלפני REF_DAYS ימים מהארכיון ב-S3 (כמו קודם).
+    כל חלק תורם רק את התאריכים שלו. מזהי הנסיעות והשירותים מקבלים קידומת של החלק (אותה נסיעה ביומיים היא שתי נסיעות),
+    ומזהי התחנות, הקווים והשרטוטים נשארים כמו שהם (כמו בהשוואה בין שני קובצי GTFS). קווים ותחנות — מהחלק החדש ביותר.
+    אותו ממשק כמו Feed (variants, deps_by, day_deps, load_shapes ...)."""
+
+    def __init__(self, day, d0, d1, parts):
+        """parts: [(Feed, קבוצת תאריכים)], מהישן לחדש"""
+        self.day, self.d0, self.d1 = day, d0, d1
+        self.parts = parts
+        nxt = d1 + datetime.timedelta(days=1)
+        self.agency, self.agency_phone, self.routes, self.stops = {}, {}, {}, {}
+        self.svc_dates, self.svc_start, self.svc_next, self.svc_set = {}, {}, set(), {}
+        self.trips, self.trip_pat, self.trip_dep, self.trip_end = {}, {}, {}, {}
+        self.pat_list = []
+        pats = {}
+        for i, (f, dates) in enumerate(parts):
+            p = f'{i}:'
+            self.agency.update(f.agency)
+            self.agency_phone.update(f.agency_phone)
+            self.routes.update(f.routes)
+            self.stops.update(f.stops)
+            # הנסיעות שאחרי חצות של היום שאחרי סוף החלון (הערב של היום האחרון) — מהחלק שתורם את היום האחרון.
+            # בפרוסה (night=True) — כולל שירותים שפעילים רק למחרת; בשאר הימים הן באות מהפרוסה של היום שאחריהם
+            last = d1 in dates and f.d1 == d1
+            for sv, ds in f.svc_dates.items():
+                ds = tuple(d for d in ds if d in dates)
+                at_nxt = last and sv in f.svc_next
+                if not ds and not at_nxt:
+                    continue
+                self.svc_dates[p + sv] = ds
+                self.svc_start[p + sv] = f.svc_start[sv]
+                ss = set(ds)
+                if at_nxt:
+                    self.svc_next.add(p + sv)
+                    ss.add(nxt)
+                self.svc_set[p + sv] = ss
+            for tid, (rid, sv, shp) in f.trips.items():
+                if p + sv not in self.svc_dates:
+                    continue
+                t = p + tid
+                self.trips[t] = (rid, p + sv, shp)
+                if tid in f.trip_pat:
+                    seq = f.pat_list[f.trip_pat[tid]]
+                    pid = pats.get(seq)
+                    if pid is None:
+                        pid = pats[seq] = len(self.pat_list)
+                        self.pat_list.append(seq)
+                    self.trip_pat[t] = pid
+                    self.trip_dep[t] = f.trip_dep.get(tid)
+                    self.trip_end[t] = f.trip_end.get(tid)
+        print(f'  השבוע שעבר: {len(self.trips)} נסיעות · {len(self.pat_list)} רצפים שונים', flush=True)
+
+    def load_shapes(self, ids):
+        """כל שרטוט — מהחלק החדש ביותר שיש בו אותו (קודם הפרוסות המקומיות; הארכיון ב-S3 רק למה שחסר)"""
+        out = {}
+        need = {i for i in ids if i}
+        for f, _dates in reversed(self.parts):
+            if not need:
+                break
+            got = f.load_shapes(need)
+            out.update(got)
+            need -= set(got)
+        return out
+
+
+SLICES_DIR = os.environ.get('SLICES_DIR', '')
+BASE_INFO = {}   # מאיפה הגיע כל תאריך בשבוע שעבר — נשמר ב-index.json (base) לבדיקה
+
+
+def open_baseline(t0, ref_day, slices_dir=None):
+    """השבוע שעבר (ref_day עד אתמול): פרוסה יומית לכל תאריך מ-slices_dir (slice-YYYY-MM-DD.zip), ולכל תאריך שאין לו
+    פרוסה תקינה — הגיבוי: ה-GTFS של ref_day מהארכיון ב-S3, כמו לפני הפרוסות. כך הפלט לא יכול להיות גרוע מקודם."""
+    slices_dir = SLICES_DIR if slices_dir is None else slices_dir
+    d1 = t0 - datetime.timedelta(days=1)
+    days = []
+    d = ref_day
+    while d <= d1:
+        days.append(d)
+        d += datetime.timedelta(days=1)
+    parts, missing = [], []
+    for d in days:
+        path = os.path.join(slices_dir, f'slice-{d.isoformat()}.zip') if slices_dir else ''
+        f = None
+        if path and os.path.exists(path):
+            try:
+                f = Feed(d, d, d, src=path, night=True)
+            except Exception as e:  # noqa: BLE001
+                print(f'  הפרוסה של {d} לא נקראה: {e}', flush=True)
+            if f is not None and not f.trips:
+                print(f'  הפרוסה של {d} ריקה', flush=True)
+                f = None
+        if f is None:
+            missing.append(d)
+        else:
+            parts.append((f, {d}))
+    BASE_INFO.clear()
+    BASE_INFO.update(slices=[d.isoformat() for _, ds in parts for d in ds], archive=[d.isoformat() for d in missing])
+    if missing:
+        print(f'  אין פרוסה ל-{len(missing)} ימים ({", ".join(x.isoformat() for x in missing)}) — מהארכיון ב-S3', flush=True)
+        if len(missing) == len(days):
+            # אין אף פרוסה (השבוע הראשון, או שהשחרור לא זמין) — בדיוק כמו קודם
+            fb = open_feed(ref_day, ref_day, d1)
+            BASE_INFO['archive_feed'] = fb.day.isoformat()
+            return fb
+        fb = open_feed(ref_day, ref_day, d1)
+        BASE_INFO['archive_feed'] = fb.day.isoformat()
+        parts.insert(0, (fb, set(missing)))
+    return BaseFeed(ref_day, ref_day, d1, parts)
 
 
 # ---------------------------------------------------------------- גאומטריה
@@ -1070,8 +1216,8 @@ def find_new_ended(keys, old_v, new_v, old, new, t0, stats):
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
-    new = open_feed(t0, t0, t0 + datetime.timedelta(days=HORIZON + 7))
-    old = open_feed(ref_day, ref_day, t0 - datetime.timedelta(days=1))
+    new = open_new_feed(t0, t0 + datetime.timedelta(days=HORIZON + 7))
+    old = open_baseline(t0, ref_day)
     t0 = new.day if new.day < t0 else t0
     old_v = old.variants(old.d0, old.d1)
     new_v = new.variants(t0, t0 + datetime.timedelta(days=HORIZON + 7))
@@ -2186,7 +2332,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     index.sort(key=lambda r: (r['eff'], int(re.sub(r'\D', '', r['line']) or 0)))
     json.dump(dict(gen=t0, feed=new_day.isoformat(), ref=old_day.isoformat(), horizon=HORIZON,
                    scope=sorted(CITIES_RAW.split(',')) if CITIES else [], stats=stats, filtered=filtered, hol=hol_week(TODAY),
-                   changes=index, alias=alias),
+                   changes=index, alias=alias, **({'base': BASE_INFO} if BASE_INFO else {})),
               open(os.path.join(data, 'index.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, separators=(',', ':'))
     print(f'{len(index)} דפים נכתבו ל-{OUTDIR}', flush=True)

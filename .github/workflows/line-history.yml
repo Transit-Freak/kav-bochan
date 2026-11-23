@@ -318,6 +318,35 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+      # "פרוסה" יומית של ה-GTFS (tools/gtfs_slice.py): רק הנסיעות של היום (בשעון ישראל) — הנסיעות, התחנות שלהן,
+      # הקווים, התחנות, השרטוטים והלוח של אותו יום. "מצגת לשינוי בקו" בונה מ-7 הפרוסות האחרונות את מה שכל קו עשה
+      # בפועל בשבוע שעבר (במקום הארכיון של דאטאבוס ב-S3). הפרוסות נשמרות מחוץ להיסטוריה של git — כנכסים בשחרור
+      # gtfs-slices ב-GitHub (slice-YYYY-MM-DD.zip, כ-85MB ביום חול, 40MB בשבת), 8 ימים אחרונים; ישנים יותר נמחקים כאן. ריצה שנייה באותו יום
+      # מחליפה את הפרוסה של היום (--clobber). כשל כאן לא מפיל את הצינור: ליום בלי פרוסה line_changes.py לוקח מ-S3.
+      - name: פרוסה יומית של ה-GTFS (למצגת לשינוי בקו)
+        if: hashFiles('gtfs.zip') != '' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          D=$(TZ=Asia/Jerusalem date +%F)
+          python3 tools/gtfs_slice.py gtfs.zip "/tmp/slice-$D.zip" --date "$D"
+          gh release view gtfs-slices --repo "$REPO" >/dev/null 2>&1 || \
+            gh release create gtfs-slices --repo "$REPO" --prerelease --title "GTFS — פרוסות יומיות" \
+              --notes "קבצי עבודה: הנסיעות של כל יום מקובץ ה-GTFS של משרד התחבורה, 8 ימים אחרונים. נוצר ומתעדכן אוטומטית (line-history)."
+          gh release upload gtfs-slices "/tmp/slice-$D.zip" --clobber --repo "$REPO"
+          KEEP=$(date -d "$D - 7 days" +%F)
+          for a in $(gh release view gtfs-slices --repo "$REPO" --json assets --jq '.assets[].name'); do
+            case "$a" in
+              slice-????-??-??.zip)
+                d=${a#slice-}; d=${d%.zip}
+                if [ "$d" \< "$KEEP" ]; then gh release delete-asset gtfs-slices "$a" --repo "$REPO" -y && echo "נמחקה: $a"; fi;;
+            esac
+          done
+          rm -f "/tmp/slice-$D.zip"
+
       - name: Commit (לענף שהריץ — main בריצה המתוזמנת)
         run: |
           set -euo pipefail

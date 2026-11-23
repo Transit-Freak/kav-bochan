@@ -2,13 +2,17 @@
 המרכזייה נקראת מסוף הקובץ, וכל איבר נמשך בבקשת טווח (Range) ונפתח תוך כדי הורדה.
 
 אותה שיטה כמו ב-backfill_geo.py; כאן כמודול קטן שאפשר לייבא בלי להריץ את הכלי.
+גם קובץ zip מקומי (נתיב בלי "://", למשל ה-GTFS שהורד היום או "פרוסה" יומית — tools/gtfs_slice.py)
+נקרא באותן פונקציות, דרך zipfile.
 """
 import csv
 import io
+import os
 import struct
 import sys
 import time
 import urllib.request
+import zipfile
 import zlib
 
 S3 = 'https://openbus-stride-public.s3.eu-west-1.amazonaws.com'
@@ -34,8 +38,18 @@ def http(url, rng=None, tries=4):
     raise OSError(f'HTTP failed: {url}')
 
 
+def is_local(url):
+    return '://' not in str(url)
+
+
 def central_dir(url):
-    """שם איבר → (היסט הכותרת המקומית, גודל דחוס, שיטת דחיסה). תומך ב-zip64."""
+    """שם איבר → (היסט הכותרת המקומית, גודל דחוס, שיטת דחיסה). תומך ב-zip64.
+    קובץ מקומי: שם איבר → גודל דחוס (הקריאה עצמה דרך zipfile)."""
+    if is_local(url):
+        if not os.path.exists(url):
+            raise OSError(f'no such file: {url}')
+        with zipfile.ZipFile(url) as z:
+            return {i.filename: i.compress_size for i in z.infolist()}
     tail, h = http(url, 'bytes=-66000')
     total = int((h.get('Content-Range') or '/0').rsplit('/', 1)[-1])
     i = tail.rfind(b'PK\x05\x06')
@@ -74,6 +88,14 @@ def central_dir(url):
 
 
 def stream_member(url, members, name, cb):
+    if is_local(url):
+        with zipfile.ZipFile(url) as z, z.open(name) as f:
+            while True:
+                b = f.read(1 << 20)
+                if not b:
+                    break
+                cb(b)
+        return
     lho, csize, method = members[name]
     lh, _ = http(url, f'bytes={lho}-{lho + 29}')
     n2, x2 = struct.unpack('<HH', lh[26:30])
