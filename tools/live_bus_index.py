@@ -1,4 +1,5 @@
 """live-bus/index.json — אינדקס קטן ל"האוטובוס הבא" (live-bus/app.js), כדי שהדף לא יוריד קבצים גדולים.
+רק לשתי החברות שהדף עובד בהן (OPS: דן בדרום ודן באר שבע) — כ-25KB מכווץ.
 
 בלי האינדקס הדף מוריד את fleet.json ו-fleet-official.json של צי הרכבים, את lines.json של הקו בזמן (‎11.7MB)
 ואת gov-details-N.json (מושבים של רכבי קבלן), ובונה מהם אינדקס בדפדפן. כאן אותו חישוב, פעם אחת בפריסה,
@@ -10,19 +11,28 @@
            גודל, דגם, סוג והנעה — מספר של מחרוזת ב-vs (0 = ריק). אפסים ו-null בסוף השורה נחתכים.
            דגל: 2 = במאגר הרשמי (רכב של החברה); 1 = לא במאגר, וסוג הרכב הוא הסעות/תיור (קבלן גם בלי מאגר);
            0 = לא במאגר. ההחלטה הסופית "קבלן" תלויה בחברה של הקו — נעשית בדף (vinfo), כמו קודם.
-  lines  — [[מק"ט-כיוון-חלופה, תיאור רשמי, יעד לפרסום, שלט במוצא], ...] לקווים פעילים, בסדר של lines.json
-  cities — כל שמות הערים מהתיאורים (KNOWN_CITIES), בסדר שבו הדף בנה אותם
+  lines  — [[מק"ט-כיוון-חלופה, תיאור רשמי, יעד לפרסום, שלט במוצא], ...] לקווים פעילים של החברות, בסדר של lines.json
+  area   — הערים שבהן הקווים מתחילים ומסתיימים (לפחות AREA_MIN פעמים), מהנפוצה — לשורת הפתיחה
+  stops  — קודי התחנות במסלול הנוכחי של הקווים (line-history/data/lines/<rd>.json) — להצעות בחיפוש תחנה
+  cities — כל שמות הערים מהתיאורים של כל הקווים (KNOWN_CITIES), בסדר שבו הדף בנה אותם
   rq, ride — נוסעים בשבוע מ-kavpach-ridership.json (המקור של קו פח): מק"ט → [נוסעים בשבוע ברבעון האחרון,
            מספר הרבעון ב-rq, נסיעות בשבוע באותו רבעון (אם יש)]
 קובץ מקור שחסר או שבור — החלק שלו לא נכנס, והדף טוען את הקובץ הגדול במקומו.
 
 שימוש: python3 tools/live_bus_index.py [שורש המאגר] > live-bus/index.json
 """
+import collections
 import json
 import os
 import re
 import sys
 import time
+
+# הדף עובד רק בקווים של שתי החברות שמודיעות מראש איזה רכב ייסע (שלמה 23.11): מספר החברה ב-Open Bus → השם
+# בקו בזמן. האינדקס מחזיק רק את הרכבים, הקווים והתחנות שלהן
+OPS = {31: 'דן בדרום', 32: 'דן באר שבע'}
+# עיר שיש בה לפחות כך הרבה קצוות של קווים של החברות — נכנסת לשורת הפתיחה ("באר שבע, אשקלון…")
+AREA_MIN = 20
 
 # ---------- צי הרכבים — כמו loadFleet / vinfo / sizeLbl / fixT ב-live-bus/app.js ----------
 TNAMES = {'צבורי עירוני': 'אוטובוס עירוני', 'צבורי בין-עירוני': 'אוטובוס בין-עירוני', 'צבורי להסע מיוחד': 'אוטובוס הסעות',
@@ -115,7 +125,8 @@ def build_fleet(root):
         # חברה שהמאגר לא מכסה בכלל — לא קובעים "קבלן" רק כי הרכב לא במאגר (FLEET.cov)
         cov[str(op['ref'])] = not (ofc and not in_ofc and len(vs) >= 10)
     nocov = [r for r, c in cov.items() if not c]
-    plates = list(idx) + [p for p in (ofc or {}) if p not in idx]
+    # רק רכבים שבצי של החברות של הדף (OPS)
+    plates = [p for p in idx if idx[p]['op'] in OPS]
     # מושבים לרכב שאין לו מושבים במאגר הרשמי — מהרישוי (gov-details-<ספרה אחרונה>.json), כמו ensureSeats
     gov, shards = {}, {}
     for p in plates:
@@ -165,18 +176,49 @@ def build_lines(root):
                 t = p[-1].strip()
                 if t:
                     cities.setdefault(t, None)
-    lines = []
+    lines, area, stops = [], collections.Counter(), {}
+    names = set(OPS.values())
     for l in L:
         if l.get('historicalOnly') or l.get('observationOnly') or l.get('lk') == 'removed':
+            continue
+        if l.get('op') not in names:
             continue
         q = str(l.get('rd')).split('-')
         if len(q) < 3 or not re.fullmatch(r'\d+', q[0]):
             continue
+        for x in re.sub(r'-\d+[#א-ת]?$', '', str(l.get('dest') or '')).split('<->'):
+            p = x.split('-')
+            if len(p) > 1 and p[-1].strip():
+                area[p[-1].strip()] += 1
+        for c in line_stops(root, l['rd']):
+            stops[c] = None
         row = [l['rd'], l.get('dest') or '', l.get('hs') or '', l.get('hso') or '']
         while len(row) > 2 and not row[-1]:
             row.pop()
         lines.append(row)
-    return {'lines': lines, 'cities': list(cities)}
+    out = {'lines': lines, 'cities': list(cities), 'area': [c for c, n in area.most_common() if n >= AREA_MIN]}
+    if stops:
+        out['stops'] = sorted(stops, key=lambda c: int(c) if c.isdigit() else 0)
+    return out
+
+
+def line_stops(root, rd):
+    """קודי התחנות של המסלול האחרון של הקו — מ-line-history/data/lines/<rd>.json (כמו fsafe בהקו בזמן)."""
+    lf = load(root, 'line-history/data/lines/' + rd.replace('#', 'H').replace('/', '_') + '.json')
+    if not isinstance(lf, dict):
+        return []
+    pool = lf.get('pool') or []
+    for v in reversed(lf.get('versions') or []):
+        st = v.get('stops')
+        if isinstance(st, list) and st:
+            out = []
+            for x in st:
+                e = pool[x] if isinstance(x, int) and 0 <= x < len(pool) else x
+                c = e[0] if isinstance(e, list) and e else (e.get('c') or e.get('code')) if isinstance(e, dict) else None
+                if c:
+                    out.append(str(c))
+            return out
+    return []
 
 
 # ---------- נוסעים — kavpach-ridership.json (tools/kavpach_ridership.py) ----------
