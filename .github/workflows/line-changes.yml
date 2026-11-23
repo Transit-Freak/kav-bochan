@@ -1,9 +1,12 @@
 name: line-changes
 
-# מצגת לשינוי בקו (line-changes) — כל לילה: השינויים במסלולים ובתחנות שיכנסו לתוקף
+# מצגת לשינוי בקו (line-changes) — כל יום: השינויים במסלולים ובתחנות שיכנסו לתוקף
 # בשבועיים הקרובים, בכל הארץ, מהשוואת ה-GTFS של היום לשבוע שעבר (tools/line_changes.py).
-# הבונה קורא את ה-GTFS ישר מהארכיון היומי של דאטאבוס ב-S3 (קריאה בטווחים, בלי להוריד את כל ה-zip),
-# ומוסיף לכל קו את השינויים מהשבועיים האחרונים מתוך "הקו בזמן" (line-history/data/changes),
+# "היום והימים הקרובים" — ה-GTFS המלא שהורד היום ב"הקו בזמן" (ה-artifact gtfs-daily), ואם אין — ישר ממשרד התחבורה.
+# "השבוע שעבר" — 7 הפרוסות היומיות האחרונות (שחרור gtfs-slices, נכתבות ב-line-history.yml: הנסיעות של כל יום
+# מה-GTFS של אותו יום). ליום בלי פרוסה (השבוע הראשון, או יום שלא נשמר) — אוטומטית מהארכיון היומי של דאטאבוס ב-S3,
+# כמו קודם, וגם ה-GTFS של היום נקרא משם אם לא הורד. ב-index.json (base) רשום מאיפה הגיע כל יום.
+# הבונה מוסיף לכל קו את השינויים מהשבועיים האחרונים מתוך "הקו בזמן" (line-history/data/changes),
 # וללו"ז העדכני — כמה אוטובוסים יוצאים באותה שעה (תגבור) מפרסום הרישוי, כפי ש"הקו בזמן" שומר אותו (line-history/data/sched).
 # שינויים שכבר התחילו נשארים ברשימה שבועיים (KEEP_DAYS), עם הקובץ המלא שלהם — גם להם אפשר להכין מצגת.
 # לחיפוש: רחובות (מתיאור התחנות) ושכונות (הפוליגונים הרשמיים ב-line-history/data/neighborhoods).
@@ -11,12 +14,19 @@ name: line-changes
 # לשבוע הקרוב, ב-64 קבצים (data/tt, כ-2.5MB). החגים — מהלוח העברי (tools/hebcal.py), בלי רשת.
 
 on:
+  # מתי: מיד אחרי ש"הקו בזמן" (line-history) הצליח ב-main — כלומר כשמשרד התחבורה העלה קובץ חדש (gtfs-gate.yml),
+  # ולא בשעה קבועה אחרי הארכיון של S3. השעה הקבועה נשארת רק כרשת ביטחון בערב: אם היום עוד לא נבנה
+  # (המשרד לא העלה קובץ, או ש"הקו בזמן" נכשל) — בונים עם מה שיש; אם כבר נבנה היום — מדלגים.
+  workflow_run:
+    workflows: [line-history]
+    types: [completed]
   schedule:
-    - cron: '47 2 * * *'   # 04:47/05:47 בישראל — אחרי שהארכיון היומי נשמר ב-S3 (00:01 UTC)
+    - cron: '23 20 * * *'   # 22:23/23:23 בישראל — רשת ביטחון בלבד
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: read   # הורדת ה-artifact של line-history
 
 concurrency:
   group: line-changes
@@ -24,11 +34,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 1
           filter: blob:none
           sparse-checkout-cone-mode: false
@@ -40,11 +52,54 @@ jobs:
             /line-history/data/sched/
             /data-main.json
 
+      - name: כבר נבנה היום? (רק בשעה הקבועה)
+        id: need
+        run: |
+          if [ "${{ github.event_name }}" = schedule ] && python3 -c "import json,sys,datetime,zoneinfo; sys.exit(json.load(open('line-changes/data/index.json')).get('gen') != datetime.datetime.now(zoneinfo.ZoneInfo('Asia/Jerusalem')).date().isoformat())"; then
+            echo "המצגות של היום כבר נבנו — אין צורך ברשת הביטחון"; echo "go=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: ה-GTFS של היום ו-7 הפרוסות של השבוע שעבר
+        if: steps.need.outputs.go == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          mkdir -p /tmp/gtfs-new /tmp/slices
+          T=$(TZ=Asia/Jerusalem date +%F)
+          # היום: הקובץ ש"הקו בזמן" הוריד בריצה שהפעילה אותנו; אחרת (או אם כבר נמחק) — ממשרד התחבורה
+          if [ -n "$RUN_ID" ] && gh run download "$RUN_ID" --repo "$REPO" --name gtfs-daily --dir /tmp/gtfs-new; then
+            echo "NEW_GTFS=/tmp/gtfs-new/gtfs.zip" >> "$GITHUB_ENV"; echo "NEW_GTFS_DAY=$T" >> "$GITHUB_ENV"
+            echo "ה-GTFS של היום: מ-line-history ($RUN_ID)"
+          elif curl -fSLR --connect-timeout 20 --max-time 900 --retry 3 --retry-all-errors --retry-delay 30 \
+                 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o /tmp/gtfs-new/gtfs.zip \
+                 "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"; then
+            # התאריך של הקובץ — לפי מתי המשרד עדכן אותו (בשעון ישראל)
+            echo "NEW_GTFS=/tmp/gtfs-new/gtfs.zip" >> "$GITHUB_ENV"
+            echo "NEW_GTFS_DAY=$(TZ=Asia/Jerusalem date -r /tmp/gtfs-new/gtfs.zip +%F)" >> "$GITHUB_ENV"
+            echo "ה-GTFS של היום: ממשרד התחבורה"
+          else
+            rm -f /tmp/gtfs-new/gtfs.zip; echo "ה-GTFS של היום לא הורד — ייקרא מהארכיון ב-S3"
+          fi
+          # השבוע שעבר: פרוסה לכל יום (יום שחסר — line_changes.py לוקח מ-S3)
+          for i in 7 6 5 4 3 2 1; do
+            d=$(date -d "$T - $i days" +%F)
+            gh release download gtfs-slices --repo "$REPO" --pattern "slice-$d.zip" --dir /tmp/slices --clobber \
+              || echo "אין פרוסה ל-$d"
+          done
+          ls -la /tmp/slices
+          echo "SLICES_DIR=/tmp/slices" >> "$GITHUB_ENV"
+
       - name: כבישים מ-OSM (roads.json מהענף osm-roads)
+        if: steps.need.outputs.go == 'yes'
         # לזיהוי קטע שרק צויר מחדש על אותו כביש (rdr ב-data/l). בלי הקובץ — הדף מחליט לפי המרחק
         run: git fetch -q --depth 1 origin osm-roads && git show origin/osm-roads:roads.json > /tmp/roads.json || echo "אין roads.json"
 
       - name: השינויים בקווים
+        if: steps.need.outputs.go == 'yes'
         env:
           ROADS_JSON: /tmp/roads.json
           TZ: Asia/Jerusalem
@@ -54,6 +109,7 @@ jobs:
         run: python3 tools/line_changes.py
 
       - name: שמירה
+        if: steps.need.outputs.go == 'yes'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
