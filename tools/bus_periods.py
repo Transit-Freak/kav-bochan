@@ -14,19 +14,30 @@
 """
 import argparse
 import collections
+import datetime
 import json
 import os
 
 PERIODS = (7, 30)
+# סוג יום (אלעזר פינדר 23.11: "אולי ההבדל העיקרי הוא בין שישי/מוצ"ש לשאר השבוע"): הדף מסנן את ימי
+# התקופה לפי היום בשבוע. ימי חול הם רוב התקופה ולכן מחוברים מראש (N-wk.json); שישי ומוצ"ש הם 1–5 ימים,
+# והדף מחבר את קבצי הימים שלהם בעצמו. אותה חלוקה כמו dtypeOf ב-bus/app.js.
+KINDS = ('', 'wk')
+
+
+def day_kind(d):
+    """'wk' (ראשון–חמישי), 'fri' (שישי) או 'sat' (שבת — בפועל מוצ"ש)"""
+    w = datetime.date.fromisoformat(d).weekday()    # שני=0 … ראשון=6
+    return 'fri' if w == 4 else 'sat' if w == 5 else 'wk'
 
 
 def partial(d):
     return d.get('sched', 0) > 0 and d.get('obs', 0) < d['sched'] * 0.3
 
 
-def window(idx_days, n):
+def window(idx_days, n, kind=''):
     days = [d if isinstance(d, dict) else {'d': d} for d in idx_days]
-    return [d['d'] for d in days[-n:] if not partial(d)]
+    return [d['d'] for d in days[-n:] if not partial(d) and (not kind or day_kind(d['d']) == kind)]
 
 
 def addl(a, b):
@@ -268,16 +279,18 @@ def main():
     os.makedirs(os.path.join(a.data, 'periods'), exist_ok=True)
     manifest = {'updated': idx.get('updated'), 'periods': {}}
     for n in PERIODS:
-        days = window(idx.get('days') or [], n)
-        if len(days) < 2:
-            continue
-        files = [json.load(open(os.path.join(a.data, 'days', d + '.json'), encoding='utf-8')) for d in days]
-        out = build(days, files, catalog)
-        path = os.path.join(a.data, 'periods', '%d.json' % n)
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
-        manifest['periods'][str(n)] = days
-        print('תקופה %d: %d ימים · %.1fMB' % (n, len(days), os.path.getsize(path) / 1e6))
+        for kind in KINDS:
+            days = window(idx.get('days') or [], n, kind)
+            key = '%d-%s' % (n, kind) if kind else str(n)
+            if len(days) < 2:
+                continue
+            files = [json.load(open(os.path.join(a.data, 'days', d + '.json'), encoding='utf-8')) for d in days]
+            out = build(days, files, catalog)
+            path = os.path.join(a.data, 'periods', key + '.json')
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+            manifest['periods'][key] = days
+            print('תקופה %s: %d ימים · %.1fMB' % (key, len(days), os.path.getsize(path) / 1e6))
     with open(os.path.join(a.data, 'periods', 'index.json'), 'w', encoding='utf-8') as f:
         json.dump(manifest, f, ensure_ascii=False, separators=(',', ':'))
 

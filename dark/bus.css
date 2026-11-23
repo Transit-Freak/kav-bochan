@@ -337,6 +337,24 @@ html.kb-dark .crumb{border-inline-start-color:var(--line2--kb-border)}
 html.kb-dark button.lnk{color:var(--accent2);border-color:#1b4356;text-decoration-color:initial;background:var(--brand-xl)}
 html.kb-dark button.lnk:hover{border-color:rgba(14, 165, 233, 0.45);color:var(--ink);background:var(--brand-lt)}
 html.kb-dark button.lnk:focus-visible{outline-color:var(--accent--kb-border)}
+html.kb-dark .stopt{background-image:initial;background-color:#17191f;box-shadow:var(--shadow-sm);color:var(--ink);border-color:var(--line2--kb-border)}
+html.kb-dark .stopt span{color:var(--mut)}
+html.kb-dark .stopt small{color:var(--dim)}
+html.kb-dark .stopt:hover{border-color:rgba(14, 165, 233, 0.45);background:var(--brand-xl)}
+html.kb-dark .stopt.on{box-shadow:var(--ring);border-color:var(--accent--kb-border)}
+html.kb-dark .stmap{border-color:var(--line)}
+html.kb-dark .dephead h3{color:var(--ink)}
+html.kb-dark .dephead > span{color:var(--mut)}
+html.kb-dark .depbtns .fchip{background-image:initial;background-color:#17191f;color:var(--accent2);border-color:rgba(14, 165, 233, 0.35)}
+html.kb-dark .depbtns .fchip:hover{background:var(--brand-xl)}
+html.kb-dark .depfull td small{color:var(--dim)}
+@media print{
+html.kb-dark body.pdep{background-image:initial;background-color:#17191f}
+html.kb-dark body.pdep .panel{box-shadow:none;border-color:currentcolor}
+html.kb-dark body.pdep .tblbox{border-color:#40444a}
+html.kb-dark body.pdep .stat-row div{box-shadow:none}
+}
+html.kb-dark td.rtn{color:var(--mut)}
 html.kb-dark .tabbar a.tab{text-decoration-color:initial}
 
 /* ידני */

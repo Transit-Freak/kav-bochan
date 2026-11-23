@@ -17,6 +17,13 @@ let sortA = {k: 'meas', dir: -1}, sortC = {k: 'meas', dir: -1}, sortL = {k: 'mea
 // אשכול (ClusterToLine של המשרד) ועיר עם פירוט קווים — משוב 07.09: "אין נתונים לפי עיר או אשכול", "לפי עיר זה כללי מדי"
 let cluster = '', sortK = {k: 'meas', dir: -1}, cq = '', showAllC = false, openCity = null, cityCache = {}, cRank = 'meas', cAgency = '', sortCL = {k: 'n', dir: -1}, showAllCL = false;
 const MIN_CITY = 20;    // דירוג קווים בתוך עיר: לפחות כך וכך הגעות שנמדדו בעיר
+// סוג יום (אלעזר פינדר 23.11: "אולי ההבדל העיקרי בזמני ההגעה הוא בין שישי/מוצ"ש לשאר השבוע — העומס משנה את
+// זמן העצירה"): תקופה של כמה ימים מצטמצמת לימים מסוג אחד. ימי חול: ראשון–חמישי. "מוצ״ש": יום השירות של שבת,
+// שבפועל מתחיל בצאת השבת. אותה חלוקה כמו day_kind ב-tools/bus_periods.py (שמחבר מראש את ימי החול, N-wk.json)
+const DTYPES = [['', 'כל הימים'], ['wk', 'ימי חול'], ['fri', 'שישי'], ['sat', 'מוצ״ש']];
+const DTNAME = {wk: 'ימי חול (ראשון–חמישי)', fri: 'ימי שישי', sat: 'מוצאי שבת'};
+const dtypeOf = d => { const w = new Date(d + 'T12:00:00Z').getUTCDay(); return w === 5 ? 'fri' : w === 6 ? 'sat' : 'wk'; };
+let dtype = '';
 const $ = (s, el) => (el || document).querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
@@ -197,8 +204,10 @@ function renderPeriods() {
   const curD = dayD || DAYS[DAYS.length - 1].d;
   if (!calYM) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1];
   el.innerHTML = `<div class="seg">${chips.map(([k, t]) => `<button class="pchip${period === k ? ' on' : ''}" data-p="${k}">${t}</button>`).join('')}</div>` +
-    `<div class="daynav${period === 'day' ? ' on' : ''}"><button id="dprev" title="יום קודם">‹</button><div class="dwrap"><button id="dpick" class="dbtn" title="בחירת יום">${period === 'day' ? heDate(curD) : 'בחירת יום ▾'}</button><div id="cal" class="cal" hidden></div></div><button id="dnext" title="יום הבא">›</button></div>`;
-  el.querySelectorAll('.pchip').forEach(b => b.onclick = () => { period = b.dataset.p; render(); });
+    `<div class="daynav${period === 'day' ? ' on' : ''}"><button id="dprev" title="יום קודם">‹</button><div class="dwrap"><button id="dpick" class="dbtn" title="בחירת יום">${period === 'day' ? heDate(curD) : 'בחירת יום ▾'}</button><div id="cal" class="cal" hidden></div></div><button id="dnext" title="יום הבא">›</button></div>` +
+    (period !== 'day' ? `<div class="seg dtseg" role="group" aria-label="סוג יום">${DTYPES.map(([k, t]) => `<button class="pchip${dtype === k ? ' on' : ''}" data-dt="${k}" title="${k ? 'רק ' + DTNAME[k] + ' מתוך התקופה' : 'כל הימים בתקופה'}">${t}</button>`).join('')}</div>` : '');
+  el.querySelectorAll('.pchip[data-p]').forEach(b => b.onclick = () => { period = b.dataset.p; render(); });
+  el.querySelectorAll('.pchip[data-dt]').forEach(b => b.onclick = () => { dtype = b.dataset.dt; render(); });
   const setDay = d => { if (!DAYS.some(x => x.d === d)) return; dayD = d; period = 'day'; render(); };
   $('#dpick').onclick = e => { e.stopPropagation(); calOpen = !calOpen; if (calOpen) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1]; renderCal(); };
   const cur = () => DAYS.findIndex(x => x.d === curD);
@@ -208,12 +217,12 @@ function renderPeriods() {
 }
 function windowDays() {
   if (period === 'day') return DAYS.filter(d => d.d === dayD);
-  return DAYS.slice(-Number(period)).filter(d => !partial(d));
+  return DAYS.slice(-Number(period)).filter(d => !partial(d) && (!dtype || dtypeOf(d.d) === dtype));
 }
 
 // ---------------------------------------------------------------- תצוגה
 function heroHtml(a, days) {
-  const title = days.length === 1 ? heDate(days[0].d) : days.length ? `${shortDate(days[0].d)} – ${shortDate(days[days.length - 1].d)}.${days[days.length - 1].d.slice(0, 4)} · ${days.length} ימים` : '';
+  const title = (days.length === 1 ? heDate(days[0].d) : days.length ? `${shortDate(days[0].d)} – ${shortDate(days[days.length - 1].d)}.${days[days.length - 1].d.slice(0, 4)} · ${days.length} ימים` : '') + (period !== 'day' && dtype ? ' · רק ' + DTNAME[dtype] : '');
   const on = a.meas ? pct(a.c[1], a.meas) : '—';
   const oT = a.o.reduce((x, y) => x + y, 0);
   // כל נתון מסביר את עצמו במקום, במשפט פשוט (שלמה 06.09: "לא מובן מה כל דבר אומר")
@@ -491,7 +500,7 @@ let M = null;
 // (open-bus-siri-requester — בקשה רק אחרי 60 שניות), כך שרכב שמשדר כל 15 שניות נמדד כאילו הוא משדר כל דקה.
 // הקוד והנתונים (data/gps.json) נשארים — להחזיר (true) אם יהיה לנו שרת שקורא את משרד התחבורה כל 15 שניות.
 const SHOW_GPS_FREQ = false;
-const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['blame', 'הסדרנים והפקקים'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', SHOW_GPS_FREQ ? 'תדירות שידור GPS' : 'אמינות השידורים']];
+const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['dep', 'דוח יציאות'], ['ops', 'מפעילים ואשכולות'], ['blame', 'הסדרנים והפקקים'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['stop', 'לפי תחנה'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', SHOW_GPS_FREQ ? 'תדירות שידור GPS' : 'אמינות השידורים']];
 let tab = 'overview';
 // המספר של כל קטגוריה, על הכפתור שלה (שלמה 17.09: "שיראה את המדד של אחוזים לפי המדד")
 function tabBadge(k) {
@@ -519,12 +528,16 @@ function tabQ(k) {
   if (k === 'line') return {ag: agency, cl: cluster, line: openLine};
   if (k === 'city') return {city: openCity};
   if (k === 'region') return {rg: openRegion};
+  if (k === 'stop') return {st: stopSel};
+  if (k === 'dep') return {dag: depAg, dcl: depCl, dl: depLine};
   return {};
 }
 // הערך מקודד פעמיים: init מפענח את כל הסולמית לפני הפיצול ב-/, ו-URLSearchParams מפענח שוב
 function tabHash(k, q) {
   const qs = Object.entries(q).filter(([, v]) => v != null && v !== '').map(([a, v]) => a + '=' + encodeURIComponent(encodeURIComponent(v))).join('&');
-  return (period === 'day' && dayD ? dayD : '') + (k !== 'overview' || qs ? '/' + k : '') + (qs ? '/' + qs : '');
+  // התקופה בכתובת: יום (2026-11-22), או 30 / 30-wk (30 ימים, רק ימי חול)
+  const head = period === 'day' ? dayD || '' : period + (dtype ? '-' + dtype : '');
+  return head + (k !== 'overview' || qs ? '/' + k : '') + (qs ? '/' + qs : '');
 }
 function tabHref(k, q) { const h = tabHash(k, q); return esc(h ? '#' + h : location.pathname + location.search); }
 function showTab(k, scroll) {
@@ -534,6 +547,9 @@ function showTab(k, scroll) {
   document.querySelectorAll('#tabbar .tab').forEach(b => { const on = b.dataset.t === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
   const h = k === 'bunch' && STOPQ ? (period === 'day' && dayD ? dayD : '') + '/' + k + `/stop=${STOPQ.stop}&tile=${STOPQ.tile}${STOPQ.h != null ? '&h=' + STOPQ.h : ''}` : tabHash(k, tabQ(k));
   history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+  // שתי הלשוניות האלה טוענות קבצים לכל יום בתקופה — רק כשפותחים אותן
+  if (k === 'stop') renderStop();
+  if (k === 'dep') renderDep();
   if (scroll) { const bar = $('#tabbar'); if (bar) bar.scrollIntoView({behavior: 'smooth', block: 'start'}); }
 }
 function render() {
@@ -543,21 +559,24 @@ function render() {
   // 7/30 ימים: קובץ אחד שמחובר מראש בכל חישוב (tools/bus_periods.py) במקום 30 קבצי יום (שלמה 13.10:
   // "30 יום לוקח מעל דקה"). אם הימים בקובץ לא תואמים לחלון (קובץ ישן), נטענים קבצי הימים כרגיל.
   const want = days.map(d => d.d).join(',');
-  if (period !== 'day' && days.length > 1 && periodCache[period] === undefined) {
+  // סוג יום: ימי חול מחוברים מראש (periods/30-wk.json); שישי ומוצ"ש הם מעט ימים — מקבצי הימים עצמם
+  const pkey = period + (dtype ? '-' + dtype : '');
+  if (period !== 'day' && days.length > 1 && (!dtype || dtype === 'wk') && periodCache[pkey] === undefined) {
     app.innerHTML = '<div class="msg">טוען את נתוני התקופה…</div>';
-    fetch(DATA + 'periods/' + period + '.json?v=' + encodeURIComponent(IDX.updated || '')).then(r => r.ok ? r.json() : null)
-      .then(j => { periodCache[period] = j; }, () => { periodCache[period] = null; }).then(render);
+    fetch(DATA + 'periods/' + pkey + '.json?v=' + encodeURIComponent(IDX.updated || '')).then(r => r.ok ? r.json() : null)
+      .then(j => { periodCache[pkey] = j; }, () => { periodCache[pkey] = null; }).then(render);
     return;
   }
-  const P = period !== 'day' && periodCache[period] && periodCache[period].days.join(',') === want ? periodCache[period] : null;
+  const P = period !== 'day' && periodCache[pkey] && periodCache[pkey].days.join(',') === want ? periodCache[pkey] : null;
   if (P) {
     M = mergeDays([P]);
     return renderMain(days);
   }
   const need = days.filter(d => !dayCache[d.d]);
   if (need.length) {
-    app.innerHTML = '<div class="msg">טוען את נתוני הימים…</div>';
-    Promise.all(need.map(d => load(DATA + 'days/' + d.d + '.json').then(j => { dayCache[d.d] = j; }))).then(render).catch(e => { app.innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
+    app.innerHTML = `<div class="msg">טוען את נתוני הימים…${need.length > 1 ? ` <span id="dprog">0 מתוך ${need.length}</span>` : ''}</div>`;
+    let done = 0;
+    Promise.all(need.map(d => load(DATA + 'days/' + d.d + '.json').then(j => { dayCache[d.d] = j; const p = $('#dprog'); if (p) p.textContent = `${++done} מתוך ${need.length}`; }))).then(render).catch(e => { app.innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
     return;
   }
   const loaded = days.map(d => dayCache[d.d]);
@@ -613,6 +632,8 @@ function renderMain(days) {
     <div class="tabsec" data-tab="city">
     <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שבתחומי העיר, מכל הקווים שעוברים בה, וגם כמה מהנסיעות של הקווים האלה לא נצפו בכלל (אי ביצוע משוער). לחיצה על שם העיר פותחת פירוט: אילו קווים עוברים בה, איזה מפעילים, כמה נסיעות לא בוצעו, ואיך כל קו מדייק בתוך העיר.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
     </div>
+    <div class="tabsec" data-tab="stop"><div class="panel" id="stop-box"></div></div>
+    <div class="tabsec" data-tab="dep"><div class="panel dep" id="dep-box"></div></div>
     <div class="tabsec" data-tab="line">
     <div class="panel"><div class="ptitle">לפי קו</div><p class="pdesc">כל כיוון של כל קו בנפרד. אפשר לבחור מפעיל או אשכול, לדרג ("הכי לא מדייקים") או לחפש מספר קו. לחיצה על מספר הקו פותחת פירוט: באיזה קטע לאורך הקו נצבר האיחור.</p>
       <div class="filters" id="lfilters"></div>
@@ -1257,6 +1278,309 @@ function renderGps() {
     gAg = gAg === tr.dataset.ag ? null : tr.dataset.ag; gLim = 50; renderGps();
     if (gAg) $('#gps-agf').scrollIntoView({behavior: 'smooth', block: 'start'}); };
 }
+// ---------------------------------------------------------------- כלים משותפים לשתי הלשוניות החדשות
+// תיאור התקופה שנבחרה במשפט (לכותרת של דוח מודפס ושל קובץ CSV)
+function periodTxt() {
+  const d = M.days;
+  if (!d.length) return '';
+  const base = d.length === 1 ? heDate(d[0]) : `${shortDate(d[0])}–${shortDate(d[d.length - 1])}.${d[d.length - 1].slice(0, 4)} · ${d.length} ימים`;
+  return base + (period !== 'day' && dtype ? ' · רק ' + DTNAME[dtype] : '');
+}
+const dmy = d => d ? `${+d.slice(8, 10)}.${+d.slice(5, 7)}.${d.slice(0, 4)}` : '';
+// הורדה כקובץ CSV שנפתח באקסל (BOM כדי שהעברית תוצג נכון)
+function csvDownload(name, rows) {
+  const cell = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const blob = new Blob(['﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+const setHash = () => { const h = tabHash(tab, tabQ(tab)); history.replaceState(null, '', h ? '#' + h : location.pathname + location.search); };
+const goLine = rid => { openLine = rid; showTab('line'); renderLineDetail(); const el = $('#line-detail'); if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); };
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(l);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+
+// ---------------------------------------------------------------- לפי תחנה (אלעזר פינדר 23.11: "להתמקד בתחנה ולא בעיר")
+// כל הקווים שעוברים בתחנה, מהפרופילים היומיים לאורך כל קו (days/D.stops.json — אותם קבצים של "תחנה אחרי
+// תחנה" בפירוט הקו). שם, עיר ומיקום התחנה — מקטלוג התחנות של "כמה עולה הנסיעה" (../fares/data/stops.json:
+// מק"ט → [שם, עיר, רוחב, אורך]); בלעדיו — data/stops.json (שם בלבד). בפרופיל אין פירוט לפי שעה.
+let stopSel = '', stopQ = '', SCAT = null, scatLoading = false, stopMap = null, stopLoadId = 0;
+function stopSearch(q, lim = 14) {
+  const tok = q.trim().split(/\s+/).filter(Boolean);
+  if (!tok.length) return [];
+  const codeTok = tok.find(t => /^\d{3,}$/.test(t)), words = tok.filter(t => t !== codeTok);
+  const out = [];
+  for (const [code, v] of Object.entries(SCAT)) {
+    if (codeTok && !code.startsWith(codeTok)) continue;
+    const txt = v[0] + ' ' + (v[1] || '');
+    if (words.every(w => txt.includes(w))) out.push(code);
+    if (out.length > 400) break;
+  }
+  const exact = c => (codeTok && c === codeTok ? 0 : 2) + (words.length && SCAT[c][0].startsWith(words[0]) ? 0 : 1);
+  return out.sort((a, b) => exact(a) - exact(b) || SCAT[a][0].localeCompare(SCAT[b][0], 'he') || (SCAT[a][1] || '').localeCompare(SCAT[b][1] || '', 'he') || a - b).slice(0, lim);
+}
+function renderStop() {
+  const box = $('#stop-box'); if (!box) return;
+  const head = `<div class="ptitle">לפי תחנה</div><p class="pdesc">כל הקווים שעוברים בתחנה אחת: כמה הגעות נמדדו, כמה מהן בזמן, האיחור הממוצע וכמה הגיעו מוקדם מדי. מחפשים לפי שם התחנה, העיר או המק״ט (המספר שעל השלט בתחנה). התקופה וסוג היום — לפי הבחירה למעלה.</p>`;
+  if (!SCAT) {
+    box.innerHTML = head + '<div class="msg">טוען את רשימת התחנות…</div>';
+    if (!scatLoading) {
+      scatLoading = true;
+      Promise.all([fetch('../fares/data/stops.json').then(r => r.ok ? r.json() : null).catch(() => null), loadProfiles([])]).then(([j]) => {
+        SCAT = (j && j.stops) || {};
+        for (const [c, n] of Object.entries(NAMES || {})) if (!SCAT[c] && n) SCAT[c] = [n, '', null, null];
+        renderStop();
+      });
+    }
+    return;
+  }
+  box.innerHTML = head + `<div class="filters"><input class="search" id="stq" type="search" placeholder="שם תחנה, עיר או מק״ט — למשל: הרצל ראשון לציון" value="${esc(stopQ)}" autocomplete="off"></div><div id="st-sug"></div><div id="st-res"></div>`;
+  const qi = $('#stq'); let t = null;
+  qi.oninput = () => { clearTimeout(t); t = setTimeout(() => { stopQ = qi.value; renderStopSug(); }, 180); };
+  renderStopSug(); renderStopRes();
+}
+function renderStopSug() {
+  const el = $('#st-sug'); if (!el) return;
+  const list = stopSearch(stopQ);
+  if (!stopQ.trim()) { el.innerHTML = stopSel ? '' : '<div class="empty">בחרו תחנה כדי לראות את כל הקווים שעוברים בה</div>'; return; }
+  const all = list.length === 14 ? stopSearch(stopQ, 400).length : list.length;
+  el.innerHTML = list.length ? `<div class="stsug">${list.map(c => `<button class="stopt${c === stopSel ? ' on' : ''}" data-st="${esc(c)}"><b>${esc(SCAT[c][0])}</b><span>${esc(SCAT[c][1] || '')}</span><small>${esc(c)}</small></button>`).join('')}</div>${all > list.length ? `<p class="mut">ועוד ${all > 400 ? 'הרבה' : num(all - list.length)} תחנות — אפשר להוסיף לחיפוש את העיר או את שם הרחוב השני</p>` : ''}` : '<div class="empty">לא נמצאה תחנה כזו</div>';
+  el.querySelectorAll('[data-st]').forEach(b => b.onclick = () => pickStop(b.dataset.st));
+}
+function pickStop(code) {
+  stopSel = code; stopQ = ''; const qi = $('#stq'); if (qi) qi.value = '';
+  setHash(); renderStopSug(); renderStopRes();
+}
+function stopAgg(code, days) {
+  const acc = new Map(); let eDays = [];
+  for (const d of days) {
+    const sc = stopCache[d] || {};
+    const first = Object.values(sc)[0];
+    const hasE = !!(first && first[0] && first[0].length > 5);
+    if (hasE) eDays.push(d);
+    for (const rid in sc) {
+      const row = sc[rid].find(r => r[0] === code);
+      if (!row) continue;
+      const x = acc.get(rid) || {rid, n: 0, sum: 0, on: 0, plan: 0, en: 0, e: 0, days: 0};
+      x.n += row[1]; x.sum += row[2] / 10 * row[1]; x.on += row[3]; x.plan += row[4] || 0; x.days++;
+      if (row.length > 5) { x.en += row[1]; x.e += row[5]; }
+      acc.set(rid, x);
+    }
+  }
+  return {rows: [...acc.values()], eDays};
+}
+function renderStopRes() {
+  const el = $('#st-res'); if (!el) return;
+  if (!stopSel) { el.innerHTML = ''; return; }
+  const info = SCAT[stopSel] || [stopName(stopSel), '', null, null];
+  const days = M.days, need = days.filter(d => !stopCache[d]);
+  const head = `<div class="ldetail"><div class="lhead"><span class="badge">${esc(stopSel)}</span><span class="ldest"><b style="color:var(--ink)">${esc(info[0])}</b>${info[1] ? ' · ' + esc(info[1]) : ''} · ${esc(periodTxt())}</span><button class="closebtn" id="st-x">✕ סגירה</button></div>`;
+  if (need.length) {
+    const my = ++stopLoadId;
+    el.innerHTML = head + `<div class="msg">טוען את נתוני התחנות… <span id="st-prog">0 מתוך ${need.length} ימים</span></div></div>`;
+    $('#st-x').onclick = () => { stopSel = ''; setHash(); renderStopRes(); renderStopSug(); };
+    let done = 0;
+    Promise.all(need.map(d => load(DATA + 'days/' + d + '.stops.json').then(j => { stopCache[d] = j; }).catch(() => { stopCache[d] = {}; }).then(() => { const p = $('#st-prog'); if (p) p.textContent = `${++done} מתוך ${need.length} ימים`; })))
+      .then(() => { if (my === stopLoadId && tab === 'stop') renderStopRes(); });
+    return;
+  }
+  const {rows: raw, eDays} = stopAgg(stopSel, days);
+  const rows = raw.map(x => { const l = lineLabel(x.rid); return {rid: x.rid, short: l.short, long: routeName((CAT[x.rid] || [])[2]) || l.long, agency: l.agency, n: x.n, plan: x.plan, cover: x.plan ? x.n / x.plan : null, on: x.n ? x.on / x.n : null, avg: x.n ? x.sum / x.n : null, early: x.en ? x.e / x.en : null}; })
+    .sort((a, b) => b.n - a.n);
+  const T = raw.reduce((t, x) => { t.n += x.n; t.sum += x.sum; t.on += x.on; t.plan += x.plan; t.en += x.en; t.e += x.e; return t; }, {n: 0, sum: 0, on: 0, plan: 0, en: 0, e: 0});
+  const sibs = info[0] ? Object.entries(SCAT).filter(([c, v]) => c !== stopSel && v[0] === info[0] && (v[1] || '') === (info[1] || '')).map(([c]) => c).slice(0, 8) : [];
+  const eNote = !eDays.length ? 'אחוז ההגעות המוקדמות לכל תחנה נשמר מהימים שמעובדים מ-24.11.2026.' : eDays.length < days.length ? `אחוז ההגעות המוקדמות: לפי ${num(eDays.length)} מתוך ${num(days.length)} ימים (מ-${dmy(eDays[0])}).` : '';
+  const lines = new Set(rows.map(r => r.short + '|' + r.agency)).size;
+  el.innerHTML = head +
+    (sibs.length ? `<p class="pdesc">רציפים נוספים באותו שם: ${sibs.map(c => `<button class="lnk" data-st="${esc(c)}">${esc(c)}</button>`).join(' · ')}</p>` : '') +
+    (!rows.length ? `<div class="empty">לא נמדדו הגעות בתחנה הזו ${days.length === 1 ? 'ביום הזה' : 'בתקופה הזו'}.</div></div>` :
+    `<div class="stopgrid"><div class="stat-row">
+      <div><b>${T.n ? pct(T.on, T.n) : '—'}</b><span>מההגעות היו בזמן</span></div>
+      <div><b>${T.n ? fmt1(T.sum / T.n) : '—'}<i>דק׳</i></b><span>איחור ממוצע</span></div>
+      <div><b>${T.en ? pct(T.e, T.en) : '—'}</b><span>הגיעו מוקדם מדי (יותר מ-2 דק׳)</span></div>
+      <div><b>${num(T.n)}</b><span>הגעות נמדדו${T.plan ? ` מתוך ${num(T.plan)} בלו״ז (${pct(T.n, T.plan)})` : ''}</span></div>
+      <div><b>${num(lines)}</b><span>קווים · ${num(rows.length)} כיווני נסיעה</span></div>
+    </div>${info[2] ? '<div class="stmap" id="st-map" aria-label="מפת התחנה"></div>' : ''}</div>
+    <div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>מפעיל</th><th>הגעות נמדדו</th><th>מהמתוכנן</th><th>בזמן</th><th>איחור ממוצע</th><th>מוקדם</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm nmc"><a class="linebtn" data-rid="${esc(r.rid)}" href="${tabHref('line', {line: r.rid})}">${esc(r.short)}</a></td><td class="rtn">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td>${num(r.n)}</td><td title="${r.plan ? num(r.n) + ' הגעות נמדדו מתוך ' + num(r.plan) + ' נסיעות בלו״ז שעוברות בתחנה' : ''}">${r.cover == null ? '—' : Math.round(r.cover * 100) + '%'}</td><td>${onCell(r.on)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td><td>${r.early == null ? '—' : `<span class="${r.early >= .1 ? 'd4' : r.early >= .05 ? 'd3' : ''}">${Math.round(r.early * 100)}%</span>`}</td></tr>`).join('') +
+    `</tbody></table></div>
+    <p class="note">"מהמתוכנן": ההגעות שנמדדו מתוך הנסיעות שעוברות בתחנה לפי לוח הזמנים. אין פירוט לפי שעה: לכל קו ותחנה נשמר סיכום של יום שלם. ${eNote} לחיצה על מספר הקו פותחת את הפירוט שלו, תחנה אחרי תחנה.</p></div>`);
+  $('#st-x').onclick = () => { stopSel = ''; setHash(); renderStopRes(); renderStopSug(); };
+  el.querySelectorAll('[data-st]').forEach(b => b.onclick = () => pickStop(b.dataset.st));
+  el.querySelectorAll('.linebtn').forEach(b => b.onclick = e => { if (nv(e)) goLine(b.dataset.rid); });
+  if (info[2] && rows.length) {
+    const code = stopSel;
+    loadLeaflet().then(() => {
+      const mel = $('#st-map'); if (!mel || stopSel !== code) return;
+      if (stopMap) { stopMap.remove(); stopMap = null; }
+      stopMap = L.map(mel, {scrollWheelZoom: false, attributionControl: true}).setView([info[2], info[3]], 17);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(stopMap);
+      for (const c of sibs) { const v = SCAT[c]; if (v && v[2]) L.circleMarker([v[2], v[3]], {radius: 6, color: '#fff', weight: 2, fillColor: '#8a94a8', fillOpacity: 1}).addTo(stopMap).bindTooltip(`${esc(v[0])} · ${esc(c)}`).on('click', () => pickStop(c)); }
+      L.circleMarker([info[2], info[3]], {radius: 9, color: '#fff', weight: 3, fillColor: '#0369a1', fillOpacity: 1}).addTo(stopMap).bindTooltip(`${esc(info[0])} · ${esc(code)}`, {permanent: true, direction: 'top', offset: [0, -8]});
+    }).catch(() => { const mel = $('#st-map'); if (mel) mel.remove(); });
+  }
+}
+
+// ---------------------------------------------------------------- דוח יציאות (אלעזר פינדר 23.11: "זמני היציאה חשובים —
+// זה יכול להחליף את הדוח החצי-שנתי של המשרד"). לקו, למפעיל או לאשכול: כמה נסיעות בלו"ז, כמה נצפו, כמה יצאו
+// מהמוצא בזמן / מוקדם / באיחור. הסיכום — מהקבצים היומיים (כל הימים). לפי שעה ולפי נסיעה — מ-days/D.dep.json
+// (tools/bus_reliability.py, departures_day), שנשמר מ-24.11.2026.
+let depAg = '', depCl = '', depLine = '', depQ = '', depCache = {}, depLoadId = 0;
+const DEP_EARLY = -120, DEP_LATE = 300;   // מוקדם: יותר מ-2 דק׳ לפני; באיחור: יותר מ-5 דק׳ אחרי (כמו "יציאה בזמן מהמוצא")
+function loadDep(days, prog) {
+  const need = days.filter(d => depCache[d] === undefined); let done = 0;
+  return Promise.all(need.map(d => load(DATA + 'days/' + d + '.dep.json').then(j => { depCache[d] = j; }).catch(() => { depCache[d] = null; }).then(() => prog && prog(++done, need.length))));
+}
+const lineKeyOf = rid => { const c = CAT[rid] || []; return c[0] || 'r' + rid; };
+function depRow(nm, xs, extra) {
+  const r = {nm, sched: 0, obs: 0, o: [0, 0, 0, 0, 0], ...extra};
+  for (const x of xs) { r.sched += x.sched; r.obs += x.obs; x.o.forEach((v, i) => r.o[i] += v); }
+  r.meas = r.o.reduce((a, b) => a + b, 0); r.miss = Math.max(0, r.sched - r.obs); r.nomeas = Math.max(0, r.obs - r.meas);
+  r.early = r.o[0]; r.on = r.o[1]; r.late = r.o[2] + r.o[3] + r.o[4];
+  return r;
+}
+const pc1 = (a, b) => b ? Math.round(1000 * a / b) / 10 + '%' : '—';
+const DEPH = ['נסיעות בלו״ז', 'נצפו', 'לא נצפו', 'יציאה נמדדה', 'בזמן', 'מוקדם', 'באיחור'];
+const depCells = r => `<td>${num(r.sched)}</td><td>${num(r.obs)}</td><td class="${missCls(r.sched ? r.miss / r.sched : null)}">${num(r.miss)} <small>(${pct(r.miss, r.sched)})</small></td><td>${num(r.meas)}</td><td>${onCell(r.meas ? r.on / r.meas : null)}</td><td>${eCell(r.meas ? r.early / r.meas : null)}</td><td>${r.meas ? pct(r.late, r.meas) : '—'}</td>`;
+const depCsv = r => [r.sched, r.obs, r.miss, r.meas, r.on, r.early, r.late];
+function depRoutes() {
+  return Object.values(M.Rr).filter(s => { const l = lineLabel(s.rid); return (!depAg || l.agency === depAg) && (!depCl || (l.cluster || 'ללא אשכול') === depCl); });
+}
+function renderDep() {
+  const box = $('#dep-box'); if (!box) return;
+  const ags = Object.keys(M.A).sort((a, b) => a.localeCompare(b, 'he'));
+  const cls = Object.keys(M.K || {}).sort((a, b) => a.localeCompare(b, 'he'));
+  box.innerHTML = `<div class="ptitle">דוח יציאות מתחנת המוצא</div>
+    <p class="pdesc noprint">לכל קו, מפעיל או אשכול: כמה נסיעות היו בלוח הזמנים, כמה נצפו, וכמה יצאו מהתחנה הראשונה בזמן, מוקדם או באיחור — כמו הדוח של משרד התחבורה על ביצוע נסיעות, לתקופה ולסוג היום שבחרתם למעלה. אפשר להדפיס או להוריד לאקסל.</p>
+    <div class="filters noprint"><select id="dep-ag" aria-label="מפעיל"><option value="">כל המפעילים</option>${ags.map(a => `<option ${a === depAg ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+      ${cls.length > 1 ? `<select id="dep-cl" aria-label="אשכול"><option value="">כל האשכולות</option>${cls.map(a => `<option ${a === depCl ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>` : ''}
+      <input class="search" id="dep-q" type="search" placeholder="מספר קו, למשל 261" value="${esc(depQ)}" autocomplete="off"></div>
+    <div id="dep-sug" class="noprint"></div><div id="dep-body"></div>`;
+  $('#dep-ag').onchange = e => { depAg = e.target.value; depLine = ''; setHash(); renderDep(); };
+  const cs = $('#dep-cl'); if (cs) cs.onchange = e => { depCl = e.target.value; depLine = ''; setHash(); renderDep(); };
+  const qi = $('#dep-q'); let t = null;
+  qi.oninput = () => { clearTimeout(t); t = setTimeout(() => { depQ = qi.value; renderDepSug(); }, 180); };
+  renderDepSug(); renderDepBody();
+}
+function depGroups() {
+  const G = new Map();
+  for (const s of depRoutes()) { const k = lineKeyOf(s.rid), g = G.get(k) || {key: k, rs: []}; g.rs.push(s); G.set(k, g); }
+  return [...G.values()].map(g => { const main = g.rs.slice().sort((a, b) => b.sched - a.sched)[0], l = lineLabel(main.rid); return depRow(l.short, g.rs, {key: g.key, short: l.short, long: l.long, agency: l.agency, cluster: l.cluster, rs: g.rs}); });
+}
+function renderDepSug() {
+  const el = $('#dep-sug'); if (!el) return;
+  const q = depQ.trim();
+  if (!q) { el.innerHTML = ''; return; }
+  const list = depGroups().filter(g => g.short === q || g.short.startsWith(q)).sort((a, b) => (a.short === q ? 0 : 1) - (b.short === q ? 0 : 1) || b.sched - a.sched).slice(0, 12);
+  el.innerHTML = list.length ? `<div class="stsug">${list.map(g => `<button class="stopt${g.key === depLine ? ' on' : ''}" data-dl="${esc(g.key)}"><b>קו ${esc(g.short)}</b><span>${esc(g.agency)}</span><small>${esc(routeName(g.long) || g.long)}</small></button>`).join('')}</div>` : '<div class="empty">לא נמצא קו כזה בתקופה שנבחרה</div>';
+  el.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { depLine = b.dataset.dl; depQ = ''; const i = $('#dep-q'); if (i) i.value = ''; setHash(); renderDepSug(); renderDepBody(); });
+}
+function depButtons() {
+  return `<div class="depbtns noprint"><button class="fchip" id="dep-print">🖨 הדפסה</button><button class="fchip" id="dep-csv">⬇ הורדה לאקסל (CSV)</button></div>`;
+}
+function bindDepButtons(csv) {
+  $('#dep-print').onclick = () => { document.body.classList.add('pdep'); const off = () => { document.body.classList.remove('pdep'); window.removeEventListener('afterprint', off); }; window.addEventListener('afterprint', off); window.print(); setTimeout(off, 1500); };
+  $('#dep-csv').onclick = csv;
+}
+const DEP_NOTE = `<details class="bmore"><summary>איך זה נמדד, ומה ההבדל מהדוח של המשרד</summary><ul class="lhow">
+  <li><b>נסיעות בלו״ז</b>: כל הנסיעות של הקו בלוח הזמנים (GTFS) של אותו יום.</li>
+  <li><b>נצפו</b>: נסיעות ששידרו מיקום (SIRI) ונמדדו לאורך המסלול. <b>לא נצפו</b>: לא נמצא להן שידור. המשרד סופר אותן כ"לא בוצעו"; כאן אי אפשר להבחין בין נסיעה שלא יצאה לנסיעה שיצאה בלי שידור, ולכן השם הוא "לא נצפו".</li>
+  <li><b>יציאה נמדדה</b>: הרכב נראה עומד בתחנת המוצא ואז מתחיל לזוז. <b>בזמן</b>: עד 2 דקות לפני השעה שבלו״ז ועד 5 דקות אחריה. <b>מוקדם</b>: יותר מ-2 דקות לפני. <b>באיחור</b>: יותר מ-5 דקות אחרי.</li>
+  <li>השידורים נשמרים פעם בדקה, ולכן רגע היציאה מדויק בערך לדקה. נסיעה שהשידור שלה התחיל כשהרכב כבר היה בדרך נספרת כ"נצפתה" בלי מדידת יציאה.</li>
+  <li>המספרים דומים לדוח המשרד אבל לא זהים לו: המשרד מקבל מהמפעילים דיווח מלא, וכאן הכל מהשידורים הציבוריים.</li>
+  <li>כיוון של קו שלא נצפתה בו אף נסיעה באותו יום לא נכנס לפירוט לפי קו, ולכן הסכום של הקווים קצת נמוך מהשורה של המפעיל.</li></ul></details>`;
+function renderDepBody() {
+  const el = $('#dep-body'); if (!el) return;
+  if (depLine) return renderDepLine(el);
+  const scope = depAg || depCl;
+  const rows = scope ? depGroups() : Object.entries(M.A).map(([nm, s]) => depRow(nm, [s]));
+  rows.sort((a, b) => b.sched - a.sched);
+  const T = depRow('סה״כ', rows);
+  const title = depAg && depCl ? `${depAg} · אשכול ${depCl}` : depAg || (depCl ? 'אשכול ' + depCl : 'כל המפעילים');
+  const show = rows.slice(0, 400);
+  el.innerHTML = `<div class="dephead"><h3>${esc(title)}</h3><span>${esc(periodTxt())}</span>${depButtons()}</div>
+    ${depTiles(T)}
+    <div class="tblbox depfull"><table><thead><tr><th>${scope ? 'קו' : 'מפעיל'}</th>${scope ? '<th>מסלול</th>' + (depAg ? '' : '<th>מפעיל</th>') : ''}${DEPH.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>` +
+    show.map(r => `<tr><td class="nm${scope ? ' nmc' : ''}">${scope ? `<button class="linebtn" data-dl="${esc(r.key)}" title="דוח היציאות של הקו">${esc(r.short)}</button>` : `<button class="linebtn" data-dag="${esc(r.nm)}" title="הקווים של המפעיל">${esc(r.nm)}</button>`}</td>${scope ? `<td class="rtn">${esc(routeName(r.long) || r.long)}</td>${depAg ? '' : `<td style="font-size:12px">${esc(r.agency)}</td>`}` : ''}${depCells(r)}</tr>`).join('') +
+    `</tbody></table></div>${rows.length > show.length ? `<p class="mut">מוצגים ${num(show.length)} מתוך ${num(rows.length)} — כולם בקובץ להורדה.</p>` : ''}
+    <p class="note">${scope ? 'קו = כל הכיוונים והחלופות שלו (לפי המק״ט). לחיצה על מספר הקו פותחת את הדוח שלו: לפי כיוון, לפי שעה ולפי נסיעה.' : 'לחיצה על מפעיל מציגה את הקווים שלו. אפשר גם לבחור אשכול או לחפש מספר קו.'}</p>${DEP_NOTE}`;
+  el.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { depLine = b.dataset.dl; setHash(); renderDepBody(); $('#dep-box').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  el.querySelectorAll('[data-dag]').forEach(b => b.onclick = () => { depAg = b.dataset.dag; setHash(); renderDep(); });
+  bindDepButtons(() => csvDownload(`דוח-יציאות-${title}-${M.days[0]}-${M.days[M.days.length - 1]}.csv`.replace(/[\\/:*?"<>|\s]+/g, '-'),
+    [[`דוח יציאות מתחנת המוצא — ${title}`], [periodTxt()], [],
+      [scope ? 'קו' : 'מפעיל', ...(scope ? ['מק"ט', 'מסלול', 'מפעיל', 'אשכול'] : []), ...DEPH],
+      ...rows.map(r => [scope ? r.short : r.nm, ...(scope ? [r.key, routeName(r.long) || r.long, r.agency, r.cluster] : []), ...depCsv(r)]),
+      ['סה״כ', ...(scope ? ['', '', '', ''] : []), ...depCsv(T)]]));
+}
+function depTiles(T) {
+  return `<div class="stat-row">
+    <div><b>${T.meas ? pct(T.on, T.meas) : '—'}</b><span>יצאו בזמן · ${num(T.on)} מתוך ${num(T.meas)} יציאות שנמדדו</span></div>
+    <div><b>${num(T.sched)}</b><span>נסיעות בלו״ז</span></div>
+    <div><b>${T.meas ? pc1(T.early, T.meas) : '—'}</b><span>יצאו מוקדם · ${num(T.early)} נסיעות</span></div>
+    <div><b>${T.sched ? pct(T.miss, T.sched) : '—'}</b><span>לא נצפו · ${num(T.miss)} נסיעות</span></div>
+    <div><b>${T.meas ? pct(T.late, T.meas) : '—'}</b><span>יצאו באיחור · ${num(T.late)} נסיעות</span></div>
+  </div>`;
+}
+function renderDepLine(el) {
+  const rs = Object.values(M.Rr).filter(s => lineKeyOf(s.rid) === depLine);
+  if (!rs.length) { el.innerHTML = `<div class="empty">הקו לא נמדד בתקופה שנבחרה. <button class="lnk" id="dep-back">חזרה לרשימה</button></div>`; $('#dep-back').onclick = () => { depLine = ''; setHash(); renderDepBody(); }; return; }
+  rs.sort((a, b) => b.sched - a.sched);
+  const l = lineLabel(rs[0].rid), T = depRow(l.short, rs);
+  const dirs = rs.map(s => { const x = lineLabel(s.rid); return depRow(x.long, [s], {rid: s.rid, dir: x.dir, alt: x.alt && x.alt !== '#' && x.alt !== '0' ? x.alt : ''}); });
+  const days = M.days, my = ++depLoadId;
+  const title = `קו ${l.short} · ${l.agency}`;
+  el.innerHTML = `<div class="dephead"><h3>דוח יציאות · ${esc(title)}</h3><span>${l.cluster ? 'אשכול ' + esc(l.cluster) + ' · ' : ''}${/^r/.test(depLine) ? '' : 'מק״ט ' + esc(depLine) + ' · '}${esc(periodTxt())}</span>${depButtons()}<button class="closebtn noprint" id="dep-x">✕ לכל הקווים</button></div>
+    ${depTiles(T)}
+    <div class="ptitle" style="margin-top:12px">לפי כיוון</div>
+    <div class="tblbox depfull"><table><thead><tr><th>כיוון</th><th>מסלול</th>${DEPH.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>` +
+    dirs.map(r => `<tr><td><a class="linebtn" data-rid="${esc(r.rid)}" href="${tabHref('line', {line: r.rid})}" title="מדד הדיוק של הכיוון">${esc(r.dir || '—')}${r.alt ? ' · ' + esc(r.alt) : ''}</a></td><td class="rtn">${esc(routeName(r.nm) || r.nm)}</td>${depCells(r)}</tr>`).join('') +
+    `</tbody></table></div><div id="dep-detail"><div class="msg">טוען את הנסיעות… <span id="dep-prog"></span></div></div>${DEP_NOTE}`;
+  $('#dep-x').onclick = () => { depLine = ''; setHash(); renderDepBody(); };
+  el.querySelectorAll('.linebtn[data-rid]').forEach(b => b.onclick = e => { if (nv(e)) goLine(b.dataset.rid); });
+  const csvBase = () => [[`דוח יציאות מתחנת המוצא — ${title}`], [periodTxt()], [], ['כיוון', 'מסלול', ...DEPH], ...dirs.map(r => [r.dir, routeName(r.nm) || r.nm, ...depCsv(r)]), ['סה״כ', '', ...depCsv(T)]];
+  const fname = `דוח-יציאות-קו-${l.short}-${l.agency}-${days[0]}-${days[days.length - 1]}.csv`.replace(/[\\/:*?"<>|\s]+/g, '-');
+  bindDepButtons(() => csvDownload(fname, csvBase()));
+  loadDep(days, (a, b) => { const p = $('#dep-prog'); if (p) p.textContent = `${a} מתוך ${b} ימים`; }).then(() => {
+    if (my !== depLoadId || tab !== 'dep') return;
+    const box = $('#dep-detail'); if (!box) return;
+    const have = days.filter(d => depCache[d]);
+    if (!have.length) { box.innerHTML = '<div class="ptitle" style="margin-top:14px">לפי שעה ולפי נסיעה</div><div class="empty">הפירוט לפי שעה ולפי נסיעה נשמר מהימים שמעובדים מ-24.11.2026. הסיכום למעלה — מכל הימים בתקופה.</div>'; return; }
+    const dirOf = Object.fromEntries(dirs.map(r => [r.rid, r.dir + (r.alt ? ' · ' + r.alt : '')]));
+    const trips = [];
+    for (const d of have) for (const r of rs) { const a = depCache[d][r.rid]; if (!a) continue; for (let i = 0; i < a.length; i += 2) trips.push({d, rid: r.rid, m: a[i], v: a[i + 1]}); }
+    const H = new Map();
+    for (const t of trips) {
+      const h = Math.floor(t.m / 60), x = H.get(h) || {h, sched: 0, miss: 0, nomeas: 0, meas: 0, early: 0, on: 0, late: 0};
+      x.sched++;
+      if (t.v === null) x.miss++; else if (typeof t.v !== 'number') x.nomeas++;
+      else { x.meas++; if (t.v < DEP_EARLY) x.early++; else if (t.v > DEP_LATE) x.late++; else x.on++; }
+      H.set(h, x);
+    }
+    const hrs = [...H.values()].sort((a, b) => a.h - b.h);
+    const hh = h => String(h % 24).padStart(2, '0') + ':00';
+    const tm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    const meas = trips.filter(t => typeof t.v === 'number');
+    const late = meas.filter(t => t.v > DEP_LATE).sort((a, b) => b.v - a.v);
+    const early = meas.filter(t => t.v < DEP_EARLY).sort((a, b) => a.v - b.v);
+    const miss = trips.filter(t => t.v === null).sort((a, b) => a.d.localeCompare(b.d) || a.m - b.m);
+    const dmin = v => (v > 0 ? '+' : '−') + Math.round(Math.abs(v) / 60) + ' דק׳';
+    const cover = have.length < days.length ? ` לפי ${num(have.length)} מתוך ${num(days.length)} ימים (הפירוט נשמר מ-${dmy(have[0])}).` : '';
+    const tripTbl = (list, n, withDelay) => `<div class="tblbox depfull"><table><thead><tr><th>יום</th><th>שעה בלו״ז</th><th>כיוון</th>${withDelay ? '<th>יצאה</th>' : ''}</tr></thead><tbody>${list.slice(0, n).map(t => `<tr><td>${heDate(t.d)}</td><td>${tm(t.m)}</td><td>${esc(dirOf[t.rid] || '')}</td>${withDelay ? `<td class="${t.v > 0 ? 'd4' : 'd0'}"><b>${dmin(t.v)}</b></td>` : ''}</tr>`).join('')}</tbody></table></div>${list.length > n ? `<p class="mut">מוצגות ${num(n)} מתוך ${num(list.length)} — כולן בקובץ להורדה.</p>` : ''}`;
+    box.innerHTML = `<div class="ptitle" style="margin-top:14px">לפי שעת היציאה בלו״ז</div><p class="pdesc">${num(trips.length)} נסיעות בלו״ז.${cover}</p>
+      <div class="tblbox depfull"><table><thead><tr><th>שעה</th><th>נסיעות בלו״ז</th><th>לא נצפו</th><th>נצפו, יציאה לא נמדדה</th><th>יציאה נמדדה</th><th>בזמן</th><th>מוקדם</th><th>באיחור</th></tr></thead><tbody>${hrs.map(x => `<tr><td><b>${hh(x.h)}</b></td><td>${num(x.sched)}</td><td class="${missCls(x.sched ? x.miss / x.sched : null)}">${num(x.miss)}</td><td>${num(x.nomeas)}</td><td>${num(x.meas)}</td><td>${onCell(x.meas ? x.on / x.meas : null)}</td><td>${x.early ? `<span class="d0">${num(x.early)}</span>` : '0'}</td><td>${x.late ? `<span class="d4">${num(x.late)}</span>` : '0'}</td></tr>`).join('')}</tbody></table></div>
+      <div class="cols2 depcols"><div><div class="ptitle" style="margin-top:14px">יצאו הכי מאוחר</div>${late.length ? tripTbl(late, 25, true) : '<div class="empty">אין נסיעות שיצאו יותר מ-5 דק׳ באיחור</div>'}</div>
+      <div><div class="ptitle" style="margin-top:14px">יצאו מוקדם</div>${early.length ? tripTbl(early, 25, true) : '<div class="empty">אין נסיעות שיצאו יותר מ-2 דק׳ לפני הזמן</div>'}</div></div>
+      <details class="bmore"${miss.length && miss.length <= 30 ? ' open' : ''}><summary>הנסיעות שלא נצפו (${num(miss.length)})</summary>${miss.length ? tripTbl(miss, 200, false) : '<div class="empty">כל הנסיעות נצפו</div>'}</details>`;
+    const stat = t => t.v === null ? 'לא נצפתה' : typeof t.v !== 'number' ? 'נצפתה, היציאה לא נמדדה' : t.v < DEP_EARLY ? 'מוקדם' : t.v > DEP_LATE ? 'באיחור' : 'בזמן';
+    bindDepButtons(() => csvDownload(fname, [...csvBase(), [], ['לפי נסיעה' + (cover ? ' —' + cover : '')], ['יום', 'שעה בלו"ז', 'כיוון', 'מסלול', 'מצב', 'פער ביציאה (דקות)'],
+      ...trips.slice().sort((a, b) => a.d.localeCompare(b.d) || a.m - b.m).map(t => [t.d, tm(t.m), dirOf[t.rid] || '', routeName(lineLabel(t.rid).long), stat(t), typeof t.v === 'number' ? Math.round(t.v / 6) / 10 : ''])]));
+  });
+}
+
 function init() {
   $('#method').innerHTML = METHOD;
   Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({})), (SHOW_GPS_FREQ ? load(DATA + 'gps.json').catch(() => null) : null)]).then(([idx, cat, gps]) => {
@@ -1270,10 +1594,16 @@ function init() {
       if (u.get('cl')) { cluster = u.get('cl'); rank = rank || 'worst'; }
       if (u.get('ag')) { agency = u.get('ag'); rank = rank || 'worst'; }
       if (u.get('city')) openCity = u.get('city');
-      if (u.get('rg')) openRegion = u.get('rg'); }
+      if (u.get('rg')) openRegion = u.get('rg');
+      if (u.get('st')) stopSel = u.get('st');
+      if (u.get('dag')) depAg = u.get('dag');
+      if (u.get('dcl')) depCl = u.get('dcl');
+      if (u.get('dl')) depLine = u.get('dl'); }
     dayD = DAYS.some(d => d.d === h) ? h : DAYS[DAYS.length - 1].d;
     if (t) tab = t;
-    period = 'day';
+    const pm = /^(7|30)(?:-(wk|fri|sat))?$/.exec(h || '');
+    period = pm && DAYS.length >= 3 && (pm[1] === '7' || DAYS.length > 7) ? pm[1] : 'day';
+    if (pm && period !== 'day') dtype = pm[2] || '';
     render();
   }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
 }
