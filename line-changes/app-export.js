@@ -295,7 +295,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=15'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=16'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
@@ -312,7 +312,13 @@
         // לוח מודעות — גיליון אחד לכל הקווים; טבלה משולבת — גיליון לכל יעד; תקציר וטבלה לכל קו — גיליון לכל קו
         var M = LCDeck.boardModel(cu, o, { hol: true });
         nm = fileName('לוח-זמנים-' + (A.edits.bplace || (cu.length <= 3 ? 'קו-' + cu.map(function (p) { return p.line; }).join('-') : M.home)) + '-' + (M.valid || LC.todayIso()));
-        if (tv === 'board' || cu.length === 1) blob = LCXlsx.board(M);
+        // קו שמשתנה בימים הקרובים: קודם גיליון של השבוע עד השינוי ("עד 28.11"), ואחריו הגיליון מהשינוי ("החל מ-29.11") — כמו בשקפים
+        var wkOf = function (g, MM, name) {
+          var pre = LCDeck.curPre(g); if (!pre) return [[MM, name]];
+          var W = LCDeck.boardModel(pre, o, { hol: true }), wu = W.wk, cut = function (n, s) { return (n ? n.slice(0, 30 - s.length).trim() + ' ' : '') + s; };
+          return [[W, cut(name === 'לוח זמנים' ? '' : name, 'עד ' + LC.dm(wu))], [MM, cut(name === 'לוח זמנים' ? '' : name, 'החל מ-' + LC.dm(LC.addDays(wu, 1)))]];
+        };
+        if (tv === 'board' || cu.length === 1) blob = LCXlsx.book(wkOf(cu, M, 'לוח זמנים'));
         else {
           var gs = [], by = {}, used = {};
           cu.forEach(function (p) {
@@ -324,8 +330,8 @@
             var od = g[0].od || [], name = (g.length > 1 ? od.filter(Boolean).join('-') : 'קו ' + g[0].line + (od[1] ? ' ' + od[1] : '')).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 28).trim() || 'לו״ז', n = name, i = 2;
             while (used[n]) n = name.slice(0, 25) + ' ' + i++;
             used[n] = 1;
-            return [LCDeck.boardModel(g, o, { hol: true }), n];
-          }));
+            return wkOf(g, LCDeck.boardModel(g, o, { hol: true }), n);
+          }).reduce(function (a, b) { return a.concat(b); }, []));
         }
       } else if (tv === 'board') {
         // הודעה על שינוי, לוח מודעות — הלוח החדש עם אותם סימונים כמו בשקף (ירוק — חדש או שונה, אדום מחוק — בוטל)

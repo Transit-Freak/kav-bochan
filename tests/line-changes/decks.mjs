@@ -126,7 +126,7 @@ async function altCheck(pg, line) {
       const map = {};
       tr.querySelectorAll('td.bt .t.alt').forEach((t) => {
         const al = t.querySelector('.al'), c = getComputedStyle(t).color;
-        if (!al) { bad.push(tr.getAttribute('data-ln') + ': שעה בחלופה בלי אות — ' + t.firstChild.nodeValue); return; }
+        if (!al) { bad.push(tr.getAttribute('data-ln') + ': שעה בחלופה בלי אות — ' + t.textContent); return; }
         if (getComputedStyle(al).color !== c) bad.push(tr.getAttribute('data-ln') + ': האות בצבע אחר מהשעה');
         const L = al.textContent;
         if (map[L] && map[L].c !== c) bad.push(tr.getAttribute('data-ln') + ': ' + L + ' בשני צבעים');
@@ -135,7 +135,8 @@ async function altCheck(pg, line) {
       });
       const cs = Object.values(map).map((x) => x.c);
       if (new Set(cs).size !== cs.length) bad.push(tr.getAttribute('data-ln') + ': שתי חלופות באותו צבע');
-      tr.querySelectorAll('td.bt .bna').forEach((n) => { const L = Object.keys(map).find((k) => n.textContent.startsWith(k + ' ')); if (!L) bad.push(tr.getAttribute('data-ln') + ': הערה בלי אות — ' + n.textContent); else if (getComputedStyle(n).color !== map[L].c) bad.push(tr.getAttribute('data-ln') + ': הערה בצבע אחר — ' + n.textContent); });
+      // ההערה: "#08:00 #09:00 — …" (הסימן לפני כל שעה) או "# כל הנסיעות — …"
+      tr.querySelectorAll('td.bt .bna').forEach((n) => { const L = Object.keys(map).find((k) => n.textContent.startsWith(k) && /^[\d ]/.test(n.textContent.slice(k.length))); if (!L) bad.push(tr.getAttribute('data-ln') + ': הערה בלי אות — ' + n.textContent); else if (getComputedStyle(n).color !== map[L].c) bad.push(tr.getAttribute('data-ln') + ': הערה בצבע אחר — ' + n.textContent); });
       if (Object.keys(map).length) {
         const k = tr.getAttribute('data-rk'), e = document.querySelector('.sitem:not(.off) .bd-al[data-ak="' + k + '"]');
         if (!e) bad.push(tr.getAttribute('data-ln') + ': אין שורה במקרא');
@@ -154,7 +155,7 @@ async function xlsxAlts(pg) {
   const sheet = s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
   const pairs = new Set();
   for (const m of sheet.matchAll(/<r><rPr>(?:(?!<\/rPr>).)*<color rgb="FF([0-9A-F]{6})"\/>(?:(?!<\/rPr>).)*<\/rPr><t xml:space="preserve">([^<]*)<\/t><\/r>/g)) {
-    const L = (m[2].match(/\d\d:\d\d\u200e?([*#^$~+]+)/) || [])[1];   // הסימן מיד אחרי השעה
+    const L = (m[2].match(/([*#^$~+]+)\u200e?\d\d:\d\d/) || [])[1];   // הסימן מיד לפני השעה (#07:00)
     if (L) pairs.add(L + ' ' + m[1]);
   }
   const legend = [...sheet.matchAll(/<c r="A(\d+)"[^>]*><is><t[^>]*>(קו [^<]*)<\/t>/g)].map((m) => m[2]);
@@ -319,29 +320,34 @@ async function orderCheck(pg, tord) {
   return pg.evaluate((tord) => {
     const bad = [];
     document.querySelectorAll('.sitem:not(.off) .s-bd td.bt').forEach((td) => {
-      const u = Array.from(td.querySelectorAll('.t')).map((t) => { const rg = document.createRange(); rg.selectNodeContents(t.firstChild); const r = rg.getBoundingClientRect(); return { t: t.firstChild.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('.al,sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }), al: !!t.querySelector('.al') }; });
+      // השעה: צומת הטקסט (בחלופה — בתוך .tu, אחרי הסימן: "#07:00")
+      const u = Array.from(td.querySelectorAll('.t')).map((t) => {
+        const tu = t.querySelector('.tu'), tn = tu ? tu.lastChild : t.firstChild, rg = document.createRange(); rg.selectNodeContents(tn); const r = rg.getBoundingClientRect();
+        const a = t.querySelector('.al'), ar = a && a.getBoundingClientRect();
+        return { t: tn.nodeValue.trim(), x: r.left, xr: r.right, y: r.top, h: r.height, mk: Array.from(t.querySelectorAll('sup,.xn')).map((m) => { const r = m.getBoundingClientRect(); return [r.left, r.right]; }), al: a ? [ar.left, ar.right] : null };
+      });
       if (!u.length) return;
       const lns = [];
       u.slice().sort((a, b) => a.y - b.y).forEach((v) => { const L = lns[lns.length - 1]; if (L && v.y - L[0].y <= u[0].h * 0.5) L.push(v); else lns.push([v]); });
       const vis = [].concat(...lns.map((L) => L.sort((a, b) => (tord === 'ltr' ? a.x - b.x : b.x - a.x))));
       if (!vis.every((v, i) => v === u[i])) bad.push(td.closest('tr').getAttribute('data-ln') + ': ' + vis.map((v) => v.t).join(' '));
-      // כל סימן (אות החלופה, ×N, ימים) מיד אחרי מה שלפניו בכיוון הקריאה — השעה או הסימן הקודם (משמאל לימין — מימין לה,
-      // מימין לשמאל — משמאל לה). האות של חלופה — צמודה לשעה שלה, וקרובה אליה יותר מאשר לשעה הבאה באותה שורה
+      // הסימן של חלופה — מיד משמאל לשעה ("#07:00"), וקרוב אליה יותר מאשר למה שמשמאל לו באותה שורה.
+      // שאר הסימנים (×N, ימים) מיד אחרי מה שלפניהם בכיוון הקריאה — השעה או הסימן הקודם (משמאל לימין — מימין לה,
+      // מימין לשמאל — משמאל לה, ואז גם משמאל לסימן החלופה)
       const ln = td.closest('tr').getAttribute('data-ln');
-      u.forEach((v, i) => {
-        let prev = tord === 'ltr' ? v.xr : v.x;
-        v.mk.forEach(([l, r], j) => {
+      u.forEach((v) => {
+        if (v.al) {
+          const gOwn = v.x - v.al[1];
+          if (gOwn < -0.1 * v.h || gOwn > 0.25 * v.h) bad.push(ln + ': האות לא צמודה ל-' + v.t);
+          const left = u.filter((o) => o !== v && Math.abs(o.y - v.y) < v.h * 0.5).map((o) => Math.max(o.xr, ...o.mk.map((m) => m[1]))).filter((r) => r <= v.al[0] + 1);
+          if (left.length) { const gL = v.al[0] - Math.max(...left); if (gL <= gOwn + 1) bad.push(ln + ': האות של ' + v.t + ' קרובה לשעה שמשמאל (' + gOwn.toFixed(1) + ' / ' + gL.toFixed(1) + ')'); }
+        }
+        let prev = tord === 'ltr' ? v.xr : Math.min(v.x, v.al ? v.al[0] : v.x);
+        v.mk.forEach(([l, r]) => {
           const g = tord === 'ltr' ? l - prev : prev - r;
           if (g < -0.1 * v.h || g > 0.8 * v.h) bad.push(ln + ': סימן רחוק מ-' + v.t);
-          if (j === 0 && v.al && g > 0.25 * v.h) bad.push(ln + ': האות לא צמודה ל-' + v.t);
           prev = tord === 'ltr' ? r : l;
         });
-        const nx = vis[vis.indexOf(v) + 1];
-        if (v.al && nx && Math.abs(nx.y - v.y) < v.h * 0.5) {
-          const end = tord === 'ltr' ? Math.max(...v.mk.map((m) => m[1]), v.xr) : Math.min(...v.mk.map((m) => m[0]), v.x);
-          const gNext = tord === 'ltr' ? nx.x - end : end - nx.xr, gOwn = tord === 'ltr' ? v.mk[0][0] - v.xr : v.x - v.mk[0][1];
-          if (gNext <= gOwn + 1) bad.push(ln + ': האות של ' + v.t + ' קרובה לשעה הבאה (' + gOwn.toFixed(1) + ' / ' + gNext.toFixed(1) + ')');
-        }
       });
     });
     return bad;
@@ -407,7 +413,7 @@ async function main() {
       const pages = await collect(pg, true), rows = [];
       Object.keys(pages).forEach((sid) => (pages[sid].rows || []).forEach((r) => { if (!/\(המשך\)\s*$/.test(r)) rows.push(r); }));
       // הסימונים: חדשה / בשעה חדשה (nw) ושבוטלה (rm), עם השעה
-      const marks = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd td.bt .t.nw, .sitem:not(.off) .s-bd td.bt .t.rm, .sitem:not(.off) .s-bd td.bt .was')).map((x) => (x.classList.contains('was') ? 'הערה ' : x.classList.contains('rm') ? 'בוטלה ' : 'חדשה ') + (x.classList.contains('was') ? x.textContent : x.firstChild.nodeValue)));
+      const marks = await pg.evaluate(() => Array.from(document.querySelectorAll('.sitem:not(.off) .s-bd td.bt .t.nw, .sitem:not(.off) .s-bd td.bt .t.rm, .sitem:not(.off) .s-bd td.bt .was')).map((x) => (x.classList.contains('was') ? 'הערה ' : x.classList.contains('rm') ? 'בוטלה ' : 'חדשה ') + (x.classList.contains('was') ? x.textContent : (x.querySelector('.tu') ? x.querySelector('.tu').lastChild.nodeValue : x.firstChild.nodeValue))));
       const heads = await pg.evaluate(() => { const f = document.querySelector('.sitem:not(.off) .s-bd'); return f ? Array.from(f.querySelectorAll('thead th')).map((t) => t.textContent.trim() + (t.colSpan > 1 ? ' [' + t.colSpan + ']' : '')) : []; });
       got[key][form] = { heads: heads, rows: rows, marks: marks, slides: Object.keys(pages).length };
       if (!(await footCheck(pg))) problems.push(key + ' ' + form + ': חסרה בעמוד שורת "המידע הוכן על ידי אדם פרטי · לא פרסום רשמי" או הקרדיט');

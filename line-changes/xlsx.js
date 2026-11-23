@@ -78,7 +78,7 @@ var LCXlsx = (function () {
     var sT = st.get({ b: 1, sz: 18, fill: HB || 'D9DEDC', color: HF || undefined, h: TH_ }), sV = st.get({ b: 1, sz: 11, color: HF || '8A5A00', fill: HB || 'D9DEDC', h: TH_ });
     // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
     if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
-    var vt = M.sub !== M.subDflt || M.chg || M.fe ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
+    var vt = M.sub !== M.subDflt || M.chg || M.fe || M.wk ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
     if (vt) { cell(R, 0, vt, sV); merges.push('A' + R + ':' + ref(last, R)); R++; }
     // קרדיט לקו הבוחן: שורה קצרה מתחת לכותרת, ושורה מודגשת בסוף — עם קישור לכלי
     var CR = M.creditTxt || 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', links = [];
@@ -138,16 +138,16 @@ var LCXlsx = (function () {
             if (x.txt != null) { cell(rr, 3 + ci, x.txt, tmS(x.key, r)); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
             if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', tmS(x.key, r, true)); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
-            // משמאל לימין: LRM לפני השעה, לפני הסימן ואחריו — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
+            // משמאל לימין: LRM לפני הסימן (שלפני השעה) ובסוף — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
             // (סימני LRM — ולא LRE/PDF, ש-LibreOffice מציג לא נכון). מימין לשמאל — כמו קודם
             var LRM = '\u200e';
             // הודעה על שינוי (טבלה לפי יעד): חדשה או בשעה חדשה — ירוק; שבוטלה — אדום מחוק, בשעה הקודמת שלה
             var toks = x.rm && x.rm.length && x.rm.length <= 6 ? x.ents.concat(x.rm).sort(function (a, b) { return a.m - b.m || (a.rm ? 1 : 0) - (b.rm ? 1 : 0); }) : x.ents;
-            // חלופה: השעה בצבע של החלופה ואחריה הסימן שלה (# ^ $…) — כמו בלוח
+            // חלופה: השעה בצבע של החלופה, והסימן שלה (# ^ $…) לפניה — "#07:00", כמו בלוח
             var runs = toks.map(function (e) {
               var al = e.al && !e.rm ? e.al : '';
-              var t = M.tord === 'ltr' ? LRM + e.t + (al ? LRM + al + LRM : '') + (e.n > 1 ? '×' + e.n : '') + (e.part ? LRM + '(' + e.part + ')' : '') + LRM
-                : (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + al + (e.part ? '(' + e.part + ')' : '');
+              var t = M.tord === 'ltr' ? LRM + al + e.t + (e.n > 1 ? '×' + e.n : '') + (e.part ? LRM + '(' + e.part + ')' : '') + LRM
+                : (al || e.n > 1 ? '\u202a' + al + e.t + (e.n > 1 ? '×' + e.n : '') + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : '');
               return { t: t, red: !!e.rm, strike: !!e.rm, b: !!al, color: e.k ? '1F9152' : al && e.ac ? hexOf(e.ac) : e.c || '' };
             });
             if (x.rm && x.rm.length > 6) notes.push(pre + 'בוטלו: ' + x.rm.map(function (e) { return e.t + (e.part ? ' (' + e.part + ')' : ''); }).join(', '));
@@ -159,7 +159,7 @@ var LCXlsx = (function () {
             cell(rr, 3 + ci, { runs: runs, dc: tmC(x.key, r) || '' }, tmS(x.key, r));
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.L ? nt.L + ' ' : '') + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
+            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.all ? (nt.L ? nt.L + ' ' : '') + 'כל הנסיעות' : nt.times.map(function (t) { return LRM + (nt.L || '') + t; }).join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
             var pt = x.ents.filter(function (e) { return e.part; });
             if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });
