@@ -111,16 +111,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
-      # האתר כ-3GB: מפנים מקום בשרת לפני ההעתקה והאריזה
-      - name: מקום בדיסק
+      # האתר כ-3GB: מפנים מקום בשרת לפני ההעתקה והאריזה. במקביל להורדה (שלמה 23.11: "זה לא מוגזם שכזה
+      # הרבה זמן רק לשנות טבלה?") — המחיקה לקחה 2.5 דקות לפני שההורדה התחילה. ממתינים לה לפני האריזה.
+      - name: מקום בדיסק (ברקע)
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
-          df -h / | tail -1
+          nohup sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+            > /dev/null 2>&1 &
+          echo $! > "$RUNNER_TEMP/rm.pid"
       # ההורדה לוקחת בדרך כלל כ-4 דקות, אבל בתקלות של GitHub היא נתקעת עד שנגמר זמן הריצה
       # (07.10: שתי ריצות נתקעו כך, והעיצוב החדש לא פורסם). מגבילים ל-12 דקות ומנסים שוב פעם אחת.
       #
       # הארכיון הכבד של "הקו בזמן" (early-patterns, early-stops) כבר לא במאגר הזה: מאז שהייבוא ההיסטורי
       # הסתיים (11.2026) הוא נמצא רק ב-kav-bochan-archive, והאתר קורא משם (line-history/src — archFetch)
+      #
+      # מורידים רק מה שעולה לאתר (23.11): התיקיות של .pagesignore שלא עולות לא יורדות בכלל (sparse-checkout).
+      # tools/ יורד — build_data_dates.py רץ כאן. הרשימה כאן צריכה להתאים ל-.pagesignore (שנשאר הקובע).
       - id: co
         uses: actions/checkout@v4
         timeout-minutes: 12
@@ -128,19 +133,49 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/gis/
+            !/unreleased/
+            !/sakachot-lab/
+            !/reports/
+            !/tests/
+            !/docs/
+            !/kavbug-data/
+            !/line-history/data/website-cache/
+            !/line-history/data/website-home/
+            !/line-history/data/website-catalogs/
+            !/line-history/data/y2017/
       - if: steps.co.outcome != 'success'
         uses: actions/checkout@v4
         timeout-minutes: 15
         with:
           fetch-depth: 1
           filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/gis/
+            !/unreleased/
+            !/sakachot-lab/
+            !/reports/
+            !/tests/
+            !/docs/
+            !/kavbug-data/
+            !/line-history/data/website-cache/
+            !/line-history/data/website-home/
+            !/line-history/data/website-catalogs/
+            !/line-history/data/y2017/
       # שתי התיקיות הכבדות שגדלות כל יום (כ-800MB) נשמרות באתר מכווצות — פי 5–7 פחות (שלמה 03.11).
       # רק בעותק שמתפרסם: במאגר הקבצים נשארים ‎.json‎ לכל הכלים. האתר קורא קודם ‎.json.gz‎
       # (bus/app.js, gis/app.js — gzJson; line-history — dfetch)
       - name: כיווץ הקבצים הכבדים
         run: |
           du -sh bus/data/days line-history/data/changes 2>/dev/null || true
-          find bus/data/days line-history/data/changes -maxdepth 1 -name '*.json' -print0 2>/dev/null | xargs -0 -r gzip -9 -n -f
+          # pigz — gzip על כל המעבדים (אותו פורמט), במקום אחד-אחד (23.11: כ-1.5 דקות)
+          z="gzip -9 -n -f"; command -v pigz >/dev/null && z="pigz -9 -n -f"
+          find bus/data/days line-history/data/changes -maxdepth 1 -name '*.json' -print0 2>/dev/null | xargs -0 -r -n 200 -P 4 $z
           du -sh bus/data/days line-history/data/changes 2>/dev/null || true
       # מעלים רק את מה שהאתר צריך (09.11, issue #380): כל המאגר הגיע ל-963MB מכווץ, ושני פרסומים
       # ברצף נתקעו ב-syncing_files. הנתיבים שלא עולים — ב-.pagesignore (כלים שלא עלו לאתר, קוד
@@ -148,6 +183,10 @@ jobs:
       # במאגר עצמו לא נמחק כלום.
       - name: רק קבצי האתר — _site
         run: |
+          # המחיקה שברקע (מקום בדיסק) — מחכים שתסתיים לפני ההעתקה והאריזה
+          pid=$(cat "$RUNNER_TEMP/rm.pid" 2>/dev/null || true)
+          while [ -n "$pid" ] && [ -d "/proc/$pid" ]; do sleep 2; done
+          df -h / | tail -1
           rm -rf _site
           rsync -a --link-dest="$PWD" --exclude-from=.pagesignore ./ _site/
           # מתי עודכנו הנתונים של כל כלי — לכרטיסים בדף הבית ("נתונים: 23.11.2026"); tools/build_data_dates.py
