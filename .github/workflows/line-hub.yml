@@ -8,7 +8,7 @@ on:
   #   paths:
   #     - 'lines/*.mjs'
   #     - 'tools/build_line_hub.mjs'
-  #     - 'KavPach.jsx'
+  #     - 'kavpach/src/**'
   #     - 'kavpach-core.js'
   #     - 'xlsx-worker.js'
   #     - 'data-*.json'

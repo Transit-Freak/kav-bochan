@@ -7,6 +7,8 @@ import {createRequire} from 'node:module';
 import crypto from 'node:crypto';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p));
+// קו פח: הקוד מחולק לפי נושא ב-kavpach/src; החלקים מחוברים לפי הסדר ב-files.json, כמו בבנייה (tools/build_kavpach.mjs)
+const readKavpach=()=>JSON.parse(read('kavpach/src/files.json')).map(f=>read('kavpach/src/'+f).toString()).join('\n');
 const json=p=>JSON.parse(read(p));
 const core=createRequire(import.meta.url)(path.join(root,'kavpach-core.js'));
 const ctx={console,TextDecoder,TextEncoder,importScripts(){},postMessage(){}};ctx.self=ctx;
@@ -15,7 +17,7 @@ const ab=p=>{const b=read(p);return b.buffer.slice(b.byteOffset,b.byteOffset+b.b
 ctx.payload={jsonMainBuf:ab('data-main.json'),jsonScheduleBuf:ab('data-schedule.json'),jsonBenchmarkBuf:ab('data-benchmark.json')};
 const parsed=vm.runInContext('parseJSON(payload)',ctx);
 // Reuse the exact golden calculation from the existing app; fail loudly if its contract changes.
-const jsx=read('KavPach.jsx').toString();
+const jsx=readKavpach();
 const defaults=jsx.match(/const GOLD_DEFAULTS = ([\s\S]*?);\nconst PACH_DEFAULTS/);
 const calculation=jsx.match(/const goldenLines = useMemo\(\(\) => \{([\s\S]*?)\n  \}, \[trips, costBenchmarkTable, liveOf, gset\]\);/);
 if(!defaults||!calculation)throw Error('Golden calculation changed: update the shared adapter before publishing');
@@ -43,7 +45,7 @@ for(const r of records.values()){
  catalog.push({makat:r.makat,number:r.number,origin:r.origin,dest:r.dest,agencies:r.agencies,cities:r.cities,bucket,removed:!!r.live?.rm});
 }
 const files={};for(let i=0;i<100;i++){const b=String(i).padStart(2,'0');const body=JSON.stringify(buckets[i]);fs.writeFileSync(path.join(out,b+'.json'),body);files[b]=crypto.createHash('sha256').update(body).digest('hex').slice(0,12);}
-const sources=['data-main.json','data-schedule.json','data-stops.json','KavPach.jsx','kavpach-core.js','xlsx-worker.js','kavpach-live.json','kavpach-overlap.json','bus/data/routes.json','bus/data/deadhead.json'];
-const signatures=Object.fromEntries(sources.map(p=>[p,crypto.createHash('sha256').update(read(p)).digest('hex')]));
+const sources=['data-main.json','data-schedule.json','data-stops.json','kavpach/src','kavpach-core.js','xlsx-worker.js','kavpach-live.json','kavpach-overlap.json','bus/data/routes.json','bus/data/deadhead.json'];
+const signatures=Object.fromEntries(sources.map(p=>[p,crypto.createHash('sha256').update(p==='kavpach/src'?readKavpach():read(p)).digest('hex')]));
 fs.writeFileSync(path.join(out,'index.json'),JSON.stringify({schema:1,passengerPeriod:'יוני 2026',liveUpdated:live.gen,scoringUpdated:json('bus/data/deadhead.json').updated,signatures,files,lines:catalog}));
 console.log(`Unified catalog: ${catalog.length} lines, ${gc.result.length} golden groups, 100 lazy-loaded buckets`);

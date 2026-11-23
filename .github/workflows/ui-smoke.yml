@@ -6,7 +6,7 @@ name: ui-smoke
 on:
   push:
     paths:
-      - 'KavPach.jsx'
+      - 'kavpach/src/**'
       - 'kavpach-core.js'
       - 'index.html'
       - 'skip-stops/**'
