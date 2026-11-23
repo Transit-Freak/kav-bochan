@@ -380,7 +380,7 @@
     // מראה הלוח — גם לייצוא לאקסל: יישור הכותרת, צבעים, רקע ויישור לשורה ולתא
     return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', (D.ED.btitle || '').trim() || dflt), dflt: dflt, valid: valid, fe: BD_FE, until: until, sub: bdT('sub', sub), subDflt: sub, home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
-      note: bdT('note', (D.ED.bnote || '').trim() || (alts ? 'נסיעות שמסומנות בסימן ובצבע (* # ^…) עוברות בדרך אחרת' : '')), contacts: contacts,
+      note: bdT('note', (D.ED.bnote || '').trim() || (alts ? 'נסיעות שמסומנות בסימן ובצבע (# ^ $…) עוברות בדרך אחרת' : '')), contacts: contacts,
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: D.ED.credit !== false, tord: D.ED.tord || 'ltr',
       // כל טקסט בלוח ניתן לעריכה: כותרות העמודות, "עדכונים", "מוקדי מידע", שורת ההסבר והקרדיט (את הקרדיט מורידים ב"להוסיף קרדיט", שלמה 22.11)
       th: { line: bdT('th:line', 'קו'), orig: bdT('th:orig', 'מוצא'), wk: bdT('th:wk', 'יום חול') }, lbl: { upd: bdT('lbl:upd', 'עדכונים'), ph: bdT('lbl:ph', 'מוקדי מידע'), cont: bdT('lbl:cont', '(המשך)'), off: bdT('lbl:off', 'אינו פעיל'), same: bdT('lbl:same', 'ללא שינוי') },
@@ -388,7 +388,7 @@
       // הודעה על שינוי: מקרא לסימונים (ירוק — חדש או שונה, אדום מחוק — בוטל), רק כשיש כאלה בלוח
       chg: chg, key: chg ? { nw: bdT('lbl:knw', 'חדש או שונה'), rm: bdT('lbl:krm', 'בוטל'), hasNw: bdHas(bands, 'nw'), hasRm: bdHas(bands, 'rm') } : null };
   }
-  /* חלופות בשורה (קו וכיוון): לכל חלופה סימן (* # ^ $ ~ +, כמו בלוחות של קווים) וצבע משלה — לפי הסדר של d.v. הסימן אחרי השעה,
+  /* חלופות בשורה (קו וכיוון): לכל חלופה סימן (# ^ $ ~ + *, כמו בלוחות של קווים) וצבע משלה — לפי הסדר של d.v. הסימן אחרי השעה,
      כדי שגם בהדפסה בשחור-לבן רואים איזו נסיעה באיזו דרך; ההערה מתחת לתא ובמקרא — באותו צבע ועם אותו סימן. r.alts — למקרא */
   var BD_ALT_COL = ['#c81e1e', '#7e22ce', '#c2410c', '#0f766e', '#92400e', '#be185d', '#1d4ed8', '#4d7c0f'];
   function bdAltMarks(r) {
@@ -476,7 +476,7 @@
       var k = e.rm ? ' rm' : e.k ? ' nw' : '', sr = e.rm ? 'בוטלה' : e.k === 'nw' ? 'חדשה' : '';
       var was = e.k === 'sh' ? '<small class="was" dir="rtl">' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) + '</small>' :
         e.nwp ? '<small class="was" dir="rtl">' + (e.was != null ? e.nwp + ': ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm2(e.was) : 'חדש ב-' + e.nwp) + '</small>' : '';
-      // חלופה: השעה בצבע של החלופה, ואחריה הסימן שלה (* # ^…) — בתוך אותה יחידה
+      // חלופה: השעה בצבע של החלופה, ואחריה הסימן שלה (# ^ $…) — בתוך אותה יחידה
       // היחידה בכיוון של סדר השעות: השעה, ואחריה (בכיוון הקריאה) הסימן, ×N והימים — משמאל לימין מימין לשעה, מימין לשמאל משמאל לה
       return '<span class="t num' + (e.a ? ' alt' : '') + k + '" dir="' + (D.ED.tord === 'rtl' ? 'rtl' : 'ltr') + '"' + (e.ac && !e.rm ? ' style="color:' + e.ac + '"' : '') + '>' + e.t + (e.al ? '<bdi dir="ltr" class="al">' + e.al + '</bdi>' : '') +
         (sr ? '<span class="vh"> (' + sr + ')</span>' : '') + (e.n > 1 ? '<bdi dir="ltr" class="xn">×' + e.n + '</bdi>' : '') +
@@ -739,7 +739,7 @@
       (cs.length ? '<p class="bd-ph">' + (M.lbl.ph ? '<b' + bdK('lbl:ph') + '>' + E(M.lbl.ph) + '</b> ' : '') + cs.map(function (c) {
         return '<span>' + (c[0] ? '<span' + bdK('phn:' + c[2]) + '>' + E(c[0]) + '</span>' : '') + ' ' + (c[1] ? '<b' + bdK('php:' + c[2], 'ltr') + '>' + E(c[1]) + '</b>' : '') + '</span>';
       }).join('') + '</p>' : '') +
-      '<div class="cu-foot"><span' + bdK('legend') + '>' + (M.legend != null ? E(M.legend) : 'שעות היציאה מהתחנה הראשונה · ' + (M.chg ? '<span class="nwt">בירוק</span> — נסיעה חדשה או בשעה חדשה · <span class="alt">באדום מחוק</span> — נסיעה שבוטלה' : '<span class="alt">בסימן ובצבע</span> (* # ^…) — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה' +
+      '<div class="cu-foot"><span' + bdK('legend') + '>' + (M.legend != null ? E(M.legend) : 'שעות היציאה מהתחנה הראשונה · ' + (M.chg ? '<span class="nwt">בירוק</span> — נסיעה חדשה או בשעה חדשה · <span class="alt">באדום מחוק</span> — נסיעה שבוטלה' : '<span class="alt">בסימן ובצבע</span> (# ^ $…) — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה' +
       (M.feed ? ' מ-' + LC.dmy(M.feed) : '')) + '</span><span' + bdK('pg:' + (pgi || 0), 'pg num') + '></span></div>' +
       // בכל עמוד, גם בצפוף ובעמוד אחד: שורת "אדם פרטי" (לא ניתנת לעריכה) והקרדיט (אפשר לשנות את הניסוח; מורידים אותו ב"להוסיף קרדיט")
       '<p class="bd-priv">המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד</p>' +

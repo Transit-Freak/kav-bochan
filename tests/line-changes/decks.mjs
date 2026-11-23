@@ -115,13 +115,13 @@ async function bandSeq(pg) {
     return out.map((L) => L.length > 1 ? L[0] + ': ' + L.slice(1).join(' ') : L[0]);
   });
 }
-// חלופות בלוח: בכל שורה — לכל סימן (* # ^…) צבע אחד, וסימנים שונים בצבעים שונים; ניגודיות 4.5 לפחות על לבן; ההערה מתחת לתא באותו צבע
+// חלופות בלוח: בכל שורה — לכל סימן (# ^ $…) צבע אחד, וסימנים שונים בצבעים שונים; ניגודיות 4.5 לפחות על לבן; ההערה מתחת לתא באותו צבע
 // ועם אותו סימן; ובמקרא — אותם סימנים באותם צבעים. מחזיר תיאור לתמונה-במילים ורשימת בעיות
 async function altCheck(pg, line) {
   return pg.evaluate((line) => {
     const lum = (c) => { const v = c.match(/\d+/g).slice(0, 3).map((x) => { x = x / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
     const con = (c) => 1.05 / (lum(c) + 0.05);
-    const bad = [], rows = {}, leg = [], ALTS = '*#^$~+';   // סדר הסימנים (deck.js — ALT_LET)
+    const bad = [], rows = {}, leg = [], ALTS = '#^$~+*';   // סדר הסימנים (deck.js — ALT_LET)
     document.querySelectorAll('.sitem:not(.off) .s-bd tr.br').forEach((tr) => {
       const map = {};
       tr.querySelectorAll('td.bt .t.alt').forEach((t) => {

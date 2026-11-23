@@ -148,11 +148,11 @@ test('סדר הקווים: לפי הסדר שהוספתם, לפי יעד, לפי
   assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'man', bman: ['14384', '36011', '53009', '11464'] })), ['לוד – בני ברק: 384', 'הקווים העירוניים · לוד, רמלה: 11 9', 'לוד – תל אביב יפו: 464']);
 });
 
-test('חלופות: לכל חלופה בשורה סימן (* # ^…) וצבע משלה, וההערה מתחת לתא — עם הסימן', () => {
+test('חלופות: לכל חלופה בשורה סימן (# ^ $…) וצבע משלה, וההערה מתחת לתא — עם הסימן', () => {
   const M = ctx.LCDeck.boardModel([ttPage('36011')], { ltype: LINES_FX.lt });
   const r = M.bands[0].rows.find((x) => x.alts && x.alts.length === 2);
-  assert.deepEqual(J(r.alts.map((a) => a.L)), ['*', '#']);
-  assert.match(M.note, /בסימן ובצבע \(\* # \^…\)/);
+  assert.deepEqual(J(r.alts.map((a) => a.L)), ['#', '^']);
+  assert.match(M.note, /בסימן ובצבע \(# \^ \$…\)/);
   assert.notEqual(r.alts[0].c, r.alts[1].c);
   const e = r.cells.flatMap((x) => x.ents).find((x) => x.a);
   assert.equal(e.ac, r.alts.find((a) => a.a === e.a).c);
@@ -283,10 +283,10 @@ test('ריקון התא ומחיקת טקסט: השעות, ההערה והתחנ
   assert.equal(r2.cells[i].txt, ''); assert.equal(r2.cells[i].ntxt, ''); assert.equal(r2.stop, '');
 });
 
-test('סימני חלופות: * # ^ $ ~ + כמו בלוחות של קווים, ואחרי שישה — כפולים', () => {
+test('סימני חלופות: # ^ $ ~ + * כמו בלוחות של קווים, ואחרי שישה — כפולים', () => {
   const sym = ctx.LCDeck._test.altSym;
-  assert.deepEqual([0, 1, 2, 3, 4, 5].map(sym), ['*', '#', '^', '$', '~', '+']);
-  assert.equal(sym(6), '**'); assert.equal(sym(7), '##');
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(sym), ['#', '^', '$', '~', '+', '*']);
+  assert.equal(sym(6), '##'); assert.equal(sym(7), '^^');
 });
 
 // ---------- לו"ז עדכני של קו שמשתנה השבוע: כל יום בשבוע מתאריך השינוי והלאה (LC.ttFromEff) ----------

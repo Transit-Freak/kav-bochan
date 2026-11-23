@@ -1641,9 +1641,9 @@ var LCDeck = (function () {
     cuAlts(side, cols);
     return cols;
   }
-  /* החלופות שמופיעות בצד הזה: סימן לכל (קו, חלופה) — * # ^ $ ~ + לפי הסדר, כמו בלוחות של קווים; side.alts — למקרא.
+  /* החלופות שמופיעות בצד הזה: סימן לכל (קו, חלופה) — # ^ $ ~ + * לפי הסדר, כמו בלוחות של קווים; side.alts — למקרא.
      יותר משישה (כמה קווים בצד אחד) — הסימנים כפולים: ** ## … */
-  var ALT_LET = '*#^$~+';
+  var ALT_LET = '#^$~+*';   // * בסוף: בתחתית הלוח יש מספרי טלפון עם כוכבית (*2060)
   function altSym(i) { var c = ALT_LET.charAt(i % ALT_LET.length); return new Array(Math.floor(i / ALT_LET.length) + 2).join(c); }
   function cuAlts(side, cols) {
     var used = {}, list = [];
