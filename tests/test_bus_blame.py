@@ -113,5 +113,49 @@ class BlameTests(unittest.TestCase):
         self.assertIn('r1', r['lines'])
 
 
+    def test_late_departure_cause_deadhead(self):
+        # נסיעה מנהלית: מוצא הנסיעה הבאה רחוק מסוף הקודמת. 10 ק"מ → 10 × 1.3 / 30 קמ"ש = 26 דק' משוערות
+        H, A0 = 3600, (31.73, 34.74)
+        B10 = (31.73 + 10 / 111.0, 34.74)       # 10 ק"מ צפונה
+        B50 = (31.73 + 50 / 111.0, 34.74)       # 50 ק"מ — רחוק מדי
+        m = lambda h, mi: h * H + mi * 60
+        ag = 'אגד'
+        self.assertAlmostEqual(26 * 60, b.deadhead_sec(10), delta=1)
+        self.assertEqual(0, b.deadhead_sec(1.0))
+        DQ = [
+            # רכב 1: הגיע 10:25 בזמן, הבאה 10:45 במרחק 10 ק"מ (20 דק' בלו"ז < 26 משוערות) — עם הדרך הגיע 10:51: (a),
+            # והלו"ז לא השאיר מספיק זמן לנסיעה המנהלית
+            ('אגד', 'r1', m(10, 0), m(10, 25), 0, 0, '1', A0, A0),
+            ('אגד', 'r1', m(10, 45), m(11, 10), 600, 0, '1', B10, B10),
+            # רכב 2: הגיע 12:00, הבאה 13:00 במרחק 10 ק"מ — עם הדרך 12:26, הספיק ויצא באיחור: (b)
+            ('אגד', 'r1', m(11, 30), m(12, 0), 0, 0, '2', A0, A0),
+            ('אגד', 'r1', m(13, 0), m(13, 25), 400, 0, '2', B10, B10),
+            # רכב 3: 50 ק"מ — לא משורשר: (c)
+            ('אגד', 'r1', m(13, 0), m(13, 25), 0, 0, '3', A0, A0),
+            ('אגד', 'r1', m(14, 0), m(14, 25), 500, 0, '3', B50, B50),
+            # רכב 4: 10 ק"מ אבל רק 5 דק' בלו"ז (פחות מחצי מ-26) — לא אותה משמרת: (c)
+            ('אגד', 'r1', m(10, 0), m(10, 25), 0, 0, '4', A0, A0),
+            ('אגד', 'r1', m(10, 30), m(10, 55), 300, 0, '4', B10, B10),
+        ]
+        r = b.cause_day(DQ, {})
+        a = dict(zip(b.CAUSE_COLS, r['agencies'][ag]))
+        OF = 'off-peak: '
+        blk = b._CAUSE_BLOCK
+        self.assertEqual(4, a[OF + blk[1]])
+        self.assertEqual(1, a[OF + blk[3]])     # a
+        self.assertEqual(1, a[OF + blk[6]])     # b
+        self.assertEqual(2, a[OF + blk[8]])     # c
+        d = dict(zip(b.DH_COLS, r['dh']['agencies'][ag]))
+        db = b._DH_BLOCK
+        self.assertEqual(4, d[OF + db[0]])      # כל היוצאות באיחור
+        self.assertEqual(2, d[OF + db[1]])      # מתוכן הגיעו בנסיעה מנהלית
+        self.assertEqual(1000, d[OF + db[2]])
+        self.assertEqual(1, d[OF + db[3]])      # a
+        self.assertEqual(600, d[OF + db[4]])
+        self.assertEqual(1, d[OF + db[5]])      # הלו"ז לא השאיר זמן לדרך
+        self.assertEqual(2, d[OF + db[6]])
+        self.assertEqual(r['dh']['tot'], r['dh']['agencies'][ag])
+
+
 if __name__ == '__main__':
     unittest.main()
