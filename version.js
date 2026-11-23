@@ -19,7 +19,9 @@
     return /^#(פח|מוזהב|kavpach|golden)(\/|$)/.test(h) ? "kavpach" : "home";
   }
   var DATA = null;
-  var CSS = "#kb-ver{display:flex;justify-content:center;padding:14px 12px 22px;direction:rtl}" +
+  var CSS = "#kb-ver{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px 22px;direction:rtl}" +
+    "#kb-ver .kb-gtfs{font:500 12px/1.5 Heebo,Arial,sans-serif;color:#64748b;text-align:center}" +
+    "html.kb-dark #kb-ver .kb-gtfs{color:#97a2b8}" +
     "#kb-ver button{all:unset;cursor:pointer;font:600 12.5px/1.4 Heebo,Arial,sans-serif;color:#64748b;border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:5px 13px}" +
     "#kb-ver button:hover,#kb-ver button:focus-visible{color:#5b21b6;border-color:#c4b5fd;outline:none}" +
     "#kb-ver-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100000;display:flex;align-items:flex-end;justify-content:center;direction:rtl}" +
@@ -79,9 +81,29 @@
     }
     box.innerHTML = '<button type="button" title="מה השתנה בגרסה הזו">' + esc(T.name) + ' · גרסה ' + esc(T.versions[0].v) + '</button>';
     box.querySelector("button").onclick = function () { open(t); };
+    if (GTFS) box.insertAdjacentHTML("beforeend", '<div class="kb-gtfs">' + esc(GTFS) + "</div>");
+  }
+  // מתי משרד התחבורה עדכן את קובץ הקווים (GTFS) שנסרק בפעם האחרונה — נרשם ב-line-history.yml (שלמה 23.11.2026)
+  var GTFS = "";
+  function il(iso) {
+    try {
+      var p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
+        .formatToParts(new Date(iso)).forEach(function (x) { p[x.type] = x.value; });
+      return p.day + "." + p.month + " בשעה " + p.hour + ":" + p.minute;
+    } catch (e) { return ""; }
+  }
+  function loadGtfs() {
+    fetch(base + "line-history/data/gtfs-info.json?v=" + Math.floor(Date.now() / 6e5)).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (g) {
+        if (!g || !g.mot) return;
+        var when = il(g.mot); if (!when) return;
+        GTFS = "קובץ הקווים של משרד התחבורה עודכן ב-" + when + (g.source === "archive" ? " (מהארכיון היומי)" : "");
+        if (DATA) render();
+      }).catch(function () { /* בלי השורה — לא מפריע */ });
   }
   function start() {
     var st = document.createElement("style"); st.textContent = CSS; document.head.appendChild(st);
+    loadGtfs();
     fetch(base + "versions.json?v=" + Math.floor(Date.now() / 36e5)).then(function (r) { return r.json(); })
       .then(function (d) {
         DATA = d; render(); window.addEventListener("hashchange", render);

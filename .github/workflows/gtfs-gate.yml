@@ -1,0 +1,108 @@
+name: gtfs-gate
+
+# שומר הסף של קובץ ה-GTFS היומי (שלמה 23.11.2026).
+# כל 10 דקות: בודק (בבקשת HEAD, בלי להוריד) מתי משרד התחבורה עדכן את israel-public-transportation.zip.
+# מ-00:30 שעון ישראל (הקובץ עולה בדרך כלל בלילה), כשיש קובץ שעוד לא טופל — מפעיל את line-history (שמוריד את הקובץ פעם אחת ומעביר
+# אותו הלאה: קו פח, העדכון השבועי, הפריסה). פעם אחת ביום; אם הקובץ עולה מאוחר (22.11 — ב-19:31), הוא
+# נתפס בתוך 10 דקות ולא למחרת. אחרי שהופעל — אין בדיקות עד 00:30 בלילה הבא. ההחלטה עצמה: tools/gtfs_gate.py (נבדקת ב-tests/test_gtfs_gate.py).
+# המצב נשמר ב-cache של GitHub (בלי commit): gtfs-gate-file-<זמן הקובץ>, gtfs-gate-day-<תאריך>.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'בדיקה בלבד — להדפיס את ההחלטה בלי להפעיל את העדכון'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: write   # הפעלת line-history ושמירת המצב ב-cache
+
+concurrency:
+  group: gtfs-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/gtfs_gate.py
+          sparse-checkout-cone-mode: false
+
+      - name: השעה בישראל ומתי הקובץ עודכן
+        id: info
+        run: |
+          echo "now=$(TZ=Asia/Jerusalem date +%Y-%m-%dT%H:%M:%S)" >> "$GITHUB_OUTPUT"
+          echo "day=$(TZ=Asia/Jerusalem date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          lm=$(curl -fsSI -A "Mozilla/5.0" --max-time 60 --retry 2 --retry-delay 20 \
+                 "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip" \
+               | tr -d '\r' | sed -n 's/^[Ll]ast-[Mm]odified: *//p' | tail -1) || true
+          if [ -z "$lm" ]; then
+            # גיבוי: התאריך שליד הקובץ בדף הקבצים של המשרד (tools/gtfs_gate.py, lm_from_listing)
+            curl -fsS -A "Mozilla/5.0" --max-time 60 --retry 2 -o listing.html "https://gtfs.mot.gov.il/gtfsfiles/" || true
+            lm=$(python3 -c "import sys; sys.path.insert(0,'tools'); from gtfs_gate import lm_from_listing; print(lm_from_listing(open('listing.html',errors='replace').read()) if __import__('os').path.exists('listing.html') else '')")
+            [ -n "$lm" ] && echo "השרת לא ענה על השאלה הישירה — התאריך נלקח מדף הקבצים"
+          fi
+          echo "lm=$lm" >> "$GITHUB_OUTPUT"
+          echo "הקובץ במשרד התחבורה: ${lm:-לא ידוע}"
+
+      - name: כבר הפעלנו היום?
+        id: day
+        uses: actions/cache/restore@v4
+        with:
+          path: .gtfs-gate
+          key: gtfs-gate-day-${{ steps.info.outputs.day }}
+          lookup-only: true
+
+      - name: מפתח הקובץ
+        id: key
+        env:
+          LAST_MODIFIED: ${{ steps.info.outputs.lm }}
+        run: |
+          k=$(python3 -c "import sys; sys.path.insert(0,'tools'); from gtfs_gate import lm_key; import os; print(lm_key(os.environ.get('LAST_MODIFIED','')))")
+          echo "k=${k:-none}" >> "$GITHUB_OUTPUT"
+
+      - name: הקובץ הזה כבר טופל?
+        id: file
+        uses: actions/cache/restore@v4
+        with:
+          path: .gtfs-gate
+          key: gtfs-gate-file-${{ steps.key.outputs.k }}
+          lookup-only: true
+
+      - name: החלטה
+        id: decide
+        env:
+          NOW_IL: ${{ steps.info.outputs.now }}
+          LAST_MODIFIED: ${{ steps.info.outputs.lm }}
+          DAY_DONE: ${{ steps.day.outputs.cache-hit }}
+          FILE_DONE: ${{ steps.file.outputs.cache-hit }}
+        run: python3 tools/gtfs_gate.py
+
+      - name: הפעלת העדכון (line-history)
+        if: steps.decide.outputs.go == 'yes' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run line-history.yml --repo "${{ github.repository }}" --ref main
+          mkdir -p .gtfs-gate && echo "${{ steps.info.outputs.lm }}" > .gtfs-gate/last
+
+      - name: שמירה — הקובץ טופל
+        if: steps.decide.outputs.go == 'yes' && inputs.dry_run != true
+        uses: actions/cache/save@v4
+        with:
+          path: .gtfs-gate
+          key: gtfs-gate-file-${{ steps.key.outputs.k }}
+
+      - name: שמירה — הופעל היום
+        if: steps.decide.outputs.go == 'yes' && inputs.dry_run != true
+        uses: actions/cache/save@v4
+        with:
+          path: .gtfs-gate
+          key: gtfs-gate-day-${{ steps.info.outputs.day }}
