@@ -172,3 +172,25 @@ details.c .inner{margin:0 14px;padding:12px 0 14px;border-top:1px solid var(--li
 .ntm{font-variant-numeric:tabular-nums;margin-inline-end:4px}
 .vline{font-size:14px}
 .t-v-ok b{color:var(--ok)}.t-v-warn b{color:var(--warn)}.t-v-bad b{color:var(--bad)}
+
+/* בחירת קו: רשת כרטיסים — חברה, מוצא ויעד */
+.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){.picks{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pick{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:right;border:1.5px solid transparent;background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:12px 13px 13px;color:var(--ink);cursor:pointer;min-height:96px;transition:border-color .15s}
+.pick:hover,.pick:focus-visible{border-color:var(--ink);outline:none}
+.pick.x{display:none}
+.pop{font-size:11.5px;font-weight:700;color:var(--mut);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e1,.e2{font-size:14.5px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.e2::before{content:'← ';color:var(--dim);font-weight:600}
+.psub{font-size:11px;color:var(--mut);margin-top:5px;line-height:1.35;overflow-wrap:anywhere}
+.pmore{display:block;margin:12px auto 0;border:none;background:var(--chip);color:var(--ink);font:700 13.5px 'Rubik',sans-serif;border-radius:999px;padding:10px 20px;cursor:pointer}
+.rt{display:flex;flex-direction:column;min-width:0}
+.rt .pop{margin:0}
+.ends{display:flex;flex-wrap:wrap;column-gap:6px}
+.ends .e1,.ends .e2{font-size:16px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+.act{display:inline-flex;align-items:center;gap:6px;height:38px;border:none;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font:700 13px 'Rubik',sans-serif;border-radius:999px;padding:0 14px;cursor:pointer}
+.act svg{color:var(--acc)}
+.pop b,.rhead .pop b{display:inline;font-size:inherit;color:var(--ink);font-weight:700}
+.pf{width:100%;height:44px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:600 14.5px 'Rubik',sans-serif;padding:0 14px;margin:0 0 10px;outline:none}
+.pf:focus{border-color:var(--ink)}

@@ -198,6 +198,27 @@ function toLabel(r) {
   const { d } = rparts(r);
   return 'לכיוון ' + (d.city && rparts(r).o.city !== d.city ? d.city : d.stop || d.city);
 }
+// מוצא ויעד כמו בשלטים ובהקו בזמן: בקו בין-עירוני — הערים, ובקו עירוני — תחנות הקצה
+const cutStop = x => {
+  let t = String(x || '').trim().replace(/^ת\.\s?מרכזית/, 'התחנה המרכזית').replace(/^ת\.\s?רכבת/, 'תחנת הרכבת').replace(/^ת\.\s?רק"?ל/, 'תחנת הרכבת הקלה');
+  const i = t.indexOf('/');
+  if (i > 0 && /רציפ|הורד|איסוף|עירוניים|בינעירוני/.test(t.slice(i + 1))) t = t.slice(0, i).trim();
+  return t.length > 30 ? t.slice(0, 29) + '…' : t;
+};
+// "עכו-עכו": כשהתחנה כבר כוללת את שם העיר — פעם אחת
+const sideOf = x => ({ stop: cutStop(x.stop), city: x.city && !(x.stop.includes(x.city) || x.stop.includes(x.city.replace(/ יפו$/, ''))) ? x.city : (x.city || '') });
+function ends(r) {
+  const { o, d } = rparts(r);
+  const a = sideOf(o), b = sideOf(d);
+  const base = t => String(t || '').split('/')[0].trim();
+  if (a.city && b.city && a.city !== b.city) return { from: a.city, to: b.city, sub: a.stop && b.stop ? `${a.stop} ← ${b.stop}` : '' };
+  if (a.stop && base(a.stop) === base(b.stop)) return { from: a.stop, to: '', circ: true, city: a.city || b.city };
+  return { from: a.stop || a.city, to: b.stop || b.city, city: a.city || b.city };
+}
+// "מבאר שבע", "לתמר"; לפני מספר, גרש או אות לועזית — עם מקף
+const pre = (p, x) => x ? (/^[א-ת][א-ת]*[\s/,-]|^[א-ת]+$/.test(x) ? p + x : p + '-' + x) : '';
+const endsHTML = e => e.circ ? `<span class="e1">${esc(pre('מ', e.from))}</span><span class="e2">קו מעגלי</span>`
+  : `<span class="e1">${esc(pre('מ', e.from))}</span><span class="e2">${esc(pre('ל', e.to))}</span>`;
 const lineName = ref => { const r = ROUTES[ref]; return r ? r.route_short_name : '?'; };
 
 /* ---------- משך נסיעה ("פרופיל" לכל קו וכיוון) ---------- */
@@ -388,7 +409,7 @@ function route() {
   const h = new URLSearchParams(location.hash.slice(1));
   OPEN.clear();
   if (h.get('v')) { setMode('veh', true); $('#q').value = h.get('v'); VIEW = { t: 'veh', plate: norm(h.get('v')) }; }
-  else if (h.get('l')) { setMode('ls', true); $('#q').value = h.get('l'); VIEW = { t: 'line', num: h.get('l').trim(), g: h.get('g') || null }; }
+  else if (h.get('l')) { setMode('ls', true); $('#q').value = h.get('l'); VIEW = { t: 'line', num: h.get('l').trim(), g: h.get('g') || null, d: h.get('d') || null }; }
   else if (h.get('s')) { setMode('ls', true); VIEW = { t: 'stop', code: norm(h.get('s')) }; }
   else { VIEW = null; $('#out').innerHTML = ''; dropMap(); return; }
   load(false);
@@ -529,6 +550,12 @@ async function lineGroups(num) {
     const { o, d } = rparts(main);
     G.label = o.city && o.city === d.city ? `${o.city}: ${o.stop} ↔ ${d.stop}` : dirLabel(main).replace(' ← ', ' ↔ ');
     G.dirs = [...new Set(G.routes.map(r => r.route_direction))];
+    // לכל כיוון — החלופה הראשית קובעת את המוצא והיעד
+    G.dmain = {};
+    for (const dr of G.dirs) {
+      const rs = G.routes.filter(r => r.route_direction === dr);
+      G.dmain[dr] = rs.find(r => r.route_alternative === '#' || r.route_alternative === '0') || rs[0];
+    }
   }
   return (GROUPS[num] = list);
 }
@@ -539,9 +566,9 @@ async function loadLine(tok) {
   if (tok !== TOKEN) return;
   if (!groups.length) { msg(`לא נמצא קו ${esc(num)} שפועל היום.${/^\d+$/.test(num) ? ` <a href="#s=${esc(num)}">לחפש תחנה שהקוד שלה ${esc(num)}?</a>` : ''}`, true); return; }
   const G = groups.find(g => g.key === VIEW.g) || (groups.length === 1 ? groups[0] : null);
-  const chipsHTML = groups.map(g => `<button class="chip${G === g ? ' on' : ''}" data-g="${esc(g.key)}">${esc(g.agency)}<small>${esc(g.label)}</small></button>`).join('');
-  if (!G) { $('#out').innerHTML = `<h2 class="sec">יש ${groups.length} קווים ${esc(num)} — איזה?</h2><div class="chips">${chipsHTML}</div>`; dropMap(); bindOut(); return; }
-  const picker = groups.length > 1 ? `<details class="other"><summary>קו ${esc(num)} אחר (${groups.length - 1})</summary><div class="chips">${chipsHTML}</div></details>` : '';
+  if (!G) { renderPicker(groups, num); return; }
+  DIRF = G.dirs.includes(VIEW.d) ? VIEW.d : G.dirs[0];
+  const picker = groups.length > 1;
 
   const refs = G.routes.map(r => r.line_ref);
   const now = Date.now();
@@ -594,17 +621,46 @@ async function loadLine(tok) {
   }
   await enrich(tok, upcoming, active.map(r => r.vehicle_ref), pending => renderLine({ G, picker, act, upcoming, num }, pending));
 }
+// בחירת קו: כרטיס לכל חברה וכיוון — מוצא ← יעד, כמו בהקו בזמן. שלוש שורות, והשאר מאחורי "עוד"
+function renderPicker(groups, num) {
+  const cards = [];
+  for (const g of groups) for (const dr of g.dirs) cards.push({ g, dr, e: ends(g.dmain[dr]) });
+  const per = matchMedia('(min-width:560px)').matches ? 3 : 2, lim = per * 3;
+  const hid = cards.length > lim + 1 ? cards.length - lim : 0;
+  const cardsHTML = cards.map((c, i) => `<button class="pick${hid && i >= lim ? ' x' : ''}" data-g="${esc(c.g.key)}" data-d="${esc(c.dr)}">
+      <span class="pop">${esc(c.g.agency)}${c.e.city ? ` · <b>${esc(c.e.city)}</b>` : ''}</span>${endsHTML(c.e)}${c.e.sub ? `<span class="psub">${esc(c.e.sub)}</span>` : ''}</button>`).join('');
+  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span><b>${groups.length} קווים בשם הזה</b><small>בחרו מאיפה ולאן</small></span></div>
+    ${cards.length > lim ? `<input id="pf" class="pf" type="search" placeholder="סינון לפי עיר, תחנה או חברה" aria-label="סינון הקווים">` : ''}
+    <div class="picks">${cardsHTML}</div><div id="pnone" class="msg" hidden>אין קו כזה ברשימה.</div>${hid ? `<button class="pmore" id="pmore">עוד ${hid} ▾</button>` : ''}`;
+  dropMap();
+  bindOut();
+  const m = $('#pmore'), f = $('#pf');
+  if (m) m.addEventListener('click', () => { document.querySelectorAll('.pick.x').forEach(b => b.classList.remove('x')); m.remove(); });
+  if (f) f.addEventListener('input', () => {
+    const w = f.value.trim().split(/\s+/).filter(Boolean);
+    let n = 0;
+    document.querySelectorAll('.pick').forEach(b => {
+      const ok = w.every(x => b.textContent.includes(x));
+      b.hidden = !ok; if (ok) n++;
+      if (w.length) b.classList.remove('x');
+    });
+    if (w.length && m) m.hidden = true; else if (m) { m.hidden = false; document.querySelectorAll('.pick').forEach((b, i) => b.classList.toggle('x', i >= lim)); }
+    $('#pnone').hidden = n > 0;
+  });
+}
 function renderLine({ G, picker, act, upcoming, num }, pending) {
   const now = Date.now();
   const dirOf = ref => (ROUTES[ref] || {}).route_direction;
   const dirRoute = dir => G.routes.find(r => r.route_direction === dir);
-  const dchips = G.dirs.length > 1 ? `<div class="seg">${['all', ...G.dirs].map(d =>
-    `<button class="${DIRF === d ? 'on' : ''}" data-dir="${d}">${d === 'all' ? 'שני הכיוונים' : esc(toLabel(dirRoute(d)))}</button>`).join('')}</div>` : '';
-  const fd = x => DIRF === 'all' || dirOf(x) === DIRF;
+  const other = G.dirs.find(d => d !== DIRF);
+  const e = ends(G.dmain[DIRF] || dirRoute(DIRF));
+  const acts0 = (other ? `<button class="act" data-dir="${esc(other)}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>החלף כיוון</button>` : '') +
+    (picker ? `<button class="act" data-pick="1">קו ${esc(num)} אחר</button>` : '');
+  const fd = x => dirOf(x) === DIRF;
   const up = upcoming.filter(d => fd(d.ref));
   const ups = up.map(d => {
     const s = depState(d, pending), plate = d.ride && d.ride.vehicle_ref;
-    const dirT = G.dirs.length > 1 && DIRF === 'all' ? `<div class="why">${esc(toLabel(ROUTES[d.ref]))}</div>` : '';
+    const dirT = '';
     return card('d' + d.ref + '-' + d.t, {
       time: hm(d.t), sub: d.t < now ? 'היה אמור לצאת' : 'בעוד ' + Math.max(0, Math.round((d.t - now) / MIN)) + ' דק׳',
       plate: plate ? norm(plate) : s.guess ? norm(s.guess.r.vehicle_ref) : '', plateCls: plate ? '' : 'guess', short: esc(s.short), pill: pillOf(s, pending), body: dirT + depBody(d, s, G.op),
@@ -620,7 +676,8 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
     return card('a' + d.ride.id, { time: hm(d.t), sub: 'יצא', plate: norm(d.ride.vehicle_ref), short: esc(depState(d).short.replace(/^בדרך · /, '')), pill: { cls: 'v-run', txt: 'בדרך' }, body });
   }).join('');
   const known = up.filter(d => d.ride && d.ride.vehicle_ref).length;
-  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span><b>${esc(G.agency)}</b><small>${esc(G.label)}</small></span></div>${picker}${dchips}
+  $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span class="rt"><span class="pop">${esc(G.agency)}${e.city ? ` · <b>${esc(e.city)}</b>` : ''}</span><span class="ends">${endsHTML(e)}</span>${e.sub ? `<small>${esc(e.sub)}</small>` : ''}</span></div>
+    ${acts0 ? `<div class="acts">${acts0}</div>` : ''}
     <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>
     ${ups || '<div class="msg">אין יציאות בשעה הקרובה.</div>'}
     <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary><span>בדרך עכשיו <span class="cnt">${a.length}</span></span>${CHEV}</summary><div class="fin">
@@ -811,8 +868,10 @@ function drawMap() {
 function bindOut() {
   const out = $('#out');
   out.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); go('#v=' + b.dataset.v); }));
-  out.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => go('#l=' + encodeURIComponent(VIEW.num) + '&g=' + encodeURIComponent(b.dataset.g))));
-  out.querySelectorAll('[data-dir]').forEach(b => b.addEventListener('click', () => { DIRF = b.dataset.dir; load(true); }));
+  const lh = (g, d) => '#l=' + encodeURIComponent(VIEW.num) + (g ? '&g=' + encodeURIComponent(g) : '') + (d ? '&d=' + encodeURIComponent(d) : '');
+  out.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => go(lh(b.dataset.g, b.dataset.d))));
+  out.querySelectorAll('[data-dir]').forEach(b => b.addEventListener('click', () => { history.replaceState(null, '', lh(VIEW.g || (GROUPS[VIEW.num] || [])[0]?.key, b.dataset.dir)); VIEW.d = b.dataset.dir; OPEN.clear(); load(true); }));
+  out.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => go('#l=' + encodeURIComponent(VIEW.num))));
   out.querySelectorAll('details[data-id]').forEach(d => d.addEventListener('toggle', () => {
     if (d.open) OPEN.add(d.dataset.id); else OPEN.delete(d.dataset.id);
     if (d.querySelector('#map')) drawMap();
@@ -832,7 +891,6 @@ $('#f').addEventListener('submit', async e => {
   const q = $('#q').value.trim();
   if (!q) return;
   hideSugg();
-  DIRF = 'all';
   if (MODE === 'veh') { go('#v=' + norm(q)); return; }
   if (lineLike(q)) go('#l=' + encodeURIComponent(q));
   else if (/^\d{4,6}$/.test(q)) go('#s=' + q);
