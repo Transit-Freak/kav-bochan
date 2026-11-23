@@ -149,6 +149,8 @@ jobs:
         run: |
           rm -rf _site
           rsync -a --link-dest="$PWD" --exclude-from=.pagesignore ./ _site/
+          # מתי עודכנו הנתונים של כל כלי — לכרטיסים בדף הבית ("נתונים: 23.11.2026"); tools/build_data_dates.py
+          python3 tools/build_data_dates.py . > _site/data-dates.json && cat _site/data-dates.json && echo || echo "::warning::data-dates.json לא נבנה"
           files=$(find _site -type f | wc -l); mb=$(du -sm --apparent-size _site | cut -f1)
           echo "באתר: $files קבצים · ${mb}MB (לפני כיווץ)"
           bad=""
