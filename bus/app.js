@@ -418,7 +418,11 @@ function lineLabel(rid) {
 let M = null;
 // קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, ומתחתיו רק הקטגוריה שנבחרה.
 // הקטעים הלא-נבחרים נשארים בדף בגובה אפס (לא display:none) כדי שהגרפים שבהם יצוירו ברוחב נכון.
-const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['blame', 'הסדרנים והפקקים'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', 'תדירות שידור GPS']];
+// "כל כמה זמן הרכב משדר" מוסתר (שלמה 23.11.2026: "זה פשוט שקר מוחלט"): הדאטאבוס שומר תמונה אחת בדקה
+// (open-bus-siri-requester — בקשה רק אחרי 60 שניות), כך שרכב שמשדר כל 15 שניות נמדד כאילו הוא משדר כל דקה.
+// הקוד והנתונים (data/gps.json) נשארים — להחזיר (true) אם יהיה לנו שרת שקורא את משרד התחבורה כל 15 שניות.
+const SHOW_GPS_FREQ = false;
+const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['blame', 'הסדרנים והפקקים'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', SHOW_GPS_FREQ ? 'תדירות שידור GPS' : 'אמינות השידורים']];
 let tab = 'overview';
 // המספר של כל קטגוריה, על הכפתור שלה (שלמה 17.09: "שיראה את המדד של אחוזים לפי המדד")
 function tabBadge(k) {
@@ -434,7 +438,7 @@ function tabBadge(k) {
     case 'worst': return t.meas ? pct(t.c[4], t.meas) + ' מעל 20 דק׳' : '';
     case 'early': { const oT = t.o.reduce((a, b) => a + b, 0); return oT ? pct(t.o[0], oT) + ' יצאו מוקדם' : ''; }
     case 'region': return range(Object.values(M.Rg).filter(c => c.meas >= 500).map(c => c.on));
-    case 'gps': return GPS && GPS.v.length ? 'ממוצע ' + gpsAvg() + ' שנ׳' : '';
+    case 'gps': return SHOW_GPS_FREQ && GPS && GPS.v.length ? 'ממוצע ' + gpsAvg() + ' שנ׳' : '';
     case 'bunch': return M.Bn.tot[0] ? pct(M.Bn.tot[1], M.Bn.tot[0]) + ' צמודים' : '';
   }
   return '';
@@ -550,9 +554,9 @@ function renderMain(days) {
     </div>
     <div class="tabsec" data-tab="gps">
     <div class="panel" id="gq"></div>
-    <div class="panel"><div class="ptitle">תדירות שידור מיקום (GPS)</div><p class="pdesc">כל כמה זמן כל אוטובוס משדר את המיקום שלו, בממוצע. מחושב מזמן הדיווח (RecordedAtTime) שבשידורי SIRI: המרווח בין שני דיווחים עוקבים של אותו רכב באותה נסיעה. דיווח שחוזר על עצמו נספר פעם אחת, ופער של יותר מ-10 דקות (רכב מחוץ לשירות או בלי קליטה) לא נספר. שימו לב: השידורים נאספים פעם בדקה, ולכן רכב שמשדר כל 20 או 30 שניות ייראה כאן כ"כל 60 שניות" — המדד תופס בעיקר רכבים שמשדרים לאט מזה או מדלגים על דקות. "מרווחים חסרים": אחוז המרווחים של 90 שניות ומעלה.</p><div id="gps-sum"></div>
+    ${SHOW_GPS_FREQ ? `<div class="panel"><div class="ptitle">תדירות שידור מיקום (GPS)</div><p class="pdesc">כל כמה זמן כל אוטובוס משדר את המיקום שלו, בממוצע. מחושב מזמן הדיווח (RecordedAtTime) שבשידורי SIRI: המרווח בין שני דיווחים עוקבים של אותו רכב באותה נסיעה. דיווח שחוזר על עצמו נספר פעם אחת, ופער של יותר מ-10 דקות (רכב מחוץ לשירות או בלי קליטה) לא נספר. שימו לב: השידורים נאספים פעם בדקה, ולכן רכב שמשדר כל 20 או 30 שניות ייראה כאן כ"כל 60 שניות" — המדד תופס בעיקר רכבים שמשדרים לאט מזה או מדלגים על דקות. "מרווחים חסרים": אחוז המרווחים של 90 שניות ומעלה.</p><div id="gps-sum"></div>
       <div class="ptitle" style="margin-top:12px">לפי מפעיל</div><div id="t-gps-ag"></div>
-      <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל, או לחיצה על מפעיל בטבלה שלמעלה. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><span id="gps-agf"></span><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>
+      <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל, או לחיצה על מפעיל בטבלה שלמעלה. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><span id="gps-agf"></span><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>` : ''}
     </div>
     <div class="tabsec" data-tab="worst">
     <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>
@@ -1152,6 +1156,7 @@ function renderGq() {
 }
 function renderGps() {
   renderGq();
+  if (!SHOW_GPS_FREQ) return;
   const box = $('#t-gps-v'); if (!box) return;
   if (!GPS) { $('#gps-sum').innerHTML = '<div class="empty">אין עדיין נתוני שידור (מחושב בריצה הלילית הבאה)</div>'; $('#t-gps-ag').innerHTML = ''; box.innerHTML = ''; return; }
   const agName = {}; GPS.agencies.forEach(a => { agName[a[0]] = a[1]; });

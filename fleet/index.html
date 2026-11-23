@@ -1582,9 +1582,13 @@ async function shard(d){
   return SHARDS[d];
 }
 // תדירות שידור GPS לכל רכב (מדד האמינות, ../bus/data/gps.json — 14 הימים האחרונים) — בעצלתיים לכרטיס הרכב
+// מוסתר (שלמה 23.11.2026): הדאטאבוס שומר תמונה אחת בדקה, כך שזה לא מודד כל כמה זמן הרכב באמת משדר.
+// הקוד נשאר — SHOW_GPS_FREQ=true יחזיר את השורה, אם יהיה לנו שרת שקורא את משרד התחבורה כל 15 שניות.
+const SHOW_GPS_FREQ=false;
 let GPSV=null,GPSM=null;
 async function loadGps(){
   if(GPSV!==null) return;
+  if(!SHOW_GPS_FREQ){GPSV={};return;}
   try{const r=await fetch('../bus/data/gps.json',{cache:'no-cache'});const j=r.ok?await r.json():null;GPSV={};GPSM=j;
     if(j&&j.v) for(const x of j.v) GPSV[String(x[0]).replace(/\D/g,'').replace(/^0+/,'')]=x;}
   catch(e){GPSV={};}
