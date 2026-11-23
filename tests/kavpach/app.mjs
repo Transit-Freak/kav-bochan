@@ -74,6 +74,8 @@ const server = http.createServer((req, res) => {
     else if (p === 'index.html' && !process.env.BUNDLE) body = Buffer.from(buildIndex());
     else if (p === 'data-lines.json' && noPre) body = null;
     else if (DATA.includes(p)) body = fs.readFileSync(path.join(FIX, p));
+    // מתי עודכן קובץ משרד התחבורה — השורה שבתחתית הדף (version.js); בריפו הקובץ נוצר רק בצינור הלילי
+    else if (p === 'line-history/data/gtfs-info.json') body = fs.readFileSync(path.join(FIX, 'gtfs-info.json'));
     else if (/\.(xlsx|csv)$/.test(p)) body = null;
     else { const f = path.join(REPO, p); if (f.startsWith(REPO) && fs.statSync(f).isFile()) body = fs.readFileSync(f); }
   } catch (e) { body = null; }
