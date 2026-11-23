@@ -77,9 +77,11 @@ jobs:
           elif curl -fSLR --connect-timeout 20 --max-time 900 --retry 3 --retry-all-errors --retry-delay 30 \
                  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o /tmp/gtfs-new/gtfs.zip \
                  "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"; then
-            # התאריך של הקובץ — לפי מתי המשרד עדכן אותו (בשעון ישראל)
+            # היום, כמו בקובץ מ-line-history — הקובץ הנוכחי של המשרד הוא הקובץ של היום. לא תאריך העדכון שלו:
+            # ב-23.11 הרצה ידנית קיבלה את הקובץ שעודכן ב-22.11 בערב, והלוח הראה את השבוע מ-22.11, עם יום ראשון שכבר עבר.
             echo "NEW_GTFS=/tmp/gtfs-new/gtfs.zip" >> "$GITHUB_ENV"
-            echo "NEW_GTFS_DAY=$(TZ=Asia/Jerusalem date -r /tmp/gtfs-new/gtfs.zip +%F)" >> "$GITHUB_ENV"
+            echo "NEW_GTFS_DAY=$T" >> "$GITHUB_ENV"
+            echo "הקובץ עודכן במשרד ב-$(TZ=Asia/Jerusalem date -r /tmp/gtfs-new/gtfs.zip '+%F %H:%M')"
             echo "ה-GTFS של היום: ממשרד התחבורה"
           else
             rm -f /tmp/gtfs-new/gtfs.zip; echo "ה-GTFS של היום לא הורד — ייקרא מהארכיון ב-S3"
