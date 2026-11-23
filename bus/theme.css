@@ -353,3 +353,57 @@ button.lnk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .filters select,.filters .search{min-width:0;max-width:100%}
   .cal{width:min(300px,calc(100vw - 24px));right:50%;transform:translateX(50%)}
 }
+
+/* סוג יום (אלעזר פינדר 23.11) — לצד בחירת התקופה */
+.dtseg .pchip{padding:7px 14px}
+@media(max-width:760px){.dtseg{width:100%}.dtseg .pchip{flex:1 1 0;padding:7px 6px}}
+
+/* לפי תחנה ודוח יציאות — רשימת התוצאות של החיפוש */
+.stsug{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin:0 0 12px}
+.stopt{display:grid;grid-template-columns:1fr auto;gap:0 8px;text-align:start;border:1px solid var(--line2);background:#fff;border-radius:12px;padding:8px 12px;cursor:pointer;box-shadow:var(--shadow-sm);color:var(--ink);font:inherit}
+.stopt b{font:700 14px var(--disp);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stopt span{font-size:12.5px;color:var(--mut);grid-column:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stopt small{grid-row:1 / span 2;grid-column:2;align-self:center;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.stopt:hover{border-color:rgba(14,165,233,.45);background:var(--brand-xl)}
+.stopt.on{border-color:var(--accent);box-shadow:var(--ring)}
+.stopgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,340px);gap:12px;align-items:stretch;margin-bottom:12px}
+.stopgrid .stat-row{margin:0;align-content:start}
+.stmap{min-height:200px;border-radius:16px;border:1px solid var(--line);overflow:hidden;z-index:0}
+@media(max-width:900px){.stopgrid{grid-template-columns:minmax(0,1fr)}.stmap{height:200px}}
+/* מפות Leaflet בדף בעברית: שכבת התוויות LTR כדי שהמיקום יחושב נכון, והטקסט RTL */
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+
+/* דוח יציאות */
+.dephead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:4px 0 8px}
+.dephead h3{font:800 20px var(--disp);margin:0;color:var(--ink)}
+.dephead>span{font-size:13px;color:var(--mut);font-weight:600}
+.depbtns{display:flex;gap:6px;margin-inline-start:auto}
+.depbtns .fchip{font:700 13px var(--disp);padding:8px 14px;border-radius:10px;background:#fff;color:var(--accent2);border-color:rgba(14,165,233,.35)}
+.depbtns .fchip:hover{background:var(--brand-xl)}
+.dephead .closebtn{margin-inline-start:0}
+.depfull td small{color:var(--dim)}
+@media(max-width:760px){.depbtns{margin-inline-start:0;width:100%}.depbtns .fchip{flex:1}}
+
+/* הדפסת הדוח: רק הדוח עצמו, טבלאות במלוא הגובה */
+@media print{
+  body.pdep{background:#fff}
+  body.pdep #app{display:block !important}
+  body.pdep .kbtop,body.pdep .top,body.pdep .sub,body.pdep .periods,body.pdep .ringwrap,body.pdep .tabbar,body.pdep #method,
+  body.pdep .tabsec:not([data-tab="dep"]),body.pdep .noprint,body.pdep [data-a11y-slot],body.pdep .kb-home{display:none !important}
+  body.pdep .tabsec[data-tab="dep"]{height:auto !important;overflow:visible !important;visibility:visible !important}
+  body.pdep .panel{box-shadow:none;border:0;padding:0;margin:0}
+  body.pdep .tblbox{max-height:none !important;overflow:visible !important;border-color:#ccc}
+  body.pdep .stat-row div{box-shadow:none}
+  body.pdep details.bmore{display:block}
+  body.pdep details.bmore>*{display:block}
+  body.pdep tr{break-inside:avoid}
+  body.pdep thead th{position:static !important}
+  body.pdep table{width:100%;font-size:10.5px}
+  body.pdep td,body.pdep th{padding:4px 5px}
+  body.pdep td.rtn{min-width:0}
+  body.pdep .bar{display:none}
+  body.pdep .cols2{display:block}
+  body.pdep .wrap{max-width:none;padding:0}
+}
+td.rtn{white-space:normal;min-width:170px;font-size:12px;color:var(--mut);line-height:1.45}
+td.nm.nmc{min-width:0}

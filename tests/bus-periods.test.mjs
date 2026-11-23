@@ -23,7 +23,7 @@ const has = p => fs.existsSync(new URL(p, root));
 const norm = v => v instanceof Set ? [...v].sort() : typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1e6) / 1e6 : v;
 const canon = o => JSON.parse(JSON.stringify(o, (k, v) => norm(v)));
 
-for (const n of [7]) {
+for (const n of ['7', '7-wk']) {   // 7-wk: רק ימי חול (סוג יום, 23.11)
   const file = `bus/data/periods/${n}.json`;
   test(`period ${n} merges to the same result as its days`, {skip: !has(file)}, () => {
     const P = read(file);
@@ -49,3 +49,13 @@ for (const n of [7]) {
     assert.deepEqual(diffs, []);
   });
 }
+
+// סוג יום (23.11): הדף וקובצי התקופה (tools/bus_periods.py, day_kind) חייבים לחלק את הימים אותו דבר
+test('dtypeOf: Sunday–Thursday weekday, Friday, Saturday (motzash)', () => {
+  const line = src.split('\n').find(l => l.startsWith('const dtypeOf ='));
+  assert.ok(line);
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(line.replace('const dtypeOf', 'this.dtypeOf'), ctx);
+  assert.deepEqual(['2026-11-22', '2026-11-26', '2026-11-27', '2026-11-28'].map(ctx.dtypeOf), ['wk', 'wk', 'fri', 'sat']);
+});

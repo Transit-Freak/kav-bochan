@@ -973,6 +973,34 @@ def cause_day(DQ, catalog):
             'dh': {'cols': DH_COLS, 'tot': DT, 'agencies': dict(DA), 'clusters': {k: v for k, v in DC.items() if k in C and C[k][0] + C[k][nb] >= 30}}}
 
 
+# דוח יציאות לקו (אלעזר פינדר 23.11: "זמני היציאה חשובים — זה יכול להחליף את הדוח החצי-שנתי של המשרד").
+# לכל נסיעה בלו"ז של היום: שעת היציאה המתוכננת ומה נמדד במוצא. days/D.dep.json =
+# {route_id: [דקה מתוכננת, מצב, דקה, מצב, …]} לפי סדר היציאה. מצב: איחור במוצא בשניות (מספר),
+# DEP_SEEN = נצפתה ונמדדה בדרך אבל היציאה מהמוצא לא נמדדה, None = לא נצפתה (לא בוצעה או בלי שידור).
+DEP_SEEN = 's'
+DEP_KEEP = 40     # ימים — מספיק לתקופה של 30 יום; הישנים נמחקים (כמו deadhead)
+
+
+def departures_day(st, trips, dep_of):
+    """st: trip_id → רצף תחנות (seq, stop_id, arr, dep, dist); trips: trip_id → route_id;
+    dep_of: trip_id → איחור במוצא בשניות, או DEP_SEEN לנסיעה שנצפתה בלי מדידה במוצא"""
+    by_route = collections.defaultdict(list)
+    for tid, lst in st.items():
+        rid = trips.get(tid)
+        if not lst or rid is None:
+            continue
+        v = dep_of.get(tid)
+        by_route[rid].append((lst[0][3], v if v == DEP_SEEN or v is None else int(round(v))))
+    out = {}
+    for rid, rows in by_route.items():
+        rows.sort(key=lambda x: (x[0], str(x[1])))
+        flat = []
+        for sec, v in rows:
+            flat += [sec // 60, v]
+        out[rid] = flat
+    return out
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -1184,7 +1212,7 @@ def main():
     # (שלמה 17.09, "נסיעות מזויפות": המשרד בודק רק בתחנת המוצא; כאן כל תחנה).
     # cov — כיסוי GPS: [תחנות שהרכב ודאי עבר (בין הראשונה לאחרונה שנמדדו), מהן נמדדו]
     R = collections.defaultdict(lambda: {'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'on': 0, 'reach': [0] * 4, 'cov': [0, 0],
-                                         'hours': collections.defaultdict(lambda: [0, 0]), 'stops': collections.defaultdict(lambda: [0, 0.0, 0, 10 ** 9])})
+                                         'hours': collections.defaultdict(lambda: [0, 0]), 'stops': collections.defaultdict(lambda: [0, 0.0, 0, 10 ** 9, 0])})
     A = collections.defaultdict(lambda: {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'reach': [0] * 4, 'cov': [0, 0]})
     C = collections.defaultdict(lambda: {'meas': 0, 'c': [0] * 5, 'd': []})
     RG = collections.defaultdict(lambda: {'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5})   # מרחב → כמו עיר, גם יציאות מהמוצא
@@ -1236,6 +1264,7 @@ def main():
     for rid, n in sched_per_route.items():
         A[routes.get(rid, {}).get('agency', '?')]['sched'] += n
         tot['sched'] += n
+    DEP = {}  # trip_id → איחור במוצא (שנ׳) או DEP_SEEN — לדוח היציאות (days/D.dep.json)
     BT = []   # מי אשם (שלמה 07.10): לכל נסיעה שנמדדה — [מפעיל, מסלול, שעת יציאה, איחור במוצא, איחור בתחנה הראשונה/האחרונה שנמדדו, כמה תחנות ביניהן, עיר המוצא]
     for key, tid in jt.items():
         seq = st.get(tid)
@@ -1325,6 +1354,7 @@ def main():
             diag_raw3.append(f'טיפוסית {rid}/{tid} יציאה {hms_(seq[0][3])} n={len(seq)} מעברים: ' + ' '.join(f'{k}:{d // 60:+d}' for k, s, sc, d in meas))
         r = R[rid]
         r['obs'] += 1
+        DEP[tid] = meas[0][3] if meas[0][0] == 1 else DEP_SEEN
         BT.append((ag, rid, (seq[0][3] // 3600) % 24, meas[0][3] if meas[0][0] == 1 else None, meas[0][3], meas[-1][3],
                    meas[-1][0] - meas[0][0], stops.get(seq[0][1], ('', '', 0, 0, ''))[4]))
         A[ag]['obs'] += 1
@@ -1409,6 +1439,7 @@ def main():
             stp[1] += delay
             stp[2] += 1 if c == ONTIME else 0
             stp[3] = min(stp[3], k)
+            stp[4] += 1 if c == EARLY else 0      # מוקדמות (מ-24.11.2026, ללשונית "לפי תחנה")
             ride_pass.append([stops.get(s[1], ('',))[0], sched, t_of[k]])
             if s[1] in feed_near:
                 FEED[s[1]].append([rid, 0 if k == 1 else 2 if k == len(seq) else 1, int(sched), int(t_of[k])])
@@ -1605,7 +1636,7 @@ def main():
         for sid, v in sorted(r['stops'].items(), key=lambda kv: kv[1][3]):
             code, name = stops.get(sid, ('', ''))[0], stops.get(sid, ('', ''))[1]
             stop_names[code] = name
-            prof.append([code, v[0], round(v[1] / v[0] / 6), v[2], plan_stop[rid].get(sid, 0)])
+            prof.append([code, v[0], round(v[1] / v[0] / 6), v[2], plan_stop[rid].get(sid, 0), v[4]])
         profiles[rid] = prof
     out_routes.sort(key=lambda x: -x[3])
     worst.sort(key=lambda w: -w[0])
@@ -1647,7 +1678,8 @@ def main():
                  'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]', 'reach', 'cov'], 'cities': ['city', 'meas', 'cats', 'stats', 'sched trips of lines through the city', 'observed trips'],
                  'worst': ['route_id', 'trip', 'max delay min', 'stop', 'sched sec', 'passages[[code,sched sec,actual sec]]'],
                  'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip · reach/cov as in routes',
-                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n, planned passes]] along the route}; stops.json = {code: name}',
+                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n, planned passes, early n (from 2026-11-24)]] along the route}; stops.json = {code: name}',
+                 'dep file': 'days/D.dep.json = {route_id: [sched departure minute, origin delay sec | "s" (seen, origin not measured) | null (not seen), …]} sorted by departure (from 2026-11-24)',
                  'cover file': 'days/D.cover.json = {code: [passed, measured, agencies, vanished after, city]} — stops surely passed (between first and last measured stop of a ride) where fewer than 70% were measured (GPS holes, passed >= 10), or last seen stop of 5+ rides that vanished part way',
                  'regions': ['hub name', 'meas', 'cats', 'stats', 'district', 'origin cats', 'sched trips of lines with stops in the hub', 'observed trips', 'routes'],
                  'bunch': 'consecutive scheduled rides of a route at a stop, scheduled headway 1–20 min: [pairs, bunched (actual headway < 30% of scheduled), double gaps (>= 2x)]; hours[[h, pairs, bunched]]; stops[[route_id, code, name, pairs, bunched]]; examples[[route_id, code, sched A, sched B, actual A, actual B]]',
@@ -1694,6 +1726,9 @@ def main():
 
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    json.dump(departures_day(st, g['trips'], DEP), open(f'{a.out}/days/{day}.dep.json', 'w', encoding='utf-8'), separators=(',', ':'))
+    for old in sorted(f[:10] for f in os.listdir(f'{a.out}/days') if f.endswith('.dep.json'))[:-DEP_KEEP]:
+        os.remove(f'{a.out}/days/{old}.dep.json')
     # הקו המזין: לכל תחנת רכבת — תחנות האוטובוס הסמוכות, והמעברים בפועל בכל אחת (שניות מחצות)
     fst, fr = collections.defaultdict(list), {}
     # ייחודיות הקו לפי משרד התחבורה (סדיר / תלמידים / לילה / קווים מזינים) — נשמרת ב"הקו בזמן"
