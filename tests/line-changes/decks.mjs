@@ -58,7 +58,7 @@ const BOARDS = {
   'board-dense-1': { tord: 'ltr', opts: ['bdn=1', 'bpg=1'], forms: ['sign'] },
   'board-1p': { tord: 'ltr', del: 100, opts: ['bdn=1', 'bpg=1'], forms: ['sign'], pages: 1, xlsx: true }
 };
-// לוח לפי יעד בלוד (14 קווים, לפי הסדר שבו נוספו): קו 11 (רמלה–לוד) עם שלוש חלופות — לכל חלופה בשורה צבע ואות משלה (בתא,
+// לוח לפי יעד בלוד (14 קווים, לפי הסדר שבו נוספו): קו 11 (רמלה–לוד) עם שלוש חלופות — לכל חלופה בשורה צבע וסימן משלה (בתא,
 // בהערה מתחת לתא, במקרא בתחתית העמוד ובאקסל), בשני סדרי השעות; וכל אחת מאפשרויות "סדר הקווים" (נשמרת עם הלוח).
 // board-lod-adj — קודם קווים בינעירוניים ואחר כך קווים בעיר: 11 ו-5 (בין לוד לרמלה, רוב התחנות בעיר אחת) — בפס הקווים העירוניים.
 // board-hood — לוח של מקום: שכונת גני איילון בלוד
@@ -115,13 +115,13 @@ async function bandSeq(pg) {
     return out.map((L) => L.length > 1 ? L[0] + ': ' + L.slice(1).join(' ') : L[0]);
   });
 }
-// חלופות בלוח: בכל שורה — לכל אות צבע אחד, ואותיות שונות בצבעים שונים; ניגודיות 4.5 לפחות על לבן; ההערה מתחת לתא באותו צבע
-// ועם אותה אות; ובמקרא — אותן אותיות באותם צבעים. מחזיר תיאור לתמונה-במילים ורשימת בעיות
+// חלופות בלוח: בכל שורה — לכל סימן (* # ^…) צבע אחד, וסימנים שונים בצבעים שונים; ניגודיות 4.5 לפחות על לבן; ההערה מתחת לתא באותו צבע
+// ועם אותו סימן; ובמקרא — אותם סימנים באותם צבעים. מחזיר תיאור לתמונה-במילים ורשימת בעיות
 async function altCheck(pg, line) {
   return pg.evaluate((line) => {
     const lum = (c) => { const v = c.match(/\d+/g).slice(0, 3).map((x) => { x = x / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
     const con = (c) => 1.05 / (lum(c) + 0.05);
-    const bad = [], rows = {}, leg = [];
+    const bad = [], rows = {}, leg = [], ALTS = '*#^$~+';   // סדר הסימנים (deck.js — ALT_LET)
     document.querySelectorAll('.sitem:not(.off) .s-bd tr.br').forEach((tr) => {
       const map = {};
       tr.querySelectorAll('td.bt .t.alt').forEach((t) => {
@@ -140,21 +140,21 @@ async function altCheck(pg, line) {
         const k = tr.getAttribute('data-rk'), e = document.querySelector('.sitem:not(.off) .bd-al[data-ak="' + k + '"]');
         if (!e) bad.push(tr.getAttribute('data-ln') + ': אין שורה במקרא');
         else e.querySelectorAll('.bd-ali').forEach((x) => { const L = x.querySelector('.al').textContent; if (!map[L] || getComputedStyle(x).color !== map[L].c) bad.push(tr.getAttribute('data-ln') + ': במקרא ' + L + ' בצבע אחר'); });
-        if (tr.getAttribute('data-ln') === line) rows[k] = Object.keys(map).sort().map((L) => L + ' ' + map[L].c + ' ×' + map[L].n).join(' · ');
+        if (tr.getAttribute('data-ln') === line) rows[k] = Object.keys(map).sort((a, b) => ALTS.indexOf(a[0]) - ALTS.indexOf(b[0]) || a.length - b.length).map((L) => L + ' ' + map[L].c + ' ×' + map[L].n).join(' · ');
       }
     });
     document.querySelectorAll('.sitem:not(.off) .bd-al').forEach((e) => { if (e.textContent.indexOf('קו ' + line + ' ') === 0 || e.textContent.indexOf('קו ' + line + ':') === 0) leg.push(e.textContent.replace(/\s+/g, ' ').trim()); });
     return { rows, legend: leg, bad };
   }, line);
 }
-// באקסל: השעות של חלופה — באותו צבע ועם האות (rich text), ושורה במקרא לכל קו וכיוון עם חלופות
+// באקסל: השעות של חלופה — באותו צבע ועם הסימן (rich text), ושורה במקרא לכל קו וכיוון עם חלופות
 async function xlsxAlts(pg) {
   const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 60000 }), pg.click('#xl', { force: true })]);
   const s = fs.readFileSync(await dl.path()).toString('utf8');
   const sheet = s.slice(s.indexOf('<worksheet'), s.indexOf('</worksheet>'));
   const pairs = new Set();
   for (const m of sheet.matchAll(/<r><rPr>(?:(?!<\/rPr>).)*<color rgb="FF([0-9A-F]{6})"\/>(?:(?!<\/rPr>).)*<\/rPr><t xml:space="preserve">([^<]*)<\/t><\/r>/g)) {
-    const L = (m[2].match(/\d\d:\d\d\u200e?([א-ת]׳)/) || [])[1];   // האות מיד אחרי השעה
+    const L = (m[2].match(/\d\d:\d\d\u200e?([*#^$~+]+)/) || [])[1];   // הסימן מיד אחרי השעה
     if (L) pairs.add(L + ' ' + m[1]);
   }
   const legend = [...sheet.matchAll(/<c r="A(\d+)"[^>]*><is><t[^>]*>(קו [^<]*)<\/t>/g)].map((m) => m[2]);

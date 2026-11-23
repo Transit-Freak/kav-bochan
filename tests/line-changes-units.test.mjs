@@ -148,10 +148,11 @@ test('סדר הקווים: לפי הסדר שהוספתם, לפי יעד, לפי
   assert.deepEqual(seq(ctx.LCDeck.boardModel(ps, { ...o, bord: 'man', bman: ['14384', '36011', '53009', '11464'] })), ['לוד – בני ברק: 384', 'הקווים העירוניים · לוד, רמלה: 11 9', 'לוד – תל אביב יפו: 464']);
 });
 
-test('חלופות: לכל חלופה בשורה אות וצבע משלה, וההערה מתחת לתא — עם האות', () => {
+test('חלופות: לכל חלופה בשורה סימן (* # ^…) וצבע משלה, וההערה מתחת לתא — עם הסימן', () => {
   const M = ctx.LCDeck.boardModel([ttPage('36011')], { ltype: LINES_FX.lt });
   const r = M.bands[0].rows.find((x) => x.alts && x.alts.length === 2);
-  assert.deepEqual(J(r.alts.map((a) => a.L)), ['א׳', 'ב׳']);
+  assert.deepEqual(J(r.alts.map((a) => a.L)), ['*', '#']);
+  assert.match(M.note, /בסימן ובצבע \(\* # \^…\)/);
   assert.notEqual(r.alts[0].c, r.alts[1].c);
   const e = r.cells.flatMap((x) => x.ents).find((x) => x.a);
   assert.equal(e.ac, r.alts.find((a) => a.a === e.a).c);
@@ -280,4 +281,60 @@ test('ריקון התא ומחיקת טקסט: השעות, ההערה והתחנ
   const M = ctx.LCDeck.boardModel([ttPage('36011')], { ltype: LINES_FX.lt, bd: { t } });
   const r2 = M.bands[0].rows.find((x) => x.key === r.key);
   assert.equal(r2.cells[i].txt, ''); assert.equal(r2.cells[i].ntxt, ''); assert.equal(r2.stop, '');
+});
+
+test('סימני חלופות: * # ^ $ ~ + כמו בלוחות של קווים, ואחרי שישה — כפולים', () => {
+  const sym = ctx.LCDeck._test.altSym;
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(sym), ['*', '#', '^', '$', '~', '+']);
+  assert.equal(sym(6), '**'); assert.equal(sym(7), '##');
+});
+
+// ---------- לו"ז עדכני של קו שמשתנה השבוע: כל יום בשבוע מתאריך השינוי והלאה (LC.ttFromEff) ----------
+test('ttFromEff: שינוי ביום ראשון 29.11, הלו"ז מיום שני 23.11 — ימים ב׳–ה׳ מהשבוע שאחריו (w1), ראשון מהשבוע הזה', () => {
+  const r = { w: [0, 1, 1, 1, 1, 2, 3], w1: [0, 0, 0, 0, 0, 2, 3] };
+  assert.deepEqual(J(ctx.LC.ttFromEff(r, '2026-11-23', '2026-11-29', true)), [0, 0, 0, 0, 0, 2, 3]);
+  // שינוי ביום חמישי 26.11: ה׳ ושישי, שבת וראשון מהשבוע הזה (26–29.11); ב׳–ד׳ — מהשבוע שאחריו
+  const r2 = { w: [10, 11, 12, 13, 14, 15, 16], w1: [20, 21, 22, 23, 24, 25, 26] };
+  assert.deepEqual(J(ctx.LC.ttFromEff(r2, '2026-11-23', '2026-11-26', true)), [10, 21, 22, 23, 14, 15, 16]);
+  // w1 חסר בכיוון — אותו לו"ז כמו השבוע הזה
+  assert.deepEqual(J(ctx.LC.ttFromEff({ w: [0, 1, 1, 1, 1, 2, 3] }, '2026-11-23', '2026-11-29', true)), [0, 1, 1, 1, 1, 2, 3]);
+});
+
+test('ttFromEff: בלי צורך או בלי נתונים — null (הלו"ז מהיום, כמו קודם)', () => {
+  const r = { w: [0, 1, 1, 1, 1, 2, 3], w1: [0, 0, 0, 0, 0, 2, 3] };
+  assert.equal(ctx.LC.ttFromEff(r, '2026-11-23', '', true), null, 'בלי שינוי');
+  assert.equal(ctx.LC.ttFromEff(r, '2026-11-23', '2026-11-23', true), null, 'השינוי היום — הלו"ז כבר מהשינוי');
+  assert.equal(ctx.LC.ttFromEff(r, '2026-11-23', '2026-11-20', true), null, 'שינוי שעבר');
+  assert.equal(ctx.LC.ttFromEff(r, '2026-11-23', '2026-11-30', true), null, 'שינוי אחרי השבוע שבלו"ז');
+  assert.equal(ctx.LC.ttFromEff(r, '2026-11-23', '2026-11-29', false), null, 'קובץ ישן בלי w1');
+  assert.equal(ctx.LC.ttFromEff({ w: r.w, w1: [0, null, 0, 0, 0, 2, 3] }, '2026-11-23', '2026-11-29', true), null, 'סוף הנתונים');
+});
+
+test('לוח לפי יעד של קו שמשתנה השבוע: 07:15 ו-07:30 בכל ימי החול, בלי סימון ימים, ו"החל מ-29.11" בשורת המשנה', () => {
+  // כמו ttPick: tt של 384 מ-23.11 (ב׳–ה׳ — הלוח הישן, ראשון 29.11 — החדש), ו-w1 — ב׳–ה׳ מ-30.11 לפי הלוח החדש
+  const e = JSON.parse(fs.readFileSync(path.join(FIXD, 'tt', '48.json'), 'utf8')).lines['14384'];
+  const r1 = JSON.parse(JSON.stringify(e.d['1']));
+  const neu = r1.L[0].map((m) => (m === 440 ? 435 : m === 460 ? 450 : m));   // 07:20 → 07:15, 07:40 → 07:30
+  r1.L.push(neu); r1.A.push(r1.A[0]);
+  const NEW = r1.L.length - 1;
+  r1.w = [NEW, 0, 0, 0, 0, 1, 2]; r1.w1 = [NEW, NEW, NEW, NEW, NEW, 1, 2];
+  const page = (fe) => {
+    const W = fe ? ctx.LC.ttFromEff(r1, '2026-11-23', fe, true) : r1.w;
+    const d = { dir: '1', od: r1.od, f: r1.f, fc: r1.fc, t: r1.t, cs: r1.cs, cn: r1.cn, sc: r1.sc, du: r1.du, days: W.map((i) => r1.L[i]), x: {}, v: r1.v, da: W.map((i) => r1.A[i] || 0), dn: W.map(() => 0) };
+    return { id: 'tt-14384', kind: 'current', line: e.l, op: e.o, ag: e.a, makat: '14384', od: r1.od, eff: fe || '2026-11-23', valid: fe || '2026-11-23', fromEff: fe || '', until: '', hol: [], dirs: [d] };
+  };
+  const wk = (M) => M.bands[0].rows[0].cells[0];
+  const old = wk(ctx.LCDeck.boardModel([page('')], { bsplit: false }));
+  assert.ok(old.ents.some((x) => x.t === '07:15' && x.part), 'היום: 07:15 רק בחלק מהימים');
+  const M = ctx.LCDeck.boardModel([page('2026-11-29')], { bsplit: false }), c = wk(M);
+  for (const t of ['07:15', '07:30']) assert.ok(c.ents.some((x) => x.t === t && !x.part), t + ' בכל ימי החול');
+  for (const t of ['07:20', '07:40']) assert.ok(!c.ents.some((x) => x.t === t), t + ' לא בלוח');
+  assert.ok(c.ents.every((x) => !x.part), 'בלי סימון ימים');
+  assert.equal(M.sub.split(' · ')[0], 'החל מ-29.11');
+  assert.equal(M.fe, '2026-11-29');
+  assert.equal(M.bands[0].rows[0].from, '', 'התאריך בשורת המשנה, לא ליד הקו');
+  // בלוח עם קו נוסף שלא משתנה — "החל מ-29.11" ליד 384
+  const M2 = ctx.LCDeck.boardModel([page('2026-11-29'), ttPage('11464')], { bord: 'add' });
+  const r384 = M2.bands.flatMap((b) => b.rows).find((x) => x.p.makat === '14384');
+  assert.equal(r384.from, 'החל מ-29.11'); assert.equal(M2.fe, '');
 });

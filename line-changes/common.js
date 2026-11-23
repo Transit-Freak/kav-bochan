@@ -81,10 +81,26 @@ var LC = (function () {
   }
   /* השוואת טקסט בחיפוש: בלי גרשיים, י כפולה = י אחת */
   function norm(s) { return String(s || '').replace(/["'״׳`]/g, '').replace(/יי/g, 'י').replace(/-/g, ' ').replace(/\s+/g, ' ').trim(); }
+  /* לו"ז עדכני של קו שמשתנה השבוע (בתאריך eff, אחרי valid ועד שישה ימים אחריו): לכל יום בשבוע — הלו"ז של התאריך הראשון
+     מ-eff והלאה עם אותו יום, כלומר "מ-eff ואילך" (ולא חלק מהימים מהלוח הישן וחלק מהחדש).
+     r — כיוון מ-data/tt (w: השבוע מ-valid, w1: השבוע שאחריו — רק כששונה, null ליום בלי נתונים). מחזיר 7 אינדקסים ל-r.L,
+     או null כשאין צורך (בלי eff, eff לא בשבוע הזה) או כשחסר יום (קובץ ישן בלי w1 — hasW1 false, או סוף הנתונים) */
+  function ttFromEff(r, valid, eff, hasW1) {
+    if (!r || !r.w || !valid || !eff || eff <= valid || daysBetween(valid, eff) > 6) return null;
+    var d0 = pd(valid).getDay(), out = [];
+    for (var w = 0; w < 7; w++) {
+      if (addDays(valid, (w - d0 + 7) % 7) >= eff) { out.push(r.w[w]); continue; }
+      if (!hasW1) return null;
+      var v = r.w1 ? r.w1[w] : r.w[w];
+      if (v == null) return null;
+      out.push(v);
+    }
+    return out;
+  }
   function todayIso() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   return { decodePoly: decodePoly, odOf: odOf, norm: norm, todayIso: todayIso, daysBetween: daysBetween, dm: dm, dmy: dmy, wd: wd, rel: rel, esc: esc, chips: chips, od: od, dirOd: dirOd,
-           addDays: addDays, getJSON: getJSON, stopsWord: stopsWord, hm: hm };
+           addDays: addDays, getJSON: getJSON, stopsWord: stopsWord, hm: hm, ttFromEff: ttFromEff };
 })();

@@ -4,7 +4,7 @@
 תחנה שזזה, עקיפה מול שרטוט מחדש, קו שמתארך (compare), שינוי בלוח הזמנים בלבד (tt_change), חלופה שהוחלפה
 (find_renamed / rename_records), חלופה שבוטלה וחלופה חדשה (find_variants / variant_records), התחנה החלופית הקרובה
 בהליכה (add_walks — WALK_CANDS / WALK_AIR_MAX / WALK_MAX, השירות מוחלף בפונקציה מקומית), סוג הקו (load_line_types)
-ומספר התחנות בכל עיר (stop_city_counts — cn).
+ומספר התחנות בכל עיר (stop_city_counts — cn), והלו"ז העדכני של השבוע שאחרי (current_tts — w1).
 הרצה: python3 -m pytest -q tests/test_line_changes_builder.py"""
 import datetime
 import json
@@ -517,3 +517,65 @@ def test_keep_prev_keeps_different_later_timetable_change():
     assert sorted(f['eff'] for f in L.keep_prev(other, prev, '2026-11-19', '2026-11-05')) == ['2026-11-18', '2026-11-20']
     late = [_tt_rec('2026-11-27', '2026-11-19', [dict(t=['d5'], n=[300, 360, 650], o=[300, 360, 655])])]
     assert sorted(f['eff'] for f in L.keep_prev(late, prev, '2026-11-19', '2026-11-05')) == ['2026-11-18', '2026-11-27']
+
+
+# ---------------------------------------------------------------- לו"ז עדכני: השבוע שאחרי (current_tts — w1)
+
+class TTFeed:
+    """GTFS קטן ל-current_tts: קו אחד, כיוון אחד, חלופה אחת. svcs — {שירות: (תאריכים, [יציאות בדקות])}"""
+
+    def __init__(self, t0, svcs, d1):
+        self.day, self.d1 = t0, d1
+        self.agency = {'18': 'קווים'}
+        self.routes = {'r1': dict(ty='3', line='384', rd='14384-1-#', ag='18', long='תחנה-לוד<->תחנה-בני ברק-1#')}
+        self.stops = {c: stop(c, 32.0 + i * 0.01, 34.9, city='לוד' if i < 2 else 'בני ברק') for i, c in enumerate('abcd')}
+        self.pat_list = {1: list('abcd')}
+        self.trips, self.trip_dep, self.trip_end, self.trip_pat, self.svc_dates, self.svc_set = {}, {}, {}, {}, {}, {}
+        n = 0
+        for sv, (ds, deps) in svcs.items():
+            self.svc_set[sv] = self.svc_dates[sv] = set(ds)
+            for m in deps:
+                n += 1
+                tid = f't{n}'
+                self.trips[tid] = ('r1', sv, 's')
+                self.trip_dep[tid], self.trip_end[tid], self.trip_pat[tid] = m, m + 50, 1
+
+
+def run_tts(tmp_path, monkeypatch, svcs, d1):
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setenv('LH_SCHED', str(tmp_path / 'none'))
+    t0 = D(2026, 11, 23)   # יום שני
+    L.current_tts(TTFeed(t0, svcs, d1), t0)
+    sh = json.load(open(tmp_path / 'data' / 'tt' / f'{L.tt_shard("14384")}.json', encoding='utf-8'))
+    return sh, sh['lines']['14384']['d']['1']
+
+
+def wk_days(a, b):
+    """ימי חול (א׳–ה׳) מ-a עד b"""
+    return {d for d in days(a, b) if d.weekday() in (6, 0, 1, 2, 3)}
+
+
+def test_tts_next_week_when_timetable_changes_mid_week(tmp_path, monkeypatch):
+    """שינוי ביום ראשון 29.11 (07:20 → 07:15): w — ב׳–ה׳ מהלוח הישן, ראשון מהחדש; w1 — כל ימי החול מהחדש"""
+    old, new = [420, 440, 480], [420, 435, 480]
+    sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 23), D(2026, 11, 28)), old),
+                                            'n': (wk_days(D(2026, 11, 29), D(2026, 12, 31)), new)}, D(2026, 12, 31))
+    assert sh['w1'] == 1
+    L_ = r['L']
+    assert [L_[i] for i in r['w'][:5]] == [new, old, old, old, old]
+    assert [L_[i] for i in r['w1'][:5]] == [new] * 5
+    assert r['w1'][5:] == r['w'][5:]
+
+
+def test_tts_no_next_week_when_same(tmp_path, monkeypatch):
+    """אותו לו"ז בשני השבועות — בלי w1 (הקובץ לא גדל)"""
+    sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
+    assert 'w1' not in r and len(r['L']) == 2   # ימי חול, ויום בלי נסיעות (שישי ושבת)
+
+
+def test_tts_next_week_beyond_feed_is_null(tmp_path, monkeypatch):
+    """הנתונים נגמרים לפני השבוע שאחרי — null לימים שאין להם תאריך (בדף: הלו"ז מהיום, כמו קודם)"""
+    sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 3)), [420, 480])}, D(2026, 12, 3))
+    # השבוע שאחרי: ב׳ 30.11 עד ד׳ 2.12 — יש נתונים; ה׳ 3.12 (אין למחרת), שישי, שבת וראשון 6.12 — אין
+    assert r['w1'][1:4] == r['w'][1:4]
+    assert [r['w1'][i] for i in (0, 4, 5, 6)] == [None] * 4

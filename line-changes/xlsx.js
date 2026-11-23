@@ -78,7 +78,7 @@ var LCXlsx = (function () {
     var sT = st.get({ b: 1, sz: 18, fill: HB || 'D9DEDC', color: HF || undefined, h: TH_ }), sV = st.get({ b: 1, sz: 11, color: HF || '8A5A00', fill: HB || 'D9DEDC', h: TH_ });
     // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
     if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
-    var vt = M.sub !== M.subDflt || M.chg ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
+    var vt = M.sub !== M.subDflt || M.chg || M.fe ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
     if (vt) { cell(R, 0, vt, sV); merges.push('A' + R + ':' + ref(last, R)); R++; }
     // קרדיט לקו הבוחן: שורה קצרה מתחת לכותרת, ושורה מודגשת בסוף — עם קישור לכלי
     var CR = M.creditTxt || 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', links = [];
@@ -138,12 +138,12 @@ var LCXlsx = (function () {
             if (x.txt != null) { cell(rr, 3 + ci, x.txt, tmS(x.key, r)); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
             if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', tmS(x.key, r, true)); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
-            // משמאל לימין: LRM לפני השעה, לפני הסימן (בעברית) ואחריו — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
+            // משמאל לימין: LRM לפני השעה, לפני הסימן ואחריו — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
             // (סימני LRM — ולא LRE/PDF, ש-LibreOffice מציג לא נכון). מימין לשמאל — כמו קודם
             var LRM = '\u200e';
             // הודעה על שינוי (טבלה לפי יעד): חדשה או בשעה חדשה — ירוק; שבוטלה — אדום מחוק, בשעה הקודמת שלה
             var toks = x.rm && x.rm.length && x.rm.length <= 6 ? x.ents.concat(x.rm).sort(function (a, b) { return a.m - b.m || (a.rm ? 1 : 0) - (b.rm ? 1 : 0); }) : x.ents;
-            // חלופה: השעה בצבע של החלופה ואחריה האות שלה (א׳, ב׳…) — כמו בלוח
+            // חלופה: השעה בצבע של החלופה ואחריה הסימן שלה (* # ^…) — כמו בלוח
             var runs = toks.map(function (e) {
               var al = e.al && !e.rm ? e.al : '';
               var t = M.tord === 'ltr' ? LRM + e.t + (al ? LRM + al + LRM : '') + (e.n > 1 ? '×' + e.n : '') + (e.part ? LRM + '(' + e.part + ')' : '') + LRM
@@ -164,7 +164,7 @@ var LCXlsx = (function () {
             if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });
           if (!k && r.until) notes.push('הלו״ז בתוקף עד ' + dmy(r.until));
-          if (!k && r.from) notes.push('הלו״ז החדש ' + r.from);
+          if (!k && r.from) notes.push(/^החל /.test(r.from) ? 'הלו״ז ' + r.from : 'הלו״ז החדש ' + r.from);
           // ההערות: כל אחת בשורה; הערה על חלופה — בצבע של החלופה
           var ntx = notes.map(function (n0) { return typeof n0 === 'string' ? { t: n0 } : n0; });
           cell(rr, last, ntx.some(function (n0) { return n0.c; }) ? { runs: ntx.map(function (n0) { return { t: n0.t, color: n0.c || 'C81E1E', b: !!n0.c, sz: 9 }; }), sep: '\n' } : ntx.map(function (n0) { return n0.t; }).join('\n'), sNt);
@@ -176,7 +176,7 @@ var LCXlsx = (function () {
     });
     // עדכונים, מוקדי מידע וקרדיט
     var sL = st.get({ b: 1, sz: 10, fill: 'EEF2F0', h: 'center' }), sU = st.get({ b: 1, sz: 10, color: 'C81E1E' }), sP = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center' }), sPb = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center', ltr: 1 });   // טלפון (*2456) — משמאל לימין
-    // מקרא החלופות: שורה לכל קו וכיוון שיש בו נסיעות בדרך אחרת — האות והצבע של כל חלופה, ומה הדרך
+    // מקרא החלופות: שורה לכל קו וכיוון שיש בו נסיעות בדרך אחרת — הסימן והצבע של כל חלופה, ומה הדרך
     M.bands.forEach(function (b0) {
       b0.rows.forEach(function (r) {
         if (r.off || !r.alts || !r.alts.length) return;
@@ -192,7 +192,7 @@ var LCXlsx = (function () {
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'באות ובצבע — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה', sC);
+    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (* # ^…) — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
     R++; cell(R, 0, 'המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }
