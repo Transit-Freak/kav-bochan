@@ -551,11 +551,15 @@ const caret = '<svg class="car" viewBox="0 0 20 20" fill="none" aria-hidden="tru
 const GH = '<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
 const GH_URL = 'https://github.com/Transit-Freak/kav-bochan';
 function fmtD(d) { const p = String(d || '').split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : ''; }
-function verOf(V, vk) { const T = V && V[vk], c = T && T.versions && T.versions[0]; return c ? { v: 'גרסה ' + c.v, d: 'עודכן ' + fmtD(c.d) } : { v: '', d: '' }; }
+function verOf(V, vk) { const T = V && V[vk], c = T && T.versions && T.versions[0]; return c ? { v: 'גרסה ' + c.v } : { v: '' }; }
+/* "נתונים: 23.11.2026" בכל כרטיס — מתי עודכנו הנתונים של הכלי, מ-data-dates.json שנבנה בכל פריסה
+   (tools/build_data_dates.py). קודם היה כאן תאריך השינוי האחרון בקוד (versions.json), וזה הטעה:
+   "עודכן 22.11" כשהנתונים כבר מ-23.11 (שלמה 23.11.2026). כלי בלי תאריך בנתונים — בלי תאריך. */
+const updOf = (D, vk) => (D && D[vk] ? 'נתונים: ' + fmtD(D[vk]) : '');
 const linkAttrs = t => `href="${esc(t.h)}"` + (t.ext ? ' target="_blank" rel="noopener"' : '') + (t.pick ? ` data-pick="${t.pick}" data-boot-tool` : '');
 function card(t, V) {
   const v = verOf(V, t.vk);
-  return `<a class="card${t.wide ? ' wide' : ''} rv" data-k="${t.k}" ${linkAttrs(t)} style="--acc:${t.a}"><span class="ver" data-ver="${t.vk}">${v.v}</span><div class="ico" data-icon="${t.k}"></div><h2>${esc(t.n)}</h2><p>${esc(t.d)}</p><div class="card-foot"><span class="upd" data-upd="${t.vk}">${v.d}</span><span class="go"><span data-cta>כניסה</span>${arrow}</span></div></a>`;
+  return `<a class="card${t.wide ? ' wide' : ''} rv" data-k="${t.k}" ${linkAttrs(t)} style="--acc:${t.a}"><span class="ver" data-ver="${t.vk}">${v.v}</span><div class="ico" data-icon="${t.k}"></div><h2>${esc(t.n)}</h2><p>${esc(t.d)}</p><div class="card-foot"><span class="upd" data-upd="${t.vk}"></span><span class="go"><span data-cta>כניסה</span>${arrow}</span></div></a>`;
 }
 const RAD = 40.5; // מרחק מרכז הסמל ממרכז העין, באחוזים מרוחב הבמה
 function orb(t, i) {
@@ -628,9 +632,11 @@ function iconImg(k) {
 function fillIcons(root) { root.querySelectorAll('[data-icon]').forEach(el => { if (!el.firstElementChild && ICON[el.dataset.icon]) el.innerHTML = iconImg(el.dataset.icon); }); }
 function applyVersions(root, V) {
   root.querySelectorAll('[data-ver]').forEach(el => { el.textContent = verOf(V, el.dataset.ver).v; });
-  root.querySelectorAll('[data-upd]').forEach(el => { el.textContent = verOf(V, el.dataset.upd).d; });
   const c = root.querySelector('[data-ver-chip]'); if (c) c.textContent = verOf(V, 'home').v;
 }
+function applyDates(root, D) { root.querySelectorAll('[data-upd]').forEach(el => { el.textContent = updOf(D, el.dataset.upd); }); }
+let DP = null;
+const loadDates = () => DP || (DP = fetch('data-dates.json?v=' + Math.floor(Date.now() / 6e5)).then(r => r.ok ? r.json() : null).catch(() => null));
 let VP = null;
 const loadVersions = () => VP || (VP = fetch('versions.json?v=' + Math.floor(Date.now() / 36e5)).then(r => r.ok ? r.json() : null).catch(() => null));
 /* "מה חדש" (version.js) מוסיף #kb-ver בסוף הדף; בדף הבית הוא עובר לתחתית, ובחזרה לגוף הדף כשנכנסים לכלי */
@@ -650,6 +656,7 @@ function mount(root, opts) {
   root.__kbh = 1;
   fillIcons(root);
   loadVersions().then(V => { if (V) applyVersions(root, V); });
+  loadDates().then(D => applyDates(root, D));
   new MutationObserver(() => adoptVer(root)).observe(document.body, { childList: true });
 
   /* העין מסתכלת על הסמלים לפי הסדר — ובשבת היא נחה (ראו shabbatState) */
