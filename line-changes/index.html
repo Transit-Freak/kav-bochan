@@ -47,11 +47,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=41'), js('deck-sign.js?v=1'), js('deck-board.js?v=5'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=41'), js('deck-sign.js?v=1'), js('deck-board.js?v=6'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=41'], ['deck-sign.js?v=1'], ['deck-board.js?v=5'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=41'], ['deck-sign.js?v=1'], ['deck-board.js?v=6'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -386,7 +386,7 @@
 <script src="app-settings.js?v=1"></script>
 <script src="app-edit.js?v=2"></script>
 <script src="app-images.js?v=1"></script>
-<script src="app-export.js?v=3"></script>
+<script src="app-export.js?v=4"></script>
 <script src="app.js?v=48"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
