@@ -159,7 +159,7 @@ var LCXlsx = (function () {
             cell(rr, 3 + ci, { runs: runs, dc: tmC(x.key, r) || '' }, tmS(x.key, r));
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.all ? (nt.L ? nt.L + ' ' : '') + 'כל הנסיעות' : nt.times.map(function (t) { return LRM + (nt.L || '') + t; }).join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
+            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.all ? (nt.L ? nt.L + ' ' : '') + 'כל הנסיעות' : nt.L ? LRM + nt.L : nt.times.map(function (t) { return LRM + t; }).join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
             var pt = x.ents.filter(function (e) { return e.part; });
             if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });

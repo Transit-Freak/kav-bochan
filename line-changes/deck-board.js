@@ -464,10 +464,11 @@
   }
   function BD_SAME() { return BD_M ? BD_M.lbl.same : 'ללא שינוי'; }
   /* ההערה מתחת לתא: "* 08:00 — מארבע עונות" (בצפוף — רק "* — מארבע עונות": השעות כבר מסומנות בסימן בתא) */
-  // הסימן לפני כל שעה ("#08:00 #09:00 — מארבע עונות"); כל הנסיעות / צפוף — הסימן לבד ("# — מארבע עונות")
+  // חלופה עם סימן — הסימן לבד ("# — מארבע עונות"): השעות כבר מסומנות בתא, ואין צורך לחזור עליהן (שמואל דרך שלמה, 23.11).
+  // בלי סימן (צבע בלבד) — השעות ("08:00 09:00 — מארבע עונות"); כל הנסיעות — "כל הנסיעות"
   function bdNoteLine(nt) {
     if (nt.plain) return nt.plain;
-    var L = nt.L || '', ts = nt.all || D.ED.bdense ? '' : nt.times.map(function (t) { return L + t; }).join(' ');
+    var L = nt.L || '', ts = nt.all || D.ED.bdense || L ? '' : nt.times.join(' ');
     return ((ts ? ts : L + (nt.all ? ' כל הנסיעות' : '')) + ' — ' + nt.txt).replace(/ {2,}/g, ' ').replace(/^ /, '');
   }
   function bdNoteTxt(x) { return x.ntxt != null ? x.ntxt : x.txt != null && !x.same ? '' : x.notes.map(bdNoteLine).join('\n'); }
