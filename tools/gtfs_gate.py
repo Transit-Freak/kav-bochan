@@ -1,8 +1,8 @@
-"""שומר הסף של קובץ ה-GTFS היומי (שלמה 23.11.2026: "בדיקה אחת ב-09 לכל האתרים").
+"""שומר הסף של קובץ ה-GTFS היומי (שלמה 23.11.2026).
 
-gtfs-gate.yml מריץ את זה כל שעה. ההחלטה אם להפעיל עכשיו את העדכון (line-history, ואחריו כל מה
+gtfs-gate.yml מריץ את זה כל 10 דקות. ההחלטה אם להפעיל עכשיו את העדכון (line-history, ואחריו כל מה
 שמחכה לו) תלויה רק בארבעה דברים, ולכן היא פונקציה נפרדת שנבדקת ב-tests/test_gtfs_gate.py:
-  - השעה בישראל: לא לפני 09:00.
+  - השעה בישראל: לא לפני 00:30 (משרד התחבורה מעלה את הקובץ בדרך כלל בלילה; לפעמים רק בערב).
   - האם כבר הפעלנו עדכון היום (פעם אחת ביום).
   - מתי משרד התחבורה עדכן את הקובץ (Last-Modified, מבקשת HEAD — בלי להוריד 140MB).
   - האם הקובץ הזה כבר טופל (אותו Last-Modified).
@@ -15,7 +15,7 @@ import sys
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
-START_HOUR = 9   # 09:00 שעון ישראל
+START = (0, 30)   # 00:30 שעון ישראל — מכאן בודקים כל 10 דקות עד שנמצא קובץ חדש
 
 
 def lm_key(last_modified):
@@ -30,14 +30,14 @@ def lm_key(last_modified):
 
 def decide(now_il, last_modified, day_done, file_done):
     """מחזיר (go, סיבה). now_il — datetime בשעון ישראל."""
-    if now_il.hour < START_HOUR:
-        return False, f"השעה {now_il:%H:%M} — הבדיקה מתחילה ב-09:00"
+    if (now_il.hour, now_il.minute) < START:
+        return False, f"השעה {now_il:%H:%M} — הבדיקה מתחילה ב-00:30"
     if day_done:
-        return False, "העדכון של היום כבר הופעל — הבדיקה הבאה מחר ב-09:00"
+        return False, "העדכון של היום כבר הופעל — הבדיקה הבאה מחר ב-00:30"
     if not lm_key(last_modified):
-        return False, "לא הצלחנו לקרוא מתי הקובץ עודכן — ננסה שוב בעוד שעה"
+        return False, "לא הצלחנו לקרוא מתי הקובץ עודכן — ננסה שוב בעוד 10 דקות"
     if file_done:
-        return False, f"אין קובץ חדש (האחרון: {last_modified.strip()}) — ננסה שוב בעוד שעה"
+        return False, f"אין קובץ חדש (האחרון: {last_modified.strip()}) — ננסה שוב בעוד 10 דקות"
     return True, f"קובץ חדש ממשרד התחבורה ({last_modified.strip()}) — מפעילים את העדכון"
 
 

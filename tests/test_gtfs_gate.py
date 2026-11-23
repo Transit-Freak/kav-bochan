@@ -13,12 +13,12 @@ def at(h, m=0):
     return datetime(2026, 11, 23, h, m)
 
 
-def test_before_nine_waits():
-    assert decide(at(8, 59), LM, False, False)[0] is False
+def test_before_half_past_midnight_waits():
+    assert decide(at(0, 29), LM, False, False)[0] is False
 
 
-def test_nine_with_new_file_runs():
-    assert decide(at(9, 0), LM, False, False)[0] is True
+def test_half_past_midnight_with_new_file_runs():
+    assert decide(at(0, 30), LM, False, False)[0] is True
 
 
 def test_same_file_waits():
