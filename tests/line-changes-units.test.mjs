@@ -707,3 +707,12 @@ test('שינוי מסלול באנגלית — עמוד אחד, שלט וסטט�
   assert.ok(ctx.LCDeckEN.b_missing().includes('בית משפט השלום/החלוץ'));
   ctx.LCDeck._in.ED = {};
 });
+
+// ---------- נסיעה אחת שזזה (עד 30 דקות) — אותו סיווג בכל מקום: "תצא ב-", הסיכום, הטבלה והלוח (קו 436, 7:35 → 7:45) ----------
+test('נסיעה אחת שזזה ב-10 דקות: נסיעה שזזה (sh), לא חדשה + מבוטלת', () => {
+  const D = ctx.LCDeck._in;
+  assert.deepEqual(J(D.mergeSh([455, 720], [465, 720])), [[465, 'sh', 455], [720, '']]);
+  assert.deepEqual(J(D.mergeSh([455, 720], [530, 720])).map((x) => x[1]), ['rm', 'ad', ''], 'יותר מ-30 דקות — חדשה ומבוטלת');
+  const X = ctx.LCDeckEN;
+  assert.equal(X.c_diffSummary({ t: ['d4'], n: [465, 720] }, { ad: [], rm: [], sh: [[455, 465]] }), '<b>On Thursday:</b> 1 trip retimed (7:35 → 7:45). The other trips are unchanged.');
+});

@@ -13,7 +13,7 @@
     'נסיעות ביום': 'Trips a day', 'הנסיעה הראשונה': 'First trip', 'הנסיעה האחרונה': 'Last trip', 'כל כמה דקות בשעות השיא': 'Every … min at peak times',
     'כל כמה דקות בשאר היום': 'Every … min the rest of the day', 'אין': 'None', ' דק׳': ' min',
     'חדש': 'new', 'בוטלה': 'cancelled', 'היה ': 'was ', ' · ללא שינוי': ' · no change', ' (המשך)': ' (cont.)', 'שעה': 'Hour',
-    'דקות אחרי השעה': 'Minutes past the hour', 'דקות אחרי השעה — הלוח החדש': 'Minutes past the hour — new timetable',
+    'דקות אחרי השעה': 'Minutes past the hour', 'דקות אחרי השעה — הלוח החדש': 'Minutes past the hour · New timetable',
     'נסיעה חדשה': 'New trip', 'נסיעה שבוטלה': 'Cancelled trip', 'נסיעה שהוזזה': 'Retimed trip', 'היה 14:31': 'was 14:31',
     'מתי הקו נוסע': 'When the line runs', 'לוח הזמנים החדש': 'The new timetable',
     'שעת היציאה מהתחנה הראשונה · שעות השיא: 7:00–9:00 ו-16:00–19:00 · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי':
@@ -135,6 +135,7 @@
   function diffSummary(e, x) {
     var t = [];
     if (!x.ad.length && !x.rm.length && !x.sh.length) return '';
+    if (!x.ad.length && !x.rm.length && x.sh.length === 1) return B(dtIn(e.t)) + '1 trip retimed (' + hm(x.sh[0][0]) + ' → ' + hm(x.sh[0][1]) + ')' + (e.n.length > 1 ? '. The other trips are unchanged.' : '.');
     if (x.ad.length) t.push(x.ad.length === 1 ? '1 new trip' : x.ad.length + ' new trips');
     if (x.rm.length) t.push(x.rm.length + (t.length ? ' cancelled' : x.rm.length === 1 ? ' trip cancelled' : ' trips cancelled'));
     if (x.sh.length) t.push(x.sh.length + (t.length ? ' retimed ' : x.sh.length === 1 ? ' trip retimed ' : ' trips retimed ') + shWord(x.sh));

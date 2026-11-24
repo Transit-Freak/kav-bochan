@@ -20,7 +20,7 @@
     footShort: 'Prepared by a private individual · Not an official publication', someTrips: ' (some trips)',
     // מקרא
     lgVarEnd: 'Route of the cancelled trips (until ', lgSame: 'Line route (unchanged)', lgVarNew: 'Route of the new trips (from ',
-    lgExt: 'New section (from ', lgOld: 'Section the line no longer uses (until ', lgAll: 'New route (from ', lgSameR: 'Unchanged route',
+    lgExt: 'New section (from ', lgOld: 'Route section no longer used (until ', lgAll: 'New route (from ', lgSameR: 'Unchanged route',
     lgNewSeg: 'New section (from ', lgRem: 'Cancelled stop', lgNear: 'To the nearest stop on the new route', lgWalk: ' (walking time in the list)',
     lgSeg: 'The route changes here (see text)', lgAdd: 'New stop', lgMv: 'Relocated stop', lgStay: 'Stop that stays',
     inArea: ' in this area · The numbers on the map match the list on the next page',

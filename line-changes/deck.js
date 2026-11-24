@@ -255,9 +255,9 @@ var LCDeck = (function () {
       '<div class="body">' +
         '<div class="facts">' +
           (endK ? '<div class="fact"><span class="l">' + tx('lastTrip', 'הנסיעה האחרונה') + '</span><span class="v">' + E(en ? X.a_dl(lastOf(p)) : enWd(lastOf(p), en) + ' ' + LC.dmy(lastOf(p))) + '</span>' +
-            '<span class="x">' + E(hd(lastOf(p))) + '</span>'
+            (en ? '<span class="vh"> · </span>' : '') + '<span class="x">' + E(hd(lastOf(p))) + '</span>'
           : '<div class="fact"><span class="l">' + (multiDate ? tx('factFromMulti', 'החל מ') : tx('factFrom', 'ממתי')) + '</span><span class="v">' + E(en ? X.a_dl(s0) : enWd(s0, en) + ' ' + LC.dmy(s0)) + '</span>' +
-            '<span class="x">' + E(hd(s0)) + '</span>') + (firstTrip ? '<span class="x">' + E(firstTrip) + '</span>' : '') + '</div>' +
+            (en ? '<span class="vh"> · </span>' : '') + '<span class="x">' + E(hd(s0)) + '</span>') + (firstTrip ? '<span class="x">' + E(firstTrip) + '</span>' : '') + '</div>' +
           '<div class="fact"><span class="l">' + (ops.length > 1 ? tx('companies', 'חברות') : tx('company', 'חברת האוטובוסים')) + '</span><span class="v">' + E(ops.map(enOp).join(' · ')) + '</span>' +
             '<span class="x num">' + (opPhone ? tx('infoLine', 'מוקד: ') + '<span class="ltr">' + E(opPhone) + '</span>' : '') + '</span></div>' +
           '<div class="fact"><span class="l">' + tx('mot', 'משרד התחבורה') + '</span><span class="v num"><span class="ltr">' + MOT + '</span></span><span class="x">' + tx('motX', 'מוקד המידע') + '</span></div>' +
@@ -1333,7 +1333,7 @@ var LCDeck = (function () {
   /* שינוי קטן בלו"ז: עד 6 נסיעות שנוספו או בוטלו בסך הכול, והנסיעה הראשונה/האחרונה לא זזה בחצי שעה או יותר.
      אז תמיד טקסט, ובו בדיוק אילו נסיעות */
   /* נסיעה שבוטלה ונסיעה שנוספה באותה שעה, עד 5 דקות זו מזו — אותה נסיעה שהוזזה: [שעה חדשה, 'sh', השעה הקודמת] */
-  var SHIFT_MAX = 5;
+  var SHIFT_MAX = 5, SHIFT_ONE = 30;
   function mergeSh(o, n) {
     var items = merge(o, n), used = {};
     items.forEach(function (x, i) {
@@ -1344,6 +1344,13 @@ var LCDeck = (function () {
       });
       if (best >= 0) { used[i] = 1; used[best] = 1; items[best] = [items[best][0], 'sh', x[0]]; }
     });
+    // נסיעה אחת שנוספה ונסיעה אחת שבוטלה, עד 30 דקות זו מזו (ושום נסיעה אחרת לא זזה) — נסיעה אחת שזזה. אותו כלל בכל המקומות:
+    // "מה השתנה?", הטבלה, הלוח ומספר הנסיעות שהשתנו (ttCount)
+    var ads = [], rms = [];
+    items.forEach(function (x, i) { if (!used[i] && x[1] === 'ad') ads.push(i); if (!used[i] && x[1] === 'rm') rms.push(i); });
+    if (ads.length === 1 && rms.length === 1 && !items.some(function (x) { return x[1] === 'sh'; }) && Math.abs(items[ads[0]][0] - items[rms[0]][0]) <= SHIFT_ONE) {
+      used[rms[0]] = 1; items[ads[0]] = [items[ads[0]][0], 'sh', items[rms[0]][0]];
+    }
     return items.filter(function (x, i) { return !(used[i] && x[1] === 'rm'); });
   }
   function ttDiff(e) {
@@ -1360,7 +1367,7 @@ var LCDeck = (function () {
     ttDirs(p).forEach(function (d) { d.tt.forEach(function (e) {
       var x = ttDiff(e);
       // נסיעה שנוספה ונסיעה שבוטלה קרוב אליה — נסיעה אחת שזזה (כמו ב-smallLine)
-      n += !x.sh.length && x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30 ? 1 : x.ad.length + x.rm.length + x.sh.length;
+      n += x.ad.length + x.rm.length + x.sh.length;   // נסיעה אחת שזזה (גם עד 30 דקות) — כבר sh ב-mergeSh
     }); });
     return n;
   }
@@ -1521,6 +1528,8 @@ var LCDeck = (function () {
     var x = ttDiff(e), t = [];
     if (ENc()) return ENc().c_diffSummary(e, x);
     if (!x.ad.length && !x.rm.length && !x.sh.length) return '';
+    // רק נסיעה אחת שזזה: "הנסיעה של 7:35 נדחתה ל-7:45"
+    if (!x.ad.length && !x.rm.length && x.sh.length === 1) return '<b>' + E(dtIn(e.t)) + ':</b> הנסיעה של ' + hm(x.sh[0][0]) + (x.sh[0][1] < x.sh[0][0] ? ' הוקדמה ל-' : ' נדחתה ל-') + hm(x.sh[0][1]) + (e.n.length > 1 ? '. השאר ללא שינוי.' : '.');
     if (x.ad.length) t.push(x.ad.length === 1 ? 'נסיעה חדשה אחת' : x.ad.length + ' נסיעות חדשות');
     if (x.rm.length) t.push(x.rm.length === 1 ? (t.length ? 'אחת בוטלה' : 'נסיעה אחת בוטלה') : x.rm.length + (t.length ? ' בוטלו' : ' נסיעות בוטלו'));
     if (x.sh.length) t.push((x.sh.length === 1 ? (t.length ? 'אחת הוזזה ' : 'נסיעה אחת הוזזה ') : x.sh.length + (t.length ? ' הוזזו ' : ' נסיעות הוזזו ')) + shWord(x.sh));

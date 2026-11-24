@@ -100,7 +100,7 @@
         '<div class="t"><h1 class="hd">' + E(multi ? X.d_same(u.all.length) : T.chg) + '</h1>' +
         '<p class="sub">' + E(multi ? ops.map(enOp).join(' · ') : [odTxtEn(p), enOp(p.op)].filter(Boolean).join(' · ')) + '</p></div></div>' +
         '<div class="seam"><i></i></div></div>' +
-      '<div class="sg-when"><b>' + E(whenEn(p, s0)) + '</b><span>' + E(X.a_heb(s0)) + '</span></div>' +
+      '<div class="sg-when"><b>' + E(whenEn(p, s0)) + '</b><span class="vh"> · </span><span>' + E(X.a_heb(s0)) + '</span></div>' +
       (ng > 1 ? '<p class="sg-part">' + E(trip(g.main)) + ' (' + (gi + 1) + ' of ' + ng + ')</p>' : '') +
       '<div class="sg-mapw"><div class="smap"></div><div class="inset"></div></div>' +
       legendHtml(g.main) +

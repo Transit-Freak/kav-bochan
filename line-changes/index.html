@@ -48,11 +48,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=44'), js('deck-sign.js?v=3'), js('board-en.js?v=3'), js('deck-en-a.js?v=2'), js('deck-en-b.js?v=2'), js('deck-en-c.js?v=2'), js('deck-en-d.js?v=2'), js('deck-board.js?v=9'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=45'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=9'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=44'], ['deck-sign.js?v=3'], ['board-en.js?v=3'], ['deck-en-a.js?v=2'], ['deck-en-b.js?v=2'], ['deck-en-c.js?v=2'], ['deck-en-d.js?v=2'], ['deck-board.js?v=9'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=45'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=9'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }

@@ -24,7 +24,9 @@
     var m = /^של הקווים\s+(.+)$/.exec(t || ''), m1 = /^של קו\s+(.+)$/.exec(t || '');
     return m ? 'served by lines ' + m[1] + ' ' : m1 ? 'served by line ' + m1[1] + ' ' : '';
   }
-  function walk(nr) { return nr.min ? 'about ' + nr.min + ' min walk, ' + nr.m + ' m' : 'about ' + nr.m + ' m walk'; }
+  /* מרחק: עד 999 מ' — במטרים ("300 m"); מ-1000 — בק"מ, עם ספרה אחת אחרי הנקודה לכל היותר ("1 km", "1.2 km") */
+  function dist(m) { m = +m; return m >= 1000 ? (Math.round(m / 100) / 10) + ' km' : m + ' m'; }
+  function walk(nr) { return nr.min ? 'about ' + nr.min + ' min walk, ' + dist(nr.m) : 'about ' + dist(nr.m) + ' walk'; }
   /* ימים בקיצור מהבונה ("א׳–ה׳", "א׳ ו-ג׳", "שישי", "שבת") → "Sun–Thu" */
   function heDays(t) {
     var L = { 'א': 0, 'ב': 1, 'ג': 2, 'ד': 3, 'ה': 4, 'ו': 5, 'ש': 6 }, ix = [], m, re = /(שישי|שבת|[אבגדהוש])['׳]?(\s*[–-]\s*(?=[אבגדהוש]['׳]))?/g, run = -1;
@@ -43,6 +45,7 @@
     b_andList: andList,
     b_via: via,
     b_walk: walk,
+    b_dist: dist,
     b_alt: ' (on some trips)',
     /* כותרת לנסיעה: "From Kiryat Gat to Hatzor HaGlilit" · קו בתוך העיר: "The line in Ashdod, from A to B" */
     b_trip: function (o0, o1, A, B, same) {
@@ -73,16 +76,16 @@
     /* שקף התחנות */
     b_sl: {
       label: 'Stops · ', cont: ' (cont.)', rem: 'Cancelled stops', add: 'New stops', noRem: 'No cancelled stops on this trip', noAdd: 'No new stops on this trip',
-      moved: 'Stops moving to a nearby location: ', about: function (m) { return ' (about ' + m + ' m)'; },
+      moved: 'Stops moving to a nearby location: ', about: function (m) { return ' (about ' + dist(m) + ')'; },
       swaps: function (n) { return (n === 1 ? 'One stop remains in the same location under the same name; only its stop code has changed.' : n + ' stops remain in the same location under the same names; only their stop codes have changed.'); },
       foot: function (path) { return 'Numbers as on the map · ' + (path ? 'Walking time by the street map, at a normal pace' : 'The distance to the nearest stop is an estimate') + ' · Prepared by a private individual, not an official publication'; }
     },
     /* איפה התחנה: "between A and B" · "about 200 m after A" · בלי כיוון — "about 200 m from the stop A" */
     b_loc: {
       between: function (A, B) { return 'between ' + A + ' and ' + B; },
-      after: function (m, A) { return 'about ' + m + ' m after ' + A; },
-      before: function (m, B) { return 'about ' + m + ' m before ' + B; },
-      from: function (m, X) { return 'about ' + m + ' m from the stop ' + X; }
+      after: function (m, A) { return 'about ' + dist(m) + ' after ' + A; },
+      before: function (m, B) { return 'about ' + dist(m) + ' before ' + B; },
+      from: function (m, X) { return 'about ' + dist(m) + ' from the stop ' + X; }
     },
     /* משפט לכל מקטע (segText): כל הפרמטרים — HTML מוכן */
     b_seg: {
@@ -107,14 +110,14 @@
       offRoute: function (A, S, B) { return 'After ' + A + ', the line will no longer go ' + S + '. It will take another route to ' + B + '.'; },
       add: function (n, names, loc) { return (n === 1 ? 'New stop: ' : 'New stops: ') + names + (loc ? ', ' + loc : '') + '.'; },
       newRoute: function (A, S, B) { return 'After ' + A + ', the line will take a new route, ' + S + ', and rejoin its usual route at ' + B + '.'; },
-      swap1: function (o0, n0, m) { return 'The route does not change. Instead of the stop ' + o0 + ', the line will stop at a new stop, ' + n0 + ', about ' + m + ' m away.'; },
+      swap1: function (o0, n0, m) { return 'The route does not change. Instead of the stop ' + o0 + ', the line will stop at a new stop, ' + n0 + ', about ' + dist(m) + ' away.'; },
       swapN: function (A, B, nn2, on) { return 'The route does not change. Between ' + A + ' and ' + B + ' the line will stop at ' + nn2 + ' instead of ' + on + '.'; },
       route: function (A, oS, nS, B) {
         return 'After ' + A + ', the line ' + (oS ? 'will no longer go ' + oS + '. Instead it will go' : 'will go') + (nS ? ' ' + nS : ' another route') +
           ', and rejoin its usual route at ' + B + '.';
       },
       sameSt: function (A, B, nn2, on) { return 'Between ' + A + ' and ' + B + ' the line will stop at other stops on the same streets: ' + nn2 + ' instead of ' + on + '.'; },
-      moved: function (x, m) { return 'The stop ' + x + ' is relocated about ' + m + ' m from its current position.'; }
+      moved: function (x, m) { return 'The stop ' + x + ' is relocated about ' + dist(m) + ' from its current position.'; }
     },
     /* חלופה שבוטלה / חדשה (varText) */
     b_var: function (end, A, where, n, names, last, freq) {
