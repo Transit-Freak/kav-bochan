@@ -192,7 +192,7 @@ var LCXlsx = (function () {
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת') + ' · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה', sC);
+    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת') + (M.x2 === false ? '' : ' · ×2 — שני אוטובוסים') + ' · לפי נתוני משרד התחבורה', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
     R++; cell(R, 0, 'המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }

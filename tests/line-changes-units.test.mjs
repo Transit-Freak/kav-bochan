@@ -363,3 +363,95 @@ test('קו שמשתנה השבוע: גם לוח של השבוע עד השינו�
   const M2 = ctx.LCDeck.boardModel([p], { bsplit: false });
   assert.equal(M2.sub.split(' · ')[0], 'החל מ-29.11'); assert.equal(M2.wk, ''); assert.equal(M2.cols[0].label, 'ימים א׳–ה׳');
 });
+
+// ---------- אפשרויות בלוח (24.11): בחירת תאריכים, קווים עם אות, מפעיל, תאריך סיום, ×2 ----------
+// עמוד כמו ttPick: tv — היום הראשון בנתונים (שלישי 24.11), wd — הלו"ז לכל יום בשבוע מ-r.w, wd1 — מהשבוע שאחריו
+function datePage(opt = {}) {
+  const wk = [420, 480, 540], sat = [1200, 1260], sun1 = [420, 480, 540, 1300];   // ראשון 29.11 — עם נסיעה נוספת (הילולה)
+  const tri = (L) => [L, 0, 0];
+  const wd = [tri(sun1), tri(wk), tri(wk), tri(wk), tri(wk), tri([420]), tri(sat)];
+  const wd1 = [tri(wk), tri(wk), tri(wk), tri(wk), tri(wk), tri([420]), tri(opt.sat2 || sat)];
+  const d = { dir: '1', od: ['צפת', 'צפת'], f: 'תחנה', fc: '1', t: 'סוף', cs: ['צפת'], days: wd.map((x) => x[0]), x: {}, v: [], da: wd.map(() => 0), dn: wd.map(() => 0), xa: {}, xn: {}, wd, wd1, l: opt.l1 || '' };
+  const dirs = [d];
+  if (opt.l2) dirs.push({ ...d, dir: '2', l: opt.l2 });
+  return { id: 'tt-88001', kind: 'current', line: '1א', op: 'נתיב אקספרס', ag: '14', makat: '88001', od: ['צפת', 'צפת'], eff: '2026-11-24', valid: '2026-11-24', tv: '2026-11-24', tvh: opt.hol || [], fromEff: '', until: '2026-12-10', hol: [], dirs };
+}
+const allTimes = (M) => M.bands[0].rows[0].cells.flatMap((c) => c.ents.map((e) => e.t));
+
+test('בחירת תאריכים: בלי בחירה — כמו קודם; תאריך שהוצא — אותו יום בשבוע הבא', () => {
+  const T = ctx.LCDeck._test, p = datePage();
+  assert.deepEqual(J(T.bdOnDate(p, p.dirs[0], '2026-11-29'))[0], [420, 480, 540, 1300]);
+  assert.deepEqual(J(T.bdOnDate(p, p.dirs[0], '2026-12-06'))[0], [420, 480, 540]);
+  assert.equal(T.bdOnDate(p, p.dirs[0], '2026-12-08'), null, 'מחוץ לשבועיים');
+  const M0 = ctx.LCDeck.boardModel([p], { bsplit: false });
+  assert.ok(allTimes(M0).includes('21:40'), 'ברירת המחדל: הנסיעה של יום ראשון בלוח');
+  const q = T.bdDatePage(p, { off: { '2026-11-29': 1 }, sep: {} });
+  assert.deepEqual(J(q.dirs[0].days[0]), [420, 480, 540], 'ראשון — מ-6.12');
+  assert.deepEqual(J(p.dirs[0].days[0]), [420, 480, 540, 1300], 'העמוד המקורי לא השתנה');
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { off: { '2026-11-29': 1 } } });
+  assert.ok(!allTimes(M).includes('21:40'));
+  assert.equal(M.cols[0].label, 'ימים א׳–ה׳');
+});
+
+test('בחירת תאריכים: עמודה נפרדת לכל מוצ״ש, עם התאריך, אחרי העמודה של שבת; בלי תאריך ליום — היום לא בכותרת', () => {
+  const p = datePage({ sat2: [1200, 1260, 1320] });
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { sep: { '2026-11-28': 1, '2026-12-05': 1 } } });
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'מוצאי שבת 28.11', 'מוצאי שבת 5.12'], 'שבת רגילה — אין תאריך שלא נפרד');
+  const c = M.bands[0].rows[0].cells;
+  assert.deepEqual(J(c[3].ents.map((e) => e.t)), ['20:00', '21:00', '22:00']);
+  const M2 = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { sep: { '2026-12-05': 1 } } });
+  assert.deepEqual(J(M2.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'מוצאי שבת', 'מוצאי שבת 5.12']);
+});
+
+test('רשימת התאריכים והצעות: לו"ז חריג ביום ראשון — הצעה להוציא; לחיצה — כלום לא משתנה עד שמחילים', () => {
+  const p = datePage(), ds = ctx.LCDeck.boardDates([p], {});
+  assert.equal(ds.length, 14); assert.equal(ds[0].iso, '2026-11-24');
+  const sun = ds.find((x) => x.iso === '2026-11-29');
+  assert.ok(sun.used && sun.diff); assert.ok(!ds.find((x) => x.iso === '2026-12-06').used);
+  const sg = J(ctx.LCDeck.boardSuggest([p], {}));
+  assert.equal(sg.length, 1);
+  assert.match(sg[0].txt, /29\.11 — לו״ז חריג/); assert.deepEqual(sg[0].off, ['2026-11-29']);
+  assert.equal(ctx.LCDeck.boardSuggest([p], { bdays: { off: { '2026-11-29': 1 } } }).length, 0, 'אחרי שהוחלה — לא מוצעת שוב');
+  // חג מהבונה שהשעות בו שונות — עמודה נפרדת (לא "חריג")
+  const h = datePage({ hol: [['2026-11-29', 'erev', 'ערב חג']] });
+  const sh = J(ctx.LCDeck.boardSuggest([h], {}));
+  assert.deepEqual(sh.map((x) => x.txt), ['ערב חג 29.11: עמודה נפרדת']);
+});
+
+test('חנוכה (לוח עברי של הדפדפן): מוצ״ש 5.12 עם שעות שונות — הצעה לעמודה נפרדת, ובלי "לו״ז חריג" ל-28.11', () => {
+  const sg = J(ctx.LCDeck.boardSuggest([datePage({ sat2: [1200, 1260, 1320] })], {}));
+  const hk = sg.find((x) => /^חנוכה/.test(x.txt));
+  assert.ok(hk, JSON.stringify(sg)); assert.equal(hk.txt, 'חנוכה: מוצ״ש 5.12 בעמודה נפרדת'); assert.deepEqual(hk.sep, ['2026-12-05']);
+  assert.ok(!sg.some((x) => /28\.11/.test(x.txt)));
+});
+
+test('קווים עם אות: ברירת המחדל — שורה אחת בשם של הקו; "בנפרד" — 1 ו-1א, קו לכל מספר', () => {
+  const p = datePage({ l1: '1א', l2: '1' });
+  const M0 = ctx.LCDeck.boardModel([p], {});
+  assert.deepEqual(J(M0.bands[0].rows.map((r) => r.line)), ['1א', '1א']);
+  const M = ctx.LCDeck.boardModel([p], { bltr: true });
+  assert.deepEqual(J(M.bands[0].rows.map((r) => r.line)), ['1', '1א']);
+  assert.ok(M.bands[0].rows.every((r) => r.first), 'כל מספר — קו משלו');
+  assert.equal(ctx.LCDeck._test.bdLtrSplit([datePage()], { bltr: true }).length, 1, 'בלי מספר לכל כיוון — כמו קודם');
+});
+
+test('בלי מפעיל, בלי תאריך סיום, בלי ×2', () => {
+  const p = datePage(); p.dirs[0].wd[1] = [[420, 480, 540], 0, [[0, 2]]]; p.dirs[0].dn = p.dirs[0].wd.map((x) => x[2]);
+  const r0 = ctx.LCDeck.boardModel([p], { bsplit: false }), row0 = r0.bands[0].rows[0];
+  assert.equal(row0.op, 'נתיב אקספרס'); assert.equal(r0.until, '2026-12-10'); assert.match(r0.sub, /עד 10\.12\.2026/);
+  assert.ok(row0.cells[0].ents.some((e) => e.n === 2)); assert.equal(r0.x2, true);
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bop: false, bend: false, bx2: false }), row = M.bands[0].rows[0];
+  assert.equal(row.op, ''); assert.ok(row.hideOp);
+  assert.equal(M.until, ''); assert.doesNotMatch(M.sub, /עד/); assert.equal(row.untilTxt, '');
+  assert.ok(row.cells[0].ents.every((e) => e.n === 1)); assert.equal(M.x2, false);
+});
+
+test('הודעה על שינוי: חג עם לו"ז אחר (hx) בעמודה נפרדת רק כשבוחרים; בלי בחירה — כמו קודם', () => {
+  const d = { dir: '1', od: ['צפת', 'צפת'], f: 'תחנה', fc: '1', t: 'סוף', cs: ['צפת'], days: [[420], [420], [420], [420], [420], [400], []], mk: [[], [], [], [], [], [], []], same: [0, 0, 0, 0, 0, 0, 0], hx: { '2026-12-01': [600, 660] } };
+  const p = { id: 'x', makat: '1', line: '1', op: 'נתיב אקספרס', ag: '14', valid: '2026-11-29', eff: '2026-11-29', until: '', chg: 'timetable', od: ['צפת', 'צפת'], hol: [], dirs: [d] };
+  const ed = { hol: [['2026-12-01', 'erev', 'ערב חג']], bsplit: false };
+  assert.deepEqual(J(ctx.LCDeck.boardModel([p], ed).cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי']);
+  const M = ctx.LCDeck.boardModel([p], { ...ed, bdays: { sep: { '2026-12-01': 1 } } });
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'ערב חג 1.12', 'יום שישי']);
+  assert.deepEqual(J(M.bands[0].rows[0].cells[1].ents.map((e) => e.t)), ['10:00', '11:00']);
+});

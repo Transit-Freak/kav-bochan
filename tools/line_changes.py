@@ -1667,7 +1667,9 @@ def current_tts(feed, t0):
                  בלוח של קו שמשתנה השבוע: כל יום בשבוע לפי התאריך הראשון מיום השינוי והלאה (LC.ttFromEff),
              v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
              אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...),
-             N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt)}
+             N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt),
+             l: מספר הקו בכיוון הזה (route_short_name של החלופה הראשית) — רק כשבכיוונים של אותו מק"ט יש מספרים שונים
+                (בצפת: 88001 — "1א" בכיוון 1 ו-"1" בכיוון 2); בדף — "קווים עם אות: בנפרד"}
     חלופה ראשית = זו עם הכי הרבה נסיעות. חלופה עם אותן תחנות כמו הראשית נחשבת ראשית."""
     DAY = datetime.timedelta(days=1)
     VCNT.clear()
@@ -1744,7 +1746,7 @@ def current_tts(feed, t0):
         st = stops_of(feed, pid) if pid is not None else []
         cs = stop_cities(st)
         durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
-        rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
+        rec = dict(_l=r['line'], od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
                    cn=stop_city_counts(st), du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
@@ -1769,6 +1771,14 @@ def current_tts(feed, t0):
             e = sh[mk] = dict(l=r['line'], a=ag, o=feed.agency.get(ag, ''), d={})
         e['d'][dr] = rec
         n_dirs += 1
+    # מספר הקו לכל כיוון (l) — רק כשהכיוונים של המק"ט במספרים שונים
+    for sh in shards.values():
+        for e in sh.values():
+            ls = {rec['_l'] for rec in e['d'].values()}
+            for rec in e['d'].values():
+                ln = rec.pop('_l')
+                if len(ls) > 1:
+                    rec['l'] = ln
     out = os.path.join(OUTDIR, 'data', 'tt')
     if os.path.isdir(out):
         shutil.rmtree(out)

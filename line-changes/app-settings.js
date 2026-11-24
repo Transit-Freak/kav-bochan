@@ -128,6 +128,12 @@
       if (fit && fit.need) A.$('bdneed').textContent = 'גם באותיות הקטנות ביותר שעוד אפשר לקרוא, הלוח לא נכנס — צריך לפחות ' + fit.need + ' עמודים.';
       A.$('bdnseg').querySelectorAll('[data-bdn]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bdn') === (A.edits.bdense ? '1' : '0') ? 'true' : 'false'); });
       A.$('bspseg').querySelectorAll('[data-bsp]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bsp') === (A.edits.bsplit === false ? 'no' : 'auto') ? 'true' : 'false'); });
+      // שם המפעיל, תאריך סיום, ×2, קווים עם אות (רק כשיש בלוח מק"ט עם מספר אחר לכל כיוון), ובחירת תאריכים
+      [['bopseg', 'data-bopn', A.edits.bop === false ? '0' : '1'], ['bendseg', 'data-bend', A.edits.bend === false ? '0' : '1'], ['bx2seg', 'data-bx2', A.edits.bx2 === false ? '0' : '1'], ['bltrseg', 'data-bltr', A.edits.bltr ? '1' : '0']].forEach(function (x) {
+        A.$(x[0]).querySelectorAll('[' + x[1] + ']').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute(x[1]) === x[2] ? 'true' : 'false'); });
+      });
+      A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
+      daysUi(pages);
       var bst = A.edits.bstop === 'dir' || A.edits.bstop === 'none' ? A.edits.bstop : 'all';
       A.$('bstseg').querySelectorAll('[data-bst]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bst') === bst ? 'true' : 'false'); });
       A.$('btalseg').querySelectorAll('[data-btal]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-btal') === (A.edits.btal === 'c' ? 'c' : 'r') ? 'true' : 'false'); });
@@ -173,6 +179,34 @@
       A.$('bflat').checked = !!A.edits.bflat;
       A.$('bcwseg').querySelectorAll('[data-bcw]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bcw') === (A.edits.bcw ? 'man' : 'auto') ? 'true' : 'false'); });
     }
+  }
+  /* בחירת תאריכים (edits.bdays — {off: {תאריך: 1}, sep: {תאריך: 1}}): לוח שנה קטן של השבועיים שבנתונים, והצעות (חג, חנוכה, לו"ז חריג).
+     בהודעה על שינוי אין לו"ז לכל תאריך — רק ההצעות לחגים (hx) */
+  var DOW_L = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'], bsug = [];
+  function daysUi(pages) {
+    var ed = A.edOpts(formOf()), ds = LCDeck.boardDates(pages, ed);
+    bsug = LCDeck.boardSuggest(pages, ed);
+    var sel = A.edits.bdays || {}, any = Object.keys(sel.off || {}).length || Object.keys(sel.sep || {}).length;
+    A.$('bdaysw').hidden = !ds.length && !bsug.length && !any;
+    A.$('bsug').innerHTML = bsug.map(function (g, i) { return '<button type="button" data-bsg="' + i + '"><b>הצעה:</b>' + A.E(g.txt) + '</button>'; }).join('');
+    A.$('bdgw').hidden = !ds.length;
+    A.$('bdreset').hidden = !any;
+    if (!ds.length) return;
+    var html = DOW_L.map(function (l) { return '<span class="bdh">' + l + '</span>'; }).join('');
+    for (var i = 0; i < ds[0].w; i++) html += '<span></span>';
+    html += ds.map(function (x) {
+      var p = x.iso.split('-'), dmT = +p[2] + '.' + +p[1];
+      return '<span class="bdc"><button type="button" class="bdd' + (x.used ? ' used' : '') + (x.na ? ' na' : '') + (x.diff ? ' dif' : '') + '" data-bdd="' + x.iso + '" aria-pressed="' + (x.off ? 'false' : 'true') + '"' + (x.na ? ' disabled' : '') +
+        ' aria-label="' + A.E(LC.wd(x.iso) + ' ' + dmT + (x.hol ? ', ' + x.hol : '') + (x.off ? ', לא בלוח' : x.used ? ', הלוח לפי התאריך הזה' : '') + (x.diff ? ', השעות שונות' : '')) + '">' + dmT + (x.hol ? '<small>' + A.E(x.hol) + '</small>' : '') + '</button>' +
+        '<button type="button" class="bds" data-bds="' + x.iso + '" aria-pressed="' + (x.sep ? 'true' : 'false') + '"' + (x.na || x.off ? ' disabled' : '') + ' aria-label="עמודה נפרדת ל-' + dmT + '">נפרד</button></span>';
+    }).join('');
+    A.$('bdg').innerHTML = html;
+  }
+  function setDay(kind, iso, on) {
+    var s = A.edits.bdays || {}, o = Object.assign({}, s[kind] || {});
+    if (on) o[iso] = 1; else delete o[iso];
+    var n = { off: s.off, sep: s.sep }; n[kind] = Object.keys(o).length ? o : undefined;
+    A.edits.bdays = n.off || n.sep ? n : undefined;
   }
   /* הכותרת וההערות של "טבלה לפי יעד" — נשמרות עם המצגת; הלוח נבנה מחדש אחרי הפסקה קצרה בהקלדה */
   var bdT = 0;
@@ -234,7 +268,16 @@
       else if (!A.edits.bcw) { A.edits.bcw = A.bdColsNow() || undefined; if (!A.editMode) setEdit(true); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr]');
+    // בחירת תאריכים: תאריך (בלוח / לא), "נפרד", הצעה, וביטול
+    var dd = ev.target.closest('[data-bdd],[data-bds],[data-bsg],#bdreset');
+    if (dd) {
+      if (dd.id === 'bdreset') A.edits.bdays = undefined;
+      else if (dd.hasAttribute('data-bdd')) { var iso = dd.getAttribute('data-bdd'), off = (A.edits.bdays || {}).off || {}; setDay('off', iso, !off[iso]); if (!off[iso]) setDay('sep', iso, false); }
+      else if (dd.hasAttribute('data-bds')) { var iso2 = dd.getAttribute('data-bds'); setDay('sep', iso2, !((A.edits.bdays || {}).sep || {})[iso2]); }
+      else { var g = bsug[+dd.getAttribute('data-bsg')]; if (!g) return; g.off.forEach(function (x) { setDay('off', x, true); setDay('sep', x, false); }); g.sep.forEach(function (x) { setDay('sep', x, true); setDay('off', x, false); }); }
+      saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
+    }
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -250,6 +293,10 @@
       else if (bo.hasAttribute('data-bt1')) A.edits.bt1 = bo.getAttribute('data-bt1') === '1' || undefined;
       else if (bo.hasAttribute('data-bclr')) { var pr = A.BCLR[bo.getAttribute('data-bclr')]; A.edits.bclr = pr ? { h: pr[0], c: pr[1] } : undefined; }
       else if (bo.hasAttribute('data-bst')) { var sv = bo.getAttribute('data-bst'); A.edits.bstop = sv === 'dir' || sv === 'none' ? sv : undefined; }
+      else if (bo.hasAttribute('data-bopn')) A.edits.bop = bo.getAttribute('data-bopn') === '0' ? false : undefined;
+      else if (bo.hasAttribute('data-bend')) A.edits.bend = bo.getAttribute('data-bend') === '0' ? false : undefined;
+      else if (bo.hasAttribute('data-bx2')) A.edits.bx2 = bo.getAttribute('data-bx2') === '0' ? false : undefined;
+      else if (bo.hasAttribute('data-bltr')) A.edits.bltr = bo.getAttribute('data-bltr') === '1' || undefined;
       else A.edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }

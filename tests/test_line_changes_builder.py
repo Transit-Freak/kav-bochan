@@ -579,3 +579,26 @@ def test_tts_next_week_beyond_feed_is_null(tmp_path, monkeypatch):
     # השבוע שאחרי: ב׳ 30.11 עד ד׳ 2.12 — יש נתונים; ה׳ 3.12 (אין למחרת), שישי, שבת וראשון 6.12 — אין
     assert r['w1'][1:4] == r['w'][1:4]
     assert [r['w1'][i] for i in (0, 4, 5, 6)] == [None] * 4
+
+
+def test_tts_direction_line_names(tmp_path, monkeypatch):
+    """מק"ט אחד, ובכל כיוון מספר אחר (בצפת: 88001 — "1א" לכיוון 1 ו-"1" לכיוון 2) — l לכל כיוון; מספר אחד — בלי l"""
+    t0 = D(2026, 11, 23)
+    ds = wk_days(D(2026, 11, 22), D(2026, 12, 31))
+    f = TTFeed(t0, {'o': (ds, [420, 480])}, D(2026, 12, 31))
+    f.routes['r2'] = dict(f.routes['r1'], line='384א', rd='14384-2-#')
+    for tid in list(f.trips):
+        f.trips[tid + 'b'] = ('r2', 'o', 's')
+        f.trip_dep[tid + 'b'], f.trip_end[tid + 'b'], f.trip_pat[tid + 'b'] = f.trip_dep[tid], f.trip_end[tid], 1
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setenv('LH_SCHED', str(tmp_path / 'none'))
+    L.current_tts(f, t0)
+    e = json.load(open(tmp_path / 'data' / 'tt' / f'{L.tt_shard("14384")}.json', encoding='utf-8'))['lines']['14384']
+    assert e['l'] == '384'
+    assert (e['d']['1']['l'], e['d']['2']['l']) == ('384', '384א')
+    assert '_l' not in e['d']['1']
+
+
+def test_tts_no_line_name_when_same(tmp_path, monkeypatch):
+    sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
+    assert 'l' not in r and '_l' not in r

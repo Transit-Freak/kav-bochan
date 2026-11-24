@@ -610,7 +610,11 @@
           return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, cn: r.cn || null, sc: r.sc || null, vs: r.vs || null, vc: r.vc || null, du: r.du, days: W.map(function (i, w) { return at(r.L, w) || []; }), x: x,
             v: r.v || [], da: W.map(function (i, w) { return at(A, w) || 0; }), xa: xa,
             // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
-            dn: W.map(function (i, w) { return at(N, w) || 0; }), xn: xn };
+            dn: W.map(function (i, w) { return at(N, w) || 0; }), xn: xn,
+            // לבחירת תאריכים בלוח (deck-board.js — bdDatePage): הלו"ז של כל יום בשבוע מ-r.w (wd) ומהשבוע שאחריו (wd1 — null כשזהה),
+            // ו-l — מספר הקו בכיוון הזה, כשהוא שונה משאר הקו (1 / 1א באותו מק"ט)
+            wd: r.w.map(function (i) { return [r.L[i] || [], A[i] || 0, N[i] || 0]; }),
+            wd1: r.w1 ? r.w1.map(function (i) { return i == null ? null : [r.L[i] || [], A[i] || 0, N[i] || 0]; }) : null, l: r.l || '' };
         });
       };
       var all7 = function () { return true; };
@@ -628,7 +632,7 @@
       // מוצא ויעד: מהכיוונים בלו"ז (הנסיעות שמוצגות), לא מהשם של הקו ברשימה — שם שנלקח לפעמים מחלופה אחרת של הקו
       var dod = dirs.filter(function (d) { return d.od && d.od[0] && d.od[1] && d.days.some(function (x) { return x && x.length; }); }).map(function (d) { return d.od; })[0];
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: dod ? dod.slice() : l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
-        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, pre: pre, tot: { kind: 'current' } };
+        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, tv: sh.valid, tvh: sh.hol || [], until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, pre: pre, tot: { kind: 'current' } };
     });
   }
   $('results').addEventListener('click', function (ev) {
@@ -1098,6 +1102,7 @@
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
+      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays,
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }
