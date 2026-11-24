@@ -133,7 +133,7 @@ function loadFleet() {
       Object.assign(FLEET, { veh: ix.veh, vs: ix.vs || [''], ops: ix.ops || {}, nocov: new Set(ix.nocov || []), hasOfc: !!ix.ofc, updated: ix.fleet_updated, ready: true });
       return;
     }
-    const [f, o] = await Promise.all([getJSON('../fleet/data/fleet.json'), getJSON('../fleet/data/fleet-official.json')]);
+    const [f, o] = await Promise.all([getJSON('../../fleet/data/fleet.json'), getJSON('../../fleet/data/fleet-official.json')]);
     if (!f) { FLEET.failed = true; return; }
     const off = f.v === 2 ? 1 : 0, idx = {};
     FLEET.updated = f.updated;
@@ -158,7 +158,7 @@ function loadFleet() {
 }
 const SHARDS = {};
 function shard(d) {
-  if (!SHARDS[d]) SHARDS[d] = getJSON(`../fleet/data/gov-details-${d}.json`).then(j => j || {});
+  if (!SHARDS[d]) SHARDS[d] = getJSON(`../../fleet/data/gov-details-${d}.json`).then(j => j || {});
   return SHARDS[d];
 }
 // מושבים לרכבים שאינם במאגר הרשמי (בעיקר קבלן) — מהרישוי, בעצלתיים
@@ -315,7 +315,7 @@ function loadLH() {
       for (const [rd, dest, hs, hso] of ix.lines) addLH({ rd, dest, hs, hso, term: term[rd] });
       return;
     }
-    return getJSON('../line-history/data/lines.json').then(j => {
+    return getJSON('../../line-history/data/lines.json').then(j => {
       const L = (j && j.lines) || [];
       setKnownCities(L);
       for (const l of L) if (!(l.historicalOnly || l.observationOnly || l.lk === 'removed')) addLH(l);
@@ -331,7 +331,7 @@ let RIDE = null, rideP = null;
 function loadRide() {
   if (!rideP) rideP = loadIndex().then(async ix => {
     if (ix && ix.ride && ix.rq) { RIDE = { q: ix.rq, m: ix.ride }; return; }
-    const d = await getJSON('../kavpach-ridership.json');
+    const d = await getJSON('../../kavpach-ridership.json');
     if (!d || !d.m || !d.q) return;
     const m = {};
     for (const [mk, e] of Object.entries(d.m)) {
@@ -995,7 +995,7 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
 let STOPS = null, stopsP = null;
 let STOPSET = null; // התחנות שבמסלולי הקווים של החברות (מהאינדקס); בלעדיו — כל התחנות
 function loadStops() {
-  if (!stopsP) stopsP = Promise.all([getJSON('../fares/data/stops.json'), loadIndex()]).then(([j, ix]) => {
+  if (!stopsP) stopsP = Promise.all([getJSON('../../fares/data/stops.json'), loadIndex()]).then(([j, ix]) => {
     STOPS = (j && j.stops) || {};
     if (ix && ix.stops) STOPSET = new Set(ix.stops);
   });
