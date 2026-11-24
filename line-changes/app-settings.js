@@ -114,8 +114,7 @@
     // סדר השעות — בכל תצוגה עם רשימות שעות (לא בתקציר בלי "כל השעות")
     A.$('ttow').hidden = tv === 'sum' && A.edits.tall !== true;
     A.$('ttoseg').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === A.tordOf() ? 'true' : 'false'); });
-    // תקציר / טבלה לכל קו / טבלה משולבת באנגלית: השמות בלי תרגום — מהבנייה של השקפים (deck-en-c.js — c_miss)
-    if (!bd) enUi(A.blangOf() === 'en' && window.LCDeckEN ? { en: true, miss: Object.keys(LCDeckEN.c_miss || {}) } : null);
+    if (!bd) enM = null;
     if (bd) {
       var M = cu ? LCDeck.boardModel(pages, A.edOpts(formOf())) : LCDeck.chgBoardModel(pages, A.edOpts(formOf()));
       A.$('bdtitle').placeholder = M.dflt;
@@ -136,8 +135,7 @@
       [['bopseg', 'data-bopn', A.edits.bop === false ? '0' : '1'], ['bendseg', 'data-bend', A.edits.bend === false ? '0' : '1'], ['bx2seg', 'data-bx2', A.edits.bx2 === false ? '0' : '1'], ['bltrseg', 'data-bltr', A.edits.bltr ? '1' : '0']].forEach(function (x) {
         A.$(x[0]).querySelectorAll('[' + x[1] + ']').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute(x[1]) === x[2] ? 'true' : 'false'); });
       });
-      A.$('blangseg').querySelectorAll('[data-blang]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-blang') === (A.blangOf() === 'en' ? 'en' : 'he') ? 'true' : 'false'); });
-      enUi(M);
+      enM = M;
       A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
       daysUi(pages);
       var bst = A.edits.bstop === 'dir' || A.edits.bstop === 'none' ? A.edits.bstop : 'all';
@@ -212,7 +210,25 @@
   }
   /* לוח באנגלית: שמות שאין להם תרגום (M.miss) — מופיעים בעברית. רשימה מעל הלוח עם שדה לשם באנגלית (edits.ben),
      ולפני הורדה, הדפסה או אקסל — אזהרה שצריך לאשר (A.enGate) */
-  var enMiss = [], enAck = '', enPend = null;
+  var enMiss = [], enAck = '', enPend = null, enM = null;
+  /* כל השמות בלי תרגום במה שנבנה עכשיו: הלוח (M.miss), השקפים (deck-en-a/b/c) והתוויות במפות — בלי כפילויות */
+  function enAll() {
+    if (A.blangOf() !== 'en') return null;
+    var X = window.LCDeckEN || {}, all = {};
+    [].concat(enM && enM.miss || [], X.a_miss ? X.a_miss() : [], X.b_missing ? X.b_missing() : [], Object.keys(X.c_miss || {}))
+      .forEach(function (k) { if (k) all[k] = 1; });
+    return { en: true, miss: Object.keys(all) };
+  }
+  /* שפת המצגת — בכל התצוגות; והרשימה של השמות בלי תרגום (אחרי כל בנייה, ואחרי שמפה נבנתה) */
+  A.enRefresh = function () {
+    A.$('blangseg').querySelectorAll('[data-blang]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-blang') === (A.blangOf() === 'en' ? 'en' : 'he') ? 'true' : 'false'); });
+    enUi(enAll());
+  };
+  A.$('blangseg').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-blang]'); if (!b) return;
+    A.edits.blang = b.getAttribute('data-blang') === 'en' ? 'en' : 'he'; enAck = '';   // בחירה מפורשת — גם עברית (לא נדרסת בממשק באנגלית)
+    saveEdits(); A.keepScroll(function () { A.render(A.curPages); });
+  });
   function enUi(M) {
     var el = A.$('ennote'), on = !!(M && M.en);
     enMiss = on ? (M.miss || []).slice().sort() : [];
@@ -245,6 +261,7 @@
   });
   /* לפני הורדה / הדפסה / אקסל: בלוח באנגלית עם שמות בלי תרגום — קודם אזהרה, וההורדה רק אחרי "להמשיך" (פעם אחת לאותה רשימה) */
   A.enGate = function (fn) {
+    if (A.blangOf() === 'en') enUi(enAll());   // גם שמות מהמפות שנבנו בינתיים
     if (A.blangOf() !== 'en' || !enMiss.length || enAck === enMiss.join('|')) return true;
     enPend = fn; enUi({ en: true, miss: enMiss });
     A.$('ennote').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -326,7 +343,7 @@
       else { var g = bsug[+dd.getAttribute('data-bsg')]; if (!g) return; g.off.forEach(function (x) { setDay('off', x, true); setDay('sep', x, false); }); g.sep.forEach(function (x) { setDay('sep', x, true); setDay('off', x, false); }); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr],[data-blang]');
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -346,7 +363,6 @@
       else if (bo.hasAttribute('data-bend')) A.edits.bend = bo.getAttribute('data-bend') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bx2')) A.edits.bx2 = bo.getAttribute('data-bx2') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bltr')) A.edits.bltr = bo.getAttribute('data-bltr') === '1' || undefined;
-      else if (bo.hasAttribute('data-blang')) { A.edits.blang = bo.getAttribute('data-blang') === 'en' ? 'en' : 'he'; enAck = ''; }   // בחירה מפורשת — גם עברית (לא נדרסת בממשק באנגלית)
       else A.edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }

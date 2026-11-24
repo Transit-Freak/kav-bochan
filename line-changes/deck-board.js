@@ -715,7 +715,7 @@
     var rmLine = !inl && rms.length ? '<span class="bdrm">' + bdX('cancelled', 'בוטלו: ') + rms.map(function (e) { return '<span class="t num" dir="ltr">' + e.t + (e.part ? '<sup dir="rtl">' + E(e.part) + '</sup>' : '') + '</span>'; }).join(', ') + '</span>' : '';
     return '<td class="bt"><span' + bdK(x.key, 'tl') + '>' + toks.map(function (e) {
       // כל שעה עם ×N והסימן שלה — יחידה אחת מבודדת (dir=ltr), כדי שהסימן בעברית לא יהפוך את סדר השעות בתא
-      var k = e.rm ? ' rm' : e.k ? ' nw' : '', sr = e.rm ? 'בוטלה' : e.k === 'nw' ? 'חדשה' : '';
+      var k = e.rm ? ' rm' : e.k ? ' nw' : '', sr = e.rm ? bdX('srRm', 'בוטלה') : e.k === 'nw' ? bdX('srNew', 'חדשה') : '';
       var en = bdEn(), wd = en ? 'ltr' : 'rtl', ea = function () { return en ? (e.m < e.was ? bdX('earlier') : bdX('later')) + bdX('fromT') : (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-'; };
       var was = e.k === 'sh' ? '<small class="was" dir="' + wd + '">' + ea() + hm2(e.was) + '</small>' :
         e.nwp ? '<small class="was" dir="' + wd + '">' + (e.was != null ? e.nwp + ': ' + ea() + hm2(e.was) : bdX('newOn', 'חדש ב-') + e.nwp) + '</small>' : '';

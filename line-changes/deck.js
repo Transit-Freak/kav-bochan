@@ -264,7 +264,7 @@ var LCDeck = (function () {
         '</div>' +
         '<p class="intro" data-k="intro">' + E(intro) + '</p>' +
         (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? tx('whatNew', 'מה חשוב לדעת?') : tx('what', 'מה משתנה?')) + '<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
-          '<ul data-k="what">' + listHtml(D.ED.cover, coverItems(pages)) + '</ul></div>' : coverRows(pages)) +
+          '<ul data-k="what">' + listHtml(D.ED.blang === 'en' ? D.ED.coverEn : D.ED.cover, coverItems(pages)) + '</ul></div>' : coverRows(pages)) +
         '<div class="note">' + (en ? E(X.a_T.noteA) + (ops.length === 1 ? E(enOp(ops[0])) : X.a_T.noteOps) + E(X.a_T.noteB)
           : 'המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.') + '</div>' +
         (one ? '<p class="osrc">' + tx('src', 'לפי נתוני משרד התחבורה') + (one.feed ? tx('srcFrom', ' מ-') + E(LC.dmy(one.feed)) : '') + '</p>' + creditHtml() : '') +
@@ -508,7 +508,7 @@ var LCDeck = (function () {
     var segs = segments(d);
     var LT = ENb() ? ' dir="ltr"' : '';
     if (!segs.length) return '<p class="lead"' + LT + '>' + dirLead(d) + '</p>';
-    var ed = D.ED.seg && D.ED.seg[d._key];
+    var sg = D.ED.blang === 'en' ? D.ED.segEn : D.ED.seg, ed = sg && sg[d._key];   // עריכות לפי שפה — עברית לא נכנסת למצגת באנגלית ולהפך
     var html = '<ol class="segs"' + LT + '>' + segs.slice(0, D.SEG_MAX).map(function (g, i) {
       if (ar && ar.segs.indexOf(g) < 0) return '';   // מפה של אזור: רק ההסברים של האזור הזה (עם המספרים המקוריים)
       var t = ed && typeof ed[i] === 'string' ? E(ed[i]) : g.html;
@@ -1137,7 +1137,32 @@ var LCDeck = (function () {
         html: oneHtml(p, g.dirs, main, gi, groups.length, feed, others), map: { d: main, remS: allStops(g.dirs, '_rem'), addS: allStops(g.dirs, '_add'), show: null, one: true } };
     });
   }
+  /* מצגת באנגלית ב"עמוד אחד", בשלט ובסטטוס של שינוי מסלול (deck-en-d.js — LCDeckEN.d_*) */
+  function ENd() { return EN() && ENb() && window.LCDeckEN.d_T ? window.LCDeckEN : null; }
+  function oneHtmlEn(p, dirs, main, gi, ng, feed, others) {
+    var X = ENd(), T = X.d_T, s0 = start(p), all = [p].concat(others || []), ops = [];
+    all.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
+    var lines = all.map(function (x) { return x.line; }), multi = all.length > 1;
+    var firstTrip = p.formal && p.formal !== p.eff ? X.d_first(enWd(p.eff, true), LC.dm(p.eff)) : '';
+    var items = whatChanges(p, dirs).filter(Boolean);
+    if (multi) items = items.map(function (t) { return X.d_plu(t.replace(XB.b_dirRe, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    return '<div class="s-one en" dir="ltr" lang="en"><div class="smap"></div><div class="side">' +
+      (multi ? '<div class="ohead multi"><div class="badges">' + lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join('') + '</div>' +
+          '<div class="t"><h1 class="hd">' + E(X.d_same(lines.length)) + '</h1><p class="sub">' + E(ops.map(enOp).join(' · ')) + '</p></div></div>'
+        : '<div class="ohead"><span class="badge num">' + E(p.line) + '</span><div class="t"><h1 class="hd">' + T.chg + '</h1>' +
+        '<p class="sub">' + E(enOd(p.od) || enN((p.od || [])[0])) + ' · ' + E(enOp(p.op)) + '</p></div></div>') +
+      '<p class="owhen"><b>' + E(X.d_when(p.past, enWd(s0, true), LC.dmy(s0))) + '</b> · ' + E(X.a_heb(s0)) + E(firstTrip) + '</p>' +
+      (ng > 1 ? '<p class="part">' + E(X.d_part(gi + 1, ng)) + ' · ' + E(trip(main)) + '</p>' : '') +
+      '<div class="owhat"><h3 class="hd">' + T.what + '</h3><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
+      legendHtml(main) +
+      '<div class="ocontact">' + ops.filter(function (o) { return phoneOf(o); }).slice(0, 3).map(function (o) { return '<span>' + E(enOp(o)) + ' <b class="ltr">' + E(phoneOf(o)) + '</b></span>'; }).join('') +
+        '<span>' + T.mot + ' <b class="ltr">' + MOT + '</b></span></div>' +
+      '<div class="note">' + T.noteOne + '</div>' +
+      '<p class="osrc">' + E(X.d_src(feed ? LC.dmy(feed) : '')) + '</p>' + basisHtml(dirs) + creditHtml() +
+      '</div><span class="pg num" style="position:absolute;right:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>';
+  }
   function oneHtml(p, dirs, main, gi, ng, feed, others) {
+    if (ENd()) return oneHtmlEn(p, dirs, main, gi, ng, feed, others);
     var s0 = start(p), all = [p].concat(others || []), ops = [];
     all.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
     var lines = all.map(function (x) { return x.line; });
@@ -2580,7 +2605,7 @@ var LCDeck = (function () {
       D.dShort = dShort; D.linesTxt = linesTxt; D.cuDay = cuDay; D.cuMerge = cuMerge; D.ALT_LET = ALT_LET; D.altSym = altSym; D.cuTagCol = cuTagCol; D.ttCap = ttCap; D.curWk = curWk;
       D.mtDirs = mtDirs; D.lastStop = lastStop; D.mtFrom = mtFrom; D.mtGroups = mtGroups; D.mtDay = mtDay; D.mtWhen = mtWhen; D.mtSlides = mtSlides;
       D.sumLine = sumLine; D.FORMS = FORMS; D.isOne = isOne; D.COLORS = COLORS; D.PALETTE = PALETTE; D.contrast = contrast; D.shade = shade;
-      D.agOf = agOf; D.lookVars = lookVars; D.ENc = ENc; D.TX = TX; D.NM = NM; D.OPN = OPN; D.LDIR = LDIR; D.WDM = WDM;
+      D.agOf = agOf; D.lookVars = lookVars; D.ENd = ENd; D.ENb = ENb; D.sN = sN; D.Eb = Eb; D.enOp = enOp; D.enOd = enOd; D.enN = enN; D.enWd = enWd; D.ENc = ENc; D.TX = TX; D.NM = NM; D.OPN = OPN; D.LDIR = LDIR; D.WDM = WDM;
   // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
   var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols, altSym: altSym };
   return { curPre: curPre, combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };

@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-a.js', 'deck-en-b.js', 'deck-en-c.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-a.js', 'deck-en-b.js', 'deck-en-c.js', 'deck-en-d.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -675,4 +675,35 @@ test('לו"ז עדכני באנגלית (תקציר, טבלה לכל קו): הש
     const s = ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt, { form, tt: { v: 'det', f: 'table' }, blang: 'en', en })).map((x) => x.html).join('\n');
     assert.match(s, /Lod ↔ Bnei Brak/); assert.match(s, /Times are departures from the first stop/);
   }
+});
+
+// ---------- שינוי מסלול באנגלית: עמוד אחד, שלט, רשימת התחנות וסטטוס (deck-en-d.js); בלי blang — העברית כמו קודם ----------
+test('שינוי מסלול באנגלית — עמוד אחד, שלט וסטטוס: משמאל לימין, בלי עברית חוץ משמות בלי תרגום', () => {
+  const FIX = path.join(ROOT, '..', 'tests', 'fixtures', 'line-changes', 'data', 'l');
+  const load = (id) => {
+    const p = JSON.parse(fs.readFileSync(path.join(FIX, id + '.json'), 'utf8'));
+    p.dirs.forEach((d) => ['old', 'new'].forEach((k) => {
+      d[k].stops = d[k].stops.map((s) => ({ code: String(s[0]), name: s[1].replace(/''/g, '"'), ll: [s[2], s[3]], city: s[4] || '' }));
+      d[k].shape = ctx.LC.decodePoly(d[k].shp);
+    }));
+    return p;
+  };
+  const en = { 'אלעד': 'Elad', 'צפת': 'Safed', 'בית משפט השלום/החלוץ': 'Magistrates Court/HeHalutz', 'ת. מרכזית צפת/הורדה': 'Safed Central Station/Drop-off',
+    'הפלמ"ח': 'HaPalmach', 'הפלמ"ח/עלייה ב\'': 'HaPalmach/Aliya Bet' };
+  for (const form of ['deck', 'sign', 'status']) {
+    const he = ctx.LCDeck.build([load('10590-20261120')], '', { form, modes: {} }).map((x) => x.html).join('\n');
+    assert.match(he, /[א-ת]/);
+    const out = ctx.LCDeck.build([load('10590-20261120')], '', { form, modes: {}, blang: 'en', en });
+    const h = out.map((x) => x.html).join('\n');
+    assert.match(h, /dir="ltr"/, form);
+    const heb = ctx.LCDeck._in.plain(h).match(/[^\s]*[א-ת][^\s]*/g);
+    assert.equal(heb, null, form + ': עברית בשקף באנגלית: ' + heb);
+    if (form === 'status') assert.match(ctx.LCDeck._in.plain(h), /Route change from 20\.11/);
+    if (form === 'sign') assert.match(ctx.LCDeck._in.plain(h), /Check before you travel:/);
+  }
+  // שם בלי תרגום — נשאר בעברית ונרשם ברשימה לאזהרה
+  const h2 = ctx.LCDeck.build([load('10590-20261120')], '', { form: 'sign', modes: {}, blang: 'en', en: { 'אלעד': 'Elad' } }).map((x) => x.html).join('\n');
+  assert.match(h2, /בית משפט השלום/);
+  assert.ok(ctx.LCDeckEN.b_missing().includes('בית משפט השלום/החלוץ'));
+  ctx.LCDeck._in.ED = {};
 });

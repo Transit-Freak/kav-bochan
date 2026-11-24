@@ -11,6 +11,10 @@
       linesTxt = D.linesTxt, ttCap = D.ttCap, mtWhen = D.mtWhen, mtSlides = D.mtSlides, sumLine = D.sumLine;
   /* לוח באנגלית (ראו deck.js — ENc, deck-en-c.js) */
   var ENc = D.ENc, TX = D.TX, NM = D.NM, OPN = D.OPN, LDIR = D.LDIR, WDM = D.WDM;
+  /* שינוי מסלול באנגלית — שלט, רשימת התחנות וסטטוס (deck-en-d.js — LCDeckEN.d_*; השמות — sN / enOp / Eb מ-deck.js) */
+  var ENd = D.ENd, sN = D.sN, Eb = D.Eb, enOp = D.enOp, enWd = D.enWd;
+  function dT() { return window.LCDeckEN.d_T; }
+  function whenEn(p, iso) { return ENd().d_when(p.past, enWd(iso, true), LC.dmy(iso)); }
 
   /* ================= צורות נוספות: שלט להדפסה (A4 לאורך) ותמונה לסטטוס (9:16) =================
      אותו תוכן כמו במצגת (מה משתנה, מקרא, התחנה הקרובה, מפה) — בעימוד אחר.
@@ -31,8 +35,9 @@
     return groups;
   }
   function itemsOf(u, dirs) {
-    var items = whatChanges(u.p, dirs).filter(Boolean);
-    if (u.others.length) items = items.map(function (t) { return plu(t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    var items = whatChanges(u.p, dirs).filter(Boolean), X = ENd();
+    if (u.others.length && X) items = items.map(function (t) { return X.d_plu(t.replace(X.b_dirRe, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
+    else if (u.others.length) items = items.map(function (t) { return plu(t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
     return items;
   }
   function badgesHtml(lines) { return lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join(''); }
@@ -47,6 +52,7 @@
     dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
     rem = Object.keys(rs).length; add = Object.keys(as).length;
     var ve = dirs.every(function (d) { return d.var === 'end'; }), vn = dirs.every(function (d) { return d.var === 'new'; });
+    if (ENd()) return ENd().d_head(ve ? 'varEnd' : vn ? 'varNew' : ext ? 'ext' : rr ? 'route' : rem && !add ? 'rem' : add && !rem ? 'add' : rem === 1 && add === 1 ? 'move' : 'stops', rem || add);
     var v = ve ? (many ? 'מבטלים חלופה' : 'מבטל חלופה') : vn ? (many ? 'מוסיפים חלופה' : 'מוסיף חלופה')
       : ext ? (many ? 'מאריכים את המסלול' : 'מאריך את המסלול')
       : rr ? (many ? 'משנים מסלול' : 'משנה מסלול')
@@ -59,11 +65,12 @@
   }
   /* התחנה הקרובה לכל תחנה שמבוטלת — רק אם זה עוד לא כתוב ב"מה משתנה?" */
   function nearBox(remS, items) {
-    var txt = plain(items.join(' '));
-    var rows = remS.filter(function (s) { return s._near && !s._near.none && txt.indexOf(s._near.name) < 0; }).slice(0, 3).map(function (s) {
+    var txt = plain(items.join(' ')), X = ENd();
+    var rows = remS.filter(function (s) { return s._near && !s._near.none && txt.indexOf(X ? sN(s._near) || s._near.name : s._near.name) < 0; }).slice(0, 3).map(function (s) {
+      if (X) return '<li><i class="dot rem"></i><span>' + X.d_nearRow(Eb(sN(s)), Eb(sN(s._near)), s._near) + '</span></li>';
       return '<li><i class="dot rem"></i><span>במקום <b>' + E(s.name) + '</b>: <b>' + E(s._near.name) + '</b> · ' + E(walkTxt(s._near)) + '</span></li>';
     });
-    return rows.length ? '<div class="sg-near"><h3 class="hd">איפה לעלות במקום?</h3><ul>' + rows.join('') + '</ul></div>' : '';
+    return rows.length ? '<div class="sg-near"><h3 class="hd">' + (X ? dT().nearHead : 'איפה לעלות במקום?') + '</h3><ul>' + rows.join('') + '</ul></div>' : '';
   }
   function signPages(pages, feed) {
     var out = [];
@@ -84,7 +91,35 @@
     });
     return out;
   }
+  function signHtmlEn(u, g, gi, ng, feed, remS, many) {
+    var X = ENd(), T = X.d_T, p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
+    var items = itemsOf(u, g.dirs);
+    var more = whatChanges(p, g.dirs).length > items.length || many;
+    return '<div class="s-sign" dir="ltr" lang="en">' +
+      '<div class="sg-band"><div class="sg-row"><div class="badges' + (multi ? ' multi' : '') + '">' + badgesHtml(u.all.map(function (x) { return x.line; })) + '</div>' +
+        '<div class="t"><h1 class="hd">' + E(multi ? X.d_same(u.all.length) : T.chg) + '</h1>' +
+        '<p class="sub">' + E(multi ? ops.map(enOp).join(' · ') : [odTxtEn(p), enOp(p.op)].filter(Boolean).join(' · ')) + '</p></div></div>' +
+        '<div class="seam"><i></i></div></div>' +
+      '<div class="sg-when"><b>' + E(whenEn(p, s0)) + '</b><span>' + E(X.a_heb(s0)) + '</span></div>' +
+      (ng > 1 ? '<p class="sg-part">' + E(trip(g.main)) + ' (' + (gi + 1) + ' of ' + ng + ')</p>' : '') +
+      '<div class="sg-mapw"><div class="smap"></div><div class="inset"></div></div>' +
+      legendHtml(g.main) +
+      '<div class="sg-what"><h2 class="hd">' + T.what + '</h2><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') +
+        (more ? '<li class="more">' + (many ? T.moreNext : T.moreSmall) + '</li>' : '') + '</ul></div>' +
+      (many ? '' : nearBox(remS, items)) +
+      '<div class="sg-contact"><span class="l">' + T.check + '</span>' + contactEn(ops) + '</div>' +
+      '<div class="note">' + T.note + '</div>' +
+      '<div class="sg-foot"><span>' + E(X.d_src(feed ? LC.dmy(feed) : '')) +
+        (D.ED.credit === false ? '' : T.credit + '<b class="ltr">kavbochan.app</b>') + '</span><span class="pg num"></span></div>' +
+      '</div>';
+  }
+  function contactEn(ops) {
+    return ops.filter(function (o) { return phoneOf(o); }).slice(0, 3).map(function (o) { return '<span>' + E(enOp(o)) + ' <b class="ltr">' + E(phoneOf(o)) + '</b></span>'; }).join('') +
+      '<span>' + dT().mot + ' <b class="ltr">' + MOT + '</b></span>';
+  }
+  function odTxtEn(p) { var o = p.od || []; return o[0] && o[0] === o[1] ? D.enN(o[0]) : D.enOd(o); }
   function signHtml(u, g, gi, ng, feed, remS, many) {
+    if (ENd()) return signHtmlEn(u, g, gi, ng, feed, remS, many);
     var p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
     var items = itemsOf(u, g.dirs);
     var more = whatChanges(p, g.dirs).length > items.length || many;
@@ -113,15 +148,24 @@
     var mainCity = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || '';
     var ent = [];
     var lines = function (t, per) { return Math.max(1, Math.ceil(t.length / per)); };
-    var row = function (s, n) {
+    var X = ENd();
+    if (X) mainCity = D.enN(mainCity);
+    var row = X ? function (s, n) {
+      var nr = s._near, nm0 = sN(s), cty = s.city ? D.enN(s.city) : '';
+      var sub = s._k !== 'rem' ? '' : '<span class="nr">' + (!nr || nr.none ? noNear(g.main) : X.d_nr(Eb(sN(nr)), nr)) + '</span>';
+      var nm = nm0 + (cty && cty !== mainCity ? ' ' + cty : '');
+      return { h: lines(nm + ' Stop ' + s.code, 32) * 28 + (sub ? lines(plain(sub), 40) * 22 : 0) + 14,
+        html: '<li><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + Eb(nm0) + ' <span class="sc">' + dT().code + E(s.code) + '</span>' +
+          (cty && cty !== mainCity ? ' <span class="cd">' + Eb(cty) + '</span>' : '') + sub + '</span></li>' };
+    } : function (s, n) {
       var nr = s._near, sub = s._k !== 'rem' ? '' : '<span class="nr">' + (!nr || nr.none ? noNear(g.main) : 'במקום: ' + E(nr.name) + ' (' + walkTxt(nr) + ')') + '</span>';
       var nm = s.name + (s.city && s.city !== mainCity ? ' ' + s.city : '');
       return { h: lines(nm + ' מק״ט ' + s.code, 32) * 28 + (sub ? lines(plain(sub), 40) * 22 : 0) + 14,
         html: '<li><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + E(s.name) + ' <span class="sc">מק״ט ' + E(s.code) + '</span>' +
           (s.city && s.city !== mainCity ? ' <span class="cd">' + E(s.city) + '</span>' : '') + sub + '</span></li>' };
     };
-    if (remS.length) { ent.push({ h: 60, head: '<h3 class="hd rem">תחנות שמבוטלות (' + remS.length + ')</h3>' }); remS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
-    if (addS.length) { ent.push({ h: 60, head: '<h3 class="hd add">תחנות חדשות (' + addS.length + ')</h3>' }); addS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
+    if (remS.length) { ent.push({ h: 60, head: '<h3 class="hd rem">' + (X ? dT().rem : 'תחנות שמבוטלות') + ' (' + remS.length + ')</h3>' }); remS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
+    if (addS.length) { ent.push({ h: 60, head: '<h3 class="hd add">' + (X ? dT().add : 'תחנות חדשות') + ' (' + addS.length + ')</h3>' }); addS.forEach(function (s, i) { ent.push(row(s, i + 1)); }); }
     var H = 860, cols = [], col = null;
     var hOf = function (a) { return a.reduce(function (t, e) { return t + e.h; }, 0); };
     var cut = remS.length ? remS.length + 1 : 0;
@@ -143,6 +187,16 @@
     };
     var lines2 = u.all.map(function (x) { return x.line; }), out = [];
     for (var i = 0; i < cols.length; i += 2) {
+      if (X) {
+        var T = dT();
+        out.push('<div class="s-signstops" dir="ltr" lang="en"><div class="sg-shead"><div class="badges">' + badgesHtml(lines2).replace(/class="badge num"/g, 'class="badge sm num"') + '</div>' +
+          '<div class="t"><h2 class="hd">' + T.stopsHead + (i ? T.cont : '') + '</h2><p class="sub">' + E(trip(g.main)) + ' · ' + E(whenEn(u.p, start(u.p))) + '</p></div></div>' +
+          '<div class="seam"><i></i></div>' +
+          '<div class="sg-cols' + (cols.every(function (c) { return hOf(c.parts) < H * 0.72; }) ? ' roomy' : '') + '">' + colHtml(cols[i]) + (cols[i + 1] ? colHtml(cols[i + 1]) : '<div class="col"></div>') + '</div>' +
+          '<div class="sg-foot"><span>' + T.nums + ' · ' + (remS.some(function (x) { return x._near && x._near.path; }) ? T.walkPath : T.walkEst) +
+            ' · ' + T.privateShort + '</span><span class="pg num"></span></div></div>');
+        continue;
+      }
       out.push('<div class="s-signstops"><div class="sg-shead"><div class="badges">' + badgesHtml(lines2).replace(/class="badge num"/g, 'class="badge sm num"') + '</div>' +
         '<div class="t"><h2 class="hd">התחנות שמשתנות' + (i ? ' (המשך)' : '') + '</h2><p class="sub">' + E(trip(g.main)) + ' · ' + (u.p.past ? 'מ' : 'החל מ') + E(LC.wd(start(u.p)) + ' ' + LC.dmy(start(u.p))) + '</p></div></div>' +
         '<div class="seam"><i></i></div>' +
@@ -165,7 +219,27 @@
     });
     return out;
   }
+  function statusHtmlEn(u, g, gi, ng) {
+    var X = ENd(), T = X.d_T, p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
+    var items = itemsOf(u, g.dirs).slice(0, 2);
+    var rs = {}, as = {};
+    g.dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
+    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length });
+    if (tl && (Object.keys(rs).length + Object.keys(as).length > 2 || whatChanges(p, g.dirs).filter(Boolean).length > items.length)) items.push(T.total + E(tl) + '.');
+    var ph = ops.length === 1 && phoneOf(ops[0]);
+    return '<div class="s-status" dir="ltr" lang="en">' +
+      '<div class="st-top"><div class="badges' + (multi ? ' multi' : '') + '">' + badgesHtml(u.all.map(function (x) { return x.line; })) + '</div>' +
+        '<h1 class="hd">' + E(headline(u, g.dirs)) + ' <span class="nw">' + (p.past ? 'since ' : 'from ') + E(LC.dm(s0)) + '</span></h1>' +
+        '<p class="sub">' + E(enWd(s0, true) + ' ' + LC.dmy(s0)) + ' · ' + E(multi ? ops.map(enOp).join(' · ') : (ng > 1 ? trip(g.main) : [odTxtEn(p), enOp(p.op)].filter(Boolean).join(' · '))) + '</p>' +
+        '<div class="seam"><i></i></div></div>' +
+      '<div class="st-mapw"><div class="smap"></div></div>' +
+      '<div class="st-what"><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
+      '<div class="st-foot"><p class="st-check">' + T.check + ' ' + (ph ? E(enOp(ops[0])) + ' <b class="ltr">' + E(ph) + '</b> · ' : '') + T.mot + ' <b class="ltr">' + MOT + '</b></p>' +
+        '<p class="st-note">' + T.stNote + (D.ED.credit === false ? '' : ' · <b class="ltr">kavbochan.app</b>') + '</p></div>' +
+      '</div>';
+  }
   function statusHtml(u, g, gi, ng) {
+    if (ENd()) return statusHtmlEn(u, g, gi, ng);
     var p = u.p, s0 = start(p), ops = opsOf(u.all), multi = u.all.length > 1;
     var items = itemsOf(u, g.dirs).slice(0, 2);
     // משפט סיכום: כמה תחנות — רק כשיש יותר שינויים ממה שנכנס

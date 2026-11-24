@@ -631,3 +631,40 @@ def test_tts_english_names_and_headsign(tmp_path, monkeypatch):
     assert r['h'] == 'בני ברק_תחנה'
     assert sh['en']['בני ברק_תחנה'] == 'Bnei Brak, Station' and sh['en']['לוד'] == 'Lod' and sh['en']['בני ברק'] == 'Bnei Brak'
     assert 'en' not in sh['lines']
+
+
+# ---------------------------------------------------------------- שמות באנגלית בדף של שינוי (data/l/<id>.json — en)
+
+def test_add_en_names_of_change_record():
+    """add_en: לכל רישום — en עם השמות שיש להם תרגום (תחנות, ערים, מוצא ויעד, החלפת מק"ט, קווים באותן תחנות)"""
+    f = dict(od=['צפת', 'טבריה'], old=dict(stops=[['1', "בי''ס בר לב/בן יהודה", 32.9, 35.4, 'צפת']]),
+             new=dict(stops=[['2', 'נוף כנרת', 32.9, 35.4, 'צפת']]), swaps=[dict(old='1', new='3', name='תחנה מרכזית')],
+             alts=[dict(od=['צפת', 'טבריה'], s='תחנה מרכזית')], moved=[])
+    nofeed = type('F', (), {})()
+    new, old = type('F', (), {'en': {'צפת': 'Safed', 'טבריה': 'Tiberias', 'בי"ס בר לב/בן יהודה': 'Bar Lev School/Ben Yehuda'}})(), \
+        type('F', (), {'en': {'תחנה מרכזית': 'Central Station', 'צפת': 'Zefat'}})()
+    L.add_en([f], new, old, nofeed)
+    assert f['en'] == {'צפת': 'Safed', 'טבריה': 'Tiberias', "בי''ס בר לב/בן יהודה": 'Bar Lev School/Ben Yehuda', 'תחנה מרכזית': 'Central Station'}
+    g = dict(od=['ריק', 'ריק'], old=dict(stops=[]), new=dict(stops=[]), en={'x': 'y'})
+    L.add_en([g], nofeed)
+    assert 'en' not in g
+
+
+def test_page_file_has_en_once(tmp_path, monkeypatch):
+    """בקובץ הדף: en פעם אחת לכל הדף (רק שמות שבדף), ולא בתוך כל כיוון; ונשאר בריצה הבאה (שינוי שכבר התחיל)"""
+    fx = os.path.join(os.path.dirname(__file__), 'fixtures', 'line-changes', 'data', 'l', '10282-20261116.json')
+    dd = json.load(open(fx, encoding='utf-8'))
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setattr(L, 'TODAY', datetime.date(2026, 11, 19))
+    open(tmp_path / 'line-template.html', 'w', encoding='utf-8').write('<title>{{TITLE}}</title>{{DESC}}{{URL}}{{ID}}')
+    found = [dict(x) for x in dd['dirs']]
+    st = found[0]['new']['stops'][0]
+    for f in found:
+        f['en'] = {st[1]: 'Golda Terminal/Platforms', st[4]: 'Tel Aviv-Yafo', 'לא בדף': 'Not here'}
+    L.write_out(found, {}, {}, datetime.date(2026, 11, 19), datetime.date(2026, 11, 12), keep_all=True)
+    out = json.load(open(tmp_path / 'data' / 'l' / '10282-20261116.json', encoding='utf-8'))
+    assert out['en'] == {st[1]: 'Golda Terminal/Platforms', st[4]: 'Tel Aviv-Yafo'}
+    assert all('en' not in x for x in out['dirs'])
+    L.write_out([], {}, {}, datetime.date(2026, 11, 19), datetime.date(2026, 11, 12), keep_all=True)   # כמו "pages": מהקבצים הקיימים
+    out2 = json.load(open(tmp_path / 'data' / 'l' / '10282-20261116.json', encoding='utf-8'))
+    assert out2['en'] == out['en']

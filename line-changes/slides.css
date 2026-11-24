@@ -1129,3 +1129,8 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .deck[data-look="light"] .en .note{border-right:none;border-left:5px solid #e0a400}
 .lcen .leaflet-tile-pane{filter:grayscale(1) contrast(.85) brightness(1.08);opacity:.6}
 .lcen .leaflet-tooltip{direction:ltr}
+/* "עמוד אחד" באנגלית (deck-en-d.js): המפה מימין, הטקסט משמאל */
+.s-one.en .smap{left:auto;right:0}
+.s-one.en .side{right:auto;left:0;padding:30px 30px 34px 36px}
+.s-one.en .ohead{margin:-30px -30px 0 -36px;padding:24px 30px 20px 36px}
+.s-one.en .owhat ul{padding:0 0 0 20px}

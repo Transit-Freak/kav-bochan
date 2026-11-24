@@ -149,6 +149,34 @@ def en_of(en, s):
     return None
 
 
+def rec_names(f):
+    """כל השמות בעברית ברישום של כיוון (לתרגום לאנגלית): תחנות ישנות וחדשות, ערים, מוצא ויעד, תחנה שזזה, החלפת מק"ט"""
+    out = set(x for x in (f.get('od') or []) if x) | set(x for x in (f.get('cities') or []) if x)
+    for side in ('old', 'new'):
+        for st in (f.get(side) or {}).get('stops', []):
+            out.update(x for x in (st[1], st[4] if len(st) > 4 else '') if x)
+    out.update(m.get('name') for m in f.get('moved') or [] if m.get('name'))
+    out.update(m.get('city') for m in f.get('moved') or [] if m.get('city'))
+    out.update(w.get('name') for w in f.get('swaps') or [] if w.get('name'))
+    for a in f.get('alts') or []:   # קו מבוטל: קווים אחרים באותן תחנות — המוצא והיעד שלהם והתחנה
+        out.update(x for x in list(a.get('od') or []) + [a.get('s')] if x)
+    return out
+
+
+def add_en(found, *feeds):
+    """לכל רישום — en: {שם בעברית: באנגלית} מ-translations.txt (כמו en בלו"ז העדכני), למצגת באנגלית בדף. בלי תרגום — בלי"""
+    en = {}
+    for fd in reversed([x for x in feeds if x is not None]):
+        en.update(getattr(fd, 'en', None) or {})
+    for f in found:
+        tr = {n: t for n in sorted(rec_names(f)) for t in [en_of(en, n)] if t}
+        if tr:
+            f['en'] = tr
+        else:
+            f.pop('en', None)
+    return found
+
+
 def norm_name(s):
     return re.sub(r'[\s"\'״׳`.\-/]', '', s or '')
 
@@ -1507,6 +1535,7 @@ def run():
     stats['timetable'] = tt_n
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
     current_tts(new, t0)
+    add_en(found, new, old)   # השמות באנגלית לכל דף (data/l/<id>.json — en)
     ended_lines = {k: old_v[k] for mk, (ks, L, s) in ended_mks.items() for k in ks}
     return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v, (old, ended_lines))
 
@@ -2296,6 +2325,9 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if fn.endswith('.json'):
             try:
                 dd = json.load(open(os.path.join(data, 'l', fn), encoding='utf-8'))
+                for x in dd.get('dirs', []) + dd.get('split', []):
+                    if dd.get('en') and 'en' not in x:
+                        x['en'] = dd['en']   # השמות באנגלית של הדף — נשארים גם לשינוי שנשמר מריצה קודמת
                 prev += dd.get('dirs', []) + dd.get('split', [])
                 prev_pages[fn[:-5]] = dict(eff=dd.get('eff', ''), rds=[x['rd'] for x in dd.get('dirs', [])])
             except Exception:  # noqa: BLE001
@@ -2393,7 +2425,14 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         index.append(rec)
         rds = {f['rd'] for f in dirs if f.get('was')}
         sp = [x for x in splits if x['split_of'] in rds]
-        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs, **({'split': sp} if sp else {})),
+        # en — השמות באנגלית בדף (רק מה שמופיע בו), במקום אחד לכל הכיוונים
+        p_en, p_nm = {}, set(cities) | set(f0['od'] or [])
+        for f in dirs + sp:
+            p_en.update(f.get('en') or {})
+            p_nm |= rec_names(f)
+        p_en = {k: p_en[k] for k in sorted(p_nm) if k in p_en}
+        nen = lambda a: [{k: v for k, v in f.items() if k != 'en'} for f in a]   # noqa: E731
+        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=nen(dirs), **({'split': nen(sp)} if sp else {}), **({'en': p_en} if p_en else {})),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]

@@ -15,7 +15,7 @@
     legendMot: 'Based on Ministry of Transport data', legendNew: 'green — new trip or new time', legendRm: 'struck out in red — cancelled trip',
     legendNoOff: 'Not an official publication', priv: 'Prepared by a private individual · Not an official publication · Check with the operator before travelling',
     credit: 'Made with the “Line change slides” tool of HaKav HaBochen · kavbochan.app', cancelled: 'Cancelled: ', earlier: 'earlier', later: 'later',
-    fromT: ' from ', newOn: 'new on ', except: 'except ', noChange: ' — no change', keyNew: 'New or changed', keyRm: 'Cancelled',
+    fromT: ' from ', newOn: 'new on ', except: 'except ', noChange: ' — no change', keyNew: 'New or changed', keyRm: 'Cancelled', srRm: 'cancelled', srNew: 'new',
     oldUntil: 'Timetable until ', theChange: 'the change', newTimetable: 'New timetable', prevTt: 'Previous timetable — before the change',
     oldNote: 'Red — trip cancelled or moved', newNote: 'Green — new trip or new time',
     // אקסל
