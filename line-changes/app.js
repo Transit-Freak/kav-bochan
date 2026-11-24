@@ -1106,13 +1106,19 @@
       });
   }
   /* באנגלית (מצגת באנגלית): "will no longer stop" → "no longer stops" (LCDeckEN.b_past), "What changes?" → "What changed?",
-     "Starting Tue 17.11" → "Since Tue 17.11" (רק תאריך שכבר עבר), "Until now" → "Before the change" */
+     "Effective Tuesday, 17 November 2026" → "Since …" (רק תאריך שכבר עבר), "Until now" → "Before the change" */
   function pastTextEn(t) {
     t = window.LCDeckEN && LCDeckEN.b_past ? LCDeckEN.b_past(t) : t;
     return t.replace(/\bWhat changes\b/g, 'What changed').replace(/\b(lines|stops) that change\b/g, '$1 that changed').replace(/\bUntil now\b/g, 'Before the change').replace(/\bFrom now on\b/g, 'After the change')
       .replace(/\b(?:Starting|Starting from) ((?:[A-Z][a-z]+,? )?)(\d{1,2})\.(\d{1,2})(\.\d{4})?/g, function (m, w, d, mo, y) {
         var iso = (y ? y.slice(1) : idx.gen.slice(0, 4)) + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2);
         return iso <= idx.gen ? 'Since ' + w + d + '.' + mo + (y || '') : m;
+      })
+      // "Effective Monday, 16 November 2026" → "Since Monday, 16 November 2026" (רק תאריך שכבר עבר)
+      .replace(/\bEffective ((?:[A-Z][a-z]+, )?)(\d{1,2}) ([A-Z][a-z]+) (\d{4})/g, function (m, w, d, mon, y) {
+        var mi = (window.LCDeckEN && LCDeckEN.a_MON || []).indexOf(mon); if (mi < 0) return m;
+        var iso = y + '-' + ('0' + (mi + 1)).slice(-2) + '-' + ('0' + d).slice(-2);
+        return iso <= idx.gen ? 'Since ' + w + d + ' ' + mon + ' ' + y : m;
       });
   }
   /* רק הטקסט שבין התגיות */

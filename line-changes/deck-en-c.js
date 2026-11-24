@@ -156,7 +156,7 @@
   function linesTxt(l) { return l.length === 1 ? 'Line ' + l[0] : 'Lines ' + and(l, 8); }
   function od(o) { return o && o[0] && o[1] ? N(o[0]) + ' ↔ ' + N(o[1]) : ''; }
   /* קו חדש / מבוטל: "מה משתנה?" */
-  function dWhen(iso) { return wd(iso) + ' ' + g.LC.dmy(iso); }
+  function dWhen(iso) { return X.a_dl ? X.a_dl(iso) : wd(iso) + ' ' + g.LC.dmy(iso); }   // "Monday, 16 November 2026"
   function kNew(started, iso) { return (started ? 'The line started running on ' : 'The line will start running on ') + D().E(dWhen(iso)) + '.'; }
   function kRuns(a, b, back, n) { return 'The line runs from <b>' + D().E(N(a)) + '</b> to <b>' + D().E(N(b)) + '</b>' + (back ? ' and back' : '') + ', stopping at ' + n + ' stops.'; }
   function kEnded(last, started, from) { return 'Last trip of the line: ' + D().E(dWhen(last)) + '. ' + (started ? 'The line has not run since.' : 'From ' + D().E(dWhen(from)) + ' the line will no longer run.'); }

@@ -14,7 +14,7 @@
   /* שינוי מסלול באנגלית — שלט, רשימת התחנות וסטטוס (deck-en-d.js — LCDeckEN.d_*; השמות — sN / enOp / Eb מ-deck.js) */
   var ENd = D.ENd, sN = D.sN, Eb = D.Eb, enOp = D.enOp, enWd = D.enWd;
   function dT() { return window.LCDeckEN.d_T; }
-  function whenEn(p, iso) { return ENd().d_when(p.past, enWd(iso, true), LC.dmy(iso)); }
+  function whenEn(p, iso) { return ENd().d_when(p.past, iso); }
 
   /* ================= צורות נוספות: שלט להדפסה (A4 לאורך) ותמונה לסטטוס (9:16) =================
      אותו תוכן כמו במצגת (מה משתנה, מקרא, התחנה הקרובה, מפה) — בעימוד אחר.
@@ -224,13 +224,13 @@
     var items = itemsOf(u, g.dirs).slice(0, 2);
     var rs = {}, as = {};
     g.dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
-    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length });
+    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length }, g.dirs);
     if (tl && (Object.keys(rs).length + Object.keys(as).length > 2 || whatChanges(p, g.dirs).filter(Boolean).length > items.length)) items.push(T.total + E(tl) + '.');
     var ph = ops.length === 1 && phoneOf(ops[0]);
     return '<div class="s-status" dir="ltr" lang="en">' +
       '<div class="st-top"><div class="badges' + (multi ? ' multi' : '') + '">' + badgesHtml(u.all.map(function (x) { return x.line; })) + '</div>' +
         '<h1 class="hd">' + E(headline(u, g.dirs)) + ' <span class="nw">' + (p.past ? 'since ' : 'from ') + E(LC.dm(s0)) + '</span></h1>' +
-        '<p class="sub">' + E(enWd(s0, true) + ' ' + LC.dmy(s0)) + ' · ' + E(multi ? ops.map(enOp).join(' · ') : (ng > 1 ? trip(g.main) : [odTxtEn(p), enOp(p.op)].filter(Boolean).join(' · '))) + '</p>' +
+        '<p class="sub">' + E(X.a_dl(s0)) + ' · ' + E(multi ? ops.map(enOp).join(' · ') : (ng > 1 ? trip(g.main) : [odTxtEn(p), enOp(p.op)].filter(Boolean).join(' · '))) + '</p>' +
         '<div class="seam"><i></i></div></div>' +
       '<div class="st-mapw"><div class="smap"></div></div>' +
       '<div class="st-what"><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
@@ -245,7 +245,7 @@
     // משפט סיכום: כמה תחנות — רק כשיש יותר שינויים ממה שנכנס
     var rs = {}, as = {};
     g.dirs.forEach(function (d) { d.removed.forEach(function (c) { rs[c] = 1; }); d.added.forEach(function (c) { as[c] = 1; }); });
-    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length });
+    var tl = totLine({ rem: Object.keys(rs).length, add: Object.keys(as).length }, g.dirs);
     if (tl && (rs && Object.keys(rs).length + Object.keys(as).length > 2 || whatChanges(p, g.dirs).filter(Boolean).length > items.length)) items.push('בסך הכול: ' + E(tl) + '.');
     var ph = ops.length === 1 && phoneOf(ops[0]);
     return '<div class="s-status">' +
@@ -263,7 +263,7 @@
   /* ================= קו חדש · קו מבוטל · שינוי בלוח הזמנים — שלט וסטטוס ================= */
   /* ---- שלט להדפסה ---- */
   function kindWhen(p) {
-    if (ENc()) return p.kind === 'ended' ? '<b>Last trip: ' + E(WDM(lastOf(p))) + '</b>' : '<b>From ' + E(WDM(start(p))) + '</b>';
+    if (ENc()) return p.kind === 'ended' ? '<b>Last trip: ' + E(WDM(lastOf(p))) + '</b>' : '<b>Effective ' + E(WDM(start(p))) + '</b>';
     return p.kind === 'ended' ? '<b>הנסיעה האחרונה: ' + E(LC.wd(lastOf(p)) + ' ' + LC.dmy(lastOf(p))) + '</b><span>' + E(hebDate(lastOf(p))) + '</span>'
       : '<b>החל מ' + E(LC.wd(start(p)) + ' ' + LC.dmy(start(p))) + '</b><span>' + E(hebDate(start(p))) + '</span>';
   }
@@ -303,7 +303,7 @@
     if (ttOne(p)) {   // שינוי קטן מאוד בלו"ז: שלט אחד — מה השתנה, בשעות, במילים
       out.push({ id: 'sg-' + p.id + '-tt0', label: pre + 'שלט · לוח הזמנים',
         html: '<div class="s-sign s-signtt"' + LDIR() + '>' + signBand(p) + '<div class="sg-when">' + kindWhen(p) + '</div>' +
-          '<div class="sg-what"><h2 class="hd">' + TX('מה משתנה?') + '</h2><p style="font-size:22px;margin:0 0 10px;color:var(--s-sub)">' + (en ? 'The route and stops stay the same — only the times of ' + (ttCount(p) === 1 ? 'one trip' : ttCount(p) + ' trips') + ' change'
+          '<div class="sg-what"><h2 class="hd">' + TX('מה משתנה?') + '</h2><p style="font-size:22px;margin:0 0 10px;color:var(--s-sub)">' + (en ? 'The route and stops remain unchanged — only the times of ' + (ttCount(p) === 1 ? 'one trip' : ttCount(p) + ' trips') + ' change'
           : 'המסלול והתחנות לא משתנים — רק השעות של ' + (ttCount(p) === 1 ? 'נסיעה אחת' : ttCount(p) + ' נסיעות')) + '.</p><ul>' + kindItems(p).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
           contact + signFoot(feed, false) + '</div>' });
       return out;
@@ -315,7 +315,7 @@
         out.push({ id: 'sg-' + p.id + '-tt' + i, label: pre + (p.kind === 'new' ? 'מתי הקו נוסע' : 'שלט · לוח הזמנים') + (pages.length > 1 ? ' (' + (i + 1) + '/' + pages.length + ')' : ''),
           html: '<div class="s-sign s-signtt"' + LDIR() + '>' + (i === 0 && first ? signBand(p) + '<div class="sg-when">' + kindWhen(p) + '</div>'
               : '<div class="sg-shead"><div class="badges">' + badgesHtml([p.line]).replace(/class="badge num"/g, 'class="badge sm num"') + '</div><div class="t"><h2 class="hd">' +
-                TX(p.kind === 'new' ? 'מתי הקו נוסע' : 'לוח הזמנים החדש') + (i ? TX(' (המשך)') : '') + '</h2><p class="sub">' + E(odTxt(p) + (en ? ' · From ' : ' · החל מ-') + LC.dmy(start(p))) + '</p></div></div><div class="seam"><i></i></div>') +
+                TX(p.kind === 'new' ? 'מתי הקו נוסע' : 'לוח הזמנים החדש') + (i ? TX(' (המשך)') : '') + '</h2><p class="sub">' + E(odTxt(p) + (en ? ' · Effective ' + window.LCDeckEN.a_dy(start(p)) : ' · החל מ-' + LC.dmy(start(p)))) + '</p></div></div><div class="seam"><i></i></div>') +
             ttKey(p).replace('tt-key', 'tt-key sg') +
             '<div class="tt-body f-' + o.f + ' v-' + o.v + '">' + h + '</div>' + (i === 0 && first ? contact : '') + signFoot(feed, false) + '</div>' });
       });

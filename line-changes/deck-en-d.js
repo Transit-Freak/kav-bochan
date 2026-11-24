@@ -21,7 +21,7 @@
     stNote: 'Not an official publication · Prepared by a private individual', total: 'In total: '
   };
   /* "Starting Tuesday 24.11.2026" · שינוי שכבר התחיל — "From ..." */
-  function when(past, wd, dmy) { return (past ? 'From ' : 'Starting ') + wd + ' ' + dmy; }
+  function when(past, iso) { return (past ? 'Since ' : 'Effective ') + X.a_dl(iso); }
   /* כותרת התמונה לסטטוס (המספרים בתגיות שמעל): "Route change" / "Stops cancelled" */
   function head(k, n) {
     return { varEnd: 'Route variant cancelled', varNew: 'New route variant', ext: 'Route extended', route: 'Route change',
@@ -38,7 +38,7 @@
     d_head: head,
     d_plu: plu,
     d_same: function (n) { return 'The same change on ' + n + ' lines'; },
-    d_first: function (wd, dm) { return ' · First trip ' + wd + ' ' + dm; },
+    d_first: function (iso) { return ' · First trip on the new route: ' + X.a_dl(iso); },
     d_part: function (i, n) { return 'Page ' + i + ' of ' + n; },
     d_nearRow: function (name, near, nr) { return T.instead + '<b>' + name + '</b>: <b>' + near + '</b> · ' + walk(nr); },
     d_nr: function (near, nr) { return T.insteadNr + near + ' (' + walk(nr) + ')'; },

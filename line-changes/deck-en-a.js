@@ -4,10 +4,10 @@
 (function (g) {
   var T = {
     // שער
-    lines: 'Lines', line: 'Line', and: ' and ', starting: 'Starting ', from: 'From ', lastTrip: 'Last trip', lastTripS: 'Last trip ',
+    lines: 'Lines', line: 'Line', and: ' and ', starting: 'Effective ', from: 'From ', lastTrip: 'Last trip', lastTripS: 'Last trip ',
     firstTrip: 'First trip on the new route: ', factFrom: 'Effective', factFromMulti: 'Starting from', company: 'Bus company', companies: 'Bus companies',
     infoLine: 'Info line: ', mot: 'Ministry of Transport', motX: 'Information line', whatNew: 'What you need to know', what: 'What changes?',
-    oneTrip: 'one trip', trips: ' trips', onlyTimes: 'The route and stops stay the same — only the times of ',
+    oneTrip: 'one trip', trips: ' trips', onlyTimes: 'The route and stops remain unchanged — only the times of ',
     noteA: 'Prepared by a private individual. This is not an official publication of the Ministry of Transport or of ',
     noteOps: 'the bus companies', noteB: '. Details may still change. Check with the info line or the app before you travel.',
     src: 'Based on Ministry of Transport data', srcFrom: ' from ', archive: ' and the HaKav HaBochen archive', osmMaps: ' · Maps: © OpenStreetMap contributors',
@@ -36,8 +36,8 @@
     // מבוא בשער
     inNew: 'On the next pages: a map of the route, all the stops, and when the line runs.',
     inEnded: 'On the next pages: a map of the route, and which other lines stop at the same stops.',
-    inTt: 'The route and stops stay the same — only the times change. On the next pages: the old and the new timetable.',
-    inTtAll: 'The routes stay the same — only the times change. On the next pages: the timetable of each line.',
+    inTt: 'The route and stops remain unchanged — only the times change. On the next pages: the old and the new timetable.',
+    inTtAll: 'The routes remain unchanged — only the times change. On the next pages: the timetable of each line.',
     inSmall: 'On the next pages: a close-up map of where the stop changes.',
     inExt: 'On the next pages: a map of the new section of the route.',
     inAdd1: 'On the next pages: a map with the new stop.', inAddN: 'On the next pages: a map with the new stops.',
@@ -57,6 +57,10 @@
   function pd(iso) { var p = String(iso).split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12); }
   /* יום בשבוע: "Tue" (short) / "Tuesday" */
   function wd(iso, long) { var w = pd(iso).getDay(); return long ? WD[w] : WD[w].slice(0, 3); }
+  /* תאריך מלא במשפט: "Monday, 16 November 2026" (dl) · בלי יום: "16 November 2026" (dy). בטבלאות ובתאים קטנים — במספרים (16.11) */
+  var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function dy(iso) { var d = pd(iso); return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }
+  function dl(iso) { return WD[pd(iso).getDay()] + ', ' + dy(iso); }
   /* תאריך עברי באנגלית: "7 Kislev 5787" */
   function heb(iso) {
     try {
@@ -99,5 +103,5 @@
     return h;
   }
   g.LCDeckEN = g.LCDeckEN || {};
-  Object.assign(g.LCDeckEN, { a_T: T, a_wd: wd, a_heb: heb, a_pl: pl, a_ln: ln, a_list: list, a_nm: nm, a_op: op, a_od: od, a_miss: miss, a_chips: chips });
+  Object.assign(g.LCDeckEN, { a_T: T, a_wd: wd, a_dl: dl, a_dy: dy, a_MON: MON, a_heb: heb, a_pl: pl, a_ln: ln, a_list: list, a_nm: nm, a_op: op, a_od: od, a_miss: miss, a_chips: chips });
 })(typeof window !== 'undefined' ? window : this);

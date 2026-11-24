@@ -614,7 +614,7 @@ test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סי�
     const d = mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true });
     d.new.shape = straight(80).map((p, i) => (i > 22 && i < 55 ? [p[0], LON0 + E] : p));
     const g = en(() => DD.segments(d));
-    assert.equal(txt(g[0].html), 'After Herzl/Weizmann, the line will no longer go via Sokolov and HaGefen. Instead it will go via Jabotinsky and Rothschild, and return to its usual route at Ahad HaAm/Bialik.');
+    assert.equal(txt(g[0].html), 'After Herzl/Weizmann, the line will no longer go via Sokolov and HaGefen. Instead it will go via Jabotinsky and Rothschild, and rejoin its usual route at Ahad HaAm/Bialik.');
     // בלי אנגלית — העברית לא משתנה
     assert.match(txt(DD.segments(mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true, new: d.new }))[0].html), /^אחרי הרצל\/ויצמן הקו כבר לא ייסע דרך סוקולוב והגפן/);
   });
@@ -628,7 +628,7 @@ test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סי�
     assert.equal(XB.b_freq('נסיעה אחת ביום, שישי'), 'One trip a day, Fri');
     assert.equal(XB.b_basis('חלופה ⁦10970-1-#⁩ מופיעה לראשונה ב-12.11.2026.'), 'Variant ⁦10970-1-#⁩ first appears on 12.11.2026.');
     assert.equal(XB.b_andList(['A', 'B', 'C', 'D']), 'A, B, C and more');
-    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'No nearby alternative stop for lines 5, 7 on the new route');
+    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'There is no nearby alternative stop served by lines 5, 7 on the new route');
     // שינוי שכבר התחיל — בהווה
     assert.equal(XB.b_past('After A, buses will no longer go via B, and will not stop at the stop C.'), 'After A, buses no longer go via B, and do not stop at the stop C.');
     assert.equal(XB.b_past('After A, the line will no longer go via S. Instead it will go via T, and return to its usual route at B.'),

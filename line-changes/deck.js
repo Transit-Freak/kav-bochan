@@ -234,13 +234,13 @@ var LCDeck = (function () {
     var single = pages.length === 1, p = pages[0], en = EN(), X = window.LCDeckEN;
     var ops = []; pages.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
     var dmy = LC.dmy, dm = LC.dm;
-    var firstTrip = single && p.formal && p.formal !== p.eff ? tx('firstTrip', 'נסיעה ראשונה במסלול החדש: ') + enWd(p.eff, en) + ' ' + dm(p.eff) : '';
+    var firstTrip = single && p.formal && p.formal !== p.eff ? tx('firstTrip', 'נסיעה ראשונה במסלול החדש: ') + (en ? X.a_dl(p.eff) : enWd(p.eff, en) + ' ' + dm(p.eff)) : '';
     var dates = {}; pages.forEach(function (x) { dates[start(x)] = 1; });
     var multiDate = Object.keys(dates).length > 1;
     var endK = single && p.kind === 'ended';
     var odS = function () { var o = p.od || []; return enOd(o) || enN(o[0]); };
-    var sub = en ? (endK ? odS() + ' · ' + X.a_T.lastTripS + dmy(lastOf(p)) : single ? odS() + ' · ' + X.a_T.starting + dmy(s0)
-      : (pages.length > 5 ? X.a_T.lines + ' ' + pages.map(function (x) { return X.a_ln(x.line); }).join(', ') + ' · ' : '') + (multiDate ? X.a_T.from : X.a_T.starting) + dmy(s0))
+    var sub = en ? (endK ? odS() + ' · ' + X.a_T.lastTripS + X.a_dy(lastOf(p)) : single ? odS() + ' · ' + X.a_T.starting + X.a_dy(s0)
+      : (pages.length > 5 ? X.a_T.lines + ' ' + pages.map(function (x) { return X.a_ln(x.line); }).join(', ') + ' · ' : '') + (multiDate ? X.a_T.from : X.a_T.starting) + X.a_dy(s0))
       : endK ? (LC.od(p.od) || p.od[0]) + ' · הנסיעה האחרונה ' + LC.dmy(lastOf(p)) : single ? (LC.od(p.od) || p.od[0]) + ' · החל מ-' + LC.dmy(s0)
       : (pages.length > 5 ? 'קווים ' + pages.map(function (x) { return x.line; }).join(', ') + ' · ' : '') + (multiDate ? 'מ-' + LC.dmy(s0) : 'החל מ-' + LC.dmy(s0));
     var opPhone = ops.length === 1 && phoneOf(ops[0]);
@@ -254,16 +254,16 @@ var LCDeck = (function () {
         '<div class="seam"><i></i></div></div>' +
       '<div class="body">' +
         '<div class="facts">' +
-          (endK ? '<div class="fact"><span class="l">' + tx('lastTrip', 'הנסיעה האחרונה') + '</span><span class="v">' + E(enWd(lastOf(p), en) + ' ' + LC.dmy(lastOf(p))) + '</span>' +
+          (endK ? '<div class="fact"><span class="l">' + tx('lastTrip', 'הנסיעה האחרונה') + '</span><span class="v">' + E(en ? X.a_dl(lastOf(p)) : enWd(lastOf(p), en) + ' ' + LC.dmy(lastOf(p))) + '</span>' +
             '<span class="x">' + E(hd(lastOf(p))) + '</span>'
-          : '<div class="fact"><span class="l">' + (multiDate ? tx('factFromMulti', 'החל מ') : tx('factFrom', 'ממתי')) + '</span><span class="v">' + E(enWd(s0, en) + ' ' + LC.dmy(s0)) + '</span>' +
+          : '<div class="fact"><span class="l">' + (multiDate ? tx('factFromMulti', 'החל מ') : tx('factFrom', 'ממתי')) + '</span><span class="v">' + E(en ? X.a_dl(s0) : enWd(s0, en) + ' ' + LC.dmy(s0)) + '</span>' +
             '<span class="x">' + E(hd(s0)) + '</span>') + (firstTrip ? '<span class="x">' + E(firstTrip) + '</span>' : '') + '</div>' +
           '<div class="fact"><span class="l">' + (ops.length > 1 ? tx('companies', 'חברות') : tx('company', 'חברת האוטובוסים')) + '</span><span class="v">' + E(ops.map(enOp).join(' · ')) + '</span>' +
             '<span class="x num">' + (opPhone ? tx('infoLine', 'מוקד: ') + '<span class="ltr">' + E(opPhone) + '</span>' : '') + '</span></div>' +
           '<div class="fact"><span class="l">' + tx('mot', 'משרד התחבורה') + '</span><span class="v num"><span class="ltr">' + MOT + '</span></span><span class="x">' + tx('motX', 'מוקד המידע') + '</span></div>' +
         '</div>' +
         '<p class="intro" data-k="intro">' + E(intro) + '</p>' +
-        (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? tx('whatNew', 'מה חשוב לדעת?') : tx('what', 'מה משתנה?')) + '<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
+        (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? tx('whatNew', 'מה חשוב לדעת?') : tx('what', 'מה משתנה?')) + (en ? ' ' : '') + '<span class="counts">' + (single ? E(totLine(p.tot || {}, p.dirs)) : '') + '</span></h3>' +
           '<ul data-k="what">' + listHtml(D.ED.blang === 'en' ? D.ED.coverEn : D.ED.cover, coverItems(pages)) + '</ul></div>' : coverRows(pages)) +
         '<div class="note">' + (en ? E(X.a_T.noteA) + (ops.length === 1 ? E(enOp(ops[0])) : X.a_T.noteOps) + E(X.a_T.noteB)
           : 'המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.') + '</div>' +
@@ -316,7 +316,7 @@ var LCDeck = (function () {
     var r = d.removed.length, a = d.added.length, ar = areaOf(d, part, nparts);
     var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
     var en = EN();
-    var when = start(d) !== start(p) ? '<p class="lead">' + tx('starting', 'החל מ') + E(enWd(start(d), en) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
+    var when = start(d) !== start(p) ? '<p class="lead">' + tx('starting', 'החל מ') + E(en ? window.LCDeckEN.a_dl(start(d)) : enWd(start(d), en) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
     var where = en ? enToward(d) : toward(d).replace(/^בנסיעה ל/, 'לכיוון ');
     return '<div class="' + enRoot('s-map') + '"><div class="smap"></div><div class="inset"></div><div class="side">' +
       '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(enOp(p.op)) + '</span></div>' +
@@ -527,12 +527,16 @@ var LCDeck = (function () {
     segments(d).slice(0, D.SEG_MAX).forEach(function (x) { if (routeSeg(x)) { n++; if (x === g) out = n; } });
     return out;
   }
-  function totLine(t) {
-    var s = [];
-    if (ENb()) { if (t.rem) s.push(XB.b_cnt.rem(t.rem)); if (t.add) s.push(XB.b_cnt.add(t.add)); return s.join(' · '); }
+  /* "27 תחנות מבוטלות · 20 תחנות חדשות" — ובשינוי בכמה כיוונים (dirs) גם ", בשני הכיוונים": המספרים הם של כל הכיוונים יחד
+     (כל כיוון עם התחנות שלו בצד שלו של הכביש), כדי שלא יתבלבלו עם המספרים במפה של כיוון אחד */
+  function totLine(t, dirs) {
+    var s = [], dk = {};
+    (dirs || []).forEach(function (d) { if ((d.added || []).length + (d.removed || []).length) dk[d.dir] = 1; });
+    var both = Object.keys(dk).length > 1 && (t.rem || t.add);
+    if (ENb()) { if (t.rem) s.push(XB.b_cnt.rem(t.rem)); if (t.add) s.push(XB.b_cnt.add(t.add)); return s.join(' · ') + (both ? ', in both directions' : ''); }
     if (t.rem) s.push(plural(t.rem, 'תחנה אחת מבוטלת', 'תחנות מבוטלות'));
     if (t.add) s.push(plural(t.add, 'תחנה חדשה אחת', 'תחנות חדשות'));
-    return s.join(' · ');
+    return s.join(' · ') + (both ? ', בשני הכיוונים' : '');
   }
   function countsLine(d) {
     var r = d.removed.length, a = d.added.length, s = [];
@@ -1147,7 +1151,7 @@ var LCDeck = (function () {
     var X = ENd(), T = X.d_T, s0 = start(p), all = [p].concat(others || []), ops = [];
     all.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
     var lines = all.map(function (x) { return x.line; }), multi = all.length > 1;
-    var firstTrip = p.formal && p.formal !== p.eff ? X.d_first(enWd(p.eff, true), LC.dm(p.eff)) : '';
+    var firstTrip = p.formal && p.formal !== p.eff ? X.d_first(p.eff) : '';
     var items = whatChanges(p, dirs).filter(Boolean);
     if (multi) items = items.map(function (t) { return X.d_plu(t.replace(XB.b_dirRe, '')); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
     return '<div class="s-one en" dir="ltr" lang="en"><div class="smap"></div><div class="side">' +
@@ -1155,7 +1159,7 @@ var LCDeck = (function () {
           '<div class="t"><h1 class="hd">' + E(X.d_same(lines.length)) + '</h1><p class="sub">' + E(ops.map(enOp).join(' · ')) + '</p></div></div>'
         : '<div class="ohead"><span class="badge num">' + E(p.line) + '</span><div class="t"><h1 class="hd">' + T.chg + '</h1>' +
         '<p class="sub">' + E(enOd(p.od) || enN((p.od || [])[0])) + ' · ' + E(enOp(p.op)) + '</p></div></div>') +
-      '<p class="owhen"><b>' + E(X.d_when(p.past, enWd(s0, true), LC.dmy(s0))) + '</b> · ' + E(X.a_heb(s0)) + E(firstTrip) + '</p>' +
+      '<p class="owhen"><b>' + E(X.d_when(p.past, s0)) + '</b> · ' + E(X.a_heb(s0)) + E(firstTrip) + '</p>' +
       (ng > 1 ? '<p class="part">' + E(X.d_part(gi + 1, ng)) + ' · ' + E(trip(main)) + '</p>' : '') +
       '<div class="owhat"><h3 class="hd">' + T.what + '</h3><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
       legendHtml(main) +
@@ -1247,7 +1251,7 @@ var LCDeck = (function () {
   function NM(s) { var X = ENc(); return X ? X.c_N(s) : s; }
   function OPN(o) { var X = ENc(); return X ? X.c_op(o) : o; }
   function LDIR() { return ENc() ? ' dir="ltr" lang="en"' : ''; }
-  function WDM(iso) { var X = ENc(); return X ? X.c_wd(iso) + ' ' + LC.dmy(iso) : LC.wd(iso) + ' ' + LC.dmy(iso); }
+  function WDM(iso) { var X = ENc(); return X ? (X.a_dl ? X.a_dl(iso) : X.c_wd(iso) + ' ' + LC.dmy(iso)) : LC.wd(iso) + ' ' + LC.dmy(iso); }   // באנגלית: "Monday, 16 November 2026"
   var DOWS = ['d0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'];
   var DOW_LET = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'], DOW_FULL = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
   function dix(ts) { return ts.map(function (t) { return DOWS.indexOf(t); }).filter(function (i) { return i >= 0; }).sort(); }
@@ -1697,7 +1701,7 @@ var LCDeck = (function () {
     return pages.map(function (h, i) {
       return { id: p.id + '-tt' + i, label: pre + ttl + (pages.length > 1 ? ' (' + (i + 1) + '/' + pages.length + ')' : ''),
         html: '<div class="s-tt"' + LDIR() + '><div class="head"><span class="badge sm num">' + E(p.line) + '</span><div class="t"><h2 class="hd">' + E(TX(ttl)) + (i ? TX(' (המשך)') : '') + '</h2>' +
-          '<p class="sub">' + E((p.kind === 'timetable' ? (ttDirs(p).length === 1 ? trip(ttDirs(p)[0]) + ' · ' : '') : '') + (en ? 'From ' : p.kind === 'new' ? 'החל מ-' : 'החל מ') + (p.kind === 'new' ? LC.dmy(start(p)) : WDM(start(p)))) + '</p></div>' + ttKey(p) + '</div>' +
+          '<p class="sub">' + E((p.kind === 'timetable' ? (ttDirs(p).length === 1 ? trip(ttDirs(p)[0]) + ' · ' : '') : '') + (en ? 'Effective ' + WDM(start(p)) : (p.kind === 'new' ? 'החל מ-' : 'החל מ') + (p.kind === 'new' ? LC.dmy(start(p)) : WDM(start(p))))) + '</p></div>' + ttKey(p) + '</div>' +
           '<div class="tt-body f-' + o.f + ' v-' + o.v + '">' + h + '</div>' +
           '<div class="sfoot"><span>' + TX('שעת היציאה מהתחנה הראשונה · שעות השיא: 7:00–9:00 ו-16:00–19:00 · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי') + '</span><span class="pg num"></span></div></div>' };
     });
@@ -2435,7 +2439,7 @@ var LCDeck = (function () {
     var it = isKind(p) ? kindItems(p) : whatChanges(p);
     if (p.kind === 'new') return [it[0], it[2]].filter(Boolean).join(' ');
     if (p.kind === 'ended') return it[0] || '';
-    return (it[0] || totLine(p.tot || {})) + '';
+    return (it[0] || totLine(p.tot || {}, p.dirs)) + '';
   }
   function sumSlides(pages, form) {
     var per = form === 'status' ? 7 : 5, out = [], n = Math.ceil(pages.length / per), X = ENc();
@@ -2463,7 +2467,17 @@ var LCDeck = (function () {
 
   D.ED = {};   // אפשרויות: {look, modes: {pageId: 'one'|'full'}, form: 'deck'|'sign'|'status', credit}
   function isOne(p) { if (isKind(p)) return false; var m = D.ED.modes && D.ED.modes[p.id]; return m ? m === 'one' : smallInfo(p).small; }
+  /* מצגת באנגלית: רווח אמיתי בין תווית לערך שעומדים זה ליד זה (בשער, בסיום, בשלט, בעמוד אחד ובסטטוס — כולם בתוך flex,
+     כך שהרווח לא נראה), כדי שהעתקה וקורא מסך לא יחברו מילים ("Effective Monday", "Bus company Egged") */
+  var EN_SP = /^<div class="(s-cover|s-close|s-one|s-sign|s-status)[ "]/;
   function build(pages, city, edits) {
+    var out = build0(pages, city, edits);
+    if (D.ED.blang === 'en' && out && out.forEach) out.forEach(function (x) {
+      if (x && x.html && EN_SP.test(x.html) && !/s-signtt|s-sttt/.test(x.html.slice(0, 60))) x.html = x.html.replace(/<\/span><span( class="(l|v|x)[" ])?/g, function (m) { return '</span> ' + m.slice(7); }).replace(/<\/b><span>/g, '</b> <span>');
+    });
+    return out;
+  }
+  function build0(pages, city, edits) {
     D.ED = edits || {}; D.SIGN_INFO = null;
     if (ENc()) ENc().c_reset(D.ED);
     var big = D.ED.look === 'large';
