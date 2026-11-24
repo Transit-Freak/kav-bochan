@@ -67,15 +67,49 @@ var LCDeck = (function () {
   }
   function start(c) { return c.formal || c.eff; }
   // וריאנט חלופי של קו = רק חלק מהנסיעות. לנוסעים: "בחלק מהנסיעות", בלי המונח "חלופה"
-  function altTxt(d) { return (d.alt && d.alt !== '#' && d.alt !== '0') ? ' (בחלק מהנסיעות)' : ''; }
+  function altTxt(d) { return (d.alt && d.alt !== '#' && d.alt !== '0') ? (ENb() ? XB.b_alt : ' (בחלק מהנסיעות)') : ''; }
+  /* שקפים באנגלית (לוח באנגלית — ED.blang, שלמה 24.11): המשפטים על המסלול והתחנות — deck-en-b.js (LCDeckEN.b_*).
+     השמות — מתרגומי משרד התחבורה (LCBoardEN.name); שם בלי תרגום נשאר בעברית ונרשם ב-LCDeckEN.b_miss */
+  var XB = null, EN_ED = null, EN_IX = null, EN_ST = {};
+  function ENb() { return D.ED.blang === 'en' && !!window.LCBoardEN && !!window.LCDeckEN && !!window.LCDeckEN.b_ok && !!(XB = window.LCDeckEN); }
+  function enIx() { if (EN_ED !== D.ED) { EN_ED = D.ED; EN_IX = window.LCBoardEN.index(D.ED.en); EN_ST = {}; XB.b_miss = {}; } return EN_IX; }
+  function enT(s, miss) { return window.LCBoardEN.name(s, enIx(), D.ED.ben, miss === false ? null : XB.b_miss); }
+  function Eb(s) { var h = E(s); return ENb() && /[א-ת]/.test(s) ? '<bdi>' + h + '</bdi>' : h; }   // שם בלי תרגום (עברית) בתוך משפט באנגלית — מבודד
+  function nE(s) { return ENb() && s ? enT(s) : s; }   // שם של תחנה, עיר או יעד
+  function sN(st) { return st && ENb() ? (st.en || enT(st.name)) : st && st.name; }   // שם של תחנה (אובייקט)
+  /* רחוב מתוך שם תחנה, באנגלית: מתרגמים את כל שם התחנה ולוקחים את אותו חלק ("Herzl/Weizmann" → Herzl). בלי תרגום — עברית, ונרשם */
+  function stPick(name) {
+    var parts = String(name || '').split('/').map(function (x) { return x.trim(); });
+    return parts[1] && PLACE.test(parts[0]) && !PLACE.test(parts[1]) && !/^(רציפים|רציף|הורדה|איסוף|יציאה|כניסה)/.test(parts[1]) ? 1 : 0;
+  }
+  function stEnOf(st) {
+    var full = st.en || enT(st.name, false), he = streetOf(st.name);
+    if (full && full !== st.name) {
+      var ep = String(full).split('/').map(function (x) { return x.trim(); }), t = ep[stPick(st.name)] || ep[0];
+      t = t.replace(/^(Derech|Rehov|Rechov|Rehob)\s+/i, '').replace(/\s+\d+[a-z]?$/i, '').trim();
+      if (t) return t;
+    }
+    var t2 = enT(he, false);
+    return t2 !== he ? t2 : null;
+  }
+  function noteSt(t, s) { enIx(); var k = skey(t); if (!EN_ST[k]) EN_ST[k] = { s: s }; }
+  function stE(t) {   // רחוב (כמו ש-streets() מחזיר) → אנגלית
+    enIx();
+    var r = EN_ST[skey(t)];
+    if (r && !('en' in r)) r.en = stEnOf(r.s);
+    if (r && r.en) return r.en;
+    if (r) XB.b_miss[r.s.name] = 1; else return enT(t);
+    return t;
+  }
   function plural(n, one, many) { return n === 1 ? one : n + ' ' + many; }
   function dist(a, b) { var cl = Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); return Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * cl); }
 
   /* שם לנסיעה בשפה של נוסעים: "מקרית גת לחצור הגלילית"; קו מעגלי — "הקו" */
   // "ת. מרכזית אשדוד" → "התחנה המרכזית אשדוד", כדי שייקרא "מהתחנה המרכזית" ולא "מת. מרכזית"
-  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); return st ? streetOf(st.name).replace(/^ת\.\s*מרכזית/, 'התחנה המרכזית').replace(/^תחנה מרכזית/, 'התחנה המרכזית') : ''; }
+  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); if (st && ENb()) { noteSt(streetOf(st.name), st); return stE(streetOf(st.name)); } return st ? streetOf(st.name).replace(/^ת\.\s*מרכזית/, 'התחנה המרכזית').replace(/^תחנה מרכזית/, 'התחנה המרכזית') : ''; }
   function trip(d) {
     var o = d.od || [], A = endName(d, 0), B = endName(d, 1);
+    if (ENb()) return XB.b_trip(nE(o[0]), nE(o[1]), A, B, !!(A && B && skey(endName(d, 0, true)) === skey(endName(d, 1, true))));
     if (!o[0] || !o[1] || o[0] === o[1]) {
       // קו בתוך העיר: מאיפה לאן (התחנה הראשונה והאחרונה); קו מעגלי — רק מאיפה
       if (A && B && skey(A) !== skey(B)) return 'הקו ב' + o[0] + ', מ' + A + ' ל' + B;
@@ -85,14 +119,19 @@ var LCDeck = (function () {
   }
   function toward(d) {
     var o = d.od || [], B = endName(d, 1);
+    if (ENb()) return !o[0] || !o[1] || o[0] === o[1] ? XB.b_toward(B && skey(endName(d, 1, true)) !== skey(endName(d, 0, true)) ? B : '', firstStreet(d)) : XB.b_toward(nE(o[1]));
     if (!o[0] || !o[1] || o[0] === o[1]) return B && skey(B) !== skey(endName(d, 0)) ? 'בנסיעה ל' + B : (firstStreet(d) ? 'בנסיעה מ' + firstStreet(d) : 'בקו');
     return 'בנסיעה ל' + o[1];
   }
   /* שם קצר לתחנה הראשונה (0) או האחרונה (1) במסלול החדש: "ת. מרכזית אשדוד/רציפים" → "התחנה המרכזית אשדוד", "רכבת/מסוף" → "הרכבת" */
-  function endName(d, last) {
+  function endName(d, last, he) {
     var S = d.new.stops.length ? d.new.stops : d.old.stops, st = last ? S[S.length - 1] : S[0];
     if (!st) return '';
     var t = String(st.name).split('/')[0].trim();
+    if (!he && ENb()) {   // באנגלית: החלק הראשון של השם המתורגם ("Ashdod Central Station/Platforms" → "Ashdod Central Station")
+      if (/^(ת\.\s*מרכזית|תחנה מרכזית|רכבת|ת\. רכבת|תחנת רכבת)/.test(t)) { var f = st.en || enT(st.name, false); if (f && f !== st.name) return String(f).split('/')[0].trim(); return enT(st.name); }
+      noteSt(streetOf(st.name), st); return stE(streetOf(st.name));
+    }
     if (/^(ת\.\s*מרכזית|תחנה מרכזית)/.test(t)) return t.replace(/^(ת\.\s*מרכזית|תחנה מרכזית)/, 'התחנה המרכזית');
     if (/^(רכבת|ת\. רכבת|תחנת רכבת)$/.test(t)) return 'תחנת הרכבת';
     if (/^רכבת\s/.test(t)) return t.replace(/^רכבת\s/, 'תחנת הרכבת ');
@@ -100,6 +139,7 @@ var LCDeck = (function () {
   }
   /* "הקו כבר לא יעצור ב-16 תחנות, ויעצור ב-5 תחנות חדשות" */
   function stopsSentence(r, a, geo) {
+    if (ENb()) return XB.b_stops(r, a, geo);
     var s = [];
     if (r) s.push(r === 1 ? 'הקו כבר לא יעצור בתחנה אחת' : 'הקו כבר לא יעצור ב-' + r + ' תחנות');
     if (a) s.push((r ? 'ויעצור ב-' : 'הקו יעצור ב-') + (a === 1 ? 'תחנה חדשה אחת' : a + ' תחנות חדשות'));
@@ -128,18 +168,19 @@ var LCDeck = (function () {
   /* "כ-5 דק׳ הליכה (400 מ׳)" כשיש מסלול הליכה אמיתי, אחרת "כ-400 מ׳ הליכה" */
   /* אין תחנה קרובה במקום תחנה שמבוטלת: "של קו N" — כדי שלא ייקרא כאילו אין שום תחנה בסביבה (d._nn — ב-build) */
   var NN_CUR = '';
-  function noNear(d) { return 'לא נמצאה תחנה חלופית קרובה ' + ((d && d._nn) || NN_CUR || 'של הקו') + ' במסלול החדש'; }
-  function walkTxt(nr) { return nr.min ? 'כ-' + nr.min + ' דק׳ הליכה, ' + nr.m + ' מ׳' : 'כ-' + nr.m + ' מ׳ הליכה'; }
+  function noNear(d) { if (ENb()) return XB.b_noNear((d && d._nn) || NN_CUR); return 'לא נמצאה תחנה חלופית קרובה ' + ((d && d._nn) || NN_CUR || 'של הקו') + ' במסלול החדש'; }
+  function walkTxt(nr) { if (ENb()) return XB.b_walk(nr); return nr.min ? 'כ-' + nr.min + ' דק׳ הליכה, ' + nr.m + ' מ׳' : 'כ-' + nr.m + ' מ׳ הליכה'; }
 
   function dirLead(d) {
     var s = '<b>' + E(stopsSentence(d.removed.length, d.added.length, d.geo)) + '.</b>';
-    if (d.moved.length) s += ' ' + plural(d.moved.length, 'תחנה אחת עוברת', 'תחנות עוברות') + ' למקום קרוב.';
+    if (d.moved.length) s += ' ' + (ENb() ? XB.b_moved(d.moved.length) : plural(d.moved.length, 'תחנה אחת עוברת', 'תחנות עוברות') + ' למקום קרוב.');
     var ch = {};
     d.added.concat(d.removed).forEach(function (c) { ch[c] = 1; });
     var cities = {};
     d.old.stops.concat(d.new.stops).forEach(function (st) { if (ch[st.code] && st.city) cities[st.city] = 1; });
     var cl = Object.keys(cities);
-    if (cl.length) s += ' השינויים ב' + (cl.length > 3 ? cl.slice(0, 3).join(', ') + ' ועוד' : cl.join(', ')) + '.';
+    if (cl.length && ENb()) s += E(XB.b_cities(cl.map(nE)));
+    else if (cl.length) s += ' השינויים ב' + (cl.length > 3 ? cl.slice(0, 3).join(', ') + ' ועוד' : cl.join(', ')) + '.';
     return s;
   }
 
@@ -415,13 +456,16 @@ var LCDeck = (function () {
     var rows = [];
     (d._rem || []).forEach(function (s, i) {
       var nr = s._near;
+      if (ENb()) { rows.push('<li><i class="dot rem">' + (i + 1) + '</i><span>' + Eb(sN(s)) + XB.b_small.rem +
+        '<span class="nr">' + E(nr && !nr.none ? XB.b_instead(nE(nr.name), nr) : noNear(d)) + '</span></span></li>'); return; }
       rows.push('<li><i class="dot rem">' + (i + 1) + '</i><span>' + E(s.name) + ' — מבוטלת' +
         (nr && !nr.none ? '<span class="nr">במקום: ' + E(nr.name) + ' (' + walkTxt(nr) + ')</span>' : '<span class="nr">' + noNear(d) + '</span>') + '</span></li>');
     });
     d.new.stops.filter(function (s) { return d.added.indexOf(s.code) >= 0; }).forEach(function (s, i) {
-      rows.push('<li><i class="dot add">' + (i + 1) + '</i><span>' + E(s.name) + ' — חדשה <span class="sc">מק״ט ' + E(s.code) + '</span></span></li>');
+      rows.push(ENb() ? '<li><i class="dot add">' + (i + 1) + '</i><span>' + Eb(sN(s)) + XB.b_small.add + ' <span class="sc">' + XB.b_code + E(s.code) + '</span></span></li>' :
+        '<li><i class="dot add">' + (i + 1) + '</i><span>' + E(s.name) + ' — חדשה <span class="sc">מק״ט ' + E(s.code) + '</span></span></li>');
     });
-    return rows.length ? '<ul class="small">' + rows.join('') + '</ul>' : '';
+    return rows.length ? '<ul class="small"' + (ENb() ? ' dir="ltr"' : '') + '>' + rows.join('') + '</ul>' : '';
   }
   function allGreen(d) { return D.ED.rc === 'all' && rerouted(d) && !extOf(d); }
   function legendHtml(d, ar) {
@@ -462,16 +506,18 @@ var LCDeck = (function () {
   }
   function segList(d, ar) {
     var segs = segments(d);
-    if (!segs.length) return '<p class="lead">' + dirLead(d) + '</p>';
+    var LT = ENb() ? ' dir="ltr"' : '';
+    if (!segs.length) return '<p class="lead"' + LT + '>' + dirLead(d) + '</p>';
     var ed = D.ED.seg && D.ED.seg[d._key];
-    var html = '<ol class="segs">' + segs.slice(0, D.SEG_MAX).map(function (g, i) {
+    var html = '<ol class="segs"' + LT + '>' + segs.slice(0, D.SEG_MAX).map(function (g, i) {
       if (ar && ar.segs.indexOf(g) < 0) return '';   // מפה של אזור: רק ההסברים של האזור הזה (עם המספרים המקוריים)
       var t = ed && typeof ed[i] === 'string' ? E(ed[i]) : g.html;
       // מספר רק לשינוי בדרך עצמה (יש לו סמן על המפה); שינוי של תחנה — נקודה, הסמן הממוספר של התחנה הוא ההפניה
       var num = segNum(d, g);
       return '<li>' + (num ? '<i class="segn">' + num + '</i>' : '<i class="segb"></i>') + '<span data-seg="' + E(d._key) + '" data-i="' + i + '">' + t + '</span></li>';
     }).join('') + '</ol>';
-    if (segs.length > D.SEG_MAX && !ar) html += '<p class="counts">ועוד ' + (segs.length - D.SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - D.SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
+    if (segs.length > D.SEG_MAX && !ar && ENb()) html += '<p class="counts" dir="ltr">' + XB.b_moreSegs(segs.length - D.SEG_MAX) + '</p>';
+    else if (segs.length > D.SEG_MAX && !ar) html += '<p class="counts">ועוד ' + (segs.length - D.SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - D.SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
     return html;
   }
   function routeSeg(g) { return !g.kind; }
@@ -483,24 +529,26 @@ var LCDeck = (function () {
   }
   function totLine(t) {
     var s = [];
+    if (ENb()) { if (t.rem) s.push(XB.b_cnt.rem(t.rem)); if (t.add) s.push(XB.b_cnt.add(t.add)); return s.join(' · '); }
     if (t.rem) s.push(plural(t.rem, 'תחנה אחת מבוטלת', 'תחנות מבוטלות'));
     if (t.add) s.push(plural(t.add, 'תחנה חדשה אחת', 'תחנות חדשות'));
     return s.join(' · ');
   }
   function countsLine(d) {
     var r = d.removed.length, a = d.added.length, s = [];
+    if (ENb()) { if (r) s.push(XB.b_cnt.rem(r)); if (a) s.push(XB.b_cnt.add(a)); return s.join(' · ') + (s.length ? XB.b_cnt.map : ''); }
     if (r) s.push(plural(r, 'תחנה אחת מבוטלת', 'תחנות מבוטלות'));
     if (a) s.push(plural(a, 'תחנה חדשה אחת', 'תחנות חדשות'));
     return s.join(' · ') + (s.length ? ' · המספרים במפה כמו ברשימה בעמוד הבא' : '');
   }
 
   /* רשימת תחנות: עמודות של rows שורות; בתחנה שמבוטלת — שורה שנייה: התחנה הקרובה במקומה */
-  function nrTxt(s) { var nr = s._near; return !nr || nr.none ? noNear() : 'במקום: ' + nr.name + ' (' + walkTxt(nr) + ')'; }
+  function nrTxt(s) { var nr = s._near; if (ENb()) return !nr || nr.none ? noNear() : XB.b_instead(nE(nr.name), nr); return !nr || nr.none ? noNear() : 'במקום: ' + nr.name + ' (' + walkTxt(nr) + ')'; }
   /* תחנות שמבוטלות: עמודות לפי הגובה המשוער (שורה שנייה ארוכה — עוד שורה), כדי שהרשימה לא תגלוש לתחתית השקף */
   function remCols(arr) {
     var big = D.ED.look === 'large', nrCap = big ? 36 : 46, nmCap = big ? 28 : 36, cap = RR + 1.5, cols = [], cur = [], used = 0;
     arr.forEach(function (s) {
-      var w = 1 + (nrTxt(s).length > nrCap ? 0.27 : 0) + ((s.name + ' מק״ט ' + s.code).length > nmCap ? 0.27 : 0);
+      var w = 1 + (nrTxt(s).length > nrCap ? 0.27 : 0) + (((ENb() ? sN(s) : s.name) + ' מק״ט ' + s.code).length > nmCap ? 0.27 : 0);
       if (cur.length && used + w > cap) { cols.push(cur); cur = []; used = 0; }
       cur.push(s); used += w;
     });
@@ -513,9 +561,10 @@ var LCDeck = (function () {
       var b0 = base; base += col.length;
       return '<ol>' + col.map(function (s, j) {
         var n = off + b0 + j + 1, nr = s._near;
-        var sub = s._k !== 'rem' ? '' : '<span class="nr">' + E(nrTxt(s)) + '</span>';
-        return '<li' + (sub ? ' class="two-l"' : '') + '><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + E(s.name) + ' <span class="sc">מק״ט ' + E(s.code) + '</span>' +
-          (s.city && s.city !== mainCity ? ' <span class="cd">' + E(s.city) + '</span>' : '') + sub + '</span></li>';
+        var en = ENb(), nr2 = en && s._near && !s._near.none ? XB.b_instead(Eb(nE(s._near.name)), s._near) : null;
+        var sub = s._k !== 'rem' ? '' : '<span class="nr">' + (nr2 || E(nrTxt(s))) + '</span>';
+        return '<li' + (sub ? ' class="two-l"' : '') + '><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + (en ? Eb(sN(s)) : E(s.name)) + ' <span class="sc">' + (en ? XB.b_code : 'מק״ט ') + E(s.code) + '</span>' +
+          (s.city && s.city !== mainCity ? ' <span class="cd">' + (en ? Eb(nE(s.city)) : E(s.city)) + '</span>' : '') + sub + '</span></li>';
       }).join('') + '</ol>';
     }).join('') + '</div>';
   }
@@ -530,6 +579,7 @@ var LCDeck = (function () {
     remS.concat(addS).forEach(function (s) { if (s.city) cnt[s.city] = (cnt[s.city] || 0) + 1; });
     var mainCity = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || '';
     var out = [];
+    if (ENb()) return stopsSlidesEn(p, d, remS, addS, rc, rOff, n, mainCity);
     for (var i = 0; i < n; i++) {
       var rcs = rc.slice(i * 2, i * 2 + 2), r = [].concat.apply([], rcs), a = addS.slice(i * RA * 2, (i + 1) * RA * 2);
       var extra = '';
@@ -549,6 +599,32 @@ var LCDeck = (function () {
               (a.length ? stopList(a, i * RA * 2, RA, mainCity) : '<p class="empty">' + (i ? '' : 'אין תחנות חדשות בנסיעה הזו') + '</p>') + '</div>' +
           '</div>' + extra +
           '<div class="sfoot"><span>המספרים כמו במפה · ' + ((d._rem || []).some(function (x) { return x._near && x._near.path; }) ? 'זמן ההליכה לפי מפת הרחובות, בקצב רגיל' : 'המרחק לתחנה הקרובה הוא הערכה') + ' · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>'
+      });
+    }
+    return out;
+  }
+
+  /* שקף התחנות באנגלית — אותו מבנה, משמאל לימין */
+  function stopsSlidesEn(p, d, remS, addS, rc, rOff, n, mainCity) {
+    var X = XB.b_sl, out = [];
+    for (var i = 0; i < n; i++) {
+      var rcs = rc.slice(i * 2, i * 2 + 2), r = [].concat.apply([], rcs), a = addS.slice(i * RA * 2, (i + 1) * RA * 2);
+      var extra = '';
+      if (i === n - 1) {
+        if (d.moved.length) extra += '<p class="extra">' + X.moved + d.moved.map(function (m) { return Eb(sN(m)) + X.about(m.m); }).join(' · ') + '</p>';
+        if (d.swaps && d.swaps.length) extra += '<p class="extra">' + X.swaps(d.swaps.length) + '</p>';
+      }
+      out.push({
+        label: X.label + trip(d) + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
+        html: '<div class="s-stops" dir="ltr" lang="en"><div class="head"><span class="badge sm num">' + E(p.line) + '</span><h2 class="hd">' +
+          E(trip(d)) + E(altTxt(d)) + (i ? X.cont : '') + '</h2></div>' +
+          '<div class="cols">' +
+            '<div class="grp rem"><h3 class="hd">' + X.rem + (remS.length ? ' (' + remS.length + ')' : '') + '</h3>' +
+              (r.length ? stopList(r, rOff[i], RR, mainCity, rcs.length > 1 ? rcs : [rcs[0], []]) : '<p class="empty">' + (i ? '' : X.noRem) + '</p>') + '</div>' +
+            '<div class="grp add"><h3 class="hd">' + X.add + (addS.length ? ' (' + addS.length + ')' : '') + '</h3>' +
+              (a.length ? stopList(a, i * RA * 2, RA, mainCity) : '<p class="empty">' + (i ? '' : X.noAdd) + '</p>') + '</div>' +
+          '</div>' + extra +
+          '<div class="sfoot"><span>' + X.foot((d._rem || []).some(function (x) { return x._near && x._near.path; })) + '</span><span class="pg num"></span></div></div>'
       });
     }
     return out;
@@ -595,10 +671,12 @@ var LCDeck = (function () {
   function skey(t) { return t.replace(/["'״׳`.]/g, '').replace(/\s+/g, ' ').trim(); }   // צה"ל = צהל
   function streets(list, minus) {
     var out = [], keys = (minus || []).map(skey);
-    list.forEach(function (s) { var t = streetOf(s.name), k = skey(t); if (t && keys.indexOf(k) < 0) { keys.push(k); out.push(t); } });
+    var en = ENb();
+    list.forEach(function (s) { var t = streetOf(s.name), k = skey(t); if (t && en) noteSt(t, s); if (t && keys.indexOf(k) < 0) { keys.push(k); out.push(t); } });
     return out;
   }
   function andList(arr, max) {
+    if (ENb()) return XB.b_andList(arr, max);
     max = max || 3;
     var a = arr.slice(0, max), rest = arr.length - a.length;
     if (rest > 0) return a.join(', ') + ' ועוד';
@@ -611,11 +689,12 @@ var LCDeck = (function () {
   /* "דרך גני הדר וצה"ל, ודרך מסעף בית העלמין" — רחובות ברשימה, ומקום אחד לכל היותר */
   function via(list) {
     var st = list.filter(function (x) { return !PLACEWORD.test(x); }), pl = list.filter(function (x) { return PLACEWORD.test(x); });
+    if (ENb()) return XB.b_via(st.map(stE), pl.slice(0, 1).map(stE));
     var out = st.length ? 'דרך ' + andList(st) : '';
     if (pl.length) out += (out ? ', ודרך ' : 'דרך ') + pl[0];
     return out;
   }
-  function q(s) { return s.name; }   // שם התחנה מודגש בשקף — בלי מירכאות (ממילא יש בשמות גרשיים)
+  function q(s) { return sN(s); }   // שם התחנה מודגש בשקף — בלי מירכאות (ממילא יש בשמות גרשיים)
   function nearLine(stops, shape) {
     if (!stops.length || shape.length < 2) return false;
     var lat0 = shape[0][0], sx = shape.map(function (p) { return xy(p, lat0); });
@@ -623,7 +702,9 @@ var LCDeck = (function () {
   }
 
   function segments(d) {
-    if (d._segs) return d._segs;
+    var ck = ENb() ? '_segsEn' : '_segs';
+    if (ck === '_segsEn' && d._segsEd !== D.ED) { d._segsEn = null; d._segsEd = D.ED; }   // באנגלית — מחדש בכל בנייה (השמות שהוקלדו, ורשימת השמות בלי תרגום)
+    if (d[ck]) return d[ck];
     var sw = {};
     (d.swaps || []).forEach(function (x) { sw[x.new] = x.old; });
     var O = d.old.stops, N = d.new.stops;
@@ -649,20 +730,21 @@ var LCDeck = (function () {
     segs.forEach(function (g) { g.html = segText(g, d); g.weight = g.oldS.length + g.newS.length + (g.route ? 3 : 0); });
     // תחנה שעוברת מקום (אותה תחנה, מקום אחר)
     d.moved.forEach(function (m) {
-      var t = 'התחנה <b>' + E(m.name) + '</b> עוברת למקום חדש, כ-' + m.m + ' מ׳ מהמקום הקודם.';
+      var t = ENb() ? XB.b_seg.moved('<b>' + Eb(sN(m)) + '</b>', m.m) : 'התחנה <b>' + E(m.name) + '</b> עוברת למקום חדש, כ-' + m.m + ' מ׳ מהמקום הקודם.';
       segs.push({ A: { ll: m.ll, name: m.name }, B: null, oldS: [], newS: [], html: t, plain: t, kind: 'mv', names: [skey(m.name)], weight: 1, moved: m });
     });
-    return (d._segs = segs);
+    return (d[ck] = segs);
   }
 
   /* משפט למקטע. מחזיר HTML (שמות תחנות מודגשים); g.route = הקו נוסע בדרך אחרת */
   function segText(g, d) {
-    var A = g.A, B = g.B, o = g.oldS, n = g.newS, b = function (s) { return '<b>' + E(q(s)) + '</b>'; };
+    var A = g.A, B = g.B, o = g.oldS, n = g.newS, b = function (s) { return '<b>' + Eb(q(s)) + '</b>'; };
     var keep = streets([A, B].filter(Boolean));
     if (d.var) return varText(g, d, keep, b);
     var oS = streets(o, streets(n).concat(keep)), nS = streets(n, streets(o).concat(keep));
     g.oS = oS; g.nS = nS;
-    var names = function (arr) { return andList(arr.map(function (s) { return E(q(s)); })); };
+    if (ENb()) return segTextEn(g, d, b);
+    var names = function (arr) { return andList(arr.map(function (s) { return Eb(q(s)); })); };
     if (!A && !B) return 'הקו נוסע במסלול אחר לגמרי.';
     if (!A) {   // תחילת הקו
       if (o.length && !n.length) return 'הקו לא יתחיל יותר ב' + b(o[0]) + '. התחנה הראשונה תהיה ' + b(B) + '.';
@@ -726,6 +808,61 @@ var LCDeck = (function () {
     return 'בין ' + b(A) + ' ל' + b(B) + ' הקו יעצור בתחנות אחרות באותם רחובות: ' + names(n) + ' במקום ' + names(o) + '.';
   }
 
+  /* אותו משפט באנגלית (LCDeckEN.b_seg) — אותם מקרים ואותם סימונים (g.kind, g.names, g.loc) כמו בעברית */
+  function segTextEn(g, d, b) {
+    var A = g.A, B = g.B, o = g.oldS, n = g.newS, oS = g.oS, nS = g.nS, T = XB.b_seg;
+    var names = function (arr) { return andList(arr.map(function (s) { return E(q(s)); })); };
+    if (!A && !B) return T.other();
+    if (!A) {
+      if (o.length && !n.length) return T.startCut(b(o[0]), b(B));
+      if (n.length && !o.length) {
+        if (extOf(d)) { g.ext = 'start'; g.kind = 'ext'; g.names = ['start'].concat(n.map(function (x) { return skey(x.name); })); return T.startExt(n.length, b(n[0]), b(B)); }
+        return T.startAdd(b(n[0]), b(B));
+      }
+      return T.startNew(b(n[0]), b(o[0]));
+    }
+    if (!B) {
+      if (o.length && !n.length) return T.endCut(b(o[o.length - 1]), b(A));
+      if (n.length && !o.length) {
+        if (extOf(d)) { g.ext = 'end'; g.kind = 'ext'; g.names = ['end'].concat(n.map(function (x) { return skey(x.name); })); return T.endExt(n.length, b(A), b(n[n.length - 1])); }
+        return T.endAdd(b(A), b(n[n.length - 1]));
+      }
+      return T.endNew(b(n[n.length - 1]), b(o[o.length - 1]));
+    }
+    var sameRoadOld = nearLine(o, d.new.shape), sameRoadNew = nearLine(n, d.old.shape);
+    if (o.length && !n.length) {
+      if (sameRoadOld || !oS.length) {
+        g.kind = 'rem'; g.names = o.map(function (x) { return skey(x.name); }).sort();
+        var nr = o.length <= 2 ? o.map(function (x) {
+          var t = nearest(x, d);
+          return !t || t.none ? T.remNone(Eb(q(x)), noNear(d)) : T.remNear(o.length > 1, Eb(q(x)), '<b>' + Eb(nE(t.name)) + '</b>', t);
+        }).join(' ') : '';
+        g.plain = T.rem(o.length, names(o));
+        g.loc = locOf(o, A, B, d.old.shape); g.locN = LOCN;
+        return T.rem(o.length, names(o), g.loc) + (nr ? ' ' + nr : '');
+      }
+      g.route = true;
+      return T.offRoute(b(A), E(via(oS)), b(B));
+    }
+    if (n.length && !o.length) {
+      if (sameRoadNew || !nS.length) {
+        g.kind = 'add'; g.names = n.map(function (x) { return skey(x.name); }).sort();
+        g.plain = T.add(n.length, names(n));
+        g.loc = locOf(n, A, B, d.new.shape); g.locN = LOCN;
+        return T.add(n.length, names(n), g.loc);
+      }
+      g.route = true;
+      return T.newRoute(b(A), E(via(nS)), b(B));
+    }
+    if (!d.geo && o.length && n.length && nearLine(o, d.new.shape) && nearLine(n, d.old.shape)) {
+      g.kind = 'swap'; g.names = o.concat(n).map(function (x) { return skey(x.name); }).sort();
+      if (o.length === 1 && n.length === 1) return T.swap1(b(o[0]), b(n[0]), Math.max(50, Math.round(dist(o[0].ll, n[0].ll) / 50) * 50));
+      return T.swapN(b(A), b(B), names(n), names(o));
+    }
+    if (oS.length || nS.length) { g.route = true; return T.route(b(A), oS.length ? E(via(oS)) : '', nS.length ? E(via(nS)) : '', b(B)); }
+    return T.sameSt(b(A), b(B), names(n), names(o));
+  }
+
   /* חלופה שבוטלה: "אחרי A, האוטובוסים כבר לא ייסעו דרך X ולא יעצרו בתחנות ...".
      חלופה חדשה: "אחרי A, חלק מהאוטובוסים ייסעו דרך Y ויעצרו בתחנות ..." (בזמן עבר — pastTense ב-app.js) */
   function varText(g, d, keep, b) {
@@ -733,7 +870,9 @@ var LCDeck = (function () {
     var mine = (end ? g.oldS : g.newS).filter(function (x) { return list.indexOf(x.code) >= 0; });
     var S = streets(end ? g.oldS : g.newS, streets(end ? g.newS : g.oldS).concat(keep));
     g.oS = end ? S : []; g.nS = end ? [] : S; g.names = mine.map(function (x) { return skey(x.name); }).sort();
-    var names = andList(mine.map(function (x) { return E(q(x)); }));
+    var names = andList(mine.map(function (x) { return Eb(q(x)); }));
+    if (ENb()) return XB.b_var(end, g.A ? b(g.A) : '', S.length ? E(via(S)) : '', mine.length, names,
+      d.last ? E(window.LCBoardEN.DOW[new Date(d.last + 'T12:00:00').getDay()] + ' ' + LC.dm(d.last)) : '', d.freq ? E(XB.b_freq(d.freq)) : '');
     var at = g.A ? 'אחרי ' + b(g.A) + ', ' : '';
     var where = S.length ? ' ' + E(via(S)) : '';
     var st = (mine.length === 1 ? 'בתחנה ' : 'בתחנות ') + names;
@@ -745,7 +884,8 @@ var LCDeck = (function () {
   function basisHtml(dirs) {
     var seen = [];
     // התאמה בין חלופות (d.was) — מי שמכין את המצגת כבר בחר אם זו אותה נסיעה; אין צורך בהערה בשקף
-    dirs.forEach(function (d) { if (d.basis && !d.was && seen.indexOf(d.basis) < 0) seen.push(d.basis); });
+    var en = ENb();
+    dirs.forEach(function (d) { var t = d.basis && en ? XB.b_basis(d.basis) : d.basis; if (t && !d.was && seen.indexOf(t) < 0) seen.push(t); });
     return seen.map(function (t) { return '<p class="basis" style="font-size:12.5px;color:var(--s-sub);margin:4px 0 0">' + E(t) + '</p>'; }).join('');
   }
 
@@ -769,13 +909,18 @@ var LCDeck = (function () {
   }
   function m50(m) { return Math.max(50, Math.round(m / 50) * 50); }
   function locOf(st, A, B, shape) {
-    var bb = function (x) { return '<b>' + E(x.name) + '</b>'; };
+    var bb = function (x) { return '<b>' + Eb(sN(x)) + '</b>'; }, L = ENb() && XB.b_loc;
     var first = st[0], last = st[st.length - 1], dA, dB;
     if (shape && shape.length > 1) {
       var al = alongOf(shape);
       dA = al(first.ll) - al(A.ll); dB = al(B.ll) - al(last.ll);
       if (dA < 0 || dB < 0) { dA = dist(A.ll, first.ll); dB = dist(last.ll, B.ll); }   // השרטוט חוזר על עצמו (קו מעגלי) — בקו אווירי
     } else { dA = dist(A.ll, first.ll); dB = dist(last.ll, B.ll); }
+    if (L) {
+      if (dA <= NEAR_PAIR && dB <= NEAR_PAIR) { LOCN = L.between(bb(A), bb(B)); return LOCN; }
+      LOCN = L.from(m50(Math.min(dA, dB)), bb(dA <= dB ? A : B));
+      return dA <= dB ? L.after(m50(dA), bb(A)) : L.before(m50(dB), bb(B));
+    }
     if (dA <= NEAR_PAIR && dB <= NEAR_PAIR) { LOCN = 'בין ' + bb(A) + ' ל' + bb(B); return LOCN; }
     // בלי כיוון (למשפט של שני הכיוונים: "אחרי" בכיוון אחד הוא "לפני" בשני)
     LOCN = 'כ-' + m50(Math.min(dA, dB)) + ' מ׳ מהתחנה ' + bb(dA <= dB ? A : B);
@@ -806,9 +951,10 @@ var LCDeck = (function () {
       }
       if (twin) {
         used.push(twin);
-        out.push('<b>בשני הכיוונים</b> הקו ' + (g.oS.length ? 'כבר לא ייסע ' + E(via(g.oS)) + (g.nS.length ? ', ובמקום זה ייסע ' + E(via(g.nS)) : '') : 'ייסע בדרך חדשה, ' + E(via(g.nS))) + '.');
+        if (ENb()) out.push(XB.b_both.route(g.oS.length ? E(via(g.oS)) : '', g.nS.length ? E(via(g.nS)) : ''));
+        else out.push('<b>בשני הכיוונים</b> הקו ' + (g.oS.length ? 'כבר לא ייסע ' + E(via(g.oS)) + (g.nS.length ? ', ובמקום זה ייסע ' + E(via(g.nS)) : '') : 'ייסע בדרך חדשה, ' + E(via(g.nS))) + '.');
       } else {
-        out.push(((only || p.dirs).length > 1 ? '<b>' + E(toward(it.d)) + '</b>, ' : '') + g.html);
+        out.push(((only || p.dirs).length > 1 ? (ENb() ? XB.b_dirLbl(E(toward(it.d))) : '<b>' + E(toward(it.d)) + '</b>, ') : '') + g.html);
       }
       used.push(it);
     });
@@ -819,11 +965,11 @@ var LCDeck = (function () {
   function coverItems(pages) {
     if (pages.length === 1 && isKind(pages[0])) {
       var ki = kindItems(pages[0]);
-      return ki.length > COVER_MAX + 1 ? ki.slice(0, COVER_MAX + 1).concat(['ועוד בעמודים הבאים.']) : ki;
+      return ki.length > COVER_MAX + 1 ? ki.slice(0, COVER_MAX + 1).concat([ENb() ? XB.b_more : 'ועוד בעמודים הבאים.']) : ki;
     }
     if (pages.length === 1) {
       var w = whatChanges(pages[0]);
-      return w.length > COVER_MAX ? w.slice(0, COVER_MAX).concat(['ועוד שינויים בעמודים הבאים.']) : w;
+      return w.length > COVER_MAX ? w.slice(0, COVER_MAX).concat([ENb() ? XB.b_moreCh : 'ועוד שינויים בעמודים הבאים.']) : w;
     }
     // קווים עם אותו שינוי — שורה אחת ("קווים 9 ו-18: ...")
     var rows = [];
@@ -831,21 +977,25 @@ var LCDeck = (function () {
       if (isKind(x)) { var kw = { 'new': 'קו חדש — ' + kindItems(x)[0], ended: 'הקו מפסיק לפעול. ' + kindItems(x)[0], timetable: 'לוח זמנים חדש. ' + (kindItems(x)[0] || '').replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '') }[x.kind];
         rows.push({ w: kw, lines: [x.line] }); return; }
       var w = (whatChanges(x)[0] || '').replace(/^<b>[^<]*:<\/b> /, '').replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '');
+      if (ENb()) w = w.replace(XB.b_dirRe, '');
       var r = rows.filter(function (y) { return y.w === w && w; })[0];
       if (r) r.lines.push(x.line); else rows.push({ w: w, lines: [x.line] });
     });
     if (rows.length === 1) return [rows[0].lines.length > 1 ? plu(rows[0].w) : rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
+    if (ENb()) return rows.map(function (r) { return (r.lines.length > 1 ? XB.b_lines(r.lines.map(E)) : XB.b_line(E(r.lines[0]))) + r.w; });
     return rows.map(function (r) { return '<b>' + (r.lines.length > 1 ? 'קווים ' + E(andList(r.lines, 12)) : 'קו ' + E(r.lines[0])) + ':</b> ' + r.w; });
   }
   /* טקסט שהמשתמש ערך (מערך של מחרוזות) — או הטקסט שנוצר אוטומטית (HTML) */
   function listHtml(edited, gen) {
-    return (Array.isArray(edited) ? edited.map(E) : gen).map(function (t, i) { return '<li data-i="' + i + '">' + t + '</li>'; }).join('');
+    var LT = ENb() ? ' dir="ltr"' : '';
+    return (Array.isArray(edited) ? edited.map(E) : gen).map(function (t, i) { return '<li data-i="' + i + '"' + LT + '>' + t + '</li>'; }).join('');
   }
   function plain(h) { return String(h).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
   /* אותו שינוי בשני הכיוונים — משפט אחד, בלי שני נקודתיים */
   function bothText(g, t) {
-    var b = function (st) { return st ? '<b>' + E(st.name) + '</b>' : ''; };
-    var nm = function (arr) { return andList(arr.map(function (x) { return E(x.name); })); };
+    var b = function (st) { return st ? '<b>' + Eb(sN(st)) + '</b>' : ''; };
+    var nm = function (arr) { return andList(arr.map(function (x) { return Eb(sN(x)); })); };
+    if (ENb()) return bothTextEn(g, t, b, nm);
     // תחנה אחת לכל כיוון באותו שם (זוג תחנות משני צדי הכביש) — לא "אותה תחנה"
     var mine = g.kind === 'add' ? g.newS : g.oldS, his = t ? (g.kind === 'add' ? t.newS : t.oldS) : [];
     if ((g.kind === 'add' || g.kind === 'rem') && mine.length === 1 && his.length === 1 && mine[0].code !== his[0].code) {
@@ -859,6 +1009,16 @@ var LCDeck = (function () {
     if (g.kind === 'rem') return '<b>בשני הכיוונים</b> הקו לא יעצור יותר ב' + (g.oldS.length === 1 ? 'תחנה ' : 'תחנות ') + nm(g.oldS) + '.';
     if (g.kind === 'mv') return '<b>בשני הכיוונים</b> ' + g.html.replace(/^התחנה/, 'התחנה');
     return '<b>בשני הכיוונים</b> ' + g.html;
+  }
+  function bothTextEn(g, t, b, nm) {
+    var T = XB.b_both, mine = g.kind === 'add' ? g.newS : g.oldS, his = t ? (g.kind === 'add' ? t.newS : t.oldS) : [];
+    if ((g.kind === 'add' || g.kind === 'rem') && mine.length === 1 && his.length === 1 && mine[0].code !== his[0].code) {
+      var side = dist(mine[0].ll, his[0].ll) <= 300, codes = T.codes(E(mine[0].code), E(his[0].code));
+      return g.kind === 'add' ? T.addPair(b(mine[0]), side, codes, g.locN) : T.remPair(b(mine[0]), side, codes);
+    }
+    if (g.kind === 'add') return T.add(g.newS.length, nm(g.newS), g.locN);
+    if (g.kind === 'rem') return T.rem(g.oldS.length, nm(g.oldS));
+    return T.lead + g.html;
   }
   function sameSet(a, b) { return a.length === b.length && a.every(function (x) { return b.indexOf(x) >= 0; }); }
 
