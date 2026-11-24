@@ -3,6 +3,19 @@
 (function (D) {
   var E = D.E, dist = D.dist, endName = D.endName, rerouted = D.rerouted, extOf = D.extOf, divergeAt = D.divergeAt, realRuns = D.realRuns,
       chgPts = D.chgPts, small = D.small, allGreen = D.allGreen, segNum = D.segNum, andList = D.andList, segments = D.segments;
+  /* מצגת באנגלית (ED.blang === 'en'): התוויות שלנו באנגלית (שמות התחנות מתרגומי משרד התחבורה — LCDeckEN.a_nm), והמפה עצמה
+     (אריחי OpenStreetMap, עם שמות בעברית) — דהויה, כדי שהתוויות שלנו יבלטו (lcen ב-slides.css) */
+  function EN() { return !!(D.ED && D.ED.blang === 'en' && window.LCBoardEN && window.LCDeckEN && window.LCDeckEN.a_T); }
+  function N(s) { return EN() ? window.LCDeckEN.a_nm(s) : s; }
+  function tx(k, he) { return EN() ? window.LCDeckEN.a_T[k] : he; }
+  function enMap() { if (EN()) for (var i = 0; i < arguments.length; i++) if (arguments[i]) arguments[i].classList.add('lcen'); }
+  /* "לכיוון X" שליד מק"ט (allStops ב-deck.js: "ל…" / "מ…" / "בשני הכיוונים") — באנגלית */
+  function enTo(t) {
+    if (!EN() || !t) return t;
+    if (t === 'בשני הכיוונים') return tx('mBoth');
+    var m = /^([למ])(.+)$/.exec(t);
+    return m ? (m[1] === 'ל' ? tx('mTo') : tx('mFrom')) + N(m[2].replace(/^-/, '')) : N(t);
+  }
   /* הקטע החדש של קו שמתארך: מהתחנה שבה הקו הסתיים עד היום ועד הסוף (או מההתחלה עד התחנה שבה הקו התחיל) — חותכים את
      המסלול החדש בנקודה הקרובה לתחנה, ולא לפי ההבדל בין השרטוטים (השרטוט הישן לא תמיד מגיע עד התחנה) */
   function extPart(d) {
@@ -56,7 +69,7 @@
     });
     // שמות התחנות — איפה שיש מקום
     pts.forEach(function (p) {
-      var w = String(p.s.name).length * 7 + 20, h = 24, g = 15, c = p;
+      var nm = N(p.s.name), w = String(nm).length * 7 + 20, h = 24, g = 15, c = p;
       var pick = [
         { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
         { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
@@ -65,7 +78,7 @@
       ].filter(function (o) { return o.b[0] >= 2 && o.b[1] >= 2 && o.b[2] <= msz.x - 2 && o.b[3] <= msz.y - 2 && !boxes.some(function (q) { return o.b[0] < q[2] && o.b[2] > q[0] && o.b[1] < q[3] && o.b[3] > q[1]; }); })[0];
       if (!pick) return;
       boxes.push(pick.b);
-      L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl', interactive: false }).setLatLng(map.containerPointToLatLng([p.x, p.y])).setContent(E(p.s.name)).addTo(map);
+      L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl', interactive: false }).setLatLng(map.containerPointToLatLng([p.x, p.y])).setContent(E(nm)).addTo(map);
     });
     return { map: map, ready: Promise.all(waits) };
   }
@@ -76,6 +89,7 @@
       boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false };
     var map = L.map(el, opts), waits = [];
     map.attributionControl.setPrefix(false);
+    enMap(el, inEl);
     var ended = m.kind === 'ended', all = L.latLngBounds([]), seen = {}, stops = [];
     m.dirs.forEach(function (d) {
       var S = ended ? d.old : d.new;
@@ -110,6 +124,11 @@
       var S = ended ? d.old.stops : d.new.stops, o = d.od || [], inter = o[0] && o[1] && o[0] !== o[1];
       if (!S.length) return;
       var add = function (s, t) { var same = labels.filter(function (x) { return x.s.code === s.code; })[0]; if (same) { same.t += ' · ' + t; same.ds[i] = 1; } else { var ds = {}; ds[i] = 1; labels.push({ s: s, t: t, k: 'end', ds: ds }); } };
+      if (EN()) {
+        add(S[0], two ? tx('mStartTo') + N(inter ? o[1] : S[S.length - 1].name) : tx('mStart'));
+        if (S.length > 1) add(S[S.length - 1], two ? tx('mEndFrom') + N(inter ? o[0] : S[0].name) : tx('mEnd'));
+        return;
+      }
       add(S[0], two ? 'יציאה ל' + (inter ? o[1] : endName(d, 1)) : 'תחילת הקו');
       if (S.length > 1) add(S[S.length - 1], two ? 'סוף הנסיעה מ' + (inter ? o[0] : endName(d, 0)) : 'סוף הקו');
     });
@@ -119,14 +138,16 @@
     }
     Object.keys(altAt).forEach(function (c) {
       var s = stops.filter(function (x) { return x.code === c; })[0], ls = altAt[c];
-      var t = ls.length > 1 ? 'קווים ' + andList(ls, 4) + ' עוצרים כאן' : 'קו ' + ls[0] + ' עוצר כאן';
+      var X = EN() && window.LCDeckEN;
+      var t = X ? (ls.length > 1 ? X.a_T.lines + ' ' + X.a_list(ls.slice(0, 4).map(X.a_ln)) + (ls.length > 4 ? '…' : '') + X.a_T.mStopsHere : X.a_T.line + ' ' + X.a_ln(ls[0]) + X.a_T.mStopHere)
+        : ls.length > 1 ? 'קווים ' + andList(ls, 4) + ' עוצרים כאן' : 'קו ' + ls[0] + ' עוצר כאן';
       var same = labels.filter(function (x) { return x.s.code === c; })[0];
       if (same) { same.t += ' · ' + t; same.k = 'alt'; } else if (s) labels.push({ s: s, t: t, k: 'alt' });
     });
     var msz = map.getSize(), boxes = [];
     labels.forEach(function (x) {
       L.marker(x.s.ll, { icon: L.divIcon({ className: '', html: '<div class="lc-mk ' + (x.k === 'alt' ? 'alt' : 'end' + (x.ds && x.ds[1] ? (x.ds[0] ? ' ab' : ' b') : '')) + '"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map);
-      var c = map.latLngToContainerPoint(x.s.ll), w = Math.max(String(x.s.name).length, x.t.length) * 7 + 22, h = 38, g = 13;
+      var nm = N(x.s.name), c = map.latLngToContainerPoint(x.s.ll), w = Math.max(String(nm).length, x.t.length) * 7 + 22, h = 38, g = 13;
       var cand = [
         { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
         { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
@@ -137,7 +158,7 @@
       if (!pick) return;
       boxes.push(pick.b);
       L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl' + (x.k === 'alt' ? ' alt' : ''), interactive: false }).setLatLng(x.s.ll)
-        .setContent(E(x.s.name) + '<small' + (x.k === 'alt' ? '' : ' class="cd"') + '>' + E(x.t) + '</small>').addTo(map);
+        .setContent(E(nm) + '<small' + (x.k === 'alt' ? '' : ' class="cd"') + '>' + E(x.t) + '</small>').addTo(map);
     });
     return { map: map, ready: Promise.all(waits) };
   }
@@ -197,14 +218,14 @@
         return Object.keys(n).sort(function (x, y) { return n[y] - n[x]; })[0] || '';
       });
       var byCity = city.every(function (c, i) { return c && city.indexOf(c) === i; });
-      var pos = cl.length === 2 ? (vert ? ['החלק הצפוני', 'החלק הדרומי'] : ['החלק המערבי', 'החלק המזרחי']) : null;
-      return cl.map(function (c, i) { return { i: i, name: byCity ? 'ב' + city[i] : pos ? pos[i] : 'אזור ' + (i + 1), show: mk(c) }; });
+      var pos = cl.length === 2 ? (vert ? [tx('mNorth', 'החלק הצפוני'), tx('mSouth', 'החלק הדרומי')] : [tx('mWest', 'החלק המערבי'), tx('mEast', 'החלק המזרחי')]) : null;
+      return cl.map(function (c, i) { return { i: i, name: byCity ? tx('mIn', 'ב') + N(city[i]) : pos ? pos[i] : tx('mArea', 'אזור ') + (i + 1), show: mk(c) }; });
     }
     if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
     var sorted = all.slice().sort(function (x, y) { return key(x) - key(y); });
     var half = Math.ceil(sorted.length / 2);
-    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: mk(sorted.slice(0, half)) },
-            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: mk(sorted.slice(half)) }];
+    return [{ i: 0, name: vert ? tx('mNorth', 'החלק הצפוני') : tx('mWest', 'החלק המערבי'), show: mk(sorted.slice(0, half)) },
+            { i: 1, name: vert ? tx('mSouth', 'החלק הדרומי') : tx('mEast', 'החלק המזרחי'), show: mk(sorted.slice(half)) }];
   }
 
   /* מרחיק סמנים שעולים זה על זה; מחזיר מיקום חדש בפיקסלים לכל סמן */
@@ -283,6 +304,7 @@
       boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false };
     var map = L.map(el, opts);
     map.attributionControl.setPrefix(false);
+    enMap(el, inEl);
     var waits = [];
     function tiles(mp) {
       var t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
@@ -393,8 +415,8 @@
     // קו שמתארך: איפה הקו התחיל או הסתיים עד היום
     var wasEnd = {};
     if (ext) segments(d).forEach(function (g) {
-      if (g.ext === 'start' && g.B) wasEnd[g.B.code] = 'עד היום הקו התחיל כאן';
-      if (g.ext === 'end' && g.A) wasEnd[g.A.code] = 'עד היום הקו הסתיים כאן';
+      if (g.ext === 'start' && g.B) wasEnd[g.B.code] = tx('mWasStart', 'עד היום הקו התחיל כאן');
+      if (g.ext === 'end' && g.A) wasEnd[g.A.code] = tx('mWasEnd', 'עד היום הקו הסתיים כאן');
     });
     var seen = {}, chgCode = {};
     m.remS.concat(m.addS).forEach(function (s) { chgCode[s.code] = 1; });
@@ -407,8 +429,8 @@
     labels.slice().sort(function (a, b) { return (wasEnd[b.code] ? 1 : 0) - (wasEnd[a.code] ? 1 : 0); }).forEach(function (st) {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
-      var was = wasEnd[st.code], c = map.latLngToContainerPoint(st.ll);
-      var w = Math.max(String(st.name).length, was ? 18 : 0, chgCode[st.code] ? 12 + (st._to ? st._to.length + 3 : 0) : 0) * 7 + 20, h = was || chgCode[st.code] ? 38 : 24, g = 15;
+      var was = wasEnd[st.code], c = map.latLngToContainerPoint(st.ll), nm = N(st.name), to = enTo(st._to);
+      var w = Math.max(String(nm).length, was ? (EN() ? was.length : 18) : 0, chgCode[st.code] ? 12 + (to ? to.length + 3 : 0) : 0) * 7 + 20, h = was || chgCode[st.code] ? 38 : 24, g = 15;
       var opts2 = [
         { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
         { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
@@ -419,7 +441,7 @@
       if (!pick) return;
       boxes.push(pick.b);
       L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl' + (was ? ' was' : ''), interactive: false }).setLatLng(st.ll)
-        .setContent(E(st.name) + (was ? '<small>' + was + '</small>' : '') + (chgCode[st.code] ? '<small class="cd">מק״ט ' + E(st.code) + (st._to ? ' · ' + E(st._to) : '') + '</small>' : '')).addTo(map);
+        .setContent(E(nm) + (was ? '<small>' + was + '</small>' : '') + (chgCode[st.code] ? '<small class="cd">' + tx('mCode', 'מק״ט ') + E(st.code) + (to ? ' · ' + E(to) : '') + '</small>' : '')).addTo(map);
     });
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
     var size = map.getSize();

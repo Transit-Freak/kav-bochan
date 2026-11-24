@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-a.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -543,4 +543,34 @@ test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, 
     }
   }
   assert.deepEqual([...miss], [], 'טקסטים בממשק בלי אנגלית ב-ui-en.js');
+});
+
+// ---------- מצגת באנגלית (deck-en-a.js): שם המצגת, מבוא, תגיות, תאריכים, שקף הסיום והמקרא ----------
+test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סיום ומקרא — ובלי blang כמו קודם', () => {
+  const X = ctx.LCDeckEN, D = ctx.LCDeck._in;
+  assert.equal(X.a_wd('2026-11-24'), 'Tue'); assert.equal(X.a_wd('2026-11-24', true), 'Tuesday');
+  assert.match(X.a_heb('2026-11-24'), /^\d+ \w+ 5787$/);
+  assert.equal(X.a_pl(1, 'new stop', 'new stops'), '1 new stop'); assert.equal(X.a_pl(3, 'new stop', 'new stops'), '3 new stops');
+  assert.equal(X.a_ln('1א'), '⁦1א⁩'); assert.equal(X.a_ln('18'), '18');
+  assert.equal(X.a_list(['9', '18', '54']), '9, 18 and 54');
+  assert.equal(X.a_chips({ geo: 1, rem: 2, add: 1 }), '<span class="chip geo">Takes a different route</span><span class="chip rem">2 stops cancelled</span><span class="chip add">1 new stop</span>');
+  const pg = (line, extra) => Object.assign({ id: 'x' + line, line, op: 'אגד', od: ['צפת', 'טבריה'], eff: '2026-12-01', tot: { geo: 1, rem: 1 }, dirs: [] }, extra || {});
+  const heT = ctx.LCDeck.deckTitle([pg('9')]), heI = ctx.LCDeck.autoIntro([pg('9')]);
+  D.ED = { blang: 'en', en: { 'צפת': 'Safed', 'טבריה': 'Tiberias' } };
+  assert.equal(ctx.LCDeck.autoTitle([pg('9')], ''), 'Line 9 service change');
+  assert.equal(ctx.LCDeck.autoTitle([pg('9', { sig: 'a' }), pg('18', { sig: 'b' }), pg('1א', { sig: 'c' })], ''), 'Service changes: lines 9, 18 and ⁦1א⁩');
+  assert.equal(ctx.LCDeck.autoTitle([pg('9', { kind: 'new' })], ''), 'New line: 9');
+  assert.equal(ctx.LCDeck.autoIntro([pg('9')]), 'On the next pages: a map of the old and the new route, and the nearest stop in place of each cancelled stop.');
+  assert.equal(X.a_od(['צפת', 'טבריה']), 'Safed ↔ Tiberias');
+  assert.equal(X.a_op('אגד'), 'Egged');
+  const cl = D.closing([pg('9')], '2026-11-20');
+  assert.match(cl, /^<div class="s-close en" dir="ltr" lang="en">/);
+  assert.match(cl, /Check before you travel/); assert.match(cl, /Based on Ministry of Transport data from 20\.11\.2026/);
+  assert.ok(!/[א-ת]/.test(cl), 'אין עברית בשקף הסיום: ' + cl.match(/[^<>]*[א-ת][^<>]*/));
+  X.a_nm('נוף כנרת');
+  assert.deepEqual(J(X.a_miss()), ['נוף כנרת'], 'שם בלי תרגום — ברשימת החסרים');
+  D.ED = {};
+  assert.equal(ctx.LCDeck.deckTitle([pg('9')]), heT); assert.equal(ctx.LCDeck.autoIntro([pg('9')]), heI);
+  assert.match(D.closing([pg('9')], ''), /^<div class="s-close"><div class="seam">.*לפני הנסיעה בדקו/);
+  assert.deepEqual(J(X.a_miss()), [], 'בנייה חדשה — הרשימה מתאפסת');
 });
