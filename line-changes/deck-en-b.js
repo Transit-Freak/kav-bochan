@@ -22,7 +22,7 @@
   /* "של קו 5" / "של הקווים 5, 7" (d._nn מ-build) → "of line 5" / "of lines 5, 7" */
   function nn(t) {
     var m = /^של הקווים\s+(.+)$/.exec(t || ''), m1 = /^של קו\s+(.+)$/.exec(t || '');
-    return m ? 'of lines ' + m[1] : m1 ? 'of line ' + m1[1] : 'of the line';
+    return m ? 'for lines ' + m[1] + ' ' : m1 ? 'for line ' + m1[1] + ' ' : '';
   }
   function walk(nr) { return nr.min ? 'about ' + nr.min + ' min walk, ' + nr.m + ' m' : 'about ' + nr.m + ' m walk'; }
   /* ימים בקיצור מהבונה ("א׳–ה׳", "א׳ ו-ג׳", "שישי", "שבת") → "Sun–Thu" */
@@ -61,8 +61,8 @@
       if (geo) return out ? 'The line takes a different route. ' + cap(out) : 'The line takes a different route, and the stops do not change';
       return cap(out);
     },
-    b_noNear: function (t) { return 'No nearby alternative stop ' + nn(t) + ' on the new route'; },
-    b_moved: function (n) { return pl(n, 'One stop moves', 'stops move') + ' to a nearby location.'; },
+    b_noNear: function (t) { return 'No nearby alternative stop ' + nn(t) + 'on the new route'; },
+    b_moved: function (n) { return pl(n, 'One stop is relocated', 'stops are relocated') + ' nearby.'; },
     b_cities: function (cl) { return ' The changes are in ' + (cl.length > 3 ? cl.slice(0, 3).join(', ') + ' and more' : andList(cl)) + '.'; },
     b_cnt: { rem: function (n) { return pl(n, 'One stop cancelled', 'stops cancelled'); }, add: function (n) { return pl(n, 'One new stop', 'new stops'); },
       map: ' · The numbers on the map match the list on the next page' },
@@ -74,7 +74,7 @@
     b_sl: {
       label: 'Stops · ', cont: ' (cont.)', rem: 'Cancelled stops', add: 'New stops', noRem: 'No cancelled stops on this trip', noAdd: 'No new stops on this trip',
       moved: 'Stops moving to a nearby location: ', about: function (m) { return ' (about ' + m + ' m)'; },
-      swaps: function (n) { return (n === 1 ? 'One stop stays in the same place with the same name; only its number changed.' : n + ' stops stay in the same place with the same names; only their numbers changed.'); },
+      swaps: function (n) { return (n === 1 ? 'One stop stays in the same place with the same name; only its stop code has changed.' : n + ' stops stay in the same place with the same names; only their stop codes have changed.'); },
       foot: function (path) { return 'Numbers as on the map · ' + (path ? 'Walking time by the street map, at a normal pace' : 'The distance to the nearest stop is an estimate') + ' · Prepared by a private individual, not an official publication'; }
     },
     /* איפה התחנה: "between A and B" · "about 200 m after A" · בלי כיוון — "about 200 m from the stop A" */
@@ -101,26 +101,26 @@
       },
       endAdd: function (A, nL) { return 'The line will continue past ' + A + ' to ' + nL + '.'; },
       endNew: function (nL, oL) { return 'The line will end at ' + nL + ' instead of ' + oL + '.'; },
-      rem: function (n, names, loc) { return 'The line will no longer stop at ' + (n === 1 ? 'the stop ' : 'the stops ') + names + (loc ? ' (' + loc + ')' : '') + '.'; },
+      rem: function (n, names, loc) { return 'The line will no longer stop at ' + names + (loc ? ' (' + loc + ')' : '') + '.'; },
       remNear: function (many, x, near, nr) { return (many ? 'Instead of ' + x + ': ' : 'Nearest stop: ') + near + ', ' + walk(nr) + '.'; },
       remNone: function (x, none) { return 'Near ' + x + ': ' + none.charAt(0).toLowerCase() + none.slice(1) + '.'; },
-      offRoute: function (A, S, B) { return 'After ' + A + ', the line will no longer go ' + S + '. It will take another way and reach ' + B + '.'; },
+      offRoute: function (A, S, B) { return 'After ' + A + ', the line will no longer go ' + S + '. It will take another route to ' + B + '.'; },
       add: function (n, names, loc) { return (n === 1 ? 'New stop: ' : 'New stops: ') + names + (loc ? ', ' + loc : '') + '.'; },
-      newRoute: function (A, S, B) { return 'After ' + A + ', the line will take a new way, ' + S + ', and return to its usual route at ' + B + '.'; },
+      newRoute: function (A, S, B) { return 'After ' + A + ', the line will take a new route, ' + S + ', and return to its usual route at ' + B + '.'; },
       swap1: function (o0, n0, m) { return 'The route does not change. Instead of the stop ' + o0 + ', the line will stop at a new stop, ' + n0 + ', about ' + m + ' m away.'; },
       swapN: function (A, B, nn2, on) { return 'The route does not change. Between ' + A + ' and ' + B + ' the line will stop at ' + nn2 + ' instead of ' + on + '.'; },
       route: function (A, oS, nS, B) {
-        return 'After ' + A + ', the line ' + (oS ? 'will no longer go ' + oS + '. Instead it will go' : 'will go') + (nS ? ' ' + nS : ' another way') +
+        return 'After ' + A + ', the line ' + (oS ? 'will no longer go ' + oS + '. Instead it will go' : 'will go') + (nS ? ' ' + nS : ' another route') +
           ', and return to its usual route at ' + B + '.';
       },
       sameSt: function (A, B, nn2, on) { return 'Between ' + A + ' and ' + B + ' the line will stop at other stops on the same streets: ' + nn2 + ' instead of ' + on + '.'; },
-      moved: function (x, m) { return 'The stop ' + x + ' moves to a new location, about ' + m + ' m from the old one.'; }
+      moved: function (x, m) { return 'The stop ' + x + ' is relocated about ' + m + ' m from its current position.'; }
     },
     /* חלופה שבוטלה / חדשה (varText) */
     b_var: function (end, A, where, n, names, last, freq) {
-      var st = (n === 1 ? 'the stop ' : 'the stops ') + names, at = A ? 'After ' + A + ', ' : '';
-      if (end) return at + (A ? 'buses' : 'Buses') + ' will no longer go ' + (where || 'this way') + ', and will not stop at ' + st + '.' + (last ? ' Last trip on this route: ' + last + '.' : '');
-      return at + (A ? 'some' : 'Some') + ' buses will go ' + (where || 'a new way') + ' and stop at ' + st + '.' + (freq ? ' ' + freq + '.' : '');
+      var st = names, at = A ? 'After ' + A + ', ' : '';
+      if (end) return at + (A ? 'buses' : 'Buses') + ' will no longer ' + (where ? 'go ' + where : 'take this route') + ' or stop at ' + st + '.' + (last ? ' Last trip on this route: ' + last + '.' : '');
+      return at + (A ? 'some' : 'Some') + ' buses will ' + (where ? 'go ' + where : 'take a new route') + ' and stop at ' + st + '.' + (freq ? ' ' + freq + '.' : '');
     },
     /* "N נסיעות ביום, א׳–ה׳" (d.freq מהבונה) → "3 trips a day, Sun–Thu"; לא מזוהה — '' */
     b_freq: function (t) {
@@ -144,7 +144,7 @@
     /* שער: "מה משתנה?" */
     b_both: {
       lead: '<b>In both directions:</b> ',
-      route: function (oS, nS) { return '<b>In both directions</b> the line ' + (oS ? 'will no longer go ' + oS + (nS ? ', and instead will go ' + nS : '') : 'will take a new way, ' + nS) + '.'; },
+      route: function (oS, nS) { return '<b>In both directions</b> the line ' + (oS ? 'will no longer go ' + oS + (nS ? ', and instead will go ' + nS : '') : 'will take a new route, ' + nS) + '.'; },
       addPair: function (x, side, codes, loc) { return 'Two new stops named ' + x + ', one in each direction' + (side ? ', on opposite sides of the road' : '') + codes + (loc ? ', ' + loc : '') + '.'; },
       remPair: function (x, side, codes) { return 'The line will no longer stop at the two stops named ' + x + ', one in each direction' + (side ? ', on opposite sides of the road' : '') + codes + '.'; },
       codes: function (a, b) { return ' (stops ' + a + ' and ' + b + ')'; },

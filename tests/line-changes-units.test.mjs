@@ -599,10 +599,10 @@ test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סי�
 
   test('אנגלית: תחנה שעוברת מקום, תחנה שבוטלה (עם התחנה הקרובה) ותחנות חדשות', () => {
     const mv = en(() => DD.segments(mk([A, B, C], [A, B, C], { moved: [{ code: '2', name: 'הרצל/ויצמן', m: 120, ll: B.ll }] })));
-    assert.equal(txt(mv[0].html), 'The stop Herzl/Weizmann moves to a new location, about 120 m from the old one.');
+    assert.equal(txt(mv[0].html), 'The stop Herzl/Weizmann is relocated about 120 m from its current position.');
     const R = st('9', 'הדקל/הברוש', 24);
     const rm = en(() => DD.segments(mk([A, B, R, C], [A, B, C])));
-    assert.equal(txt(rm[0].html), 'The line will no longer stop at the stop HaDekel/HaBrosh (between Herzl/Weizmann and Sokolov/Balfour). Nearest stop: Herzl/Weizmann, about 100 m walk.');
+    assert.equal(txt(rm[0].html), 'The line will no longer stop at HaDekel/HaBrosh (between Herzl/Weizmann and Sokolov/Balfour). Nearest stop: Herzl/Weizmann, about 100 m walk.');
     const n1 = st('7', 'הגפן/התאנה', 25), n2 = st('8', 'הדקל/הברוש', 30);
     const ad = en(() => DD.segments(mk([A, B, C], [A, B, n1, n2, C])));
     assert.equal(txt(ad[0].html), 'New stops: HaGefen/HaTe\'ena and HaDekel/HaBrosh, between Herzl/Weizmann and Sokolov/Balfour.');
@@ -622,13 +622,13 @@ test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סי�
   test('אנגלית: שם בלי תרגום נשאר בעברית ונרשם ברשימת החסרים; תדירות ומקור ההשוואה', () => {
     const X = st('9', 'מגדל המים/השקד', 24);
     const g = en(() => { const r = DD.segments(mk([A, B, X, C], [A, B, C])); return { r, miss: XB.b_missing() }; });
-    assert.match(txt(g.r[0].html), /^The line will no longer stop at the stop מגדל המים\/השקד \(/);
+    assert.match(txt(g.r[0].html), /^The line will no longer stop at מגדל המים\/השקד \(/);
     assert.ok(g.miss.includes('מגדל המים/השקד'));
     assert.equal(XB.b_freq('3 נסיעות ביום, א׳–ה׳'), '3 trips a day, Sun–Thu');
     assert.equal(XB.b_freq('נסיעה אחת ביום, שישי'), 'One trip a day, Fri');
     assert.equal(XB.b_basis('חלופה ⁦10970-1-#⁩ מופיעה לראשונה ב-12.11.2026.'), 'Variant ⁦10970-1-#⁩ first appears on 12.11.2026.');
     assert.equal(XB.b_andList(['A', 'B', 'C', 'D']), 'A, B, C and more');
-    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'No nearby alternative stop of lines 5, 7 on the new route');
+    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'No nearby alternative stop for lines 5, 7 on the new route');
     // שינוי שכבר התחיל — בהווה
     assert.equal(XB.b_past('After A, buses will no longer go via B, and will not stop at the stop C.'), 'After A, buses no longer go via B, and do not stop at the stop C.');
     assert.equal(XB.b_past('After A, the line will no longer go via S. Instead it will go via T, and return to its usual route at B.'),
@@ -648,8 +648,8 @@ test('LCDeckEN: ימים, משפטים על לוח הזמנים, משך, תדי�
   assert.equal(X.c_ttLine({ t: WK, so: s(36, 360, 1320, 20, 30), sn: s(42, 330, 1410, 15, 30) }),
     '<b>On weekdays:</b> 42 trips a day instead of 36; every 15 min at peak times instead of every 20 min; first trip at 5:30 instead of 6:00; last trip at 23:30 instead of 22:00.');
   assert.equal(X.c_ttLine({ t: ['d5'], so: s(3, 400, 600), sn: s(0) }), '<b>On Friday:</b> The line will no longer run (until now: 3 trips).');
-  assert.equal(X.c_smallLine({ t: WK }, { ad: [450], rm: [460], sh: [[440, 435]] }), '<b>On weekdays:</b> The 7:20 trip will leave at 7:15, a trip added at 7:30, and the 7:40 trip cancelled.');
-  assert.equal(X.c_smallLine({ t: ['d4'] }, { ad: [600], rm: [590], sh: [] }), '<b>On Thursday:</b> The 9:50 trip will leave at 10:00.');
+  assert.equal(X.c_smallLine({ t: WK }, { ad: [450], rm: [460], sh: [[440, 435]] }), '<b>On weekdays:</b> the 7:20 trip will leave at 7:15, a trip is added at 7:30, and the 7:40 trip is cancelled.');
+  assert.equal(X.c_smallLine({ t: ['d4'] }, { ad: [600], rm: [590], sh: [] }), '<b>On Thursday:</b> the 9:50 trip will leave at 10:00.');
   assert.equal(X.c_newTtLine({ t: WK, sn: s(34, 330, 1380, 15, 30) }), '<b>On weekdays:</b> 34 trips, from 5:30 to 23:00. At peak times every 15 min, the rest of the day every 30 min.');
   assert.equal(X.c_durTxt(65), 'about 1 hr 5 min'); assert.equal(X.c_durTxt(40), 'about 40 min');
   assert.equal(X.c_bandTxt([360, 380, 400, 420]), 'every 20 min'); assert.equal(X.c_bandTxt([360]), '1 trip');

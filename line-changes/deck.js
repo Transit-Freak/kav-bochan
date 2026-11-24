@@ -974,6 +974,10 @@ var LCDeck = (function () {
     // קווים עם אותו שינוי — שורה אחת ("קווים 9 ו-18: ...")
     var rows = [];
     pages.forEach(function (x) {
+      if (isKind(x) && ENb()) {   // באנגלית
+        var ki0 = (kindItems(x)[0] || '').replace(/^<b>(Toward|From)[^<]*<\/b>, /, '').replace(/^<b>on /, '<b>On ');
+        rows.push({ w: { 'new': 'New line — ' + ki0, ended: 'Line discontinued. ' + ki0, timetable: 'New timetable. ' + ki0 }[x.kind], lines: [x.line] }); return;
+      }
       if (isKind(x)) { var kw = { 'new': 'קו חדש — ' + kindItems(x)[0], ended: 'הקו מפסיק לפעול. ' + kindItems(x)[0], timetable: 'לוח זמנים חדש. ' + (kindItems(x)[0] || '').replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '') }[x.kind];
         rows.push({ w: kw, lines: [x.line] }); return; }
       var w = (whatChanges(x)[0] || '').replace(/^<b>[^<]*:<\/b> /, '').replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '');
@@ -981,7 +985,7 @@ var LCDeck = (function () {
       var r = rows.filter(function (y) { return y.w === w && w; })[0];
       if (r) r.lines.push(x.line); else rows.push({ w: w, lines: [x.line] });
     });
-    if (rows.length === 1) return [rows[0].lines.length > 1 ? plu(rows[0].w) : rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
+    if (rows.length === 1) return [rows[0].lines.length > 1 ? (ENd() ? XB.d_plu(rows[0].w) : plu(rows[0].w)) : rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
     if (ENb()) return rows.map(function (r) { return (r.lines.length > 1 ? XB.b_lines(r.lines.map(E)) : XB.b_line(E(r.lines[0]))) + r.w; });
     return rows.map(function (r) { return '<b>' + (r.lines.length > 1 ? 'קווים ' + E(andList(r.lines, 12)) : 'קו ' + E(r.lines[0])) + ':</b> ' + r.w; });
   }
@@ -1420,7 +1424,7 @@ var LCDeck = (function () {
     } else if (ttSmall(p)) {
       ds.forEach(function (d) { ttItems(p, d).forEach(function (t) { out.push(t.replace(/\.$/, '') + (two ? ' (' + E(toward(d).replace(/^בנסיעה ל/, 'לכיוון ')) + ').' : '.')); }); });
     } else {
-      ds.forEach(function (d) { ttItems(p, d).forEach(function (t, i) { out.push((i ? '' : pre(d)) + t); }); });
+      ds.forEach(function (d) { ttItems(p, d).forEach(function (t, i) { out.push((i ? '' : pre(d)) + (X && two && !i ? t.replace(/^<b>On /, '<b>on ') : t)); }); });
     }
     return max ? out.slice(0, max) : out;
   }
@@ -1596,7 +1600,7 @@ var LCDeck = (function () {
     if (o.v !== 'det' || p.kind !== 'timetable' || ttWords(p)) return '';
     if (ENc()) return o.f === 'table'
       ? '<p class="tt-key"><span><i class="m">20</i>No change</span><span><i class="m ad">20<small>new</small></i>New trip</span><span><i class="m rm">20<small>cancelled</small></i>Cancelled trip</span><span><i class="m sh">30<small>was 14:31</small></i>Moved trip</span></p>'
-      : '<p class="tt-key"><span class="tm ad">14:20</span> New trip <span class="tm rm">14:20</span> Cancelled trip <span class="tm sh">14:30</span> Moved trip</p>';
+      : '<p class="tt-key"><span class="tm ad">14:20</span> New trip <span class="tm rm">14:20</span> Cancelled trip <span class="tm sh">14:30</span> Retimed trip</p>';
     return o.f === 'table'
       ? '<p class="tt-key"><span><i class="m">20</i>ללא שינוי</span><span><i class="m ad">20<small>חדש</small></i>נסיעה חדשה</span><span><i class="m rm">20<small>בוטלה</small></i>נסיעה שבוטלה</span><span><i class="m sh">30<small>היה 14:31</small></i>נסיעה שהוזזה</span></p>'
       : '<p class="tt-key"><span class="tm ad">14:20</span> נסיעה חדשה <span class="tm rm">14:20</span> נסיעה שבוטלה <span class="tm sh">14:30</span> נסיעה שהוזזה</p>';

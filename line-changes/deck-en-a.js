@@ -22,7 +22,7 @@
     lgVarEnd: 'Route of the cancelled trips (until ', lgSame: 'Line route (unchanged)', lgVarNew: 'Route of the new trips (from ',
     lgExt: 'New section (from ', lgOld: 'Section the line no longer uses (until ', lgAll: 'New route (from ', lgSameR: 'Unchanged route',
     lgNewSeg: 'New section (from ', lgRem: 'Cancelled stop', lgNear: 'To the nearest stop on the new route', lgWalk: ' (walking time in the list)',
-    lgSeg: 'The route changes here (see text)', lgAdd: 'New stop', lgMv: 'Stop that moves', lgStay: 'Stop that stays',
+    lgSeg: 'The route changes here (see text)', lgAdd: 'New stop', lgMv: 'Relocated stop', lgStay: 'Stop that stays',
     inArea: ' in this area · The numbers on the map match the list on the next page',
     // סיום
     check: 'Check before you travel',
@@ -31,8 +31,8 @@
     closeCh: '. The change may still be updated at any time. Check with the info line or the app before you travel.',
     // שם המצגת
     chg1: 'Line ', chg1b: ' service change', same: 'Same change on ', linesN: ' lines', chgs: 'Service changes: lines ', chgsN: 'Service changes on ',
-    newLine: 'New line: ', ended: ' stops running', ttFor: 'New timetable for line ', current: 'Current timetable',
-    bNew: 'New line', bEnded: 'Stops running', bTt: 'New timetable', bChg: 'Service change',
+    newLine: 'New line: ', ended: ' is discontinued', ttFor: 'New timetable for line ', current: 'Current timetable',
+    bNew: 'New line', bEnded: 'Line discontinued', bTt: 'New timetable', bChg: 'Service change',
     // מבוא בשער
     inNew: 'On the next pages: a map of the route, all the stops, and when the line runs.',
     inEnded: 'On the next pages: a map of the route, and which other lines stop at the same stops.',
@@ -46,8 +46,8 @@
     inStops: 'On the next pages: a map of the stops that change.',
     inRoute: 'On the next pages: a map of the old and the new route', inRouteRem: ', and the nearest stop in place of each cancelled stop.',
     // תגיות
-    cNew: 'New line', cEnded: 'Line cancelled', cTt: 'Timetable change', cVarEnd: 'Route variant cancelled', cVarNew: 'New route variant',
-    cExtEnd: 'Line goes further', cExtStart: 'Line starts further back', cExt: 'Line extended', cGeo: 'Takes a different route',
+    cNew: 'New line', cEnded: 'Line discontinued', cTt: 'Timetable change', cVarEnd: 'Route variant cancelled', cVarNew: 'New route variant',
+    cExtEnd: 'Line extends further', cExtStart: 'Line starts further back', cExt: 'Route extended', cGeo: 'Takes a different route',
     // מפות (deck-maps.js)
     mStartTo: 'Start · to ', mEndFrom: 'End · from ', mStart: 'Start of the line', mEnd: 'End of the line', mStopsHere: ' stop here', mStopHere: ' stops here',
     mWasStart: 'The line used to start here', mWasEnd: 'The line used to end here', mCode: 'Stop code ', mBoth: 'both directions', mTo: 'to ', mFrom: 'from ',
@@ -86,7 +86,7 @@
   function od(o) { return (o && o[0] && o[1]) ? nm(o[0]) + ' ↔ ' + nm(o[1]) : ''; }
   function miss() { ed(); return Object.keys(MISS); }
   /* תגיות סיכום (כמו LC.chips) */
-  function stopsWord(n, k) { return k === 'rem' ? pl(n, 'stop cancelled', 'stops cancelled') : k === 'add' ? pl(n, 'new stop', 'new stops') : pl(n, 'stop moves', 'stops move'); }
+  function stopsWord(n, k) { return k === 'rem' ? pl(n, 'stop cancelled', 'stops cancelled') : k === 'add' ? pl(n, 'new stop', 'new stops') : pl(n, 'stop relocated', 'stops relocated'); }
   function chips(c) {
     var K = { 'new': ['add', T.cNew], ended: ['rem', T.cEnded], timetable: ['tt', T.cTt] }, h = '';
     if (c.kind && K[c.kind]) return '<span class="chip ' + K[c.kind][0] + '">' + K[c.kind][1] + '</span>';

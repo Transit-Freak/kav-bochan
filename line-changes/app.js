@@ -1109,7 +1109,7 @@
      "Starting Tue 17.11" → "Since Tue 17.11" (רק תאריך שכבר עבר), "Until now" → "Before the change" */
   function pastTextEn(t) {
     t = window.LCDeckEN && LCDeckEN.b_past ? LCDeckEN.b_past(t) : t;
-    return t.replace(/\bWhat changes\b/g, 'What changed').replace(/\blines that change\b/g, 'lines that changed').replace(/\bUntil now\b/g, 'Before the change').replace(/\bFrom now on\b/g, 'After the change')
+    return t.replace(/\bWhat changes\b/g, 'What changed').replace(/\b(lines|stops) that change\b/g, '$1 that changed').replace(/\bUntil now\b/g, 'Before the change').replace(/\bFrom now on\b/g, 'After the change')
       .replace(/\b(?:Starting|Starting from) ((?:[A-Z][a-z]+,? )?)(\d{1,2})\.(\d{1,2})(\.\d{4})?/g, function (m, w, d, mo, y) {
         var iso = (y ? y.slice(1) : idx.gen.slice(0, 4)) + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2);
         return iso <= idx.gen ? 'Since ' + w + d + '.' + mo + (y || '') : m;

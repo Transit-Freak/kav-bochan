@@ -17,7 +17,7 @@
     credit: 'Made with the “Line change slides” tool of HaKav HaBochen · kavbochan.app', cancelled: 'Cancelled: ', earlier: 'earlier', later: 'later',
     fromT: ' from ', newOn: 'new on ', except: 'except ', noChange: ' — no change', keyNew: 'New or changed', keyRm: 'Cancelled', srRm: 'cancelled', srNew: 'new',
     oldUntil: 'Timetable until ', theChange: 'the change', newTimetable: 'New timetable', prevTt: 'Previous timetable — before the change',
-    oldNote: 'Red — trip cancelled or moved', newNote: 'Green — new trip or new time',
+    oldNote: 'Red — trip cancelled or retimed', newNote: 'Green — new trip or new time',
     // אקסל
     xOp: 'Operator', xPhone: 'Phone', xLine: 'Line', xNotes: 'Notes', xOnly: ' only', xValidUntil: 'Timetable valid until ', xFeed: 'Based on Ministry of Transport data from '
   };
@@ -43,6 +43,10 @@
     'אגד תעבורה': 'Egged Ta\'avura', 'כרמלית': 'Carmelit', 'כפיר': 'Kfir', 'רכבת ישראל': 'Israel Railways', 'ש.א.מ': 'S.A.M', 'גי.בי.טורס': 'GB Tours',
     'מועצה אזורית גולן': 'Golan Regional Council', 'מועצה אזורית אילות': 'Eilot Regional Council', 'דן נתיבים בעמ': 'Dan Netivim', 'תבל': 'Tevel',
     'נסיעות ותיירות': 'Nesiot VeTayarut', 'כבל אקספרס': 'Cable Express', 'יונייטד טורס': 'United Tours', 'דרך אגד עוטף ירושלים': 'Derech Egged',
+    'מוניות מטרו קו': 'Metro Kav Taxis', 'אודליה מוניות בעמ': 'Odelia Taxis',
+    'ירושלים-רמאללה איחוד': 'Jerusalem–Ramallah United', 'ירושלים-אבו-תור-ענאתא איחוד': 'Jerusalem–Abu Tor–Anata United',
+    'ירושלים-אלווסט איחוד': 'Jerusalem–Al-Wasat United', 'ירושלים - עיסאוויה מחנה שעפאט איחוד': 'Jerusalem–Issawiya–Shuafat Camp United',
+    'ירושלים-דרום איחוד': 'Jerusalem–South United', 'ירושלים-צור באהר איחוד': 'Jerusalem–Sur Baher United',
     'משרד התחבורה': 'Ministry of Transport'
   };
   /* מפתח להשוואת שמות: גרשיים אחידים (בי''ס / בי״ס / בי"ס), רווחים — כמו en_key בבונה */

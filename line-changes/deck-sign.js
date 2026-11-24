@@ -303,7 +303,7 @@
     if (ttOne(p)) {   // שינוי קטן מאוד בלו"ז: שלט אחד — מה השתנה, בשעות, במילים
       out.push({ id: 'sg-' + p.id + '-tt0', label: pre + 'שלט · לוח הזמנים',
         html: '<div class="s-sign s-signtt"' + LDIR() + '>' + signBand(p) + '<div class="sg-when">' + kindWhen(p) + '</div>' +
-          '<div class="sg-what"><h2 class="hd">' + TX('מה משתנה?') + '</h2><p style="font-size:22px;margin:0 0 10px;color:var(--s-sub)">' + (en ? 'The route and stops do not change — only the times of ' + (ttCount(p) === 1 ? '1 trip' : ttCount(p) + ' trips')
+          '<div class="sg-what"><h2 class="hd">' + TX('מה משתנה?') + '</h2><p style="font-size:22px;margin:0 0 10px;color:var(--s-sub)">' + (en ? 'The route and stops stay the same — only the times of ' + (ttCount(p) === 1 ? 'one trip' : ttCount(p) + ' trips') + ' change'
           : 'המסלול והתחנות לא משתנים — רק השעות של ' + (ttCount(p) === 1 ? 'נסיעה אחת' : ttCount(p) + ' נסיעות')) + '.</p><ul>' + kindItems(p).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
           contact + signFoot(feed, false) + '</div>' });
       return out;
@@ -329,7 +329,7 @@
     var top = function (sub, small) {
       return '<div class="st-top' + (small ? ' sm' : '') + '"><div class="badges">' + badgesHtml([p.line]) + '</div>' +
         '<h1 class="hd">' + E(TX(p.kind === 'new' ? 'קו חדש' : p.kind === 'ended' ? (started(p) ? 'הקו לא נוסע יותר' : 'הקו מפסיק לפעול') : 'לוח זמנים חדש')) + ' <span class="nw">' +
-          E(en ? (p.kind === 'ended' && !started(p) ? 'after ' + LC.dm(lastOf(p)) : 'from ' + LC.dm(start(p))) : p.kind === 'ended' ? (started(p) ? 'מ-' + LC.dm(start(p)) : 'אחרי ' + LC.dm(lastOf(p))) : 'מ-' + LC.dm(start(p))) + '</span></h1>' +
+          E(en ? (p.kind === 'ended' ? (started(p) ? 'since ' + LC.dm(start(p)) : 'after ' + LC.dm(lastOf(p))) : 'from ' + LC.dm(start(p))) : p.kind === 'ended' ? (started(p) ? 'מ-' + LC.dm(start(p)) : 'אחרי ' + LC.dm(lastOf(p))) : 'מ-' + LC.dm(start(p))) + '</span></h1>' +
         '<p class="sub">' + E(sub) + '</p><div class="seam"><i></i></div></div>';
     };
     var foot = '<div class="st-foot"><p class="st-check">' + TX('לפני הנסיעה בדקו:') + ' ' + (phoneOf(p.op) ? E(OPN(p.op)) + ' <b class="ltr">' + E(phoneOf(p.op)) + '</b> · ' : '') + TX('משרד התחבורה') + ' <b class="ltr">' + MOT + '</b></p>' +

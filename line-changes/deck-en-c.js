@@ -14,7 +14,7 @@
     'כל כמה דקות בשאר היום': 'Every … min the rest of the day', 'אין': 'None', ' דק׳': ' min',
     'חדש': 'new', 'בוטלה': 'cancelled', 'היה ': 'was ', ' · ללא שינוי': ' · no change', ' (המשך)': ' (cont.)', 'שעה': 'Hour',
     'דקות אחרי השעה': 'Minutes past the hour', 'דקות אחרי השעה — הלוח החדש': 'Minutes past the hour — new timetable',
-    'נסיעה חדשה': 'New trip', 'נסיעה שבוטלה': 'Cancelled trip', 'נסיעה שהוזזה': 'Moved trip', 'היה 14:31': 'was 14:31',
+    'נסיעה חדשה': 'New trip', 'נסיעה שבוטלה': 'Cancelled trip', 'נסיעה שהוזזה': 'Retimed trip', 'היה 14:31': 'was 14:31',
     'מתי הקו נוסע': 'When the line runs', 'לוח הזמנים החדש': 'The new timetable',
     'שעת היציאה מהתחנה הראשונה · שעות השיא: 7:00–9:00 ו-16:00–19:00 · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי':
       'Departure time from the first stop · Peak hours: 7:00–9:00 and 16:00–19:00 · Based on Ministry of Transport data · Prepared by a private individual, not an official publication',
@@ -42,7 +42,7 @@
     'לפי יעד': 'By destination', 'לפי יעד, כל שעות היציאה': 'By destination, all departure times', 'מה משתנה': 'What changes', 'מה משתנה בקווים': 'What changes in the lines',
     'לא פרסום רשמי · הוכן על ידי אדם פרטי': 'Not an official publication · Prepared by a private individual',
     // שלט וסטטוס
-    'לפני הנסיעה בדקו:': 'Before travelling, check:', 'משרד התחבורה': 'Ministry of Transport', 'הקו החדש': 'The new line', 'מה זה אומר?': 'What does this mean?',
+    'לפני הנסיעה בדקו:': 'Check before you travel:', 'משרד התחבורה': 'Ministry of Transport', 'הקו החדש': 'The new line', 'מה זה אומר?': 'What does this mean?',
     'התחנות כאן': 'The stops here', 'מה משתנה?': 'What changes?', 'הקו לא נוסע יותר': 'The line no longer runs',
     'הפרטים המלאים של הקווים האלה — במצגת.': 'Full details of these lines are in the presentation.',
     'לא מצאנו קו אחר שעוצר ברוב התחנות.': 'We found no other line that stops at most of the stops.'
@@ -123,12 +123,12 @@
   /* x — ttDiff(e): {ad, rm, sh} */
   function smallLine(e, x) {
     var w = dtIn(e.t), parts = [];
-    if (!x.sh.length && x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30) return B(w) + 'The ' + hm(x.rm[0]) + ' trip will leave at ' + hm(x.ad[0]) + '.';
+    if (!x.sh.length && x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30) return B(w) + 'the ' + hm(x.rm[0]) + ' trip will leave at ' + hm(x.ad[0]) + '.';
     if (x.sh.length && x.sh.length <= 3) x.sh.forEach(function (z) { parts.push('the ' + hm(z[0]) + ' trip will leave at ' + hm(z[1])); });
-    else if (x.sh.length) parts.push(x.sh.length + ' trips moved ' + shWord(x.sh));
-    if (x.ad.length) parts.push((x.ad.length === 1 ? 'a trip added at ' : 'trips added at ') + hmList(x.ad));
-    if (x.rm.length) parts.push((x.rm.length === 1 ? 'the ' + hmList(x.rm) + ' trip cancelled' : 'the trips at ' + hmList(x.rm) + ' cancelled'));
-    return B(w) + cap(parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts.join('')) + '.';
+    else if (x.sh.length) parts.push(x.sh.length + ' trips are retimed ' + shWord(x.sh));
+    if (x.ad.length) parts.push((x.ad.length === 1 ? 'a trip is added at ' : 'trips are added at ') + hmList(x.ad));
+    if (x.rm.length) parts.push((x.rm.length === 1 ? 'the ' + hmList(x.rm) + ' trip is cancelled' : 'the trips at ' + hmList(x.rm) + ' are cancelled'));
+    return B(w) + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts.join('')) + '.';
   }
   function sameLine(ts) { return B(dtIn(ts)).replace(':</b>', '</b>') + '— no change.'; }
   /* מפורט, טבלה: "בימי חול: 2 נסיעות חדשות, אחת בוטלה, בין 7:00 ל-9:00. השאר ללא שינוי." */
@@ -137,11 +137,11 @@
     if (!x.ad.length && !x.rm.length && !x.sh.length) return '';
     if (x.ad.length) t.push(x.ad.length === 1 ? '1 new trip' : x.ad.length + ' new trips');
     if (x.rm.length) t.push(x.rm.length + (t.length ? ' cancelled' : x.rm.length === 1 ? ' trip cancelled' : ' trips cancelled'));
-    if (x.sh.length) t.push(x.sh.length + (t.length ? ' moved ' : x.sh.length === 1 ? ' trip moved ' : ' trips moved ') + shWord(x.sh));
+    if (x.sh.length) t.push(x.sh.length + (t.length ? ' retimed ' : x.sh.length === 1 ? ' trip retimed ' : ' trips retimed ') + shWord(x.sh));
     var all = x.ad.concat(x.rm).concat(x.sh.map(function (z) { return z[1]; })).sort(function (a, b) { return a - b; });
     var rng = all.length === 1 ? 'at ' + hm(all[0]) : 'between ' + hm(all[0]) + ' and ' + hm(all[all.length - 1]);
     var keep = e.n.length - x.ad.length - x.sh.length;
-    return B(dtIn(e.t)) + t.join(', ') + ', ' + rng + (keep > 0 ? '. The rest unchanged.' : '.');
+    return B(dtIn(e.t)) + t.join(', ') + ', ' + rng + (keep > 0 ? '. The other trips are unchanged.' : '.');
   }
   /* "רק מה שהשתנה" — שורה אחת לשינוי בלו"ז (כמו ttPlain); x — ttDiff, small — smallLine(e) כבר באנגלית */
   function plainPart(e, x, small) {
@@ -207,11 +207,11 @@
     var K = { 'new': ['add', 'New line'], ended: ['rem', 'Line discontinued'], timetable: ['tt', 'Timetable change'] };
     if (c.kind && K[c.kind]) return '<span class="chip ' + K[c.kind][0] + '">' + K[c.kind][1] + '</span>';
     if (c.var) h += '<span class="chip ' + (c.var === 'end' ? 'rem' : 'add') + '">' + (c.var === 'end' ? 'Route variant cancelled' : 'New route variant') + '</span>';
-    else if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'The line goes further' : c.ext === 'start' ? 'The line starts earlier' : 'The line is extended') + '</span>';
-    else if (c.geo) h += '<span class="chip geo">The line takes a different road</span>';
+    else if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'The line extends further' : c.ext === 'start' ? 'The line starts further back' : 'The route is extended') + '</span>';
+    else if (c.geo) h += '<span class="chip geo">The line takes a different route</span>';
     if (c.rem) h += '<span class="chip rem">' + sw(c.rem, '1 stop cancelled', 'stops cancelled') + '</span>';
     if (c.add) h += '<span class="chip add">' + sw(c.add, '1 new stop', 'new stops') + '</span>';
-    if (c.mv) h += '<span class="chip mv">' + sw(c.mv, '1 stop moves', 'stops move') + '</span>';
+    if (c.mv) h += '<span class="chip mv">' + sw(c.mv, '1 stop relocated', 'stops relocated') + '</span>';
     return h;
   }
   Object.assign(X, {
