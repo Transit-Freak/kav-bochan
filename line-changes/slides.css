@@ -1095,3 +1095,14 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .s-bd.en{direction:ltr;text-align:left}
 .s-bd.en .bd-t td.bt,.s-bd.en .bd-t td.bt.off,.s-bd.en .bd-t tr.bsec td,.s-bd.en tr.boff td,.s-bd.en .bd-t td.bo{text-align:left}
 .s-bd.en .bd-t td.bl > *{direction:ltr}
+/* מצגת באנגלית (deck-en-a.js): השער, הסקירה, שקף המפה והסיום משמאל לימין (.en על השקף), והמפות — .lcen על המפה:
+   האריחים של OpenStreetMap (עם שמות בעברית) דהויים ואפורים, כדי שהתוויות שלנו באנגלית יבלטו; התוויות משמאל לימין */
+.slide .en{direction:ltr;text-align:left}
+.s-cover.en .what ul{padding:0 0 0 22px}
+.s-cover.en .what.crows ul{padding:0}
+.s-over.en th{text-align:left}
+.s-over.en td.ln b{margin-left:0;margin-right:8px}
+.s-close.en .ph .v{text-align:left}
+.deck[data-look="light"] .en .note{border-right:none;border-left:5px solid #e0a400}
+.lcen .leaflet-tile-pane{filter:grayscale(1) contrast(.85) brightness(1.08);opacity:.6}
+.lcen .leaflet-tooltip{direction:ltr}
