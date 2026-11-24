@@ -508,6 +508,21 @@ const ICON={
     <circle cx="60" cy="74" r="7" fill="#78350f"/><rect x="57" y="76" width="6" height="15" rx="3" fill="#78350f"/>
   </g>`),
 
+/* האוטובוס הבא — אוטובוס בדרך, שעון עם חץ "הבא" ונקודה חיה ששודרת */
+'live-bus':()=>tile('livebus','#14b8a6','#042f2e',`
+  <path d="M10 109 H110" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round" stroke-dasharray="9 7"/>
+  <g transform="translate(18 57)">${busSide('lb',{stripe:'#0d9488'})}</g>
+  <g filter="url(#kb-drop)">
+    <circle cx="36" cy="32" r="17" fill="#fff"/>
+    <circle cx="36" cy="32" r="13.2" fill="#f0fdfa"/>
+    <path d="${arc(36,32,13.2,-90,200)}" stroke="#0d9488" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M36 24 V32 L41.5 35.5" stroke="#0f172a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="36" cy="32" r="1.8" fill="#0f172a"/>
+  </g>
+  <path d="M58 32 H74 M68.5 26.5 L74 32 L68.5 37.5" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <path d="${arc(94,34,10.5,-140,-40)} ${arc(94,34,17,-145,-35)}" stroke="#fbbf24" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".95"/>
+  <circle cx="94" cy="34" r="5.6" fill="#ef4444" stroke="#fff" stroke-width="2"/>`),
+
 /* נגישות אזורי תעשייה — הסמל המקורי של אתר השותפים, על אריח לבן */
 'parks':()=>`<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><defs><clipPath id="cl-parks"><rect width="120" height="120" rx="28"/></clipPath></defs><g clip-path="url(#cl-parks)"><rect width="120" height="120" fill="#fff"/><image href="parks/icon-180.png" x="0" y="0" width="120" height="120"/></g><rect x=".75" y=".75" width="118.5" height="118.5" rx="27.25" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="1.5"/></svg>`
 };
@@ -529,7 +544,8 @@ const GROUPS = [
   {k:'bus',n:'מדד דיוק האוטובוסים',d:'כל אוטובוס בארץ מול הלו"ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, עיר ושעה, יום אחרי יום, מנתוני דאטאבוס',h:'bus/',vk:'bus',a:'#059669'},
   {k:'bus-speed',n:'איפה האוטובוס נתקע',d:'המהירות של האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס',h:'bus-speed/',vk:'bus-speed',a:'#dc2626'},
   {k:'alerts',n:'הקו המודיע',d:'עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שבוטלו זמנית והתחנות החלופיות',h:'alerts/',vk:'alerts',a:'#c026d3'},
-  {k:'fleet',n:'צי הרכבים',d:'כל האוטובוסים שנצפו בשידורי האיכון — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה ומה פרטיו במאגר הרישוי',h:'fleet/',vk:'fleet',a:'#2563eb'}]},
+  {k:'fleet',n:'צי הרכבים',d:'כל האוטובוסים שנצפו בשידורי האיכון — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה ומה פרטיו במאגר הרישוי',h:'fleet/',vk:'fleet',a:'#2563eb'},
+  {k:'live-bus',n:'האוטובוס הבא',d:'איזה אוטובוס ייסע בנסיעה הבאה, ומה הוא עושה עכשיו — בקווים של דן בדרום ודן באר שבע',h:'live-bus/',vk:'live-bus',a:'#0d9488'}]},
  {id:'g-rail',name:'רכבת',tools:[
   {k:'rail',n:'מדד אמינות הרכבת',d:'כל רכבת שבלו"ז מול המיקום ששידרה בפועל: כמה רכבות הגיעו בזמן, איחור לפי קו, תחנה ושעה, וכל נסיעה על המפה — יום אחרי יום, מנתוני דאטאבוס',h:'rail/',vk:'rail',a:'#0284c7'},
   {k:'reception',n:'קליטה ברכבת',d:'איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5',h:'rail/reception/',vk:'reception',a:'#7c3aed'},
@@ -541,7 +557,7 @@ const GROUPS = [
   {k:'game',n:'🔒 משחק הקווים · בטא',on:'🔒 משחק הקווים · בבנייה',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — בכל שבוע נפתחים 2 מקומות לבודקים',h:'game/',vk:'game',a:'#e11d48'}]}
 ];
 const PARKS = {k:'parks',n:'נגישות אזורי תעשייה',d:'ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות',h:'parks/'};
-const COUNT = 'שבעה-עשר';
+const COUNT = 'שמונה-עשר';
 const ALL = GROUPS.flatMap(g => g.tools).concat([PARKS]);
 
 /* ===== HTML ===== */
