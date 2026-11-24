@@ -556,3 +556,7 @@ details.group summary span{font-weight:600;color:var(--sub)}
   .uilang > span,.uilang button[aria-pressed="true"]{display:none}
   .uilang button{padding:2px 10px;min-height:28px;font-size:12px}
 }
+
+/* ממשק באנגלית: החלקים המשותפים לאתר (a11y.js — שורת הזכויות ולוח הנגישות) משמאל לימין */
+html[data-kb-lang="en"] .kb-copyright{direction:ltr}
+html[data-kb-lang="en"] [dir="rtl"]:not(.sframe *):not(.sframe){direction:ltr}

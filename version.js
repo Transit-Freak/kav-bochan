@@ -19,6 +19,13 @@
     return /^#(פח|מוזהב|kavpach|golden)(\/|$)/.test(h) ? "kavpach" : "home";
   }
   var DATA = null;
+  // דף שבחר אנגלית (data-kb-lang="en" — היום רק "מצגת לשינוי בקו" בממשק באנגלית, ui-en.js): הטקסטים באנגלית, משמאל לימין,
+  // ו"מה חדש" מ-en שליד items ב-versions.json (בלי en — העברית). כל שאר הדפים — כמו קודם
+  var EN = document.documentElement.getAttribute("data-kb-lang") === "en";
+  var L = EN ? { ver: "Version ", whatsNew: "What's new", close: "Close", prev: "Previous versions", tip: "What changed in this version", at: " at ", gtfs: "Ministry of Transport lines file updated on ", arch: " (from the daily archive)" }
+    : { ver: "גרסה ", whatsNew: "מה חדש", close: "סגירה", prev: "גרסאות קודמות", tip: "מה השתנה בגרסה הזו", at: " בשעה ", gtfs: "קובץ הקווים של משרד התחבורה עודכן ב-", arch: " (מהארכיון היומי)" };
+  function items(v) { return EN && v.en && v.en.length ? v.en : v.items; }
+  function nameOf(T) { return EN && T.name_en ? T.name_en : T.name; }
   var CSS = "#kb-ver{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px 22px;direction:rtl}" +
     "#kb-ver .kb-gtfs{font:500 12px/1.5 Heebo,Arial,sans-serif;color:#64748b;text-align:center}" +
     "html.kb-dark #kb-ver .kb-gtfs{color:#97a2b8}" +
@@ -37,7 +44,8 @@
     "#kb-ver-card .vrow{all:unset;box-sizing:border-box;cursor:pointer;display:flex;width:100%;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid #f1f5f9;font-weight:700;font-size:14px}" +
     "#kb-ver-card .vrow small{color:#94a3b8;font-weight:500;margin-inline-start:auto}" +
     "#kb-ver-card .vbody{padding:4px 2px 8px;font-size:14px;color:#334155}" +
-    "#kb-ver-card .vtag{background:#ede9fe;color:#5b21b6;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800}";
+    "#kb-ver-card .vtag{background:#ede9fe;color:#5b21b6;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800}" +
+    (EN ? "#kb-ver,#kb-ver-ov{direction:ltr}" : "");
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function fmtD(d) { var p = String(d || "").split("-"); return p.length === 3 ? (+p[2]) + "." + (+p[1]) + "." + p[0] : ""; }
   function list(items) { return "<ul>" + (items || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>"; }
@@ -47,11 +55,11 @@
     var T = DATA && DATA[t]; if (!T) return;
     var vs = T.versions || [], cur = vs[0];
     var ov = document.createElement("div"); ov.id = "kb-ver-ov";
-    ov.innerHTML = '<div id="kb-ver-card" role="dialog" aria-modal="true" aria-label="מה חדש">' +
-      '<h2>' + esc(T.name) + ' <span class="vtag">גרסה ' + esc(cur.v) + '</span><button class="vx" aria-label="סגירה">✕</button></h2>' +
-      '<div class="vd">' + fmtD(cur.d) + '</div>' + list(cur.items) +
-      (vs.length > 1 ? '<div class="vold"><h3>גרסאות קודמות</h3>' + vs.slice(1).map(function (v, i) {
-        return '<button class="vrow" aria-expanded="false" data-i="' + (i + 1) + '">גרסה ' + esc(v.v) + '<small>' + fmtD(v.d) + ' ⌄</small></button><div class="vbody" hidden>' + list(v.items) + '</div>';
+    ov.innerHTML = '<div id="kb-ver-card" role="dialog" aria-modal="true" aria-label="' + L.whatsNew + '">' +
+      '<h2>' + esc(nameOf(T)) + ' <span class="vtag">' + L.ver + esc(cur.v) + '</span><button class="vx" aria-label="' + L.close + '">✕</button></h2>' +
+      '<div class="vd">' + fmtD(cur.d) + '</div>' + list(items(cur)) +
+      (vs.length > 1 ? '<div class="vold"><h3>' + L.prev + '</h3>' + vs.slice(1).map(function (v, i) {
+        return '<button class="vrow" aria-expanded="false" data-i="' + (i + 1) + '">' + L.ver + esc(v.v) + '<small>' + fmtD(v.d) + ' ⌄</small></button><div class="vbody" hidden>' + list(items(v)) + '</div>';
       }).join("") + '</div>' : '') + '</div>';
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
     ov.querySelector(".vx").addEventListener("click", close);
@@ -79,7 +87,7 @@
       box = document.createElement("div"); box.id = "kb-ver";
       document.body.appendChild(box);
     }
-    box.innerHTML = '<button type="button" title="מה השתנה בגרסה הזו">' + esc(T.name) + ' · גרסה ' + esc(T.versions[0].v) + '</button>';
+    box.innerHTML = '<button type="button" title="' + L.tip + '">' + esc(nameOf(T)) + ' · ' + L.ver + esc(T.versions[0].v) + '</button>';
     box.querySelector("button").onclick = function () { open(t); };
     if (GTFS) box.insertAdjacentHTML("beforeend", '<div class="kb-gtfs">' + esc(GTFS) + "</div>");
   }
@@ -89,7 +97,7 @@
     try {
       var p = {}; new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
         .formatToParts(new Date(iso)).forEach(function (x) { p[x.type] = x.value; });
-      return p.day + "." + p.month + " בשעה " + p.hour + ":" + p.minute;
+      return p.day + "." + p.month + L.at + p.hour + ":" + p.minute;
     } catch (e) { return ""; }
   }
   function loadGtfs() {
@@ -97,7 +105,7 @@
       .then(function (g) {
         if (!g || !g.mot) return;
         var when = il(g.mot); if (!when) return;
-        GTFS = "קובץ הקווים של משרד התחבורה עודכן ב-" + when + (g.source === "archive" ? " (מהארכיון היומי)" : "");
+        GTFS = L.gtfs + when + (g.source === "archive" ? L.arch : "");
         if (DATA) render();
       }).catch(function () { /* בלי השורה — לא מפריע */ });
   }

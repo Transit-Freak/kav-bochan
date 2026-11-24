@@ -514,3 +514,33 @@ test('ui-en.js: לכל טקסט במילון יש אנגלית, ולכל טקס�
   assert.equal(U.tr('צפת'), null, 'שם — לא במילון');
   assert.equal(U.file('לוח-זמנים-קו-1-2026-11-24'), 'timetable-line-1-2026-11-24');
 });
+
+/* בדיקת טקסטים בקוד: כל טקסט בעברית ב-line-changes/app*.js, editor.js ו-common.js שמופיע בממשק — יש לו אנגלית ב-ui-en.js.
+   חלק מטקסט שמחובר לערך (מתחיל או נגמר ברווח / סוגר / נקודה) — נבדק כטקסט שלם בדף (תבנית ב-UIP), לא כאן.
+   UI_LINT_SKIP — טקסטים שאינם ממשק: הנוסח של השקפים עצמם (פעלים ומשפטים בשקף, שקף טקסט חדש, שורת "הוכן על ידי"),
+   שמות גיליונות באקסל (board-en.js — SHEET) ומילות מפתח בקובץ ה-PDF; וחלקים שהבדיקה לא מפרקת נכון (תכונה בתוך טקסט) */
+const UI_LINT_SKIP = new Set(('">נפרד|$1 היא|$1 השתנה|) התחילה באותו כיוון|). אפשר לנסות שוב, או להוריד בכל זאת — עם חלקים ריקים במפה.|. אפשר לבחור "הכול".|' +
+  '. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה|<div class="bcw-h" role="separator" aria-orientation="vertical" aria-label="רוחב העמודה — לגרור" data-cb="|> להציג|' +
+  'ביטל|ביטלו|האריך|האריכו|הוכן על ידי אדם פרטי · לא פרסום רשמי|הוסיף|הוסיפו|הלו״ז הקודם|העביר|העבירו|הפסיק לפעול|הפסיקו לפעול|התמונה|התמונות|חוזר|חוזרים|' +
+  'יגיע|יגיעו|יחזור|יחזרו|ייסע|ייסעו|ימשיך|ימשיכו|יסיים|יסיימו|יעצור|יעצרו|יתחיל|יתחילו|כותרת השקף|כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.|' +
+  'לא השתנו|לו״ז|לו״ז חדש|לפי לוח הזמנים, חלופה|מאריך|מאריכים|מבטל|מבטלים|מגיע|מגיעים|מוסיף|מוסיפים|ממשיך|ממשיכים|מסיים|מסיימים|מעביר|מעבירים|משנה|משנים|' +
+  'מתחיל|מתחילים|נוסע|נוסעים|עוצר|עוצרים|שהשתנו|שינה|שינו|תחבורה ציבורית, שינוי בקו|תחנה אחת עברה|תחנות עברו').split('|'));
+test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, editor.js, common.js) יש אנגלית', () => {
+  const c3 = {}; vm.createContext(c3);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'ui-en.js'), 'utf8'), c3);
+  const miss = new Set();
+  for (const f of ['app.js', 'app-settings.js', 'app-edit.js', 'app-images.js', 'app-export.js', 'editor.js', 'common.js']) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');
+    for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+      const lit = m[1]; if (!/[א-ת]/.test(lit)) continue;
+      for (let p of lit.split(/<[^>]*>/)) {
+        p = p.replace(/&quot;/g, '"');
+        if (!/[א-ת]/.test(p)) continue;
+        if (/^[\s(·,:\-–—]|[\s(·,:\-–—]$/.test(p) && (lit.startsWith(p) || lit.endsWith(p))) continue;
+        const t = p.trim();
+        if (!UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ': ' + t);
+      }
+    }
+  }
+  assert.deepEqual([...miss], [], 'טקסטים בממשק בלי אנגלית ב-ui-en.js');
+});

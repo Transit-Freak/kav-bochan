@@ -105,12 +105,27 @@
     // לוח באנגלית — שמות בלי תרגום
     'אפשר לכתוב כאן את השם באנגלית (לא חובה).': 'You can type the English name here (optional).', 'כל השמות מתורגמים.': 'All names are translated.', 'שם אחד בלי תרגום לאנגלית — יופיע בעברית.': 'One name has no English translation — it will appear in Hebrew.',
     'להמשיך — השמות יופיעו בעברית': 'Continue — the names will appear in Hebrew',
+    'דרך אחרת ותחנות אחרות': 'Different way and stops', 'שינוי בתחנות': 'Stop changes', 'נוספו תחנות': 'Stops added', 'בוטלו תחנות': 'Stops cancelled',
+    'הקו הוארך': 'Line extended', 'הקו קוצר': 'Line shortened', 'שינוי בתחנה הראשונה או האחרונה': 'Change at the first or last stop', 'הקו מבוטל': 'Line cancelled',
+    'כותרת בכל עמוד': 'Title on every page', 'רוחב העמודה — לגרור': 'Column width — drag',
+    'אין מספיק מקום בדפדפן לשמור את התמונה — היא תישאר רק עד שהלשונית תיסגר.': 'Not enough browser storage to keep the image — it will stay only until the tab is closed.',
+    'לא הצלחנו לשמור את התמונה בדפדפן — היא תישאר רק עד שהלשונית תיסגר.': 'Could not save the image in the browser — it will stay only until the tab is closed.',
+    'לפני השינוי': 'Before the change', 'אחרי השינוי': 'After the change', 'מה השתנה': 'What changed',
+    // חלקים משותפים לאתר (a11y.js, home-link.js, version.js) — רק בדף הזה, כשהממשק באנגלית
+    'נגישות': 'Accessibility', 'טקסט גדול': 'Large text', 'טקסט גדול מאוד': 'Extra large text', 'ניגודיות גבוהה': 'High contrast', 'גווני אפור': 'Greyscale',
+    'הדגשת קישורים': 'Highlight links', 'גופן קריא': 'Readable font', 'סמן עכבר גדול': 'Large cursor', 'עצירת אנימציות': 'Stop animations', 'איפוס כל ההגדרות': 'Reset all settings',
+    'הצהרת נגישות ←': 'Accessibility statement →', 'תנאי שימוש ופרטיות ←': 'Terms of use and privacy →', 'זכויות יוצרים ←': 'Copyright →', 'קישורים ←': 'Links →',
+    'הצהרת נגישות': 'Accessibility statement', 'תנאי שימוש ופרטיות': 'Terms of use and privacy', 'זכויות יוצרים': 'Copyright', 'קישורים': 'Links',
+    '← חזרה לקו הבוחן': '← Back to HaKav HaBochen', 'חזרה לעמוד הראשי של הקו הבוחן': 'Back to the HaKav HaBochen home page',
+    '© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור ·': '© 2026 Shlomo Hartman · Built with AI following his instructions · You may quote and link with attribution ·',
+    'זכויות יוצרים ותנאי שימוש': 'Copyright and terms of use',
     // תחתית
     '· הקו הבוחן': '· HaKav HaBochen', 'שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה': 'Upcoming changes are detected every night from Ministry of Transport data',
     ', ושינויים שהתחילו בשבועיים האחרונים — מהנתונים של הלילות הקודמים ומהארכיון של הקו הבוחן. זה לא פרסום רשמי.': ', and changes that started in the last two weeks — from previous nights and the HaKav HaBochen archive. This is not an official publication.'
   };
   /* טקסטים עם מספרים ותאריכים */
   var DOWS = { 'א׳': 'Sun', 'ב׳': 'Mon', 'ג׳': 'Tue', 'ד׳': 'Wed', 'ה׳': 'Thu', 'ו׳': 'Fri', 'ש׳': 'Sat', 'שבת': 'Sat', 'שישי': 'Fri' };
+  var THEME = { 'לפי הטלפון': 'like the phone', 'בהיר': 'light', 'כהה': 'dark' };
   var CHIP = { ', הלוח לפי התאריך הזה': ', the board uses this date', ', לא בלוח': ', not on the board', ', השעות שונות': ', times differ' };
   function lines(t) { return t.replace(/^קו /, 'Line ').replace(/^קווים /, 'Lines ').replace(/ ועוד$/, ' and more').replace(/ ו-?(\S+)$/, ' and $1'); }
   var UIP = [
@@ -135,6 +150,9 @@
     [/^(.+) · (\d+) קווים לאותו יעד, בטבלה אחת$/, '$1 · $2 lines to the same destination, in one table'],
     [/^מ-(\d+\.\d+(?:\.\d+)?)$/, 'from $1'], [/^עד (\d+\.\d+(?:\.\d+)?)$/, 'until $1'], [/^רחוב (.+)$/, 'Street $1'], [/^שכונת (.+)$/, 'Neighbourhood $1'],
     [/^המצגת שלך: (.+)$/, 'Your slides: $1'],
+    [/^תאורה: (\S+(?: \S+)?) \(לחיצה: (\S+(?: \S+)?)\)$/, function (m, a, b) { return 'Theme: ' + (THEME[a] || a) + ' (click: ' + (THEME[b] || b) + ')'; }], [/^תאורה: (.+)$/, function (m, a) { return 'Theme: ' + (THEME[a] || a); }],
+    [/^אין כאן (.+)\. אפשר לבחור "הכול"\.$/, function (m, a) { return 'No ' + (UI[a.replace(/^קווים/, 'הקווים')] || a).replace(/^Lines/, 'lines') + ' here. You can choose "All".'; }],
+    [/^תמונה בשקף(: .+)?\. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה$/, function (m, a) { return 'Image on slide' + (a || '') + '. Arrows move it, plus and minus resize, Delete removes it'; }],
     [/^שבת (\d+\.\d+) — לו״ז חריג \(שונה מ-(\d+\.\d+)\): להוציא מהלוח\?$/, 'Sat $1 — unusual timetable (differs from $2): leave it out of the board?'],
     [/^שישי (\d+\.\d+) — לו״ז חריג \(שונה מ-(\d+\.\d+)\): להוציא מהלוח\?$/, 'Fri $1 — unusual timetable (differs from $2): leave it out of the board?']
   ];
@@ -156,7 +174,8 @@
     return null;
   }
   var SKIP = '.sframe,script,style,[data-noi18n],.ennote li span,.res .badge,.badge';
-  function skip(el) { return !el || (el.closest && el.closest(SKIP)); }
+  // בתוך שקף — רק כפתורי העריכה (noprint: "תיאור", "להחזיר"…), לא הטקסט של השקף עצמו (שפת הלוח)
+  function skip(el) { if (!el || !el.closest) return !el; var k = el.closest(SKIP); return !!k && !(k.classList && k.classList.contains('sframe') && el.closest('.noprint')); }
   var ATTR = ['placeholder', 'aria-label', 'title', 'alt'];
   function run(root) {
     if (!root) return;
@@ -186,7 +205,8 @@
   g.LCUI = { UI: UI, UIP: UIP, tr: tr, file: file, lang: lang, en: lang === 'en', set: set };
   if (typeof document === 'undefined') return;
   if (lang === 'en') {
-    document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr';
+    // data-kb-lang — סימן לחלקים המשותפים לאתר (version.js) שהדף הזה באנגלית; בכל שאר הדפים הם כמו קודם
+    document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr'; document.documentElement.setAttribute('data-kb-lang', 'en');
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   }
 })(typeof window !== 'undefined' ? window : this);
