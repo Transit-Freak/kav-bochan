@@ -549,3 +549,10 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .uilang{display:flex;align-items:center;gap:2px;font:700 13px var(--f-body);color:var(--sub);flex:0 0 auto}
 .uilang button{background:none;border:0;padding:6px 6px;min-height:36px;color:var(--sub);font:inherit;cursor:pointer;border-radius:8px}
 .uilang button[aria-pressed="true"]{color:var(--fg);font-weight:900;text-decoration:underline;text-underline-offset:3px}
+/* בטלפון: רק השפה האחרת (כפתור אחד קטן), כדי שהשלבים לא יידחקו */
+@media (max-width:560px){
+  .steps .in{position:relative}
+  .uilang{position:absolute;inset-inline-end:12px;top:100%;background:var(--card);border:1px solid var(--line);border-top:0;border-radius:0 0 8px 8px;box-shadow:var(--shadow)}
+  .uilang > span,.uilang button[aria-pressed="true"]{display:none}
+  .uilang button{padding:2px 10px;min-height:28px;font-size:12px}
+}
