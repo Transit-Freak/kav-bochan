@@ -191,9 +191,9 @@ jobs:
           rsync -a --link-dest="$PWD" --exclude-from=.pagesignore ./ _site/
           # מתי עודכנו הנתונים של כל כלי — לכרטיסים בדף הבית ("נתונים: 23.11.2026"); tools/build_data_dates.py
           python3 tools/build_data_dates.py . > _site/data-dates.json && cat _site/data-dates.json && echo || echo "::warning::data-dates.json לא נבנה"
-          # האינדקס הקטן של live-bus (צי הרכבים, יעדים, נוסעים) — במקום קבצים של כמה MB; tools/live_bus_index.py.
-          # נכתב לקובץ זמני קודם: אם הבנייה נכשלת לא נשאר קובץ חצוי, והדף טוען את הקבצים הגדולים
-          python3 tools/live_bus_index.py . > "$RUNNER_TEMP/live-bus-index.json" && mv "$RUNNER_TEMP/live-bus-index.json" _site/live-bus/index.json && ls -l _site/live-bus/index.json || echo "::warning::live-bus/index.json לא נבנה"
+          # "האוטובוס הבא" הושבת (שלמה 24.11): הקוד ב-unreleased/live-bus, והאינדקס שלו (tools/live_bus_index.py) לא נבנה.
+          # להחזרה: להעביר את התיקייה בחזרה ל-live-bus/ ולהחזיר כאן את השורה:
+          # python3 tools/live_bus_index.py . > "$RUNNER_TEMP/live-bus-index.json" && mv "$RUNNER_TEMP/live-bus-index.json" _site/live-bus/index.json || echo "::warning::live-bus/index.json לא נבנה"
           files=$(find _site -type f | wc -l); mb=$(du -sm --apparent-size _site | cut -f1)
           echo "באתר: $files קבצים · ${mb}MB (לפני כיווץ)"
           bad=""
