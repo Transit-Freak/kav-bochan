@@ -983,6 +983,29 @@ body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
 .deck[data-tord="ltr"] .s-cur .cu-grid{direction:ltr}
 .deck[data-tord="ltr"] .s-cur .cu-grid > li{direction:rtl}
 .deck[data-tord="ltr"] .s-cur .ttc li.hr{flex-direction:row-reverse;justify-content:flex-start}
+/* לוח באנגלית בתקציר, בטבלה לכל קו ובטבלה המשולבת (deck-en-c.js — השקף עם lang="en" dir="ltr"): משמאל לימין.
+   מה שבעברית מוצמד לימין (יישור, ריווח של רשימות, פס צבעוני, מפה מימין/משמאל) — הפוך */
+.slide [lang=en] table.tt-g2,.slide [lang=en] table.tt-grid,.slide [lang=en] table.tt-gen,.slide [lang=en] table.tt-det{direction:ltr}
+.slide [lang=en] table.tt-grid thead th,.slide [lang=en] table.tt-grid tr.fold td,.slide [lang=en] table.tt-det th,.slide [lang=en] table.tt-det td,.slide [lang=en] table.tt-gen th.rl,
+.s-cur[lang=en] .cu-gt tbody th,.s-mt[lang=en] .mt-t th,.s-mt[lang=en] .mt-t td{text-align:left}
+.slide [lang=en] table.tt-grid td.m{border-left:0;border-right:1px solid #edf1ee}
+.slide [lang=en] table.tt-g2 thead th.grp,.slide [lang=en] table.tt-g2 thead th.was{border-right:0;border-left:2px solid rgba(255,255,255,.22)}
+.slide [lang=en] table.tt-g2 td.was,.slide [lang=en] table.tt-g2.one td.now{border-right:0;border-left:2px solid var(--s-line)}
+.slide [lang=en] ul.tt-list{padding:0 0 0 22px}
+.s-status[lang=en] ul.tt-list{padding-right:0;padding-left:34px}
+.slide [lang=en] .sg-what ul{padding:0 0 0 28px}
+.slide [lang=en] .sg-what .kdir ul{padding-right:0;padding-left:46px}
+.slide [lang=en] .st-what .kdir ul{padding-right:0;padding-left:38px}
+.slide [lang=en] .st-what li{padding-right:0;padding-left:44px}
+.slide [lang=en] .st-what li::before{right:auto;left:4px}
+.slide [lang=en] .sg-near{border-right:0;border-left:8px solid var(--s-new-stop)}
+.s-map[lang=en] .smap{left:auto;right:0}
+.s-map[lang=en] .side{right:auto;left:0;padding:32px 28px 40px 36px}
+.s-map[lang=en] .inset{left:auto;right:14px}
+.s-map[lang=en] .instead{border-right:0;border-left:6px solid var(--s-new-stop)}
+.deck[data-tord] .s-cur[lang=en] .cu-grid,.deck[data-tord] .s-cur[lang=en] .cu-grid > li,.deck[data-tord] .s-cur[lang=en] .ttc li.hr .ms,.deck[data-tord] .s-mt[lang=en] .mt-t td.tms{direction:ltr;text-align:left}
+.deck[data-tord] .s-cur[lang=en] .ttc li.hr{flex-direction:row;justify-content:flex-start}
+.s-map[lang=en] > .pg{left:auto!important;right:14px}
 /* מפה במצב עריכה: אפשר לגרור ולהגדיל (הכפתורים — בשורת העריכה של השקף, לא על המפה) */
 .slide .leaflet-container.mapedit{cursor:grab}
 /* לוח לפי יעד: שדה ריק עם רמז (שורה שנוספה) — רק במצב עריכה */

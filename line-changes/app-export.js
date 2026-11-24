@@ -331,8 +331,11 @@
             if (!by[k]) gs.push(by[k] = []);
             by[k].push(p);
           });
+          // לוח באנגלית: שם הגיליון מהשמות באנגלית (xlsx.js — sheetEn מתרגם את "קו")
+          var enIx = o.blang === 'en' && window.LCBoardEN ? LCBoardEN.index(o.en) : null;
+          var enN = function (s) { return enIx && s ? LCBoardEN.name(s, enIx, o.ben, null) : s; };
           blob = LCXlsx.book(gs.map(function (g) {
-            var od = g[0].od || [], name = (g.length > 1 ? od.filter(Boolean).join('-') : 'קו ' + g[0].line + (od[1] ? ' ' + od[1] : '')).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 28).trim() || 'לו״ז', n = name, i = 2;
+            var od = (g[0].od || []).map(enN), name = (g.length > 1 ? od.filter(Boolean).join('-') : 'קו ' + g[0].line + (od[1] ? ' ' + od[1] : '')).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 28).trim() || 'לו״ז', n = name, i = 2;
             while (used[n]) n = name.slice(0, 25) + ' ' + i++;
             used[n] = 1;
             return wkOf(g, LCDeck.boardModel(g, o, { hol: true }), n);
