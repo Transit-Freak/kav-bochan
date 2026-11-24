@@ -11,7 +11,7 @@
 <link rel="icon" type="image/svg+xml" href="../fleet/favicon.svg">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div class="wrap">
@@ -41,14 +41,15 @@
     <div>נתונים חיים: <a href="https://open-bus-stride-api.hasadna.org.il/docs" target="_blank" rel="noopener">Open Bus</a> · <a href="https://www.hasadna.org.il/" target="_blank" rel="noopener">הסדנא לידע ציבורי</a> · פרטי הרכבים: צי הרכבים של הקו הבוחן</div>
     <details class="how"><summary>איך זה עובד</summary>
       <p>המיקומים ושיבוץ הרכבים מגיעים משידורי ה-SIRI של משרד התחבורה, דרך Open Bus של הסדנא לידע ציבורי, באיחור של כמה דקות. רוב החברות משדרות איזה רכב ייסע רק כשהנסיעה מתחילה, ולכן הדף עובד רק בקווים של דן בדרום ודן באר שבע, שמשדרות את זה שעות מראש.</p>
-      <p>"יספיק / על הגבול / לא יספיק" היא הערכה בלבד: כמה זמן לוקח בדרך כלל מהמקום שבו האוטובוס נמצא עד סוף הנסיעה, לפי נסיעות שהסתיימו ביומיים האחרונים באותו קו, מול שעת היציאה של הנסיעה הבאה שלו. לא כולל נסיעה ריקה בין קווים.</p>
+      <p>"יספיק / על הגבול / לא יספיק" היא הערכה בלבד: כמה זמן לוקח בדרך כלל מהמקום שבו האוטובוס נמצא עד סוף הנסיעה, לפי נסיעות שהסתיימו ביומיים האחרונים באותו קו, מול שעת היציאה של הנסיעה הבאה שלו. נסיעה ריקה בין מסופים (כשהנסיעה הבאה מתחילה במקום אחר) — זמן משוער לפי המרחק.</p>
+      <p>החברות משבצות רכבים מראש, והשיבוץ משתנה במהלך היום: רכב שמסומן "לא יספיק" כנראה יוחלף ברכב אחר.</p>
       <p>פרטי הרכב: מאגר הרישוי ומאגר "ציי רכב אוטובוסים" (data.gov.il). רכב קבלן = רכב שלא רשום בצי של החברות במאגר.</p>
       <p id="src" class="srcline"></p>
     </details>
   </footer>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="app.js?v=4" defer></script>
+<script src="app.js?v=6" defer></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>
