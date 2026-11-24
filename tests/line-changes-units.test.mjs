@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-c.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -543,4 +543,45 @@ test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, 
     }
   }
   assert.deepEqual([...miss], [], 'טקסטים בממשק בלי אנגלית ב-ui-en.js');
+});
+
+// ---------- לוח באנגלית בתקציר / טבלה לכל קו / טבלה משולבת (deck-en-c.js) ----------
+test('LCDeckEN: ימים, משפטים על לוח הזמנים, משך, תדירות ותיאור חלופה — באנגלית', () => {
+  const X = ctx.LCDeckEN, D = ctx.LCDeck._in;
+  D.ED = { blang: 'en', en: { 'לוד': 'Lod', 'הרצל': 'Herzl' } }; X.c_reset(D.ED);
+  const WK = ['d0', 'd1', 'd2', 'd3', 'd4'];
+  assert.equal(X.c_dtIn(WK), 'on weekdays'); assert.equal(X.c_dtIn(['d4']), 'on Thursday'); assert.equal(X.c_dtIn(['d6']), 'on Saturday and Saturday night');
+  assert.equal(X.c_daysShort(['d0', 'd1', 'd3']), 'Sun–Mon and Wed'); assert.equal(X.c_daysShort(['d5']), 'Friday');
+  assert.equal(X.c_dayName(WK), 'Weekdays (Sun–Thu)');
+  const s = (n, f, l, pk, op) => ({ n, f, l, pk, op });
+  assert.equal(X.c_ttLine({ t: WK, so: s(36, 360, 1320, 20, 30), sn: s(42, 330, 1410, 15, 30) }),
+    '<b>On weekdays:</b> 42 trips a day instead of 36; every 15 min at peak times instead of every 20 min; first trip at 5:30 instead of 6:00; last trip at 23:30 instead of 22:00.');
+  assert.equal(X.c_ttLine({ t: ['d5'], so: s(3, 400, 600), sn: s(0) }), '<b>On Friday:</b> The line will no longer run (until now: 3 trips).');
+  assert.equal(X.c_smallLine({ t: WK }, { ad: [450], rm: [460], sh: [[440, 435]] }), '<b>On weekdays:</b> The 7:20 trip will leave at 7:15, a trip added at 7:30, and the 7:40 trip cancelled.');
+  assert.equal(X.c_smallLine({ t: ['d4'] }, { ad: [600], rm: [590], sh: [] }), '<b>On Thursday:</b> The 9:50 trip will leave at 10:00.');
+  assert.equal(X.c_newTtLine({ t: WK, sn: s(34, 330, 1380, 15, 30) }), '<b>On weekdays:</b> 34 trips, from 5:30 to 23:00. At peak times every 15 min, the rest of the day every 30 min.');
+  assert.equal(X.c_durTxt(65), 'about 1 hr 5 min'); assert.equal(X.c_durTxt(40), 'about 40 min');
+  assert.equal(X.c_bandTxt([360, 380, 400, 420]), 'every 20 min'); assert.equal(X.c_bandTxt([360]), '1 trip');
+  assert.equal(X.c_altTxt('דרך הרצל'), 'via Herzl'); assert.equal(X.c_altTxt('לא דרך הרצל'), 'not via Herzl'); assert.equal(X.c_altTxt('במסלול אחר'), 'by another route');
+  assert.equal(X.c_linesTxt(['5', '7', '9']), 'Lines 5, 7 and 9');
+  assert.equal(X.c_N('לוד'), 'Lod'); assert.equal(X.c_N('רמלה'), 'רמלה');
+  assert.deepEqual(Object.keys(X.c_miss), ['רמלה'], 'שם בלי תרגום — ברשימה');
+  D.ED = {};
+});
+
+test('לו"ז עדכני באנגלית (תקציר, טבלה לכל קו): השקפים משמאל לימין, השמות מהמילון; בלי — העברית כמו קודם', () => {
+  const opt = { form: 'deck', tt: { v: 'gen', f: 'table' }, ttc: 'sep' }, en = { 'לוד': 'Lod', 'בני ברק': 'Bnei Brak' };
+  const cu = (s) => s.filter((x) => /^cu/.test(x.id)).map((x) => x.html).join('\n');
+  const he = cu(ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt)));
+  assert.match(he, /מלוד לבני ברק/); assert.doesNotMatch(he, /dir="ltr" lang="en"/);
+  for (const v of ['gen', 'det']) {
+    const h = cu(ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt, { tt: { v, f: 'table' }, blang: 'en', en })));
+    assert.match(h, /From Lod to Bnei Brak/); assert.match(h, /dir="ltr" lang="en"/); assert.match(h, /Current timetable · Valid from/);
+    const heb = (h.replace(/<[^>]+>/g, ' ').match(/[א-ת][^<>]*/g) || []).join(' | ');
+    assert.ok(!/לוד|בני ברק|לוח זמנים|נסיעות|ימים/.test(heb), 'עברית בשקף: ' + heb);
+  }
+  for (const form of ['sign', 'status']) {
+    const s = ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt, { form, tt: { v: 'det', f: 'table' }, blang: 'en', en })).map((x) => x.html).join('\n');
+    assert.match(s, /Lod ↔ Bnei Brak/); assert.match(s, /Times are departures from the first stop/);
+  }
 });

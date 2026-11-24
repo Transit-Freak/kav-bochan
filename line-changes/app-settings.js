@@ -114,7 +114,8 @@
     // סדר השעות — בכל תצוגה עם רשימות שעות (לא בתקציר בלי "כל השעות")
     A.$('ttow').hidden = tv === 'sum' && A.edits.tall !== true;
     A.$('ttoseg').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === A.tordOf() ? 'true' : 'false'); });
-    if (!bd) enUi(null);
+    // תקציר / טבלה לכל קו / טבלה משולבת באנגלית: השמות בלי תרגום — מהבנייה של השקפים (deck-en-c.js — c_miss)
+    if (!bd) enUi(A.blangOf() === 'en' && window.LCDeckEN ? { en: true, miss: Object.keys(LCDeckEN.c_miss || {}) } : null);
     if (bd) {
       var M = cu ? LCDeck.boardModel(pages, A.edOpts(formOf())) : LCDeck.chgBoardModel(pages, A.edOpts(formOf()));
       A.$('bdtitle').placeholder = M.dflt;
