@@ -220,6 +220,8 @@ html.kb-dark{--kab:#FB923C;--kab-bg:#3B2414;--kab-ink:#FDBA74}
 .intro b{color:var(--ink);font-weight:700}
 /* שיבוץ חריג — הערה ניטרלית בכתום, מתחת להערכה */
 .odd{margin-top:8px;background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:7px 10px;font-size:12.5px;font-weight:600;line-height:1.45}
-/* שיבוץ שלא מופיע בלוח הזמנים — אפור, עם הערה קטנה */
-.trips li.unm{color:var(--dim)}
-.unmn{display:block;font-size:11.5px;color:var(--dim);font-weight:500;margin-top:2px}
+/* נסיעה ששודרה ולא בלוח הזמנים הרשמי — תגית אפורה קטנה; הנסיעה עצמה מוצגת רגיל */
+.offt{display:inline-flex;align-items:center;height:20px;border-radius:6px;padding:0 6px;background:var(--chip);color:var(--mut);font-size:11px;font-weight:600;white-space:nowrap;vertical-align:1px}
+/* אחרי הערת "יוצאת מ…": הנסיעה ששודרה אחריה */
+.aft{margin-top:6px;font-size:12.5px;color:var(--mut);line-height:1.5}
+.aft b{color:var(--ink)}
