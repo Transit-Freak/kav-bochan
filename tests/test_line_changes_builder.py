@@ -668,3 +668,25 @@ def test_page_file_has_en_once(tmp_path, monkeypatch):
     L.write_out([], {}, {}, datetime.date(2026, 11, 19), datetime.date(2026, 11, 12), keep_all=True)   # כמו "pages": מהקבצים הקיימים
     out2 = json.load(open(tmp_path / 'data' / 'l' / '10282-20261116.json', encoding='utf-8'))
     assert out2['en'] == out['en']
+
+
+# ---------------------------------------------------------------- שמות באנגלית ברשימת הקווים (data/lines.json — en)
+
+def test_lines_index_en_names(tmp_path, monkeypatch):
+    """lines.json: en — רק שמות שברשימה (חברה, ערים, מוצא ויעד) שיש להם תרגום; קו שמבוטל — גם מהתרגומים של השבוע שעבר"""
+    monkeypatch.setenv('NBR_DIR', str(tmp_path / 'none'))
+    monkeypatch.setenv('LC_LINE_TYPES', str(tmp_path / 'none.json'))
+
+    def feed(en, routes, stops):
+        return type('F', (), dict(en=en, agency={'3': 'אגד', '5': 'דן'}, routes=routes, pat_list={'p1': ['1', '2'], 'p2': ['3']},
+                                  stops={k: dict(city=c, street='', ll=(32.0, 34.8), code=k) for k, c in stops.items()}))()
+    new = feed({'צפת': 'Safed', 'טבריה': 'Tiberias', 'ראש פינה': 'Rosh Pinna', 'לא ברשימה': 'Not here', 'דן': 'Dan'},
+               {'r1': dict(line='1', ty='3', long="ת. מרכזית-צפת<->ת. מרכזית-טבריה-1#", ag='3')},
+               {'1': 'צפת', '2': 'ראש פינה'})
+    old = feed({'עכו': 'Akko', 'צפת': 'Zefat'}, {'r2': dict(line='2', ty='3', long='מרכז-עכו<->מרכז-כרמיאל-1#', ag='5')}, {'3': 'עכו'})
+    li = L.lines_index(new, {'10001-1-#': {('p1', ''): dict(rid='r1', td=5)}},
+                       (old, {'10002-1-#': {('p2', ''): dict(rid='r2', td=3)}}))
+    assert li['en'] == {'צפת': 'Safed', 'טבריה': 'Tiberias', 'ראש פינה': 'Rosh Pinna', 'עכו': 'Akko', 'דן': 'Dan'}
+    nofeed = type('F', (), dict(agency={'3': 'אגד'}, routes={'r1': dict(line='1', ty='3', long='א-צפת<->ב-טבריה', ag='3')},
+                                pat_list={'p1': ['1']}, stops={'1': dict(city='צפת', street='', ll=(32.0, 34.8), code='1')}))()
+    assert 'en' not in L.lines_index(nofeed, {'10001-1-#': {('p1', ''): dict(rid='r1', td=5)}})   # בלי תרגומים — בלי en

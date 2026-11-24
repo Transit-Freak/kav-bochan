@@ -1967,7 +1967,17 @@ def lines_index(feed, variants, extra=None):
     places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
     lt = load_line_types()
     lt = {ln[0]: lt[ln[0]] for ln in out if ln[0] in lt}   # lt — סוג הקו לפי משרד התחבורה (load_line_types)
-    return {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, 'lt': lt, '_places': places}
+    res = {'ops': ops, 'op_ids': op_ids, 'op_phones': op_phones, 'cities': cities, 'lines': out, 'lt': lt, '_places': places}
+    # en — {שם בעברית: באנגלית} מ-translations.txt, לרשימת הקווים בממשק באנגלית: רק השמות שברשימה (חברות, ערים, מוצא ויעד)
+    # שיש להם תרגום. החברות בדרך כלל לא שם — בדף יש להן טבלה קבועה (LCBoardEN.OPS)
+    en_all = {}
+    for fd in reversed([feed] + ([extra[0]] if extra else [])):
+        en_all.update(getattr(fd, 'en', None) or {})
+    names = set(ops) | set(cities) | {x for ln in out for x in (ln[3], ln[4])}
+    en = {n: t for n in sorted(x for x in names if x) for t in [en_of(en_all, n)] if t}
+    if en:
+        res['en'] = en
+    return res
 
 
 def load_hoods(d):

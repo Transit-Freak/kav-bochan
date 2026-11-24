@@ -515,6 +515,26 @@ test('ui-en.js: לכל טקסט במילון יש אנגלית, ולכל טקס�
   assert.equal(U.file('לוח-זמנים-קו-1-2026-11-24'), 'timetable-line-1-2026-11-24');
 });
 
+// ---------- ממשק באנגלית: רשימת הקווים (שלב 1) וכרטיסי "איזה שינוי?" (שלב 2) ----------
+test('ui-en.js: תגיות ברשימת הקווים, קבוצות, סיכום לו"ז, וחלקים עם " · "', () => {
+  const c = {}; vm.createContext(c);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'ui-en.js'), 'utf8'), c);
+  const tr = c.LCUI.tr;
+  assert.equal(tr('משתנה מ-25.11'), 'Changes from 25.11');
+  assert.equal(tr('השתנה ב-17.11'), 'Changed on 17.11');
+  assert.equal(tr('לו״ז חדש מ-27.11'), 'New timetable from 27.11');
+  assert.equal(tr('נוסע עד 27.11'), 'Runs until 27.11');
+  assert.equal(tr('קו חדש מ-1.12'), 'New line from 1.12');
+  assert.equal(tr('חלופה מתבטלת מ-2.12'), 'Variant cancelled from 2.12');
+  assert.equal(tr('אותו שינוי ב-3 קווים · הקו נוסע בדרך אחרת · 2 תחנות מבוטלות'), 'Same change on 3 lines · The line takes a different route · 2 stops cancelled');
+  assert.equal(tr('+ כל 4 הקווים החדשים'), '+ All 4 new lines');
+  assert.equal(tr('· 3 קווים משתנים (מתוך 12 שעוצרים כאן)'), '· 3 lines change (of 12 that stop here)');
+  assert.equal(tr('יותר נסיעות בימים א׳–ד׳ ו-ו׳–ש׳, פחות נסיעות ביום חמישי'), 'More trips on Sun–Wed and Fri–Sat; fewer trips on Thursday');
+  assert.equal(tr('דרך אחרת ותחנות אחרות · הלוך וחזור · מהארכיון'), 'Different route and stops · Both directions · from the archive');
+  assert.equal(tr('שינוי בתחנות · צפת'), null, 'חלק בלי תרגום (שם) — בלי שינוי');
+  assert.equal(tr('צפת ↔ טבריה'), null, 'שמות — לא במילון (en ב-lines.json)');
+});
+
 /* בדיקת טקסטים בקוד: כל טקסט בעברית ב-line-changes/app*.js, editor.js ו-common.js שמופיע בממשק — יש לו אנגלית ב-ui-en.js.
    חלק מטקסט שמחובר לערך (מתחיל או נגמר ברווח / סוגר / נקודה) — נבדק כטקסט שלם בדף (תבנית ב-UIP), לא כאן.
    UI_LINT_SKIP — טקסטים שאינם ממשק: הנוסח של השקפים עצמם (פעלים ומשפטים בשקף, שקף טקסט חדש, שורת "הוכן על ידי"),

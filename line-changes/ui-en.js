@@ -127,6 +127,16 @@
   var DOWS = { 'א׳': 'Sun', 'ב׳': 'Mon', 'ג׳': 'Tue', 'ד׳': 'Wed', 'ה׳': 'Thu', 'ו׳': 'Fri', 'ש׳': 'Sat', 'שבת': 'Sat', 'שישי': 'Fri' };
   var THEME = { 'לפי הטלפון': 'like the phone', 'בהיר': 'light', 'כהה': 'dark' };
   var CHIP = { ', הלוח לפי התאריך הזה': ', the board uses this date', ', לא בלוח': ', not on the board', ', השעות שונות': ', times differ' };
+  var TTW = { 'יותר נסיעות': 'More trips', 'פחות נסיעות': 'Fewer trips', 'שעות אחרות': 'Different times', 'נסיעות חדשות': 'New trips', 'בלי נסיעות': 'No trips' };
+  var DFULL = { 'ראשון': 'Sunday', 'שני': 'Monday', 'שלישי': 'Tuesday', 'רביעי': 'Wednesday', 'חמישי': 'Thursday' };
+  function ttSum(x) {
+    var m = /^(יותר נסיעות|פחות נסיעות|שעות אחרות|נסיעות חדשות|בלי נסיעות) (.+)$/.exec(x); if (!m) return x;
+    var d = m[2], dd = d === 'בימי חול' ? 'on weekdays' : d === 'בשישי' ? 'on Friday' : d === 'בשבת' ? 'on Saturday'
+      : /^ביום /.test(d) ? 'on ' + (DFULL[d.slice(5)] || d.slice(5))
+      : 'on ' + d.replace(/^בימים /, '').replace(/ ו-/g, ' and ').replace(/[א-ת]׳/g, function (w) { return DOWS[w] || w; });
+    return (TTW[m[1]] || m[1]) + ' ' + dd;
+  }
+  function low(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
   function lines(t) { return t.replace(/^קו /, 'Line ').replace(/^קווים /, 'Lines ').replace(/ ועוד$/, ' and more').replace(/ ו-?(\S+)$/, ' and $1'); }
   var UIP = [
     [/^טוען (\d+) קווים…$/, 'Loading $1 lines…'], [/^(\d+) קווים$/, '$1 lines'], [/^(\d+) שקפים$/, '$1 slides'], [/^(\d+) עמודים$/, '$1 pages'], [/^(\d+) תמונות$/, '$1 images'],
@@ -150,6 +160,21 @@
     [/^(.+) · (\d+) קווים לאותו יעד, בטבלה אחת$/, '$1 · $2 lines to the same destination, in one table'],
     [/^מ-(\d+\.\d+(?:\.\d+)?)$/, 'from $1'], [/^עד (\d+\.\d+(?:\.\d+)?)$/, 'until $1'], [/^רחוב (.+)$/, 'Street $1'], [/^שכונת (.+)$/, 'Neighbourhood $1'],
     [/^המצגת שלך: (.+)$/, 'Your slides: $1'],
+    // תגיות בתוצאות (tagOf / badge ב-app.js) וכרטיסי "איזה שינוי?"
+    // שינוי בלו"ז — הסיכום מהבונה (kind_summary): "יותר נסיעות בימים א׳–ד׳ ו-ו׳–ש׳, פחות נסיעות ביום חמישי"
+    [/^(?:(?:יותר נסיעות|פחות נסיעות|שעות אחרות|נסיעות חדשות|בלי נסיעות) (?:בימי חול|בשישי|בשבת|ביום \S+|בימים [^,]+)(?:, |$))+$/, function (m) { return m.split(', ').map(function (x, i) { var t = ttSum(x); return i ? low(t) : t; }).join('; '); }],
+    [/^משתנה מ-(\d+\.\d+)$/, 'Changes from $1'], [/^השתנה ב-(\d+\.\d+)$/, 'Changed on $1'], [/^קו חדש מ-(\d+\.\d+)$/, 'New line from $1'],
+    [/^נוסע עד (\d+\.\d+)$/, 'Runs until $1'], [/^בוטל ב-(\d+\.\d+)$/, 'Cancelled on $1'], [/^לו״ז חדש מ-(\d+\.\d+)$/, 'New timetable from $1'],
+    [/^לו״ז השתנה ב-(\d+\.\d+)$/, 'Timetable changed on $1'], [/^חלופה מתבטלת מ-(\d+\.\d+)$/, 'Variant cancelled from $1'],
+    [/^חלופה בוטלה ב-(\d+\.\d+)$/, 'Variant cancelled on $1'], [/^חלופה חדשה מ-(\d+\.\d+)$/, 'New variant from $1'],
+    [/^(\d+) משתנים$/, '$1 changing'], [/^(\d+) תחנות מבוטלות$/, '$1 stops cancelled'],
+    [/^אותו שינוי ב-(\d+) קווים(?: · (.+))?$/, function (m, n, r) { return 'Same change on ' + n + ' lines' + (r ? ' · ' + r.split(' · ').map(function (x) { return (tr(x) || x).trim(); }).join(' · ') : ''); }],
+    [/^· (.+) \(מתוך (\d+) שעוצרים כאן\)$/, function (m, a, n) { return '· ' + (tr(a) || a).trim() + ' (of ' + n + ' that stop here)'; }],
+    [/^(.+) \((\d+) ועוד (\d+)\)$/, '$1 ($2 and $3 more)'], [/^(.+) \(ועוד (\d+)\)$/, '$1 ($2 more)'],
+    [/^(.+) — בשבועיים הקרובים או בשבועיים האחרונים \((\d+)\)$/, function (m, a, n) { return (UI[a.replace(/^קווים/, 'הקווים')] || a) + ' — in the next two weeks or the last two weeks (' + n + ')'; }],
+    [/^קווים שהשתנו בשבועיים האחרונים \((\d+)\)$/, 'Lines that changed in the last two weeks ($1)'],
+    [/^(\d+) (קווים עם שינוי מסלול|קווים החדשים|קווים שמבוטלים|קווים עם שינוי בלו״ז|קווים עם שינוי שכבר התחיל)$/, function (m, n, a) { return n + ' ' + low(UI['ה' + a]); }],
+    [/^\+ כל (\d+) (הקווים למצגת אחת|הקווים עם שינוי מסלול|הקווים החדשים|הקווים שמבוטלים|הקווים עם שינוי בלו״ז|הקווים עם שינוי שכבר התחיל)$/, function (m, n, a) { return '+ All ' + n + ' ' + low(UI[a]); }],
     [/^תאורה: (\S+(?: \S+)?) \(לחיצה: (\S+(?: \S+)?)\)$/, function (m, a, b) { return 'Theme: ' + (THEME[a] || a) + ' (click: ' + (THEME[b] || b) + ')'; }], [/^תאורה: (.+)$/, function (m, a) { return 'Theme: ' + (THEME[a] || a); }],
     [/^אין כאן (.+)\. אפשר לבחור "הכול"\.$/, function (m, a) { return 'No ' + (UI[a.replace(/^קווים/, 'הקווים')] || a).replace(/^Lines/, 'lines') + ' here. You can choose "All".'; }],
     [/^תמונה בשקף(: .+)?\. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה$/, function (m, a) { return 'Image on slide' + (a || '') + '. Arrows move it, plus and minus resize, Delete removes it'; }],
@@ -171,21 +196,41 @@
     if (!k || !/[א-ת→←]/.test(k)) return null;
     if (Object.prototype.hasOwnProperty.call(UI, k)) return t.replace(t.trim(), UI[k]);
     for (var i = 0; i < UIP.length; i++) if (UIP[i][0].test(k)) return t.replace(t.trim(), k.replace(UIP[i][0], UIP[i][1]));
+    // כמה חלקים עם " · " ביניהם (למשל בכרטיס "איזה שינוי?": סוג השינוי · הלוך וחזור · מהארכיון) — כל חלק בנפרד, רק כשלכולם יש תרגום
+    if (k.indexOf(' · ') > 0) {
+      var ps = k.split(' · '), ok = true;
+      ps = ps.map(function (x) { if (!/[א-ת]/.test(x)) return x; var y = tr(x); if (y == null) ok = false; return y == null ? x : y.trim(); });
+      if (ok) return t.replace(t.trim(), ps.join(' · '));
+    }
     return null;
   }
   var SKIP = '.sframe,script,style,[data-noi18n],.ennote li span,.res .badge,.badge';
   // בתוך שקף — רק כפתורי העריכה (noprint: "תיאור", "להחזיר"…), לא הטקסט של השקף עצמו (שפת הלוח)
   function skip(el) { if (!el || !el.closest) return !el; var k = el.closest(SKIP); return !!k && !(k.classList && k.classList.contains('sframe') && el.closest('.noprint')); }
   var ATTR = ['placeholder', 'aria-label', 'title', 'alt'];
+  /* מה שכבר תורגם (צומת טקסט / תכונה → הערך שכתבנו): לא מתרגמים שוב את התוצאה. בלי זה, תרגום שהוא גם מפתח
+     ('→' ↔ '←') מתהפך בלי סוף — כל שינוי מעורר את ה-MutationObserver שוב, והדף נתקע */
+  var DONE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  function text(x) {
+    if (skip(x.parentElement) || (DONE && DONE.get(x) === x.nodeValue)) return;
+    var t = tr(x.nodeValue);
+    if (t != null && t !== x.nodeValue) { x.nodeValue = t; if (DONE) DONE.set(x, t); }
+  }
+  function attr(el, a) {
+    var v = el.getAttribute(a), d = DONE && DONE.get(el);
+    if (!v || (d && d[a] === v)) return;
+    var t = tr(v);
+    if (t != null && t !== v) { el.setAttribute(a, t); if (DONE) { if (!d) DONE.set(el, (d = {})); d[a] = t; } }
+  }
   function run(root) {
     if (!root) return;
-    if (root.nodeType === 3) { if (!skip(root.parentElement)) { var t = tr(root.nodeValue); if (t != null && t !== root.nodeValue) root.nodeValue = t; } return; }
+    if (root.nodeType === 3) return text(root);
     if (root.nodeType !== 1 || skip(root)) return;
     var els = [root].concat(Array.prototype.slice.call(root.querySelectorAll('[placeholder],[aria-label],[title],[alt]')));
-    els.forEach(function (el) { if (skip(el)) return; ATTR.forEach(function (a) { var v = el.getAttribute(a); if (v) { var t = tr(v); if (t != null && t !== v) el.setAttribute(a, t); } }); });
+    els.forEach(function (el) { if (skip(el)) return; ATTR.forEach(function (a) { attr(el, a); }); });
     var w = document.createTreeWalker(root, 4, null), n, list = [];
     while ((n = w.nextNode())) list.push(n);
-    list.forEach(function (x) { if (skip(x.parentElement)) return; var t = tr(x.nodeValue); if (t != null && t !== x.nodeValue) x.nodeValue = t; });
+    list.forEach(text);
   }
   function start() {
     run(document.body);
