@@ -583,11 +583,25 @@
     $('results').innerHTML = html || '<div class="none">לא מצאנו. נסו מספר קו, שכונה, רחוב, עיר או חברה.</div>';
   }
   /* הלו"ז העדכני של קו: data/tt/<מק"ט % 64>.json (נבנה כל לילה) */
-  var ttShards = {};
+  var ttShards = {}, EN_NAMES = {};
   function ttShard(mk) {
     var d = String(mk).replace(/\D/g, ''), i = d ? parseInt(d, 10) % 64 : String(mk).split('').reduce(function (t, c) { return t + c.charCodeAt(0); }, 0) % 64;
     var pre = PRE.tt[i]; delete PRE.tt[i];
-    return ttShards[i] || (ttShards[i] = (pre || LC.getJSON('data/tt/' + i + '.json')).catch(function () { delete ttShards[i]; return null; }));
+    return ttShards[i] || (ttShards[i] = (pre || LC.getJSON('data/tt/' + i + '.json')).then(function (sh) {
+      if (sh && sh.en) Object.keys(sh.en).forEach(function (k) { EN_NAMES[k] = sh.en[k]; });   // שמות באנגלית (מהבונה) — ללוח באנגלית
+      return sh;
+    }).catch(function () { delete ttShards[i]; return null; }));
+  }
+  /* מצגת באנגלית: גם בהודעה על שינוי — השמות באנגלית מהלו"ז העדכני של הקווים במצגת (en בקובץ של כל קו), ואז בונים מחדש */
+  var enTried = {};
+  function enShards(pages) {
+    if (blangOf() !== 'en') return;
+    var need = [];
+    pages.forEach(function (p) {
+      var mk = String(p.makat || ''); if (!mk || enTried[mk]) return;
+      enTried[mk] = 1; need.push(ttShard(mk));
+    });
+    if (need.length) Promise.all(need).then(function () { if (curPages === pages) keepScroll(function () { render(pages); }); });
   }
   function ttPick(mk) {
     return ttShard(mk).then(function (sh) {
@@ -610,7 +624,11 @@
           return { dir: k, od: r.od, f: r.f, fc: r.fc || '', t: r.t, cs: r.cs, cn: r.cn || null, sc: r.sc || null, vs: r.vs || null, vc: r.vc || null, du: r.du, days: W.map(function (i, w) { return at(r.L, w) || []; }), x: x,
             v: r.v || [], da: W.map(function (i, w) { return at(A, w) || 0; }), xa: xa,
             // תגבורים (מהרישוי): dn/xn — [[מקום ברשימה, כמה אוטובוסים]]
-            dn: W.map(function (i, w) { return at(N, w) || 0; }), xn: xn };
+            dn: W.map(function (i, w) { return at(N, w) || 0; }), xn: xn,
+            // לבחירת תאריכים בלוח (deck-board.js — bdDatePage): הלו"ז של כל יום בשבוע מ-r.w (wd) ומהשבוע שאחריו (wd1 — null כשזהה),
+            // ו-l — מספר הקו בכיוון הזה, כשהוא שונה משאר הקו (1 / 1א באותו מק"ט)
+            wd: r.w.map(function (i) { return [r.L[i] || [], A[i] || 0, N[i] || 0]; }),
+            wd1: r.w1 ? r.w1.map(function (i) { return i == null ? null : [r.L[i] || [], A[i] || 0, N[i] || 0]; }) : null, l: r.l || '' };
         });
       };
       var all7 = function () { return true; };
@@ -628,7 +646,7 @@
       // מוצא ויעד: מהכיוונים בלו"ז (הנסיעות שמוצגות), לא מהשם של הקו ברשימה — שם שנלקח לפעמים מחלופה אחרת של הקו
       var dod = dirs.filter(function (d) { return d.od && d.od[0] && d.od[1] && d.days.some(function (x) { return x && x.length; }); }).map(function (d) { return d.od; })[0];
       return { id: 'tt-' + mk, kind: 'current', line: e.l, op: e.o, ag: e.a, makat: mk, od: dod ? dod.slice() : l ? [l.from, l.to] : (dirs[0] || {}).od || ['', ''],
-        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, pre: pre, tot: { kind: 'current' } };
+        eff: fe || sh.valid, valid: fe || sh.valid, fromEff: fe, tv: sh.valid, tvh: sh.hol || [], until: nx ? LC.addDays(nx, -1) : '', gen: sh.gen, feed: sh.feed, hol: (sh.hol || []).filter(function (h) { return !fe || h[0] >= fe; }), dirs: dirs, pre: pre, tot: { kind: 'current' } };
     });
   }
   $('results').addEventListener('click', function (ev) {
@@ -814,9 +832,12 @@
     return o;
   }
   function normPage(p) {
+    // השמות באנגלית של הדף (en מהבונה — translations.txt) — למצגת באנגלית
+    var en = p.en || {};
+    Object.keys(en).forEach(function (k) { EN_NAMES[k] = en[k]; });
     p.dirs.concat(p.split || []).forEach(function (d) {
       ['old', 'new'].forEach(function (k) {
-        d[k].stops = d[k].stops.map(stopObj);
+        d[k].stops = d[k].stops.map(function (s) { var raw = Array.isArray(s) ? s[1] : null, o = stopObj(s); if (!o.en && raw && en[raw]) o.en = en[raw]; return o; });
         if (!d[k].shape) d[k].shape = LC.decodePoly(d[k].shp);
       });
     });
@@ -1040,10 +1061,13 @@
     return e;
   }
   function textSlide(x, pages) {
+    var en = blangOf() === 'en';   // מצגת באנגלית — הטקסט המוכן באנגלית (הטקסט שכותבים נשמר לכל שפה בנפרד, ראו LCEdit.apply)
     return { id: x.id, label: 'שקף טקסט', custom: true,
-      html: '<div class="s-text"><div class="head">' + (pages.length === 1 ? '<span class="badge sm num">' + E(pages[0].line) + '</span>' : '') +
-        '<h2 class="hd">כותרת השקף</h2></div><div class="body"><p>כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.</p></div>' +
-        '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי</span><span class="pg num"></span></div></div>' };
+      html: '<div class="s-text' + (en ? ' en" dir="ltr" lang="en' : '') + '"><div class="head">' + (pages.length === 1 ? '<span class="badge sm num">' + E(pages[0].line) + '</span>' : '') +
+        (en ? '<h2 class="hd">Slide title</h2></div><div class="body"><p>Write your text here. You can add lines, delete and change everything.</p></div>' +
+          '<div class="sfoot"><span>Prepared by a private individual · Not an official publication</span><span class="pg num"></span></div></div>'
+          : '<h2 class="hd">כותרת השקף</h2></div><div class="body"><p>כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.</p></div>' +
+        '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי</span><span class="pg num"></span></div></div>') };
   }
   /* שינוי שכבר התחיל: הטקסטים במצגת בהווה או בעבר ("הקו כבר לא עוצר", "מה השתנה?", "מאז 17.11").
      רק בשקפים של קו שהשינוי שלו כבר התחיל; שער, סיכום וסיום — כשכל השינויים במצגת כבר התחילו.
@@ -1081,8 +1105,24 @@
         return iso <= idx.gen ? 'מאז ' + w + d + '.' + mo + (y || '') : m;
       });
   }
+  /* באנגלית (מצגת באנגלית): "will no longer stop" → "no longer stops" (LCDeckEN.b_past), "What changes?" → "What changed?",
+     "Effective Tuesday, 17 November 2026" → "Since …" (רק תאריך שכבר עבר), "Until now" → "Before the change" */
+  function pastTextEn(t) {
+    t = window.LCDeckEN && LCDeckEN.b_past ? LCDeckEN.b_past(t) : t;
+    return t.replace(/\bWhat changes\b/g, 'What changed').replace(/\b(lines|stops) that change\b/g, '$1 that changed').replace(/\bUntil now\b/g, 'Before the change').replace(/\bFrom now on\b/g, 'After the change')
+      .replace(/\b(?:Starting|Starting from) ((?:[A-Z][a-z]+,? )?)(\d{1,2})\.(\d{1,2})(\.\d{4})?/g, function (m, w, d, mo, y) {
+        var iso = (y ? y.slice(1) : idx.gen.slice(0, 4)) + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2);
+        return iso <= idx.gen ? 'Since ' + w + d + '.' + mo + (y || '') : m;
+      })
+      // "Effective Monday, 16 November 2026" → "Since Monday, 16 November 2026" (רק תאריך שכבר עבר)
+      .replace(/\bEffective ((?:[A-Z][a-z]+, )?)(\d{1,2}) ([A-Z][a-z]+) (\d{4})/g, function (m, w, d, mon, y) {
+        var mi = (window.LCDeckEN && LCDeckEN.a_MON || []).indexOf(mon); if (mi < 0) return m;
+        var iso = y + '-' + ('0' + (mi + 1)).slice(-2) + '-' + ('0' + d).slice(-2);
+        return iso <= idx.gen ? 'Since ' + w + d + ' ' + mon + ' ' + y : m;
+      });
+  }
   /* רק הטקסט שבין התגיות */
-  function pastHtml(h) { return String(h).replace(/>([^<]+)</g, function (m, t) { return '>' + pastText(t) + '<'; }); }
+  function pastHtml(h) { var f = blangOf() === 'en' ? pastTextEn : pastText; return String(h).replace(/>([^<]+)</g, function (m, t) { return '>' + f(t) + '<'; }); }
   // שקף תמונה: התמונה על כל השקף — ממלאת אותו (cover) או כולה בתוכו (contain)
   function imgSlide(x) {
     return { id: x.id, label: 'שקף תמונה', custom: true, img: true, fit: x.fit === 'contain' ? 'contain' : 'cover',
@@ -1098,9 +1138,23 @@
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
+      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, blang: blangOf(), ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — בכל התצוגות (לוח מודעות, תקציר, טבלה לכל קו, טבלה משולבת)
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }
+  /* שפת הלוח: מה שנבחר בלוח הזה (edits.blang — 'en' / 'he'); בלי בחירה — עברית, ובממשק באנגלית (אחרי שעברו אליו בפעם הראשונה) — אנגלית */
+  function blangOf() {
+    if (edits.blang === 'en' || edits.blang === 'he') return edits.blang === 'en' ? 'en' : undefined;
+    var auto = false; try { auto = localStorage.getItem('lc-blang-auto') === 'en'; } catch (e) { /* בלי אחסון */ }
+    return window.LCUI && LCUI.en && auto ? 'en' : undefined;
+  }
+  A.blangOf = blangOf;
+  // שפת הממשק (ui-en.js): הכפתורים בסרגל השלבים
+  document.querySelectorAll('[data-uil]').forEach(function (b) {
+    var l = b.getAttribute('data-uil'), cur = window.LCUI && LCUI.en ? 'en' : 'he';
+    b.setAttribute('aria-pressed', l === cur ? 'true' : 'false');
+    b.addEventListener('click', function () { if (l !== cur && window.LCUI) LCUI.set(l); });
+  });
   var wantBoard = null;
   function render(pages) {
     if (!deckOk()) return;
@@ -1118,11 +1172,13 @@
     // נבחרו כל הקווים במקום (לו"ז עדכני) — "טבלה לפי יעד", עם שם המקום בכותרת
     if (wantBoard && pages.every(function (p) { return p.kind === 'current'; })) { if (!edits.tv && !edits.ttc) edits.tv = 'board'; if (!edits.bplace && wantBoard.nm) edits.bplace = wantBoard.nm; if (wantBoard.pl) edits.bpl = wantBoard.pl; saveEdits(); }
     wantBoard = null;
+    enShards(pages);
     var form = formOf();
     var base = LCDeck.build(pages, deckCity(pages), edOpts(form));
     pastTense(base, pages);
     drawKinds(pages);
     ttUi(pages); zmUi(pages); rcUi(pages); a4Ui(form); fnUi();
+    if (A.enRefresh) A.enRefresh();   // שפת המצגת והשמות בלי תרגום — בכל התצוגות
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -1163,7 +1219,7 @@
       return '<label><input type="checkbox" value="' + E(s.id) + '"' + (edits.off[s.id] ? '' : ' checked') + '><span>' + E(s.label) + '</span></label>';
     }).join('');
     scale();
-    slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); drawImgs(s.id); });
+    slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits, blangOf()); drawImgs(s.id); });
     if (editMode) $('deck').querySelectorAll('.bdt').forEach(function (el) { el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false'); });
     // המפות שכבר על המסך (או קרוב אליו) — מיד, כמו קודם; השאר — כשמגיעים אליהן
     var vh = window.innerHeight || 800, now = [];
@@ -1190,6 +1246,7 @@
     if (mapIO) mapIO.unobserve(m.fr);
     try { var r = LCDeck.drawMap(m.fr, m.spec); m.map = r.map; m.ready = r.ready; mapView(m); if (editMode) mapEdit(m, true); }
     catch (e) { if (window.console) console.error('map', e); m.ready = Promise.resolve(); }
+    if (A.enRefresh && blangOf() === 'en') { A.enRefresh(); if (m.ready && m.ready.then) m.ready.then(function () { A.enRefresh(); }, function () {}); }   // התוויות במפה — עוד שמות
     return m;
   }
   /* מפה במצב עריכה: גרירה, צביטה בטלפון וגלגלת על המפה; "הגדלה +", "הקטנה −" ו"איפוס מפה" — בשורת העריכה של השקף.

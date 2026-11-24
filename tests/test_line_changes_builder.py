@@ -579,3 +579,92 @@ def test_tts_next_week_beyond_feed_is_null(tmp_path, monkeypatch):
     # השבוע שאחרי: ב׳ 30.11 עד ד׳ 2.12 — יש נתונים; ה׳ 3.12 (אין למחרת), שישי, שבת וראשון 6.12 — אין
     assert r['w1'][1:4] == r['w'][1:4]
     assert [r['w1'][i] for i in (0, 4, 5, 6)] == [None] * 4
+
+
+def test_tts_direction_line_names(tmp_path, monkeypatch):
+    """מק"ט אחד, ובכל כיוון מספר אחר (בצפת: 88001 — "1א" לכיוון 1 ו-"1" לכיוון 2) — l לכל כיוון; מספר אחד — בלי l"""
+    t0 = D(2026, 11, 23)
+    ds = wk_days(D(2026, 11, 22), D(2026, 12, 31))
+    f = TTFeed(t0, {'o': (ds, [420, 480])}, D(2026, 12, 31))
+    f.routes['r2'] = dict(f.routes['r1'], line='384א', rd='14384-2-#')
+    for tid in list(f.trips):
+        f.trips[tid + 'b'] = ('r2', 'o', 's')
+        f.trip_dep[tid + 'b'], f.trip_end[tid + 'b'], f.trip_pat[tid + 'b'] = f.trip_dep[tid], f.trip_end[tid], 1
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setenv('LH_SCHED', str(tmp_path / 'none'))
+    L.current_tts(f, t0)
+    e = json.load(open(tmp_path / 'data' / 'tt' / f'{L.tt_shard("14384")}.json', encoding='utf-8'))['lines']['14384']
+    assert e['l'] == '384'
+    assert (e['d']['1']['l'], e['d']['2']['l']) == ('384', '384א')
+    assert '_l' not in e['d']['1']
+
+
+def test_tts_no_line_name_when_same(tmp_path, monkeypatch):
+    sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
+    assert 'l' not in r and '_l' not in r
+
+
+# ---------------------------------------------------------------- שמות באנגלית (translations.txt) ללוח באנגלית
+
+def test_en_lookup_quotes_and_headsign():
+    rows = ({'trans_id': 0, 'lang': 1, 'translation': 2},
+            iter([['בי"ס בר לב/בן יהודה', 'EN', 'Bar Lev School/Ben Yehuda'], ['צפת', 'EN', 'Safed'], ['צפת', 'AR', 'صفد'],
+                  ['תחנה מרכזית', 'EN', 'Central Station'], ['ריק', 'EN', ''], []]))
+    en = L.read_en(rows)
+    assert L.en_of(en, "בי''ס בר לב/בן יהודה") == 'Bar Lev School/Ben Yehuda'   # '' ב-stops.txt מול " בתרגומים
+    assert L.en_of(en, 'בי״ס בר לב/בן יהודה') == 'Bar Lev School/Ben Yehuda'
+    assert L.en_of(en, 'צפת_תחנה מרכזית') == 'Safed, Central Station'          # יעד "עיר_תחנה" — מהחלקים
+    assert L.en_of(en, 'צפת_נוף כנרת') is None and L.en_of(en, 'ריק') is None
+
+
+def test_tts_english_names_and_headsign(tmp_path, monkeypatch):
+    """בקובץ: en — {עברית: אנגלית} לשמות שבו (רק מה שיש לו תרגום), ו-h — היעד המפורסם של הכיוון"""
+    t0 = D(2026, 11, 23)
+    f = TTFeed(t0, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
+    f.en = {'לוד': 'Lod', 'בני ברק': 'Bnei Brak', 'תחנה': 'Station'}
+    f.trip_hs = {t: 'בני ברק_תחנה' for t in f.trips}
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setenv('LH_SCHED', str(tmp_path / 'none'))
+    L.current_tts(f, t0)
+    sh = json.load(open(tmp_path / 'data' / 'tt' / f'{L.tt_shard("14384")}.json', encoding='utf-8'))
+    r = sh['lines']['14384']['d']['1']
+    assert r['h'] == 'בני ברק_תחנה'
+    assert sh['en']['בני ברק_תחנה'] == 'Bnei Brak, Station' and sh['en']['לוד'] == 'Lod' and sh['en']['בני ברק'] == 'Bnei Brak'
+    assert 'en' not in sh['lines']
+
+
+# ---------------------------------------------------------------- שמות באנגלית בדף של שינוי (data/l/<id>.json — en)
+
+def test_add_en_names_of_change_record():
+    """add_en: לכל רישום — en עם השמות שיש להם תרגום (תחנות, ערים, מוצא ויעד, החלפת מק"ט, קווים באותן תחנות)"""
+    f = dict(od=['צפת', 'טבריה'], old=dict(stops=[['1', "בי''ס בר לב/בן יהודה", 32.9, 35.4, 'צפת']]),
+             new=dict(stops=[['2', 'נוף כנרת', 32.9, 35.4, 'צפת']]), swaps=[dict(old='1', new='3', name='תחנה מרכזית')],
+             alts=[dict(od=['צפת', 'טבריה'], s='תחנה מרכזית')], moved=[])
+    nofeed = type('F', (), {})()
+    new, old = type('F', (), {'en': {'צפת': 'Safed', 'טבריה': 'Tiberias', 'בי"ס בר לב/בן יהודה': 'Bar Lev School/Ben Yehuda'}})(), \
+        type('F', (), {'en': {'תחנה מרכזית': 'Central Station', 'צפת': 'Zefat'}})()
+    L.add_en([f], new, old, nofeed)
+    assert f['en'] == {'צפת': 'Safed', 'טבריה': 'Tiberias', "בי''ס בר לב/בן יהודה": 'Bar Lev School/Ben Yehuda', 'תחנה מרכזית': 'Central Station'}
+    g = dict(od=['ריק', 'ריק'], old=dict(stops=[]), new=dict(stops=[]), en={'x': 'y'})
+    L.add_en([g], nofeed)
+    assert 'en' not in g
+
+
+def test_page_file_has_en_once(tmp_path, monkeypatch):
+    """בקובץ הדף: en פעם אחת לכל הדף (רק שמות שבדף), ולא בתוך כל כיוון; ונשאר בריצה הבאה (שינוי שכבר התחיל)"""
+    fx = os.path.join(os.path.dirname(__file__), 'fixtures', 'line-changes', 'data', 'l', '10282-20261116.json')
+    dd = json.load(open(fx, encoding='utf-8'))
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setattr(L, 'TODAY', datetime.date(2026, 11, 19))
+    open(tmp_path / 'line-template.html', 'w', encoding='utf-8').write('<title>{{TITLE}}</title>{{DESC}}{{URL}}{{ID}}')
+    found = [dict(x) for x in dd['dirs']]
+    st = found[0]['new']['stops'][0]
+    for f in found:
+        f['en'] = {st[1]: 'Golda Terminal/Platforms', st[4]: 'Tel Aviv-Yafo', 'לא בדף': 'Not here'}
+    L.write_out(found, {}, {}, datetime.date(2026, 11, 19), datetime.date(2026, 11, 12), keep_all=True)
+    out = json.load(open(tmp_path / 'data' / 'l' / '10282-20261116.json', encoding='utf-8'))
+    assert out['en'] == {st[1]: 'Golda Terminal/Platforms', st[4]: 'Tel Aviv-Yafo'}
+    assert all('en' not in x for x in out['dirs'])
+    L.write_out([], {}, {}, datetime.date(2026, 11, 19), datetime.date(2026, 11, 12), keep_all=True)   # כמו "pages": מהקבצים הקיימים
+    out2 = json.load(open(tmp_path / 'data' / 'l' / '10282-20261116.json', encoding='utf-8'))
+    assert out2['en'] == out['en']

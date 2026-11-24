@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<script src="ui-en.js?v=3"></script>
 <script src="../theme-boot.js?v=20261120c" data-inline="off"></script>
 <link rel="stylesheet" href="../dark/line-changes.css?v=20261119">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -47,11 +48,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=41'), js('deck-sign.js?v=1'), js('deck-board.js?v=6'), js('deck-maps.js?v=1'), js('editor.js?v=11'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=45'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=9'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=41'], ['deck-sign.js?v=1'], ['deck-board.js?v=6'], ['deck-maps.js?v=1'], ['editor.js?v=11']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=45'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=9'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -82,8 +83,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" id="leafcss" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=31">
-<link rel="stylesheet" id="slidecss" href="slides.css?v=34" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" id="slidecss" href="slides.css?v=36" media="print" onload="this.media='all'">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -116,6 +117,8 @@
       <li><button type="button" data-go="3"><i>3</i><span>המצגת</span></button></li>
     </ol>
     <button type="button" class="reset" id="reset" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span>איפוס</span></button>
+    <!-- שפת הממשק (ui-en.js): עברית | English — בנפרד מ"שפת הלוח" -->
+    <div class="uilang" role="group" aria-label="שפת הממשק" data-noi18n><button type="button" data-uil="he" lang="he">עברית</button><span aria-hidden="true">|</span><button type="button" data-uil="en" lang="en">English</button></div>
   </div>
   <div class="in"><div class="rconfirm" id="rconfirm" role="alertdialog" aria-labelledby="rcq" hidden><span id="rcq">להתחיל מחדש? כל הקווים והבחירות יימחקו</span><button type="button" class="btn danger" id="ryes">כן, לאפס</button><button type="button" class="lnk" id="rno">ביטול</button></div></div>
 </nav>
@@ -240,6 +243,35 @@
               <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
               <button type="button" role="radio" data-bsp="no"><b>לא</b></button>
             </div>
+            <!-- אפשרויות לפרסום (נחמיה דרך שלמה, 24.11): ברירת המחדל — כמו קודם -->
+            <span class="flabel sm">שם המפעיל</span>
+            <div class="seg2 tvseg" id="bopseg" role="radiogroup" aria-label="שם המפעיל">
+              <button type="button" role="radio" data-bopn="1"><b>להציג</b></button>
+              <button type="button" role="radio" data-bopn="0"><b>בלי</b></button>
+            </div>
+            <span class="flabel sm">תאריך סיום ("עד…")</span>
+            <div class="seg2 tvseg" id="bendseg" role="radiogroup" aria-label="תאריך סיום">
+              <button type="button" role="radio" data-bend="1"><b>להציג</b></button>
+              <button type="button" role="radio" data-bend="0"><b>בלי</b></button>
+            </div>
+            <span class="flabel sm">סימון נסיעות כפולות (×2)</span>
+            <div class="seg2 tvseg" id="bx2seg" role="radiogroup" aria-label="סימון נסיעות כפולות">
+              <button type="button" role="radio" data-bx2="1"><b>להציג</b></button>
+              <button type="button" role="radio" data-bx2="0"><b>בלי</b></button>
+            </div>
+            <div id="bltrw" hidden><span class="flabel sm">קווים עם אות (1 ו־1א)</span>
+              <div class="seg2 tvseg" id="bltrseg" role="radiogroup" aria-label="קווים עם אות">
+                <button type="button" role="radio" data-bltr="0"><b>שורה אחת</b><small>כמו היום</small></button>
+                <button type="button" role="radio" data-bltr="1"><b>בנפרד</b><small>1 ו־1א בשורות נפרדות</small></button>
+              </div></div>
+            <details class="bdaysd" id="bdaysw" hidden><summary><span class="flabel sm">בחירת תאריכים</span><small class="bdhint" id="bdhint"></small></summary>
+              <div class="bsug" id="bsug" aria-label="הצעות"></div>
+              <div id="bdgw">
+                <p class="hint">הלוח נבנה מהתאריך הראשון של כל יום בשבוע (מודגש). לחיצה על תאריך מוציאה אותו — ואז נלקח אותו יום בשבוע הבא. "נפרד" — עמודה משלו עם התאריך. נקודה — השעות שונות מאותו יום בשבוע האחר.</p>
+                <div class="bdg" id="bdg" role="group" aria-label="תאריכים"></div>
+                <button type="button" class="lnk" id="bdreset" hidden>לבטל את הבחירה</button>
+              </div>
+            </details>
             <div id="bordw">
             <span class="flabel sm">סדר הקווים</span>
             <div class="seg2 tvseg bor" id="borseg" role="radiogroup" aria-label="סדר הקווים">
@@ -299,6 +331,14 @@
           </div>
         </div>
       </div>
+      <!-- שפת המצגת (לוח באנגלית): בכל התצוגות והצורות — השקפים, השלט, הסטטוס, הלוח והאקסל -->
+      <div class="group" id="langgrp">
+        <span class="flabel" id="blanglbl">שפת המצגת</span>
+        <div class="seg2" id="blangseg" role="radiogroup" aria-labelledby="blanglbl">
+          <button type="button" role="radio" data-blang="he"><b>עברית</b></button>
+          <button type="button" role="radio" data-blang="en"><b lang="en">English</b><small>עורכים בעברית, מדפיסים באנגלית</small></button>
+        </div>
+      </div>
       <div class="group">
         <span class="flabel" id="formslbl">צורה</span>
         <div class="forms" id="forms" role="radiogroup" aria-labelledby="formslbl">
@@ -353,6 +393,8 @@
   <main class="stage">
     <div class="stagehead noprint"><h2 id="stagetitle">תצוגה מקדימה</h2><span id="pcount"></span></div>
     <p class="edithint noprint">מצב עריכה: לוחצים על טקסט בשקף כדי לשנות אותו. בטלפון אפשר להגדיל את השקף עם שתי אצבעות.</p>
+    <!-- לוח באנגלית: שמות בלי תרגום (מופיעים בעברית) — אפשר להקליד שם באנגלית; לא חלק מהלוח, לא מודפס -->
+    <div class="ennote noprint" id="ennote" role="status" hidden></div>
     <div class="deck" id="deck"></div>
     <p class="imgmsg noprint" id="imgmsg" role="status" aria-live="polite"></p>
   </main>
@@ -383,11 +425,11 @@
 </footer>
 
 <script src="common.js?v=8"></script>
-<script src="app-settings.js?v=1"></script>
-<script src="app-edit.js?v=2"></script>
+<script src="app-settings.js?v=4"></script>
+<script src="app-edit.js?v=3"></script>
 <script src="app-images.js?v=1"></script>
-<script src="app-export.js?v=4"></script>
-<script src="app.js?v=48"></script>
+<script src="app-export.js?v=7"></script>
+<script src="app.js?v=52"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

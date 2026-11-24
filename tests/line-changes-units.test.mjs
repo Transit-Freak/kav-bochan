@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-a.js', 'deck-en-b.js', 'deck-en-c.js', 'deck-en-d.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -362,4 +362,357 @@ test('קו שמשתנה השבוע: גם לוח של השבוע עד השינו�
   // הלוח מהשינוי — כמו קודם
   const M2 = ctx.LCDeck.boardModel([p], { bsplit: false });
   assert.equal(M2.sub.split(' · ')[0], 'החל מ-29.11'); assert.equal(M2.wk, ''); assert.equal(M2.cols[0].label, 'ימים א׳–ה׳');
+});
+
+// ---------- אפשרויות בלוח (24.11): בחירת תאריכים, קווים עם אות, מפעיל, תאריך סיום, ×2 ----------
+// עמוד כמו ttPick: tv — היום הראשון בנתונים (שלישי 24.11), wd — הלו"ז לכל יום בשבוע מ-r.w, wd1 — מהשבוע שאחריו
+function datePage(opt = {}) {
+  const wk = [420, 480, 540], sat = [1200, 1260], sun1 = [420, 480, 540, 1300];   // ראשון 29.11 — עם נסיעה נוספת (הילולה)
+  const tri = (L) => [L, 0, 0];
+  const wd = [tri(sun1), tri(wk), tri(wk), tri(wk), tri(wk), tri([420]), tri(sat)];
+  const wd1 = [tri(wk), tri(wk), tri(wk), tri(wk), tri(wk), tri([420]), tri(opt.sat2 || sat)];
+  const d = { dir: '1', od: ['צפת', 'צפת'], f: 'תחנה', fc: '1', t: 'סוף', cs: ['צפת'], days: wd.map((x) => x[0]), x: {}, v: [], da: wd.map(() => 0), dn: wd.map(() => 0), xa: {}, xn: {}, wd, wd1, l: opt.l1 || '' };
+  const dirs = [d];
+  if (opt.l2) dirs.push({ ...d, dir: '2', l: opt.l2 });
+  return { id: 'tt-88001', kind: 'current', line: '1א', op: 'נתיב אקספרס', ag: '14', makat: '88001', od: ['צפת', 'צפת'], eff: '2026-11-24', valid: '2026-11-24', tv: '2026-11-24', tvh: opt.hol || [], fromEff: '', until: '2026-12-10', hol: [], dirs };
+}
+const allTimes = (M) => M.bands[0].rows[0].cells.flatMap((c) => c.ents.map((e) => e.t));
+
+test('בחירת תאריכים: בלי בחירה — כמו קודם; תאריך שהוצא — אותו יום בשבוע הבא', () => {
+  const T = ctx.LCDeck._test, p = datePage();
+  assert.deepEqual(J(T.bdOnDate(p, p.dirs[0], '2026-11-29'))[0], [420, 480, 540, 1300]);
+  assert.deepEqual(J(T.bdOnDate(p, p.dirs[0], '2026-12-06'))[0], [420, 480, 540]);
+  assert.equal(T.bdOnDate(p, p.dirs[0], '2026-12-08'), null, 'מחוץ לשבועיים');
+  const M0 = ctx.LCDeck.boardModel([p], { bsplit: false });
+  assert.ok(allTimes(M0).includes('21:40'), 'ברירת המחדל: הנסיעה של יום ראשון בלוח');
+  const q = T.bdDatePage(p, { off: { '2026-11-29': 1 }, sep: {} });
+  assert.deepEqual(J(q.dirs[0].days[0]), [420, 480, 540], 'ראשון — מ-6.12');
+  assert.deepEqual(J(p.dirs[0].days[0]), [420, 480, 540, 1300], 'העמוד המקורי לא השתנה');
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { off: { '2026-11-29': 1 } } });
+  assert.ok(!allTimes(M).includes('21:40'));
+  assert.equal(M.cols[0].label, 'ימים א׳–ה׳');
+});
+
+test('בחירת תאריכים: עמודה נפרדת לכל מוצ״ש, עם התאריך, אחרי העמודה של שבת; בלי תאריך ליום — היום לא בכותרת', () => {
+  const p = datePage({ sat2: [1200, 1260, 1320] });
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { sep: { '2026-11-28': 1, '2026-12-05': 1 } } });
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'מוצאי שבת 28.11', 'מוצאי שבת 5.12'], 'שבת רגילה — אין תאריך שלא נפרד');
+  const c = M.bands[0].rows[0].cells;
+  assert.deepEqual(J(c[3].ents.map((e) => e.t)), ['20:00', '21:00', '22:00']);
+  const M2 = ctx.LCDeck.boardModel([p], { bsplit: false, bdays: { sep: { '2026-12-05': 1 } } });
+  assert.deepEqual(J(M2.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'מוצאי שבת', 'מוצאי שבת 5.12']);
+});
+
+test('רשימת התאריכים והצעות: לו"ז חריג ביום ראשון — הצעה להוציא; לחיצה — כלום לא משתנה עד שמחילים', () => {
+  const p = datePage(), ds = ctx.LCDeck.boardDates([p], {});
+  assert.equal(ds.length, 14); assert.equal(ds[0].iso, '2026-11-24');
+  const sun = ds.find((x) => x.iso === '2026-11-29');
+  assert.ok(sun.used && sun.diff); assert.ok(!ds.find((x) => x.iso === '2026-12-06').used);
+  const sg = J(ctx.LCDeck.boardSuggest([p], {}));
+  assert.equal(sg.length, 1);
+  assert.match(sg[0].txt, /29\.11 — לו״ז חריג/); assert.deepEqual(sg[0].off, ['2026-11-29']);
+  assert.equal(ctx.LCDeck.boardSuggest([p], { bdays: { off: { '2026-11-29': 1 } } }).length, 0, 'אחרי שהוחלה — לא מוצעת שוב');
+  // חג מהבונה שהשעות בו שונות — עמודה נפרדת (לא "חריג")
+  const h = datePage({ hol: [['2026-11-29', 'erev', 'ערב חג']] });
+  const sh = J(ctx.LCDeck.boardSuggest([h], {}));
+  assert.deepEqual(sh.map((x) => x.txt), ['ערב חג 29.11: עמודה נפרדת']);
+});
+
+test('חנוכה (לוח עברי של הדפדפן): מוצ״ש 5.12 עם שעות שונות — הצעה לעמודה נפרדת, ובלי "לו״ז חריג" ל-28.11', () => {
+  const sg = J(ctx.LCDeck.boardSuggest([datePage({ sat2: [1200, 1260, 1320] })], {}));
+  const hk = sg.find((x) => /^חנוכה/.test(x.txt));
+  assert.ok(hk, JSON.stringify(sg)); assert.equal(hk.txt, 'חנוכה: מוצ״ש 5.12 בעמודה נפרדת'); assert.deepEqual(hk.sep, ['2026-12-05']);
+  assert.ok(!sg.some((x) => /28\.11/.test(x.txt)));
+});
+
+test('קווים עם אות: ברירת המחדל — שורה אחת בשם של הקו; "בנפרד" — 1 ו-1א, קו לכל מספר', () => {
+  const p = datePage({ l1: '1א', l2: '1' });
+  const M0 = ctx.LCDeck.boardModel([p], {});
+  assert.deepEqual(J(M0.bands[0].rows.map((r) => r.line)), ['1א', '1א']);
+  const M = ctx.LCDeck.boardModel([p], { bltr: true });
+  assert.deepEqual(J(M.bands[0].rows.map((r) => r.line)), ['1', '1א']);
+  assert.ok(M.bands[0].rows.every((r) => r.first), 'כל מספר — קו משלו');
+  assert.equal(ctx.LCDeck._test.bdLtrSplit([datePage()], { bltr: true }).length, 1, 'בלי מספר לכל כיוון — כמו קודם');
+});
+
+test('בלי מפעיל, בלי תאריך סיום, בלי ×2', () => {
+  const p = datePage(); p.dirs[0].wd[1] = [[420, 480, 540], 0, [[0, 2]]]; p.dirs[0].dn = p.dirs[0].wd.map((x) => x[2]);
+  const r0 = ctx.LCDeck.boardModel([p], { bsplit: false }), row0 = r0.bands[0].rows[0];
+  assert.equal(row0.op, 'נתיב אקספרס'); assert.equal(r0.until, '2026-12-10'); assert.match(r0.sub, /עד 10\.12\.2026/);
+  assert.ok(row0.cells[0].ents.some((e) => e.n === 2)); assert.equal(r0.x2, true);
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, bop: false, bend: false, bx2: false }), row = M.bands[0].rows[0];
+  assert.equal(row.op, ''); assert.ok(row.hideOp);
+  assert.equal(M.until, ''); assert.doesNotMatch(M.sub, /עד/); assert.equal(row.untilTxt, '');
+  assert.ok(row.cells[0].ents.every((e) => e.n === 1)); assert.equal(M.x2, false);
+});
+
+test('הודעה על שינוי: חג עם לו"ז אחר (hx) בעמודה נפרדת רק כשבוחרים; בלי בחירה — כמו קודם', () => {
+  const d = { dir: '1', od: ['צפת', 'צפת'], f: 'תחנה', fc: '1', t: 'סוף', cs: ['צפת'], days: [[420], [420], [420], [420], [420], [400], []], mk: [[], [], [], [], [], [], []], same: [0, 0, 0, 0, 0, 0, 0], hx: { '2026-12-01': [600, 660] } };
+  const p = { id: 'x', makat: '1', line: '1', op: 'נתיב אקספרס', ag: '14', valid: '2026-11-29', eff: '2026-11-29', until: '', chg: 'timetable', od: ['צפת', 'צפת'], hol: [], dirs: [d] };
+  const ed = { hol: [['2026-12-01', 'erev', 'ערב חג']], bsplit: false };
+  assert.deepEqual(J(ctx.LCDeck.boardModel([p], ed).cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי']);
+  const M = ctx.LCDeck.boardModel([p], { ...ed, bdays: { sep: { '2026-12-01': 1 } } });
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'ערב חג 1.12', 'יום שישי']);
+  assert.deepEqual(J(M.bands[0].rows[0].cells[1].ents.map((e) => e.t)), ['10:00', '11:00']);
+});
+
+// ---------- לוח באנגלית (board-en.js): תרגום שמות, גרשיים, רשימת השמות בלי תרגום ----------
+test('LCBoardEN.name: גרשיים אחידים, יעד "עיר_תחנה", שם שהוקלד, ורשימת החסרים', () => {
+  const EN = ctx.LCBoardEN, ix = EN.index({ 'בי"ס בר לב/בן יהודה': 'Bar Lev School/Ben Yehuda', 'צפת': 'Safed', 'תחנה מרכזית': 'Central Station' }), miss = {};
+  assert.equal(EN.name("בי''ס בר לב/בן יהודה", ix, null, miss), 'Bar Lev School/Ben Yehuda');
+  assert.equal(EN.name('בי״ס בר לב/בן יהודה', ix, null, miss), 'Bar Lev School/Ben Yehuda');
+  assert.equal(EN.name('צפת_תחנה מרכזית', ix, null, miss), 'Safed, Central Station');
+  assert.equal(EN.name('נוף כנרת', ix, null, miss), 'נוף כנרת');
+  assert.equal(EN.name('נוף כנרת', ix, { 'נוף כנרת': 'Nof Kinneret' }, miss), 'Nof Kinneret');
+  assert.equal(EN.name('Safed', ix, null, miss), 'Safed', 'בלי עברית — כמו שהוא');
+  assert.deepEqual(Object.keys(miss), ['נוף כנרת']);
+  assert.equal(EN.days([0, 1, 2, 3, 4]), 'Sun–Thu'); assert.equal(EN.days([4]), 'Thu'); assert.equal(EN.days([0, 4]), 'Sun, Thu');
+});
+
+test('לוח באנגלית: טקסטים קבועים, שמות מהמילון, כיוון לפי היעד המפורסם, ושמות בלי תרגום ב-miss; בלי — כמו קודם', () => {
+  const p = datePage(); p.until = '';
+  p.dirs[0].h = 'צפת_תחנה מרכזית'; p.dirs[0].f = 'בית חולים זיו'; p.dirs[0].fc = '51041';
+  const he = ctx.LCDeck.boardModel([p], { bsplit: false });
+  assert.equal(he.en, false); assert.deepEqual(J(he.miss), []);
+  assert.match(he.title, /^זמני נסיעות/); assert.equal(he.th.line, 'קו');
+  const en = { 'צפת': 'Safed', 'בית חולים זיו': 'Ziv Hospital', 'תחנה מרכזית': 'Central Station' };
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en });
+  assert.equal(M.en, true);
+  assert.equal(M.title, 'Timetable · Line \u20661א\u2069');
+  assert.match(M.sub, /^Valid from 24\.11\.2026/);
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['Days Sun–Thu', 'Friday', 'Saturday night']);
+  assert.deepEqual(J([M.th.line, M.th.orig, M.lbl.off]), ['Line', 'From', 'No service']);
+  const r = M.bands[0].rows[0];
+  assert.equal(r.origin, 'Ziv Hospital'); assert.equal(r.toward, 'To Safed, Central Station'); assert.equal(r.op, 'Nateev Express');
+  assert.equal(M.bands[0].label, 'City line · Safed');
+  assert.deepEqual(J(M.miss), [], 'הכול מתורגם');
+  const M2 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en: { 'צפת': 'Safed' } });
+  assert.deepEqual(J(M2.miss).sort(), ['בית חולים זיו', 'צפת_תחנה מרכזית'].sort());
+  assert.equal(M2.bands[0].rows[0].origin, 'בית חולים זיו', 'בלי תרגום — בעברית');
+  const M3 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en: { 'צפת': 'Safed' }, ben: { 'בית חולים זיו': 'Ziv Medical Center' } });
+  assert.equal(M3.bands[0].rows[0].origin, 'Ziv Medical Center', 'שם שהמשתמש הקליד');
+  // טקסט שנערך בלוח בעברית — לא נכנס ללוח באנגלית
+  const M4 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en, bd: { t: { title: 'כותרת' } } });
+  assert.equal(M4.title, 'Timetable · Line \u20661א\u2069');
+});
+
+// ---------- ממשק באנגלית (ui-en.js): לכל מפתח יש אנגלית, ולכל טקסט בעברית בדף (index.html) יש תרגום ----------
+test('ui-en.js: לכל טקסט במילון יש אנגלית, ולכל טקסט ותכונה בעברית ב-index.html יש תרגום', () => {
+  const c2 = {}; vm.createContext(c2);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'ui-en.js'), 'utf8'), c2);
+  const U = c2.LCUI;
+  const empty = Object.keys(U.UI).filter((k) => !String(U.UI[k] || '').trim() || /[א-ת]/.test(U.UI[k].replace(/1א/g, '')));
+  assert.deepEqual(empty, [], 'מפתחות בלי אנגלית');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  const he = new Set();
+  html.replace(/>([^<]*)</g, (m, t) => { t = t.replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim(); if (/[א-ת]/.test(t)) he.add(t); return m; });
+  html.replace(/\s(?:placeholder|aria-label|title|alt)="([^"]*)"/g, (m, t) => { t = t.replace(/&quot;/g, '"'); if (/[א-ת]/.test(t)) he.add(t.trim()); return m; });
+  const miss = [...he].filter((t) => U.tr(t) == null);
+  assert.deepEqual(miss, [], 'טקסטים בדף בלי תרגום');
+  assert.equal(U.tr('טוען 14 קווים…'), 'Loading 14 lines…');
+  assert.equal(U.tr('  חזרה '), '  Back ');
+  assert.equal(U.tr('צפת'), null, 'שם — לא במילון');
+  assert.equal(U.file('לוח-זמנים-קו-1-2026-11-24'), 'timetable-line-1-2026-11-24');
+});
+
+/* בדיקת טקסטים בקוד: כל טקסט בעברית ב-line-changes/app*.js, editor.js ו-common.js שמופיע בממשק — יש לו אנגלית ב-ui-en.js.
+   חלק מטקסט שמחובר לערך (מתחיל או נגמר ברווח / סוגר / נקודה) — נבדק כטקסט שלם בדף (תבנית ב-UIP), לא כאן.
+   UI_LINT_SKIP — טקסטים שאינם ממשק: הנוסח של השקפים עצמם (פעלים ומשפטים בשקף, שקף טקסט חדש, שורת "הוכן על ידי"),
+   שמות גיליונות באקסל (board-en.js — SHEET) ומילות מפתח בקובץ ה-PDF; וחלקים שהבדיקה לא מפרקת נכון (תכונה בתוך טקסט) */
+const UI_LINT_SKIP = new Set(('">נפרד|$1 היא|$1 השתנה|) התחילה באותו כיוון|). אפשר לנסות שוב, או להוריד בכל זאת — עם חלקים ריקים במפה.|. אפשר לבחור "הכול".|' +
+  '. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה|<div class="bcw-h" role="separator" aria-orientation="vertical" aria-label="רוחב העמודה — לגרור" data-cb="|> להציג|' +
+  'ביטל|ביטלו|האריך|האריכו|הוכן על ידי אדם פרטי · לא פרסום רשמי|הוסיף|הוסיפו|הלו״ז הקודם|העביר|העבירו|הפסיק לפעול|הפסיקו לפעול|התמונה|התמונות|חוזר|חוזרים|' +
+  'יגיע|יגיעו|יחזור|יחזרו|ייסע|ייסעו|ימשיך|ימשיכו|יסיים|יסיימו|יעצור|יעצרו|יתחיל|יתחילו|כותרת השקף|כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.|' +
+  'לא השתנו|לו״ז|לו״ז חדש|לפי לוח הזמנים, חלופה|מאריך|מאריכים|מבטל|מבטלים|מגיע|מגיעים|מוסיף|מוסיפים|ממשיך|ממשיכים|מסיים|מסיימים|מעביר|מעבירים|משנה|משנים|' +
+  'מתחיל|מתחילים|נוסע|נוסעים|עוצר|עוצרים|שהשתנו|שינה|שינו|תחבורה ציבורית, שינוי בקו|תחנה אחת עברה|תחנות עברו').split('|'));
+test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, editor.js, common.js) יש אנגלית', () => {
+  const c3 = {}; vm.createContext(c3);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'ui-en.js'), 'utf8'), c3);
+  const miss = new Set();
+  for (const f of ['app.js', 'app-settings.js', 'app-edit.js', 'app-images.js', 'app-export.js', 'editor.js', 'common.js']) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');
+    for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+      const lit = m[1]; if (!/[א-ת]/.test(lit)) continue;
+      for (let p of lit.split(/<[^>]*>/)) {
+        p = p.replace(/&quot;/g, '"');
+        if (!/[א-ת]/.test(p)) continue;
+        if (/^[\s(·,:\-–—]|[\s(·,:\-–—]$/.test(p) && (lit.startsWith(p) || lit.endsWith(p))) continue;
+        const t = p.trim();
+        if (!UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ': ' + t);
+      }
+    }
+  }
+  assert.deepEqual([...miss], [], 'טקסטים בממשק בלי אנגלית ב-ui-en.js');
+});
+
+// ---------- מצגת באנגלית (deck-en-a.js): שם המצגת, מבוא, תגיות, תאריכים, שקף הסיום והמקרא ----------
+test('מצגת באנגלית: שם, מבוא, תגיות, תאריכים, סיום ומקרא — ובלי blang כמו קודם', () => {
+  const X = ctx.LCDeckEN, D = ctx.LCDeck._in;
+  assert.equal(X.a_wd('2026-11-24'), 'Tue'); assert.equal(X.a_wd('2026-11-24', true), 'Tuesday');
+  assert.match(X.a_heb('2026-11-24'), /^\d+ \w+ 5787$/);
+  assert.equal(X.a_pl(1, 'new stop', 'new stops'), '1 new stop'); assert.equal(X.a_pl(3, 'new stop', 'new stops'), '3 new stops');
+  assert.equal(X.a_ln('1א'), '⁦1א⁩'); assert.equal(X.a_ln('18'), '18');
+  assert.equal(X.a_list(['9', '18', '54']), '9, 18 and 54');
+  assert.equal(X.a_chips({ geo: 1, rem: 2, add: 1 }), '<span class="chip geo">Takes a different route</span><span class="chip rem">2 stops cancelled</span><span class="chip add">1 new stop</span>');
+  const pg = (line, extra) => Object.assign({ id: 'x' + line, line, op: 'אגד', od: ['צפת', 'טבריה'], eff: '2026-12-01', tot: { geo: 1, rem: 1 }, dirs: [] }, extra || {});
+  const heT = ctx.LCDeck.deckTitle([pg('9')]), heI = ctx.LCDeck.autoIntro([pg('9')]);
+  D.ED = { blang: 'en', en: { 'צפת': 'Safed', 'טבריה': 'Tiberias' } };
+  assert.equal(ctx.LCDeck.autoTitle([pg('9')], ''), 'Line 9 service change');
+  assert.equal(ctx.LCDeck.autoTitle([pg('9', { sig: 'a' }), pg('18', { sig: 'b' }), pg('1א', { sig: 'c' })], ''), 'Service changes: lines 9, 18 and ⁦1א⁩');
+  assert.equal(ctx.LCDeck.autoTitle([pg('9', { kind: 'new' })], ''), 'New line: 9');
+  assert.equal(ctx.LCDeck.autoIntro([pg('9')]), 'On the next pages: a map of the old and the new route, and the nearest stop in place of each cancelled stop.');
+  assert.equal(X.a_od(['צפת', 'טבריה']), 'Safed ↔ Tiberias');
+  assert.equal(X.a_op('אגד'), 'Egged');
+  const cl = D.closing([pg('9')], '2026-11-20');
+  assert.match(cl, /^<div class="s-close en" dir="ltr" lang="en">/);
+  assert.match(cl, /Check before you travel/); assert.match(cl, /Based on Ministry of Transport data from 20\.11\.2026/);
+  assert.ok(!/[א-ת]/.test(cl), 'אין עברית בשקף הסיום: ' + cl.match(/[^<>]*[א-ת][^<>]*/));
+  X.a_nm('נוף כנרת');
+  assert.deepEqual(J(X.a_miss()), ['נוף כנרת'], 'שם בלי תרגום — ברשימת החסרים');
+  D.ED = {};
+  assert.equal(ctx.LCDeck.deckTitle([pg('9')]), heT); assert.equal(ctx.LCDeck.autoIntro([pg('9')]), heI);
+  assert.match(D.closing([pg('9')], ''), /^<div class="s-close"><div class="seam">.*לפני הנסיעה בדקו/);
+  assert.deepEqual(J(X.a_miss()), [], 'בנייה חדשה — הרשימה מתאפסת');
+});
+
+// ---------- מצגת באנגלית: המשפטים על המסלול והתחנות (deck-en-b.js — LCDeckEN.b_*; deck.js — ENb) ----------
+{
+  const DD = ctx.LCDeck._in, XB = ctx.LCDeckEN;
+  const st = (code, name, i, east) => ({ code, name, city: 'חדרה', ll: [LAT0 + i * DLAT, LON0 + (east || 0)] });
+  const EN_NAMES = { 'הרצל/ויצמן': 'Herzl/Weizmann', 'ז\'בוטינסקי/הנשיא': 'Jabotinsky/HaNasi', 'בי"ס אורט/רוטשילד': 'Ort School/Rothschild',
+    'ת. מרכזית חדרה/רציפים': 'Hadera Central Station/Platforms', 'הגפן/התאנה': 'HaGefen/HaTe\'ena', 'הדקל/הברוש': 'HaDekel/HaBrosh',
+    'סוקולוב/בלפור': 'Sokolov/Balfour', 'חדרה': 'Hadera', 'נתניה': 'Netanya', 'אחד העם/ביאליק': 'Ahad HaAm/Bialik' };
+  const en = (f) => { DD.ED = { blang: 'en', en: EN_NAMES }; try { return f(); } finally { DD.ED = {}; } };
+  const mk = (O, N, extra) => Object.assign({ od: ['חדרה', 'נתניה'], old: { shape: straight(200), stops: O }, new: { shape: straight(200), stops: N },
+    removed: O.filter((s) => !N.some((n) => n.code === s.code)).map((s) => s.code), added: N.filter((s) => !O.some((o) => o.code === s.code)).map((s) => s.code), moved: [] }, extra || {});
+  const txt = (h) => DD.plain(h);
+  const A = st('1', 'ת. מרכזית חדרה/רציפים', 0), B = st('2', 'הרצל/ויצמן', 20), C = st('3', 'סוקולוב/בלפור', 40), Dd = st('4', 'אחד העם/ביאליק', 60);
+
+  test('אנגלית: הקו לא מתחיל יותר בתחנה הראשונה / מסיים במקום אחר', () => {
+    const g = en(() => DD.segments(mk([A, B, C, Dd], [B, C, Dd])));
+    assert.equal(txt(g[0].html), 'The line will no longer start at Hadera Central Station/Platforms. The first stop will be Herzl/Weizmann.');
+    const E5 = st('5', 'הגפן/התאנה', 70, 0.004);
+    const d2 = mk([A, B, C, Dd], [A, B, C, E5]); d2.new.shape = straight(80).map((p, i) => (i > 60 ? [p[0], LON0 + 0.004] : p));
+    assert.equal(txt(en(() => DD.segments(d2))[0].html), 'The line will end at HaGefen/HaTe\'ena instead of Ahad HaAm/Bialik.');
+    assert.equal(en(() => DD.trip(d2)), 'From Hadera to Netanya');
+  });
+
+  test('אנגלית: תחנה שעוברת מקום, תחנה שבוטלה (עם התחנה הקרובה) ותחנות חדשות', () => {
+    const mv = en(() => DD.segments(mk([A, B, C], [A, B, C], { moved: [{ code: '2', name: 'הרצל/ויצמן', m: 120, ll: B.ll }] })));
+    assert.equal(txt(mv[0].html), 'The stop Herzl/Weizmann is relocated about 120 m from its current position.');
+    const R = st('9', 'הדקל/הברוש', 24);
+    const rm = en(() => DD.segments(mk([A, B, R, C], [A, B, C])));
+    assert.equal(txt(rm[0].html), 'The line will no longer stop at HaDekel/HaBrosh (between Herzl/Weizmann and Sokolov/Balfour). Nearest stop: Herzl/Weizmann, about 100 m walk.');
+    const n1 = st('7', 'הגפן/התאנה', 25), n2 = st('8', 'הדקל/הברוש', 30);
+    const ad = en(() => DD.segments(mk([A, B, C], [A, B, n1, n2, C])));
+    assert.equal(txt(ad[0].html), 'New stops: HaGefen/HaTe\'ena and HaDekel/HaBrosh, between Herzl/Weizmann and Sokolov/Balfour.');
+    assert.equal(en(() => DD.totLine({ rem: 1, add: 3 })), 'One stop cancelled · 3 new stops');
+  });
+
+  test('אנגלית: דרך אחרת — "via" עם שמות הרחובות מתרגום שם התחנה המלא', () => {
+    const E = 0.004, o1 = st('5', 'סוקולוב/בלפור', 30), o2 = st('6', 'הגפן/התאנה', 40), n1 = st('7', 'ז\'בוטינסקי/הנשיא', 30, E), n2 = st('8', 'בי"ס אורט/רוטשילד', 40, E);
+    const d = mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true });
+    d.new.shape = straight(80).map((p, i) => (i > 22 && i < 55 ? [p[0], LON0 + E] : p));
+    const g = en(() => DD.segments(d));
+    assert.equal(txt(g[0].html), 'After Herzl/Weizmann, the line will no longer go via Sokolov and HaGefen. Instead it will go via Jabotinsky and Rothschild, and rejoin its usual route at Ahad HaAm/Bialik.');
+    // בלי אנגלית — העברית לא משתנה
+    assert.match(txt(DD.segments(mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true, new: d.new }))[0].html), /^אחרי הרצל\/ויצמן הקו כבר לא ייסע דרך סוקולוב והגפן/);
+  });
+
+  test('אנגלית: שם בלי תרגום נשאר בעברית ונרשם ברשימת החסרים; תדירות ומקור ההשוואה', () => {
+    const X = st('9', 'מגדל המים/השקד', 24);
+    const g = en(() => { const r = DD.segments(mk([A, B, X, C], [A, B, C])); return { r, miss: XB.b_missing() }; });
+    assert.match(txt(g.r[0].html), /^The line will no longer stop at מגדל המים\/השקד \(/);
+    assert.ok(g.miss.includes('מגדל המים/השקד'));
+    assert.equal(XB.b_freq('3 נסיעות ביום, א׳–ה׳'), '3 trips a day, Sun–Thu');
+    assert.equal(XB.b_freq('נסיעה אחת ביום, שישי'), 'One trip a day, Fri');
+    assert.equal(XB.b_basis('חלופה ⁦10970-1-#⁩ מופיעה לראשונה ב-12.11.2026.'), 'Variant ⁦10970-1-#⁩ first appears on 12.11.2026.');
+    assert.equal(XB.b_andList(['A', 'B', 'C', 'D']), 'A, B, C and more');
+    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'There is no nearby alternative stop served by lines 5, 7 on the new route');
+    // שינוי שכבר התחיל — בהווה
+    assert.equal(XB.b_past('After A, buses will no longer go via B, and will not stop at the stop C.'), 'After A, buses no longer go via B, and do not stop at the stop C.');
+    assert.equal(XB.b_past('After A, the line will no longer go via S. Instead it will go via T, and return to its usual route at B.'),
+      'After A, the line no longer goes via S. Instead it goes via T, and returns to its usual route at B.');
+  });
+}
+
+// ---------- לוח באנגלית בתקציר / טבלה לכל קו / טבלה משולבת (deck-en-c.js) ----------
+test('LCDeckEN: ימים, משפטים על לוח הזמנים, משך, תדירות ותיאור חלופה — באנגלית', () => {
+  const X = ctx.LCDeckEN, D = ctx.LCDeck._in;
+  D.ED = { blang: 'en', en: { 'לוד': 'Lod', 'הרצל': 'Herzl' } }; X.c_reset(D.ED);
+  const WK = ['d0', 'd1', 'd2', 'd3', 'd4'];
+  assert.equal(X.c_dtIn(WK), 'on weekdays'); assert.equal(X.c_dtIn(['d4']), 'on Thursday'); assert.equal(X.c_dtIn(['d6']), 'on Saturday and Saturday night');
+  assert.equal(X.c_daysShort(['d0', 'd1', 'd3']), 'Sun–Mon and Wed'); assert.equal(X.c_daysShort(['d5']), 'Friday');
+  assert.equal(X.c_dayName(WK), 'Weekdays (Sun–Thu)');
+  const s = (n, f, l, pk, op) => ({ n, f, l, pk, op });
+  assert.equal(X.c_ttLine({ t: WK, so: s(36, 360, 1320, 20, 30), sn: s(42, 330, 1410, 15, 30) }),
+    '<b>On weekdays:</b> 42 trips a day instead of 36; every 15 min at peak times instead of every 20 min; first trip at 5:30 instead of 6:00; last trip at 23:30 instead of 22:00.');
+  assert.equal(X.c_ttLine({ t: ['d5'], so: s(3, 400, 600), sn: s(0) }), '<b>On Friday:</b> The line will no longer run (until now: 3 trips).');
+  assert.equal(X.c_smallLine({ t: WK }, { ad: [450], rm: [460], sh: [[440, 435]] }), '<b>On weekdays:</b> the 7:20 trip will leave at 7:15, a trip is added at 7:30, and the 7:40 trip is cancelled.');
+  assert.equal(X.c_smallLine({ t: ['d4'] }, { ad: [600], rm: [590], sh: [] }), '<b>On Thursday:</b> the 9:50 trip will leave at 10:00.');
+  assert.equal(X.c_newTtLine({ t: WK, sn: s(34, 330, 1380, 15, 30) }), '<b>On weekdays:</b> 34 trips, from 5:30 to 23:00. At peak times every 15 min, the rest of the day every 30 min.');
+  assert.equal(X.c_durTxt(65), 'about 1 hr 5 min'); assert.equal(X.c_durTxt(40), 'about 40 min');
+  assert.equal(X.c_bandTxt([360, 380, 400, 420]), 'every 20 min'); assert.equal(X.c_bandTxt([360]), '1 trip');
+  assert.equal(X.c_altTxt('דרך הרצל'), 'via Herzl'); assert.equal(X.c_altTxt('לא דרך הרצל'), 'not via Herzl'); assert.equal(X.c_altTxt('במסלול אחר'), 'by another route');
+  assert.equal(X.c_linesTxt(['5', '7', '9']), 'Lines 5, 7 and 9');
+  assert.equal(X.c_N('לוד'), 'Lod'); assert.equal(X.c_N('רמלה'), 'רמלה');
+  assert.deepEqual(Object.keys(X.c_miss), ['רמלה'], 'שם בלי תרגום — ברשימה');
+  D.ED = {};
+});
+
+test('לו"ז עדכני באנגלית (תקציר, טבלה לכל קו): השקפים משמאל לימין, השמות מהמילון; בלי — העברית כמו קודם', () => {
+  const opt = { form: 'deck', tt: { v: 'gen', f: 'table' }, ttc: 'sep' }, en = { 'לוד': 'Lod', 'בני ברק': 'Bnei Brak' };
+  const cu = (s) => s.filter((x) => /^cu/.test(x.id)).map((x) => x.html).join('\n');
+  const he = cu(ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt)));
+  assert.match(he, /מלוד לבני ברק/); assert.doesNotMatch(he, /dir="ltr" lang="en"/);
+  for (const v of ['gen', 'det']) {
+    const h = cu(ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt, { tt: { v, f: 'table' }, blang: 'en', en })));
+    assert.match(h, /From Lod to Bnei Brak/); assert.match(h, /dir="ltr" lang="en"/); assert.match(h, /Current timetable · Valid from/);
+    const heb = (h.replace(/<[^>]+>/g, ' ').match(/[א-ת][^<>]*/g) || []).join(' | ');
+    assert.ok(!/לוד|בני ברק|לוח זמנים|נסיעות|ימים/.test(heb), 'עברית בשקף: ' + heb);
+  }
+  for (const form of ['sign', 'status']) {
+    const s = ctx.LCDeck.build([ttPage('14384')], '', Object.assign({}, opt, { form, tt: { v: 'det', f: 'table' }, blang: 'en', en })).map((x) => x.html).join('\n');
+    assert.match(s, /Lod ↔ Bnei Brak/); assert.match(s, /Times are departures from the first stop/);
+  }
+});
+
+// ---------- שינוי מסלול באנגלית: עמוד אחד, שלט, רשימת התחנות וסטטוס (deck-en-d.js); בלי blang — העברית כמו קודם ----------
+test('שינוי מסלול באנגלית — עמוד אחד, שלט וסטטוס: משמאל לימין, בלי עברית חוץ משמות בלי תרגום', () => {
+  const FIX = path.join(ROOT, '..', 'tests', 'fixtures', 'line-changes', 'data', 'l');
+  const load = (id) => {
+    const p = JSON.parse(fs.readFileSync(path.join(FIX, id + '.json'), 'utf8'));
+    p.dirs.forEach((d) => ['old', 'new'].forEach((k) => {
+      d[k].stops = d[k].stops.map((s) => ({ code: String(s[0]), name: s[1].replace(/''/g, '"'), ll: [s[2], s[3]], city: s[4] || '' }));
+      d[k].shape = ctx.LC.decodePoly(d[k].shp);
+    }));
+    return p;
+  };
+  const en = { 'אלעד': 'Elad', 'צפת': 'Safed', 'בית משפט השלום/החלוץ': 'Magistrates Court/HeHalutz', 'ת. מרכזית צפת/הורדה': 'Safed Central Station/Drop-off',
+    'הפלמ"ח': 'HaPalmach', 'הפלמ"ח/עלייה ב\'': 'HaPalmach/Aliya Bet' };
+  for (const form of ['deck', 'sign', 'status']) {
+    const he = ctx.LCDeck.build([load('10590-20261120')], '', { form, modes: {} }).map((x) => x.html).join('\n');
+    assert.match(he, /[א-ת]/);
+    const out = ctx.LCDeck.build([load('10590-20261120')], '', { form, modes: {}, blang: 'en', en });
+    const h = out.map((x) => x.html).join('\n');
+    assert.match(h, /dir="ltr"/, form);
+    const heb = ctx.LCDeck._in.plain(h).match(/[^\s]*[א-ת][^\s]*/g);
+    assert.equal(heb, null, form + ': עברית בשקף באנגלית: ' + heb);
+    if (form === 'status') assert.match(ctx.LCDeck._in.plain(h), /Route change from 20\.11/);
+    if (form === 'sign') assert.match(ctx.LCDeck._in.plain(h), /Check before you travel:/);
+  }
+  // שם בלי תרגום — נשאר בעברית ונרשם ברשימה לאזהרה
+  const h2 = ctx.LCDeck.build([load('10590-20261120')], '', { form: 'sign', modes: {}, blang: 'en', en: { 'אלעד': 'Elad' } }).map((x) => x.html).join('\n');
+  assert.match(h2, /בית משפט השלום/);
+  assert.ok(ctx.LCDeckEN.b_missing().includes('בית משפט השלום/החלוץ'));
+  ctx.LCDeck._in.ED = {};
+});
+
+// ---------- נסיעה אחת שזזה (עד 30 דקות) — אותו סיווג בכל מקום: "תצא ב-", הסיכום, הטבלה והלוח (קו 436, 7:35 → 7:45) ----------
+test('נסיעה אחת שזזה ב-10 דקות: נסיעה שזזה (sh), לא חדשה + מבוטלת', () => {
+  const D = ctx.LCDeck._in;
+  assert.deepEqual(J(D.mergeSh([455, 720], [465, 720])), [[465, 'sh', 455], [720, '']]);
+  assert.deepEqual(J(D.mergeSh([455, 720], [530, 720])).map((x) => x[1]), ['rm', 'ad', ''], 'יותר מ-30 דקות — חדשה ומבוטלת');
+  const X = ctx.LCDeckEN;
+  assert.equal(X.c_diffSummary({ t: ['d4'], n: [465, 720] }, { ad: [], rm: [], sh: [[455, 465]] }), '<b>On Thursday:</b> 1 trip retimed (7:35 → 7:45). The other trips are unchanged.');
 });

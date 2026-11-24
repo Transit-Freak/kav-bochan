@@ -311,6 +311,7 @@
   });
   window.addEventListener('scroll', function () { if (curEl && !bar.hidden) showBar(curEl); }, { passive: true });
   function sidOf(el) { return el.closest('.sframe').getAttribute('data-id'); }
+  function bxk(sid) { return (A.blangOf() === 'en' ? 'en|' : '') + sid; }   // תיבות טקסט — לכל שפה בנפרד (כמו LCEdit.apply)
   function splitAdd(id) { var m = id.match(/^(.*)\+(\d+)$/); return m ? { base: m[1], i: +m[2] } : null; }
   /* "טבלה לפי יעד": טקסט בלוח (.bdt) נשמר לפי המפתח שלו (data-bk) ב-edits.bd.t, ואחרי היציאה מהשדה הלוח נבנה מחדש —
      כך השינוי (או המחיקה) מגיע לכל העמודים, לשלט, למצגת, לסטטוס ולאקסל. כותרת ו"עדכונים" — אותם שדות כמו בשלב 3 */
@@ -350,7 +351,7 @@
     var el = ev.target;
     if (el.classList.contains('tbox-t')) {
       var sid = sidOf(el), id = el.getAttribute('data-boxt');
-      (A.edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) b.text = el.innerText; });
+      (A.edits.boxes[bxk(sid)] || []).forEach(function (b) { if (b.id === id) b.text = el.innerText; });
     } else if (el.classList.contains('edt')) {
       var eid = el.getAttribute('data-eid'), ad = splitAdd(eid);
       if (ad) { (A.edits.add[ad.base] = A.edits.add[ad.base] || [])[ad.i] = el.innerText; }
@@ -405,7 +406,7 @@
       return;
     }
     if (el.classList.contains('tbox-t')) {
-      if (t === 'del') { var id = el.getAttribute('data-boxt'); A.edits.boxes[sid] = (A.edits.boxes[sid] || []).filter(function (x) { return x.id !== id; }); A.saveEdits(); el.closest('.tbox').remove(); hideBar(); }
+      if (t === 'del') { var id = el.getAttribute('data-boxt'); A.edits.boxes[bxk(sid)] = (A.edits.boxes[bxk(sid)] || []).filter(function (x) { return x.id !== id; }); A.saveEdits(); el.closest('.tbox').remove(); hideBar(); }
       return;
     }
     var eid = el.getAttribute('data-eid'), ad = splitAdd(eid), focusId = null;
@@ -437,7 +438,7 @@
     }
     if (act === 'box') {
       var D0 = A.dims(), box = { id: 'b' + Date.now().toString(36), x: 80, y: Math.round(D0.h * 0.72), w: Math.min(520, D0.w - 160), text: 'טקסט חדש' };
-      (A.edits.boxes[sid] = A.edits.boxes[sid] || []).push(box);
+      (A.edits.boxes[bxk(sid)] = A.edits.boxes[bxk(sid)] || []).push(box);
       A.saveEdits();
       var el = LCEdit.boxEl(box);
       A.frameOf(sid).querySelector('.slide').appendChild(el);
@@ -466,7 +467,7 @@
     }
     function up() {
       document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
-      (A.edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) { b.x = Math.round(parseFloat(box.style.left)); b.y = Math.round(parseFloat(box.style.top)); } });
+      (A.edits.boxes[bxk(sid)] || []).forEach(function (b) { if (b.id === id) { b.x = Math.round(parseFloat(box.style.left)); b.y = Math.round(parseFloat(box.style.top)); } });
       A.saveEdits();
     }
     document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);

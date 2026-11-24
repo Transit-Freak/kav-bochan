@@ -55,12 +55,14 @@ var LCEdit = (function () {
     return out;
   }
 
-  /* מחיל את העריכות על שקף אחד, ומחזיר את רשימת הטקסטים הניתנים לעריכה */
-  function apply(frame, sid, ed) {
-    var slide = frame.querySelector('.slide');
+  /* מחיל את העריכות על שקף אחד, ומחזיר את רשימת הטקסטים הניתנים לעריכה.
+     lang — 'en' במצגת באנגלית: הטקסטים שנערכו ותיבות הטקסט נשמרים לכל שפה בנפרד (המזהה מתחיל ב-"en|"),
+     כדי שעריכה בעברית לא תופיע במצגת באנגלית ולהפך */
+  function apply(frame, sid, ed, lang) {
+    var slide = frame.querySelector('.slide'), lp = lang === 'en' ? 'en|' : '';
     var els = collect(slide), seen = {};
     els.forEach(function (el) {
-      var base = sid + '|' + hash(el.textContent.replace(/\s+/g, ' ').trim());
+      var base = lp + sid + '|' + hash(el.textContent.replace(/\s+/g, ' ').trim());
       seen[base] = (seen[base] || 0) + 1;
       var id = base + '|' + seen[base];
       el.setAttribute('data-eid', id);
@@ -111,7 +113,7 @@ var LCEdit = (function () {
       }
     }
     // תיבות טקסט חופשיות
-    (ed.boxes && ed.boxes[sid] || []).forEach(function (b) { slide.appendChild(boxEl(b)); });
+    (ed.boxes && ed.boxes[lp + sid] || []).forEach(function (b) { slide.appendChild(boxEl(b)); });
     fit(frame);
   }
   function boxEl(b) {

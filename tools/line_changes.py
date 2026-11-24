@@ -118,6 +118,65 @@ def street_of(desc):
     return '' if (not t or t.isdigit() or len(t) < 2) else t
 
 
+def en_key(s):
+    """מפתח לתרגום לאנגלית (translations.txt): גרשיים אחידים — ב-stops.txt בי''ס, בתרגומים בי"ס"""
+    s = (s or '').replace("''", '"').replace('״', '"').replace('”', '"').replace('“', '"').replace('׳', "'")
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def read_en(rows):
+    """translations.txt (trans_id = הטקסט בעברית, lang, translation) → {מפתח: אנגלית}"""
+    h, rd = rows
+    out = {}
+    for r in rd:
+        if r and r[h['lang']].strip().upper() == 'EN' and r[h['translation']].strip():
+            out.setdefault(en_key(r[h['trans_id']]), r[h['translation']].strip())
+    return out
+
+
+def en_of(en, s):
+    """השם באנגלית, או None. יעד מפורסם "עיר_תחנה" שאין לו תרגום שלם — "City, Stop" מהחלקים"""
+    if not s or not en:
+        return None
+    t = en.get(en_key(s))
+    if t:
+        return t
+    if '_' in s:
+        a, b = s.split('_', 1)
+        ta, tb = en.get(en_key(a)), en.get(en_key(b))
+        if ta and tb:
+            return f'{ta}, {tb}'
+    return None
+
+
+def rec_names(f):
+    """כל השמות בעברית ברישום של כיוון (לתרגום לאנגלית): תחנות ישנות וחדשות, ערים, מוצא ויעד, תחנה שזזה, החלפת מק"ט"""
+    out = set(x for x in (f.get('od') or []) if x) | set(x for x in (f.get('cities') or []) if x)
+    for side in ('old', 'new'):
+        for st in (f.get(side) or {}).get('stops', []):
+            out.update(x for x in (st[1], st[4] if len(st) > 4 else '') if x)
+    out.update(m.get('name') for m in f.get('moved') or [] if m.get('name'))
+    out.update(m.get('city') for m in f.get('moved') or [] if m.get('city'))
+    out.update(w.get('name') for w in f.get('swaps') or [] if w.get('name'))
+    for a in f.get('alts') or []:   # קו מבוטל: קווים אחרים באותן תחנות — המוצא והיעד שלהם והתחנה
+        out.update(x for x in list(a.get('od') or []) + [a.get('s')] if x)
+    return out
+
+
+def add_en(found, *feeds):
+    """לכל רישום — en: {שם בעברית: באנגלית} מ-translations.txt (כמו en בלו"ז העדכני), למצגת באנגלית בדף. בלי תרגום — בלי"""
+    en = {}
+    for fd in reversed([x for x in feeds if x is not None]):
+        en.update(getattr(fd, 'en', None) or {})
+    for f in found:
+        tr = {n: t for n in sorted(rec_names(f)) for t in [en_of(en, n)] if t}
+        if tr:
+            f['en'] = tr
+        else:
+            f.pop('en', None)
+    return found
+
+
 def norm_name(s):
     return re.sub(r'[\s"\'״׳`.\-/]', '', s or '')
 
@@ -217,13 +276,18 @@ class Feed:
                     self.svc_next.add(r[h['service_id']])
         self.svc_set = {k: set(v) | ({nxt} if k in self.svc_next else set()) for k, v in self.svc_dates.items()}
         h, rd = self.rows('trips.txt')
-        self.trips = {}
+        self.trips, self.trip_hs = {}, {}
+        hi = h.get('trip_headsign')
         for r in rd:
             if not r:
                 continue
             sv = r[h['service_id']]
             if sv in self.svc_dates and r[h['route_id']] in self.routes:
                 self.trips[r[h['trip_id']]] = (r[h['route_id']], sv, r[h['shape_id']])
+                if hi is not None and r[hi]:
+                    self.trip_hs[r[h['trip_id']]] = sys.intern(r[hi])
+        # שמות באנגלית (לוח באנגלית בדף): translations.txt — כשאין בקובץ, בלי
+        self.en = read_en(self.rows('translations.txt')) if 'translations.txt' in self.members else {}
         print(f'  {len(self.routes)} מסלולים · {len(self.trips)} נסיעות בחלון', flush=True)
 
     def _read_stop_times(self):
@@ -1471,6 +1535,7 @@ def run():
     stats['timetable'] = tt_n
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
     current_tts(new, t0)
+    add_en(found, new, old)   # השמות באנגלית לכל דף (data/l/<id>.json — en)
     ended_lines = {k: old_v[k] for mk, (ks, L, s) in ended_mks.items() for k in ks}
     return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v, (old, ended_lines))
 
@@ -1509,8 +1574,18 @@ def hol_lists(feed, svcs, t0, eff, by_dow):
 TT_ALTS = 6   # כמה חלופות לכל היותר מסומנות בסימן (* # ^ $ ~ +); השאר — "במסלול אחר" (הסימן האחרון)
 
 
-def alt_via(main, st):
-    """תיאור קצר של חלופה לעומת הראשית: מה יש רק בה (ערים, רחובות, תחנת קצה), או מה אין בה. '' — אותן תחנות"""
+class NoEn(Exception):
+    pass
+
+
+ALT_W = {'he': {'via': 'דרך ', 'to': 'עד ', 'from': 'מ', 'not': 'לא דרך ', 'and': ' ו', 'short': 'מסלול מקוצר'},
+         'en': {'via': 'via ', 'to': 'to ', 'from': 'from ', 'not': 'not via ', 'and': ' and ', 'short': 'shortened route'}}
+
+
+def alt_via(main, st, en=None):
+    """תיאור קצר של חלופה לעומת הראשית: מה יש רק בה (ערים, רחובות, תחנת קצה), או מה אין בה. '' — אותן תחנות.
+    en — מילון התרגומים: אותו תיאור באנגלית (NoEn — כשאחד השמות בלי תרגום)"""
+    W = ALT_W['en' if en is not None else 'he']
     mc = {s['code'] for s in main}
     cc = {s['code'] for s in st}
     if [s['code'] for s in st] == [s['code'] for s in main]:
@@ -1526,6 +1601,11 @@ def alt_via(main, st):
         return out
 
     def two(arr):
+        if en is not None:
+            arr = [en_of(en, a) for a in arr[:2]]
+            if not all(arr):
+                raise NoEn()
+            return arr[0] if len(arr) == 1 else arr[0] + W['and'] + arr[1]
         arr = [re.sub(r'^ת\.\s*רכבת', 'תחנת הרכבת', re.sub(r'^ת\.\s*מרכזית', 'התחנה המרכזית', a.replace("''", '"'))) for a in arr]
         return arr[0] if len(arr) == 1 else arr[0] + ' ו' + arr[1]
 
@@ -1533,30 +1613,30 @@ def alt_via(main, st):
         return s['street'] or s['name'].split('/')[0].strip()
 
     def via(t):
-        return t if t.startswith('דרך ') else 'דרך ' + t
+        return t if t.startswith(W['via']) else W['via'] + t
     mcity = {s['city'] for s in main}
     cities = uniq([s['city'] for s in extra if s['city'] not in mcity])
     if cities:
-        return 'דרך ' + two(cities)
+        return W['via'] + two(cities)
     if st and st[-1]['code'] not in mc:
-        return 'עד ' + two([st[-1]['name']])
+        return W['to'] + two([st[-1]['name']])
     if st and st[0]['code'] not in mc:
-        return 'מ' + two([st[0]['name']])
+        return W['from'] + two([st[0]['name']])
     if extra:
         mst = {street(s) for s in main}
         sts = uniq([street(s) for s in extra if street(s) not in mst]) or uniq([s['name'] for s in extra])
         return via(two(sts))
     if st and main and st[-1]['code'] != main[-1]['code']:
-        return 'עד ' + two([st[-1]['name']])
+        return W['to'] + two([st[-1]['name']])
     if st and main and st[0]['code'] != main[0]['code']:
-        return 'מ' + two([st[0]['name']])
+        return W['from'] + two([st[0]['name']])
     scity = {s['city'] for s in st}
     gone = uniq([s['city'] for s in miss if s['city'] not in scity])
     if gone:
-        return 'לא דרך ' + two(gone)
+        return W['not'] + two(gone)
     sst = {street(s) for s in st}
     gone = uniq([street(s) for s in miss if street(s) not in sst])
-    return 'לא דרך ' + two(gone) if gone else 'מסלול מקוצר'
+    return W['not'] + two(gone) if gone else W['short']
 
 
 def scode(st):
@@ -1589,7 +1669,7 @@ def stop_city_counts(st):
     return cn
 
 
-def alt_labels(feed, pw, stops=None):
+def alt_labels(feed, pw, stops=None, ven=None):
     """החלופות של מק"ט-כיוון: (תיאורים לחלופות שאינן הראשית, {חלופה: אינדקס}) — 0 = ראשית.
     pw = {(רצף, route_id): נסיעות×ימים}. stops (רשימה) — מתמלאת לכל תיאור בתחנות של כל החלופות שקיבלו אותו
     (כדי שבלוח של מקום אפשר יהיה להשאיר רק נסיעות של חלופות שעוצרות בו)"""
@@ -1609,6 +1689,11 @@ def alt_labels(feed, pw, stops=None):
         lbl = alt_via(main, ast)
         if not lbl:
             continue
+        if ven is not None and getattr(feed, 'en', None) and lbl not in ven:   # התיאור באנגלית (לוח באנגלית)
+            try:
+                ven[lbl] = alt_via(main, ast, feed.en)
+            except NoEn:
+                pass
         if lbl not in V:
             if len(V) < TT_ALTS:
                 V.append(lbl)
@@ -1667,7 +1752,9 @@ def current_tts(feed, t0):
                  בלוח של קו שמשתנה השבוע: כל יום בשבוע לפי התאריך הראשון מיום השינוי והלאה (LC.ttFromEff),
              v: ["דרך X", ...] — חלופות המסלול שאינן הראשית (רק כשיש), A: מקביל ל-L — 0 כשכל היציאות בחלופה הראשית,
              אחרת מחרוזת עם ספרה לכל יציאה (0 = ראשית, 1 = v[0] ...),
-             N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt)}
+             N: מקביל ל-L — 0, או [[מקום ברשימה, כמה אוטובוסים]] ליציאות עם תגבור (מהרישוי, load_vcnt),
+             l: מספר הקו בכיוון הזה (route_short_name של החלופה הראשית) — רק כשבכיוונים של אותו מק"ט יש מספרים שונים
+                (בצפת: 88001 — "1א" בכיוון 1 ו-"1" בכיוון 2); בדף — "קווים עם אות: בנפרד"}
     חלופה ראשית = זו עם הכי הרבה נסיעות. חלופה עם אותן תחנות כמו הראשית נחשבת ראשית."""
     DAY = datetime.timedelta(days=1)
     VCNT.clear()
@@ -1676,6 +1763,8 @@ def current_tts(feed, t0):
     week = [t0 + DAY * i for i in range(TT_DAYS)]
     trips = defaultdict(lambda: defaultdict(list))   # (ag, מק"ט, כיוון) → service → [(יציאה, משך)]
     pats = defaultdict(lambda: defaultdict(int))
+    hss = defaultdict(lambda: defaultdict(int))   # היעד המפורסם (trip_headsign) של כל מק"ט-כיוון
+    ths = getattr(feed, 'trip_hs', {})
     for tid, (rid, sv, _shp) in feed.trips.items():
         r = feed.routes[rid]
         if r['ty'] not in ('3', '715') or not r['line']:    # רק אוטובוסים (715 — קו בהזמנה)
@@ -1689,6 +1778,8 @@ def current_tts(feed, t0):
         key = (r['ag'], mk, rp[0])
         trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None, rp[1] if len(rp) > 1 else ''))
         pats[key][(feed.trip_pat.get(tid), rid)] += len(feed.svc_dates[sv])
+        if tid in ths:
+            hss[key][ths[tid]] += len(feed.svc_dates[sv])
 
     def day_list(svcs, d, ai, pre):
         """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) —
@@ -1705,11 +1796,12 @@ def current_tts(feed, t0):
 
     shards = defaultdict(dict)
     n_dirs = 0
+    VEN = {}   # תיאור חלופה בעברית → באנגלית
     for key in sorted(trips):
         ag, mk, dr = key
         svcs = trips[key]
         VS = []
-        V, ai = alt_labels(feed, pats[key], VS)
+        V, ai = alt_labels(feed, pats[key], VS, VEN)
         pre = f'{mk}-{dr}-'
         usual = {}
         for d in week:
@@ -1744,10 +1836,12 @@ def current_tts(feed, t0):
         st = stops_of(feed, pid) if pid is not None else []
         cs = stop_cities(st)
         durs = sorted(du for lst in svcs.values() for _d, du, _a in lst if du)
-        rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
+        rec = dict(_l=r['line'], od=od_of(r['long']), f=st[0]['name'] if st else '', fc=st[0]['code'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
                    cn=stop_city_counts(st), du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
+        if hss.get(key):   # היעד המפורסם — רק ללוח באנגלית ("To …")
+            rec['h'] = max(hss[key].items(), key=lambda kv: kv[1])[0]
         if w1 != w:
             rec['w1'] = w1
         # התחנות של הנסיעות: sc — של החלופה הראשית; vs / vc — התחנות והערים של כל חלופה (לפי הסדר של v).
@@ -1769,6 +1863,30 @@ def current_tts(feed, t0):
             e = sh[mk] = dict(l=r['line'], a=ag, o=feed.agency.get(ag, ''), d={})
         e['d'][dr] = rec
         n_dirs += 1
+    # מספר הקו לכל כיוון (l) — רק כשהכיוונים של המק"ט במספרים שונים.
+    # en — השמות באנגלית לכל מה שבקובץ (תחנות, ערים, יעדים, תיאורי חלופות), ללוח באנגלית: {עברית: אנגלית}
+    en = getattr(feed, 'en', {})
+    for sh in shards.values():
+        names = set()
+        for e in sh.values():
+            for rec in e['d'].values():
+                names.update(x for x in [rec.get('f'), rec.get('t'), rec.get('h')] + list(rec.get('od') or []) + list(rec.get('cs') or []) if x)
+                names.update(rec.get('v') or [])
+        tr = {}
+        for n in sorted(names):
+            t = VEN.get(n) or en_of(en, n)
+            if t:
+                tr[n] = t
+        if tr:
+            sh['_en'] = tr
+        for e in sh.values():
+            if not isinstance(e, dict) or 'd' not in e:
+                continue
+            ls = {rec['_l'] for rec in e['d'].values()}
+            for rec in e['d'].values():
+                ln = rec.pop('_l')
+                if len(ls) > 1:
+                    rec['l'] = ln
     out = os.path.join(OUTDIR, 'data', 'tt')
     if os.path.isdir(out):
         shutil.rmtree(out)
@@ -1777,7 +1895,9 @@ def current_tts(feed, t0):
     hw = hol_week(t0)
     for i in range(TT_SHARDS):
         fn = os.path.join(out, f'{i}.json')
-        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, w1=1, lines=shards.get(i, {})),
+        lines = dict(shards.get(i, {}))
+        en_i = lines.pop('_en', None)
+        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, w1=1, lines=lines, **({'en': en_i} if en_i else {})),
                   open(fn, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
         size += os.path.getsize(fn)
     print(f'לו"ז עדכני: {sum(len(v) for v in shards.values())} קווים · {n_dirs} כיוונים · {size // 1024} KB ב-{TT_SHARDS} קבצים', flush=True)
@@ -2205,6 +2325,9 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if fn.endswith('.json'):
             try:
                 dd = json.load(open(os.path.join(data, 'l', fn), encoding='utf-8'))
+                for x in dd.get('dirs', []) + dd.get('split', []):
+                    if dd.get('en') and 'en' not in x:
+                        x['en'] = dd['en']   # השמות באנגלית של הדף — נשארים גם לשינוי שנשמר מריצה קודמת
                 prev += dd.get('dirs', []) + dd.get('split', [])
                 prev_pages[fn[:-5]] = dict(eff=dd.get('eff', ''), rds=[x['rd'] for x in dd.get('dirs', [])])
             except Exception:  # noqa: BLE001
@@ -2302,7 +2425,14 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         index.append(rec)
         rds = {f['rd'] for f in dirs if f.get('was')}
         sp = [x for x in splits if x['split_of'] in rds]
-        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs, **({'split': sp} if sp else {})),
+        # en — השמות באנגלית בדף (רק מה שמופיע בו), במקום אחד לכל הכיוונים
+        p_en, p_nm = {}, set(cities) | set(f0['od'] or [])
+        for f in dirs + sp:
+            p_en.update(f.get('en') or {})
+            p_nm |= rec_names(f)
+        p_en = {k: p_en[k] for k in sorted(p_nm) if k in p_en}
+        nen = lambda a: [{k: v for k, v in f.items() if k != 'en'} for f in a]   # noqa: E731
+        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=nen(dirs), **({'split': nen(sp)} if sp else {}), **({'en': p_en} if p_en else {})),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]
