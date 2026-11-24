@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-en-b.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -544,3 +544,64 @@ test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, 
   }
   assert.deepEqual([...miss], [], 'טקסטים בממשק בלי אנגלית ב-ui-en.js');
 });
+
+// ---------- מצגת באנגלית: המשפטים על המסלול והתחנות (deck-en-b.js — LCDeckEN.b_*; deck.js — ENb) ----------
+{
+  const DD = ctx.LCDeck._in, XB = ctx.LCDeckEN;
+  const st = (code, name, i, east) => ({ code, name, city: 'חדרה', ll: [LAT0 + i * DLAT, LON0 + (east || 0)] });
+  const EN_NAMES = { 'הרצל/ויצמן': 'Herzl/Weizmann', 'ז\'בוטינסקי/הנשיא': 'Jabotinsky/HaNasi', 'בי"ס אורט/רוטשילד': 'Ort School/Rothschild',
+    'ת. מרכזית חדרה/רציפים': 'Hadera Central Station/Platforms', 'הגפן/התאנה': 'HaGefen/HaTe\'ena', 'הדקל/הברוש': 'HaDekel/HaBrosh',
+    'סוקולוב/בלפור': 'Sokolov/Balfour', 'חדרה': 'Hadera', 'נתניה': 'Netanya', 'אחד העם/ביאליק': 'Ahad HaAm/Bialik' };
+  const en = (f) => { DD.ED = { blang: 'en', en: EN_NAMES }; try { return f(); } finally { DD.ED = {}; } };
+  const mk = (O, N, extra) => Object.assign({ od: ['חדרה', 'נתניה'], old: { shape: straight(200), stops: O }, new: { shape: straight(200), stops: N },
+    removed: O.filter((s) => !N.some((n) => n.code === s.code)).map((s) => s.code), added: N.filter((s) => !O.some((o) => o.code === s.code)).map((s) => s.code), moved: [] }, extra || {});
+  const txt = (h) => DD.plain(h);
+  const A = st('1', 'ת. מרכזית חדרה/רציפים', 0), B = st('2', 'הרצל/ויצמן', 20), C = st('3', 'סוקולוב/בלפור', 40), Dd = st('4', 'אחד העם/ביאליק', 60);
+
+  test('אנגלית: הקו לא מתחיל יותר בתחנה הראשונה / מסיים במקום אחר', () => {
+    const g = en(() => DD.segments(mk([A, B, C, Dd], [B, C, Dd])));
+    assert.equal(txt(g[0].html), 'The line will no longer start at Hadera Central Station/Platforms. The first stop will be Herzl/Weizmann.');
+    const E5 = st('5', 'הגפן/התאנה', 70, 0.004);
+    const d2 = mk([A, B, C, Dd], [A, B, C, E5]); d2.new.shape = straight(80).map((p, i) => (i > 60 ? [p[0], LON0 + 0.004] : p));
+    assert.equal(txt(en(() => DD.segments(d2))[0].html), 'The line will end at HaGefen/HaTe\'ena instead of Ahad HaAm/Bialik.');
+    assert.equal(en(() => DD.trip(d2)), 'From Hadera to Netanya');
+  });
+
+  test('אנגלית: תחנה שעוברת מקום, תחנה שבוטלה (עם התחנה הקרובה) ותחנות חדשות', () => {
+    const mv = en(() => DD.segments(mk([A, B, C], [A, B, C], { moved: [{ code: '2', name: 'הרצל/ויצמן', m: 120, ll: B.ll }] })));
+    assert.equal(txt(mv[0].html), 'The stop Herzl/Weizmann moves to a new location, about 120 m from the old one.');
+    const R = st('9', 'הדקל/הברוש', 24);
+    const rm = en(() => DD.segments(mk([A, B, R, C], [A, B, C])));
+    assert.equal(txt(rm[0].html), 'The line will no longer stop at the stop HaDekel/HaBrosh (between Herzl/Weizmann and Sokolov/Balfour). Nearest stop: Herzl/Weizmann, about 100 m walk.');
+    const n1 = st('7', 'הגפן/התאנה', 25), n2 = st('8', 'הדקל/הברוש', 30);
+    const ad = en(() => DD.segments(mk([A, B, C], [A, B, n1, n2, C])));
+    assert.equal(txt(ad[0].html), 'New stops: HaGefen/HaTe\'ena and HaDekel/HaBrosh, between Herzl/Weizmann and Sokolov/Balfour.');
+    assert.equal(en(() => DD.totLine({ rem: 1, add: 3 })), 'One stop cancelled · 3 new stops');
+  });
+
+  test('אנגלית: דרך אחרת — "via" עם שמות הרחובות מתרגום שם התחנה המלא', () => {
+    const E = 0.004, o1 = st('5', 'סוקולוב/בלפור', 30), o2 = st('6', 'הגפן/התאנה', 40), n1 = st('7', 'ז\'בוטינסקי/הנשיא', 30, E), n2 = st('8', 'בי"ס אורט/רוטשילד', 40, E);
+    const d = mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true });
+    d.new.shape = straight(80).map((p, i) => (i > 22 && i < 55 ? [p[0], LON0 + E] : p));
+    const g = en(() => DD.segments(d));
+    assert.equal(txt(g[0].html), 'After Herzl/Weizmann, the line will no longer go via Sokolov and HaGefen. Instead it will go via Jabotinsky and Rothschild, and return to its usual route at Ahad HaAm/Bialik.');
+    // בלי אנגלית — העברית לא משתנה
+    assert.match(txt(DD.segments(mk([A, B, o1, o2, Dd], [A, B, n1, n2, Dd], { geo: true, new: d.new }))[0].html), /^אחרי הרצל\/ויצמן הקו כבר לא ייסע דרך סוקולוב והגפן/);
+  });
+
+  test('אנגלית: שם בלי תרגום נשאר בעברית ונרשם ברשימת החסרים; תדירות ומקור ההשוואה', () => {
+    const X = st('9', 'מגדל המים/השקד', 24);
+    const g = en(() => { const r = DD.segments(mk([A, B, X, C], [A, B, C])); return { r, miss: XB.b_missing() }; });
+    assert.match(txt(g.r[0].html), /^The line will no longer stop at the stop מגדל המים\/השקד \(/);
+    assert.ok(g.miss.includes('מגדל המים/השקד'));
+    assert.equal(XB.b_freq('3 נסיעות ביום, א׳–ה׳'), '3 trips a day, Sun–Thu');
+    assert.equal(XB.b_freq('נסיעה אחת ביום, שישי'), 'One trip a day, Fri');
+    assert.equal(XB.b_basis('חלופה ⁦10970-1-#⁩ מופיעה לראשונה ב-12.11.2026.'), 'Variant ⁦10970-1-#⁩ first appears on 12.11.2026.');
+    assert.equal(XB.b_andList(['A', 'B', 'C', 'D']), 'A, B, C and more');
+    assert.equal(XB.b_noNear('של הקווים 5, 7'), 'No nearby alternative stop of lines 5, 7 on the new route');
+    // שינוי שכבר התחיל — בהווה
+    assert.equal(XB.b_past('After A, buses will no longer go via B, and will not stop at the stop C.'), 'After A, buses no longer go via B, and do not stop at the stop C.');
+    assert.equal(XB.b_past('After A, the line will no longer go via S. Instead it will go via T, and return to its usual route at B.'),
+      'After A, the line no longer goes via S. Instead it goes via T, and returns to its usual route at B.');
+  });
+}
