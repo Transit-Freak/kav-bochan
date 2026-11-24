@@ -492,6 +492,8 @@ async function vehiclesNow(plates) {
    בלוח הזמנים (GTFS) באותה שעת יציאה (±דקה) מסומנת unm. לא בוחרים בין שיבוצים (שלמה 24.11: "זה ניחוש"): מציגים כל
    נסיעה שהחברה שידרה, לפי הסדר, ורק מוסיפים תגית אפורה "לא בלוח הזמנים הרשמי". */
 const zeroJ = r => /-0$/.test(String(r.journey_ref || ''));
+// כשיש ברשימה רכב ש"לא יספיק" (שלמה 24.11, אפשרות ב): שורה אחת ניטרלית בראש הרשימה
+const SWAP_NOTE = '<div class="swapn">החברה משבצת רכבים מראש, והשיבוץ משתנה במהלך היום. רכב שמסומן \'לא יספיק\' כנראה יוחלף.</div>';
 const OFF_TAG = '<span class="offt">לא בלוח הזמנים הרשמי</span>';
 async function markUnmatched(rides) {
   const z = rides.filter(zeroJ);
@@ -959,8 +961,10 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
     (picker ? `<button class="act" data-pick="1">קו ${esc(num)} אחר</button>` : '');
   const fd = x => dirOf(x) === DIRF;
   const up = upcoming.filter(d => fd(d.ref));
+  let bad = false;
   const ups = up.map(d => {
     const s = depState(d, pending), plate = d.ride && d.ride.vehicle_ref;
+    if (plate && s.verdict && s.verdict.cls === 'v-bad') bad = true;
     const dirT = '';
     return card('d' + d.ref + '-' + d.t, {
       time: hm(d.t), sub: d.t < now ? 'היה אמור לצאת' : 'בעוד ' + Math.max(0, Math.round((d.t - now) / MIN)) + ' דק׳',
@@ -979,7 +983,7 @@ function renderLine({ G, picker, act, upcoming, num }, pending) {
   const known = up.filter(d => d.ride && d.ride.vehicle_ref).length;
   $('#out').innerHTML = `<div class="rhead"><span class="lchip lg">${esc(num)}</span><span class="rt" title="${esc(e.title || '')}"><span class="pop">${esc(G.agency)}${e.city ? ` · <b>${esc(e.city)}</b>` : ''}</span><span class="ends">${endsHTML(e)}</span>${rideHTML(G.mkt)}</span></div>
     ${acts0 ? `<div class="acts">${acts0}</div>` : ''}
-    <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}
+    <h2 class="sec">היציאות בשעה הקרובה ${up.length ? `<span class="frac" title="לכמה יציאות כבר ידוע איזה רכב ייסע"><i style="width:${Math.round(known / up.length * 100)}%"></i><em>רכב ידוע ל-${known} מתוך ${up.length}</em></span>` : ''}</h2>${bad ? SWAP_NOTE : ''}${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}
     ${ups || '<div class="msg">אין יציאות בשעה הקרובה.</div>'}
     <details class="fold" data-id="fold-act"${OPEN.has('fold-act') ? ' open' : ''}><summary><span>בדרך עכשיו <span class="cnt">${a.length}</span></span>${CHEV}</summary><div class="fin">
       ${a.length ? '<div id="map"></div>' + acts : '<div class="msg">אין כרגע אוטובוס של הקו בדרך (לפי הנתונים).</div>'}</div></details>`;
@@ -1101,15 +1105,17 @@ function renderStop(S, list, pending) {
   const now = Date.now();
   for (const d of list) if (!d.active && d.st) { const p = plan(d.st, d.ride); if (p.ready != null && p.ready > d.t) { d.eta = d.at + (p.ready - d.t); d.etaHow = 'late'; } }
   list.sort((a, b) => a.eta - b.eta);
+  let bad = false;
   const rows = list.slice(0, 40).map(d => {
     const s = depState(d, pending), plate = d.ride && d.ride.vehicle_ref;
+    if (plate && !d.active && s.verdict && s.verdict.cls === 'v-bad') bad = true;
     const mins = Math.round((d.eta - now) / MIN);
     const sub = d.etaHow === 'live' ? (mins <= 0 ? 'מגיע עכשיו' : `בעוד ${mins} דק׳`) : d.etaHow === 'late' ? 'צפוי באיחור' : 'לפי הלו״ז';
     const why = `<div class="why">${esc(toLabel(ROUTES[d.ref]))} · ${esc((ROUTES[d.ref] || {}).agency_name || '')} · בלו״ז: ${hm(d.at)}, יציאה מתחנת המוצא ${hm(d.t)}${d.etaHow === 'live' ? ' · זמן ההגעה מחושב לפי מיקום האוטובוס' : ''}</div>`;
     return card('st' + d.ref + '-' + d.t, { time: hm(d.eta), sub, line: lineName(d.ref), plate: plate ? norm(plate) : '', kab: plate && isKab(plate, d.op), off: d.ride && d.ride.unm, short: esc(d.active ? (s.short.replace(/^בדרך( · )?/, '') || 'בדרך לתחנה') : s.short), pill: d.active ? { cls: 'v-run', txt: 'בדרך' } : pillOf(s, pending), body: why + depBody(d, s, d.op) });
   }).join('');
   $('#out').innerHTML = `<div class="rhead"><span class="sicon" aria-hidden="true">${ICON_STOP}</span><span><b>${esc(S.name)}</b><small>${esc(S.city)} · תחנה ${esc(S.code)}</small></span></div>
-    <h2 class="sec">מגיעים בשעה הקרובה</h2>${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
+    <h2 class="sec">מגיעים בשעה הקרובה</h2>${bad ? SWAP_NOTE : ''}${pending ? `<div class="loading sm" role="status">${DOTS}<span class="lt">מחשב אם האוטובוסים יספיקו…</span></div>` : ''}${rows || '<div class="msg">אין נסיעות בתחנה בשעה הקרובה.</div>'}`;
   MAPDATA = null;
   bindOut();
 }
