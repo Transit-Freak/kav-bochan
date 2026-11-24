@@ -114,12 +114,15 @@
     // סדר השעות — בכל תצוגה עם רשימות שעות (לא בתקציר בלי "כל השעות")
     A.$('ttow').hidden = tv === 'sum' && A.edits.tall !== true;
     A.$('ttoseg').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === A.tordOf() ? 'true' : 'false'); });
+    if (!bd) enUi(null);
     if (bd) {
       var M = cu ? LCDeck.boardModel(pages, A.edOpts(formOf())) : LCDeck.chgBoardModel(pages, A.edOpts(formOf()));
       A.$('bdtitle').placeholder = M.dflt;
-      if (document.activeElement !== A.$('bdtitle')) A.$('bdtitle').value = 'title' in A.edits.bd.t ? '' : A.edits.btitle || M.dflt;
-      if (document.activeElement !== A.$('bdnote')) A.$('bdnote').value = A.edits.bnote || '';
-      A.$('bdnote').placeholder = A.edits.bnote ? '' : M.note;
+      // לוח באנגלית — כותרת והערות משלו (btitleEn / bnoteEn), כדי שהעברית לא תיכנס ללוח באנגלית ולהפך
+      var en = A.edits.blang === 'en', tk = en ? 'btitleEn' : 'btitle', nk = en ? 'bnoteEn' : 'bnote';
+      if (document.activeElement !== A.$('bdtitle')) A.$('bdtitle').value = (en ? 'en|title' : 'title') in A.edits.bd.t ? '' : A.edits[tk] || M.dflt;
+      if (document.activeElement !== A.$('bdnote')) A.$('bdnote').value = A.edits[nk] || '';
+      A.$('bdnote').placeholder = A.edits[nk] ? '' : M.note;
       // "להכניס ל-N עמודים" — רק בשלט A4; צפיפות ופיצול ימי חול — בכל הצורות
       A.$('bpgw').hidden = formOf() !== 'sign';
       var bpg = String(+A.edits.bpages || 0), fit = LCDeck.boardFit && LCDeck.boardFit();
@@ -132,6 +135,8 @@
       [['bopseg', 'data-bopn', A.edits.bop === false ? '0' : '1'], ['bendseg', 'data-bend', A.edits.bend === false ? '0' : '1'], ['bx2seg', 'data-bx2', A.edits.bx2 === false ? '0' : '1'], ['bltrseg', 'data-bltr', A.edits.bltr ? '1' : '0']].forEach(function (x) {
         A.$(x[0]).querySelectorAll('[' + x[1] + ']').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute(x[1]) === x[2] ? 'true' : 'false'); });
       });
+      A.$('blangseg').querySelectorAll('[data-blang]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-blang') === (A.edits.blang === 'en' ? 'en' : 'he') ? 'true' : 'false'); });
+      enUi(M);
       A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
       daysUi(pages);
       var bst = A.edits.bstop === 'dir' || A.edits.bstop === 'none' ? A.edits.bstop : 'all';
@@ -188,6 +193,8 @@
     bsug = LCDeck.boardSuggest(pages, ed);
     var sel = A.edits.bdays || {}, any = Object.keys(sel.off || {}).length || Object.keys(sel.sep || {}).length;
     A.$('bdaysw').hidden = !ds.length && !bsug.length && !any;
+    // סגור עד שלוחצים; על הכותרת — כמה הצעות יש
+    A.$('bdhint').textContent = bsug.length ? 'יש הצעות לימים מיוחדים (' + bsug.length + ')' : any ? 'יש בחירה' : '';
     A.$('bsug').innerHTML = bsug.map(function (g, i) { return '<button type="button" data-bsg="' + i + '"><b>הצעה:</b>' + A.E(g.txt) + '</button>'; }).join('');
     A.$('bdgw').hidden = !ds.length;
     A.$('bdreset').hidden = !any;
@@ -202,6 +209,46 @@
     }).join('');
     A.$('bdg').innerHTML = html;
   }
+  /* לוח באנגלית: שמות שאין להם תרגום (M.miss) — מופיעים בעברית. רשימה מעל הלוח עם שדה לשם באנגלית (edits.ben),
+     ולפני הורדה, הדפסה או אקסל — אזהרה שצריך לאשר (A.enGate) */
+  var enMiss = [], enAck = '', enPend = null;
+  function enUi(M) {
+    var el = A.$('ennote'), on = !!(M && M.en);
+    enMiss = on ? (M.miss || []).slice().sort() : [];
+    var ben = A.edits.ben || {}, man = Object.keys(ben).filter(function (k) { return ben[k]; });
+    // שמות שהוקלדו — נשארים ברשימה (כדי שאפשר לתקן), אחרי השמות שעוד חסרים
+    var list = enMiss.concat(on ? man.filter(function (k) { return enMiss.indexOf(k) < 0; }).sort() : []);
+    el.hidden = !list.length;
+    el.classList.toggle('pend', !!enPend);
+    if (!list.length) { el.innerHTML = ''; return; }
+    var focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('#ennote') ? document.activeElement.getAttribute('data-en') : null;
+    el.innerHTML = '<b>' + (enMiss.length ? (enMiss.length === 1 ? 'שם אחד בלי תרגום לאנגלית — יופיע בעברית.' : enMiss.length + ' שמות בלי תרגום לאנגלית — יופיעו בעברית.') : 'כל השמות מתורגמים.') + '</b> ' +
+      'אפשר לכתוב כאן את השם באנגלית (לא חובה).' +
+      '<ul>' + list.map(function (k) { return '<li><span>' + A.E(k) + '</span><input type="text" lang="en" dir="ltr" data-en="' + A.E(k) + '" value="' + A.E(ben[k] || '') + '" placeholder="English name" aria-label="השם באנגלית: ' + A.E(k) + '"></li>'; }).join('') + '</ul>' +
+      (enPend ? '<div class="enact"><button type="button" class="btn2" data-enok="1">להמשיך — השמות יופיעו בעברית</button><button type="button" class="lnk" data-enok="0">ביטול</button></div>' : '');
+    if (focus) { var f = el.querySelector('[data-en="' + CSS.escape(focus) + '"]'); if (f) { f.focus(); var v = f.value; f.setSelectionRange(v.length, v.length); } }
+  }
+  var enT = 0;
+  A.$('ennote').addEventListener('input', function (ev) {
+    var i = ev.target.closest('[data-en]'); if (!i) return;
+    var b = Object.assign({}, A.edits.ben || {}), k = i.getAttribute('data-en'), v = i.value.trim();
+    if (v) b[k] = v; else delete b[k];
+    A.edits.ben = Object.keys(b).length ? b : undefined;
+    saveEdits(); clearTimeout(enT); enT = setTimeout(function () { A.keepScroll(function () { A.render(A.curPages); }); }, 600);
+  });
+  A.$('ennote').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-enok]'); if (!b) return;
+    var fn = enPend; enPend = null;
+    if (b.getAttribute('data-enok') === '1') { enAck = enMiss.join('|'); A.$('ennote').classList.remove('pend'); enUi({ en: true, miss: enMiss }); if (fn) fn(); }
+    else enUi({ en: true, miss: enMiss });
+  });
+  /* לפני הורדה / הדפסה / אקסל: בלוח באנגלית עם שמות בלי תרגום — קודם אזהרה, וההורדה רק אחרי "להמשיך" (פעם אחת לאותה רשימה) */
+  A.enGate = function (fn) {
+    if (A.edits.blang !== 'en' || !enMiss.length || enAck === enMiss.join('|')) return true;
+    enPend = fn; enUi({ en: true, miss: enMiss });
+    A.$('ennote').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  };
   function setDay(kind, iso, on) {
     var s = A.edits.bdays || {}, o = Object.assign({}, s[kind] || {});
     if (on) o[iso] = 1; else delete o[iso];
@@ -213,8 +260,9 @@
   ['bdtitle', 'bdnote'].forEach(function (id) {
     A.$(id).addEventListener('input', function () {
       var v = this.value;
-      if (id === 'bdtitle') A.edits.btitle = v.trim() && v.trim() !== this.placeholder ? v : undefined; else A.edits.bnote = v.trim() ? v : undefined;
-      delete A.edits.bd.t[id === 'bdtitle' ? 'title' : 'note'];
+      var en = A.edits.blang === 'en';
+      if (id === 'bdtitle') A.edits[en ? 'btitleEn' : 'btitle'] = v.trim() && v.trim() !== this.placeholder ? v : undefined; else A.edits[en ? 'bnoteEn' : 'bnote'] = v.trim() ? v : undefined;
+      delete A.edits.bd.t[(en ? 'en|' : '') + (id === 'bdtitle' ? 'title' : 'note')];
       saveEdits(); clearTimeout(bdT); bdT = setTimeout(function () { A.keepScroll(function () { A.render(A.curPages); }); }, 450);
     });
   });
@@ -277,7 +325,7 @@
       else { var g = bsug[+dd.getAttribute('data-bsg')]; if (!g) return; g.off.forEach(function (x) { setDay('off', x, true); setDay('sep', x, false); }); g.sep.forEach(function (x) { setDay('sep', x, true); setDay('off', x, false); }); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr]');
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr],[data-blang]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -297,6 +345,7 @@
       else if (bo.hasAttribute('data-bend')) A.edits.bend = bo.getAttribute('data-bend') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bx2')) A.edits.bx2 = bo.getAttribute('data-bx2') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bltr')) A.edits.bltr = bo.getAttribute('data-bltr') === '1' || undefined;
+      else if (bo.hasAttribute('data-blang')) { A.edits.blang = bo.getAttribute('data-blang') === 'en' ? 'en' : undefined; enAck = ''; }
       else A.edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }

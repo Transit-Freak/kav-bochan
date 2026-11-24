@@ -1091,3 +1091,7 @@ body.editing .s-bd .bdt.bdel:focus{position:static;width:auto;height:auto;min-wi
 .s-bd .bd-t td.bl .badge.sm.two{padding-bottom:.36em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .s-bd.tal-l .bd-head > .t, .s-bd.tal-l .bd-head > .t > div{text-align:left;justify-content:flex-end}
 .s-bd.tal-l .bd-head .bd-key{justify-content:flex-end}
+/* לוח באנגלית ("שפת הלוח: English"): הלוח כולו משמאל לימין — יישור לשמאל במקום שבעברית יש יישור לימין */
+.s-bd.en{direction:ltr;text-align:left}
+.s-bd.en .bd-t td.bt,.s-bd.en .bd-t td.bt.off,.s-bd.en .bd-t tr.bsec td,.s-bd.en tr.boff td,.s-bd.en .bd-t td.bo{text-align:left}
+.s-bd.en .bd-t td.bl > *{direction:ltr}

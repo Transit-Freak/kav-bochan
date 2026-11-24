@@ -583,11 +583,14 @@
     $('results').innerHTML = html || '<div class="none">לא מצאנו. נסו מספר קו, שכונה, רחוב, עיר או חברה.</div>';
   }
   /* הלו"ז העדכני של קו: data/tt/<מק"ט % 64>.json (נבנה כל לילה) */
-  var ttShards = {};
+  var ttShards = {}, EN_NAMES = {};
   function ttShard(mk) {
     var d = String(mk).replace(/\D/g, ''), i = d ? parseInt(d, 10) % 64 : String(mk).split('').reduce(function (t, c) { return t + c.charCodeAt(0); }, 0) % 64;
     var pre = PRE.tt[i]; delete PRE.tt[i];
-    return ttShards[i] || (ttShards[i] = (pre || LC.getJSON('data/tt/' + i + '.json')).catch(function () { delete ttShards[i]; return null; }));
+    return ttShards[i] || (ttShards[i] = (pre || LC.getJSON('data/tt/' + i + '.json')).then(function (sh) {
+      if (sh && sh.en) Object.keys(sh.en).forEach(function (k) { EN_NAMES[k] = sh.en[k]; });   // שמות באנגלית (מהבונה) — ללוח באנגלית
+      return sh;
+    }).catch(function () { delete ttShards[i]; return null; }));
   }
   function ttPick(mk) {
     return ttShard(mk).then(function (sh) {
@@ -1102,7 +1105,7 @@
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
-      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays,
+      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, blang: tv === 'board' ? edits.blang : undefined, ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — רק בלוח המודעות
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }

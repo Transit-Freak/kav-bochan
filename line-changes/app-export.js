@@ -148,6 +148,7 @@
   A.busy = false;
   function download() {
     if (A.busy || !A.slides.length) return;
+    if (A.enGate && !A.enGate(download)) return;   // לוח באנגלית עם שמות בלי תרגום — קודם אזהרה
     A.busy = true;
     var btns = [A.$('dl'), A.$('dl2')], wasEdit = A.editMode, t0 = performance.now();
     var form = A.formOf(), D = A.dims(), PW = D.w, PH = D.h, png = form === 'status', pngs = [];
@@ -282,6 +283,7 @@
   }
   /* הדפסה רגילה (גם כגיבוי כשה-PDF לא נוצר) */
   function printDeck() {
+    if (A.enGate && !A.enGate(printDeck)) return;
     timeout(A.mapsReady(), 15000).then(function () {
       var t0 = document.title;
       document.title = LCDeck.deckTitle(A.curPages) || 'מצגת';
@@ -303,6 +305,7 @@
   function exportXlsx() {
     var cu = A.curPages.filter(function (p) { return p.kind === 'current'; }), tt = A.curPages.filter(LCDeck.ttCap);
     if (!cu.length && !tt.length) return;
+    if (A.enGate && !A.enGate(exportXlsx)) return;
     dlMsg('מכין את קובץ האקסל…');
     var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
     xlLib().then(function () {

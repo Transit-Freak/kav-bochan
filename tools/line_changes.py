@@ -118,6 +118,37 @@ def street_of(desc):
     return '' if (not t or t.isdigit() or len(t) < 2) else t
 
 
+def en_key(s):
+    """מפתח לתרגום לאנגלית (translations.txt): גרשיים אחידים — ב-stops.txt בי''ס, בתרגומים בי"ס"""
+    s = (s or '').replace("''", '"').replace('״', '"').replace('”', '"').replace('“', '"').replace('׳', "'")
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def read_en(rows):
+    """translations.txt (trans_id = הטקסט בעברית, lang, translation) → {מפתח: אנגלית}"""
+    h, rd = rows
+    out = {}
+    for r in rd:
+        if r and r[h['lang']].strip().upper() == 'EN' and r[h['translation']].strip():
+            out.setdefault(en_key(r[h['trans_id']]), r[h['translation']].strip())
+    return out
+
+
+def en_of(en, s):
+    """השם באנגלית, או None. יעד מפורסם "עיר_תחנה" שאין לו תרגום שלם — "City, Stop" מהחלקים"""
+    if not s or not en:
+        return None
+    t = en.get(en_key(s))
+    if t:
+        return t
+    if '_' in s:
+        a, b = s.split('_', 1)
+        ta, tb = en.get(en_key(a)), en.get(en_key(b))
+        if ta and tb:
+            return f'{ta}, {tb}'
+    return None
+
+
 def norm_name(s):
     return re.sub(r'[\s"\'״׳`.\-/]', '', s or '')
 
@@ -217,13 +248,18 @@ class Feed:
                     self.svc_next.add(r[h['service_id']])
         self.svc_set = {k: set(v) | ({nxt} if k in self.svc_next else set()) for k, v in self.svc_dates.items()}
         h, rd = self.rows('trips.txt')
-        self.trips = {}
+        self.trips, self.trip_hs = {}, {}
+        hi = h.get('trip_headsign')
         for r in rd:
             if not r:
                 continue
             sv = r[h['service_id']]
             if sv in self.svc_dates and r[h['route_id']] in self.routes:
                 self.trips[r[h['trip_id']]] = (r[h['route_id']], sv, r[h['shape_id']])
+                if hi is not None and r[hi]:
+                    self.trip_hs[r[h['trip_id']]] = sys.intern(r[hi])
+        # שמות באנגלית (לוח באנגלית בדף): translations.txt — כשאין בקובץ, בלי
+        self.en = read_en(self.rows('translations.txt')) if 'translations.txt' in self.members else {}
         print(f'  {len(self.routes)} מסלולים · {len(self.trips)} נסיעות בחלון', flush=True)
 
     def _read_stop_times(self):
@@ -1509,8 +1545,18 @@ def hol_lists(feed, svcs, t0, eff, by_dow):
 TT_ALTS = 6   # כמה חלופות לכל היותר מסומנות בסימן (* # ^ $ ~ +); השאר — "במסלול אחר" (הסימן האחרון)
 
 
-def alt_via(main, st):
-    """תיאור קצר של חלופה לעומת הראשית: מה יש רק בה (ערים, רחובות, תחנת קצה), או מה אין בה. '' — אותן תחנות"""
+class NoEn(Exception):
+    pass
+
+
+ALT_W = {'he': {'via': 'דרך ', 'to': 'עד ', 'from': 'מ', 'not': 'לא דרך ', 'and': ' ו', 'short': 'מסלול מקוצר'},
+         'en': {'via': 'via ', 'to': 'to ', 'from': 'from ', 'not': 'not via ', 'and': ' and ', 'short': 'shortened route'}}
+
+
+def alt_via(main, st, en=None):
+    """תיאור קצר של חלופה לעומת הראשית: מה יש רק בה (ערים, רחובות, תחנת קצה), או מה אין בה. '' — אותן תחנות.
+    en — מילון התרגומים: אותו תיאור באנגלית (NoEn — כשאחד השמות בלי תרגום)"""
+    W = ALT_W['en' if en is not None else 'he']
     mc = {s['code'] for s in main}
     cc = {s['code'] for s in st}
     if [s['code'] for s in st] == [s['code'] for s in main]:
@@ -1526,6 +1572,11 @@ def alt_via(main, st):
         return out
 
     def two(arr):
+        if en is not None:
+            arr = [en_of(en, a) for a in arr[:2]]
+            if not all(arr):
+                raise NoEn()
+            return arr[0] if len(arr) == 1 else arr[0] + W['and'] + arr[1]
         arr = [re.sub(r'^ת\.\s*רכבת', 'תחנת הרכבת', re.sub(r'^ת\.\s*מרכזית', 'התחנה המרכזית', a.replace("''", '"'))) for a in arr]
         return arr[0] if len(arr) == 1 else arr[0] + ' ו' + arr[1]
 
@@ -1533,30 +1584,30 @@ def alt_via(main, st):
         return s['street'] or s['name'].split('/')[0].strip()
 
     def via(t):
-        return t if t.startswith('דרך ') else 'דרך ' + t
+        return t if t.startswith(W['via']) else W['via'] + t
     mcity = {s['city'] for s in main}
     cities = uniq([s['city'] for s in extra if s['city'] not in mcity])
     if cities:
-        return 'דרך ' + two(cities)
+        return W['via'] + two(cities)
     if st and st[-1]['code'] not in mc:
-        return 'עד ' + two([st[-1]['name']])
+        return W['to'] + two([st[-1]['name']])
     if st and st[0]['code'] not in mc:
-        return 'מ' + two([st[0]['name']])
+        return W['from'] + two([st[0]['name']])
     if extra:
         mst = {street(s) for s in main}
         sts = uniq([street(s) for s in extra if street(s) not in mst]) or uniq([s['name'] for s in extra])
         return via(two(sts))
     if st and main and st[-1]['code'] != main[-1]['code']:
-        return 'עד ' + two([st[-1]['name']])
+        return W['to'] + two([st[-1]['name']])
     if st and main and st[0]['code'] != main[0]['code']:
-        return 'מ' + two([st[0]['name']])
+        return W['from'] + two([st[0]['name']])
     scity = {s['city'] for s in st}
     gone = uniq([s['city'] for s in miss if s['city'] not in scity])
     if gone:
-        return 'לא דרך ' + two(gone)
+        return W['not'] + two(gone)
     sst = {street(s) for s in st}
     gone = uniq([street(s) for s in miss if street(s) not in sst])
-    return 'לא דרך ' + two(gone) if gone else 'מסלול מקוצר'
+    return W['not'] + two(gone) if gone else W['short']
 
 
 def scode(st):
@@ -1589,7 +1640,7 @@ def stop_city_counts(st):
     return cn
 
 
-def alt_labels(feed, pw, stops=None):
+def alt_labels(feed, pw, stops=None, ven=None):
     """החלופות של מק"ט-כיוון: (תיאורים לחלופות שאינן הראשית, {חלופה: אינדקס}) — 0 = ראשית.
     pw = {(רצף, route_id): נסיעות×ימים}. stops (רשימה) — מתמלאת לכל תיאור בתחנות של כל החלופות שקיבלו אותו
     (כדי שבלוח של מקום אפשר יהיה להשאיר רק נסיעות של חלופות שעוצרות בו)"""
@@ -1609,6 +1660,11 @@ def alt_labels(feed, pw, stops=None):
         lbl = alt_via(main, ast)
         if not lbl:
             continue
+        if ven is not None and getattr(feed, 'en', None) and lbl not in ven:   # התיאור באנגלית (לוח באנגלית)
+            try:
+                ven[lbl] = alt_via(main, ast, feed.en)
+            except NoEn:
+                pass
         if lbl not in V:
             if len(V) < TT_ALTS:
                 V.append(lbl)
@@ -1678,6 +1734,8 @@ def current_tts(feed, t0):
     week = [t0 + DAY * i for i in range(TT_DAYS)]
     trips = defaultdict(lambda: defaultdict(list))   # (ag, מק"ט, כיוון) → service → [(יציאה, משך)]
     pats = defaultdict(lambda: defaultdict(int))
+    hss = defaultdict(lambda: defaultdict(int))   # היעד המפורסם (trip_headsign) של כל מק"ט-כיוון
+    ths = getattr(feed, 'trip_hs', {})
     for tid, (rid, sv, _shp) in feed.trips.items():
         r = feed.routes[rid]
         if r['ty'] not in ('3', '715') or not r['line']:    # רק אוטובוסים (715 — קו בהזמנה)
@@ -1691,6 +1749,8 @@ def current_tts(feed, t0):
         key = (r['ag'], mk, rp[0])
         trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None, rp[1] if len(rp) > 1 else ''))
         pats[key][(feed.trip_pat.get(tid), rid)] += len(feed.svc_dates[sv])
+        if tid in ths:
+            hss[key][ths[tid]] += len(feed.svc_dates[sv])
 
     def day_list(svcs, d, ai, pre):
         """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) —
@@ -1707,11 +1767,12 @@ def current_tts(feed, t0):
 
     shards = defaultdict(dict)
     n_dirs = 0
+    VEN = {}   # תיאור חלופה בעברית → באנגלית
     for key in sorted(trips):
         ag, mk, dr = key
         svcs = trips[key]
         VS = []
-        V, ai = alt_labels(feed, pats[key], VS)
+        V, ai = alt_labels(feed, pats[key], VS, VEN)
         pre = f'{mk}-{dr}-'
         usual = {}
         for d in week:
@@ -1750,6 +1811,8 @@ def current_tts(feed, t0):
                    cn=stop_city_counts(st), du=durs[len(durs) // 2] if durs else None, w=w, L=L)
         if x:
             rec['x'] = x
+        if hss.get(key):   # היעד המפורסם — רק ללוח באנגלית ("To …")
+            rec['h'] = max(hss[key].items(), key=lambda kv: kv[1])[0]
         if w1 != w:
             rec['w1'] = w1
         # התחנות של הנסיעות: sc — של החלופה הראשית; vs / vc — התחנות והערים של כל חלופה (לפי הסדר של v).
@@ -1771,9 +1834,25 @@ def current_tts(feed, t0):
             e = sh[mk] = dict(l=r['line'], a=ag, o=feed.agency.get(ag, ''), d={})
         e['d'][dr] = rec
         n_dirs += 1
-    # מספר הקו לכל כיוון (l) — רק כשהכיוונים של המק"ט במספרים שונים
+    # מספר הקו לכל כיוון (l) — רק כשהכיוונים של המק"ט במספרים שונים.
+    # en — השמות באנגלית לכל מה שבקובץ (תחנות, ערים, יעדים, תיאורי חלופות), ללוח באנגלית: {עברית: אנגלית}
+    en = getattr(feed, 'en', {})
     for sh in shards.values():
+        names = set()
         for e in sh.values():
+            for rec in e['d'].values():
+                names.update(x for x in [rec.get('f'), rec.get('t'), rec.get('h')] + list(rec.get('od') or []) + list(rec.get('cs') or []) if x)
+                names.update(rec.get('v') or [])
+        tr = {}
+        for n in sorted(names):
+            t = VEN.get(n) or en_of(en, n)
+            if t:
+                tr[n] = t
+        if tr:
+            sh['_en'] = tr
+        for e in sh.values():
+            if not isinstance(e, dict) or 'd' not in e:
+                continue
             ls = {rec['_l'] for rec in e['d'].values()}
             for rec in e['d'].values():
                 ln = rec.pop('_l')
@@ -1787,7 +1866,9 @@ def current_tts(feed, t0):
     hw = hol_week(t0)
     for i in range(TT_SHARDS):
         fn = os.path.join(out, f'{i}.json')
-        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, w1=1, lines=shards.get(i, {})),
+        lines = dict(shards.get(i, {}))
+        en_i = lines.pop('_en', None)
+        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, w1=1, lines=lines, **({'en': en_i} if en_i else {})),
                   open(fn, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
         size += os.path.getsize(fn)
     print(f'לו"ז עדכני: {sum(len(v) for v in shards.values())} קווים · {n_dirs} כיוונים · {size // 1024} KB ב-{TT_SHARDS} קבצים', flush=True)

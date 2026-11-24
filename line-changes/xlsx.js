@@ -28,6 +28,9 @@ var LCXlsx = (function () {
     return new Blob(parts.concat(cen, [end]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /* לוח באנגלית (M.en — "שפת הלוח: English"): הטקסטים מ-LCBoardEN.TXT (board-en.js), הגיליון משמאל לימין. XEN — לקובץ שנבנה עכשיו */
+  var XEN = false;
+  function T(he, k) { return XEN && window.LCBoardEN ? window.LCBoardEN.TXT[k] : he; }
   /* ---------- סגנונות: כל שילוב מקבל מספר ---------- */
   function Styles() {
     var fonts = ['<font><sz val="11"/><name val="Arial"/></font>'], fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
@@ -38,7 +41,7 @@ var LCXlsx = (function () {
       var k = JSON.stringify(o); if (ix[k] != null) return ix[k];
       var fo = add(fonts, '<font>' + (o.b ? '<b/>' : '') + '<sz val="' + (o.sz || 11) + '"/><color rgb="FF' + (o.color || '14201B') + '"/><name val="Arial"/></font>');
       var fi = o.fill ? add(fills, '<fill><patternFill patternType="solid"><fgColor rgb="FF' + o.fill + '"/><bgColor indexed="64"/></patternFill></fill>') : 0;
-      var al = '<alignment horizontal="' + (o.h || 'right') + '" vertical="' + (o.v || 'center') + '"' + (o.wrap === false ? '' : ' wrapText="1"') + ' readingOrder="' + (o.ltr ? 1 : 2) + '"/>';
+      var al = '<alignment horizontal="' + (o.h || (XEN ? 'left' : 'right')) + '" vertical="' + (o.v || 'center') + '"' + (o.wrap === false ? '' : ' wrapText="1"') + ' readingOrder="' + (o.ltr || XEN ? 1 : 2) + '"/>';
       // bb — מסגרת תחתונה עבה בצבע הזה (הצבע השני של החברה בתא של מספר הקו, כמו הפס שבלוח)
       var bo = o.border === false ? 0 : o.bb ? add(borders, '<border><left style="thin"><color rgb="FFB7C2BD"/></left><right style="thin"><color rgb="FFB7C2BD"/></right><top style="thin"><color rgb="FFB7C2BD"/></top><bottom style="thick"><color rgb="FF' + o.bb + '"/></bottom><diagonal/></border>') : 1;
       xfs.push('<xf numFmtId="49" fontId="' + fo + '" fillId="' + fi + '" borderId="' + bo + '" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + al + '</xf>');
@@ -74,23 +77,25 @@ var LCXlsx = (function () {
     // כותרת ותוקף
     // מראה הלוח (M.look): יישור הכותרת, רקע וטקסט של הכותרות והשעות, ורקע ויישור לשורה ולתא — כמו בלוח
     var LK = M.look || {}, CL = LK.clr || {}, HB = CL.h ? hexOf(CL.h) : '', HF = CL.h ? (CL.hf ? hexOf(CL.hf) : inkOf(CL.h)) : '';
-    var CB = CL.c ? hexOf(CL.c) : '', CF = CL.c ? (CL.cf ? hexOf(CL.cf) : inkOf(CL.c)) : '', TH_ = LK.tal === 'l' ? 'left' : LK.tal === 'c' ? 'center' : 'right';   // כמו בלוח: ברירת המחדל — ימין
+    var CB = CL.c ? hexOf(CL.c) : '', CF = CL.c ? (CL.cf ? hexOf(CL.cf) : inkOf(CL.c)) : '', TH_ = LK.tal === 'l' ? 'left' : LK.tal === 'c' ? 'center' : XEN ? 'left' : 'right';   // כמו בלוח: ברירת המחדל — ימין
     var sT = st.get({ b: 1, sz: 18, fill: HB || 'D9DEDC', color: HF || undefined, h: TH_ }), sV = st.get({ b: 1, sz: 11, color: HF || '8A5A00', fill: HB || 'D9DEDC', h: TH_ });
     // כותרת ושורת התוקף — כמו בלוח (טקסט שהמשתמש שינה או מחק בעריכה — גם כאן)
     if (M.title) { cell(R, 0, M.title, sT); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
-    var vt = M.sub !== M.subDflt || M.chg || M.fe || M.wk ? M.sub : [M.valid ? 'בתוקף מ-' + dmy(M.valid) + (M.until ? ' עד ' + dmy(M.until) : '') : '', M.feed ? 'לפי נתוני משרד התחבורה מ-' + dmy(M.feed) : ''].filter(Boolean).join(' · ');
+    var vt = M.sub !== M.subDflt || M.chg || M.fe || M.wk ? M.sub : [M.valid ? T('בתוקף מ-', 'validFrom') + dmy(M.valid) + (M.until ? T(' עד ', 'until') + dmy(M.until) : '') : '', M.feed ? T('לפי נתוני משרד התחבורה מ-', 'xFeed') + dmy(M.feed) : ''].filter(Boolean).join(' · ');
     if (vt) { cell(R, 0, vt, sV); merges.push('A' + R + ':' + ref(last, R)); R++; }
     // קרדיט לקו הבוחן: שורה קצרה מתחת לכותרת, ושורה מודגשת בסוף — עם קישור לכלי
-    var CR = M.creditTxt || 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', links = [];
+    var CR = M.creditTxt || T('הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app', 'credit'), links = [];
+    if (XEN && CR === 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · kavbochan.app') CR = T(CR, 'credit');
     var TH = M.th || {}, LB = M.lbl || {};   // כותרות ותוויות שנערכו בלוח
     if (M.credit !== false) { cell(R, 0, CR, st.get({ b: 1, sz: 10, color: '1F9152', fill: 'D9DEDC', h: 'center' })); merges.push('A' + R + ':' + ref(last, R)); links.push(ref(0, R)); R++; }
     var sH = st.get({ b: 1, sz: 11, fill: HB || '9BCB3B', color: HF || undefined, h: 'center' });
-    var hd = ['מפעיל', TH.line != null && TH.line !== 'קו' ? TH.line : 'מס\' קו', TH.orig != null ? TH.orig : 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']);
+    var hd = XEN ? [T('', 'xOp'), TH.line != null ? TH.line : T('', 'xLine'), TH.orig != null ? TH.orig : T('', 'thOrig')].concat(M.cols.map(function (c) { return c.label; }), [T('', 'xNotes')])
+      : ['מפעיל', TH.line != null && TH.line !== 'קו' ? TH.line : 'מס\' קו', TH.orig != null ? TH.orig : 'מוצא'].concat(M.cols.map(function (c) { return c.label; }), ['הערות']);
     // ימי חול מפוצלים (א׳–ד׳ · יום ה׳): שתי שורות כותרת — "יום חול" ממוזג מעל העמודות שלהם, והשאר ממוזגים לגובה
     var headTop = R, wkc = M.cols.map(function (c, i) { return c.wk ? 3 + i : -1; }).filter(function (i) { return i >= 0; });
     if (wkc.length > 1) {
       hd.forEach(function (t, c) {
-        if (wkc.indexOf(c) >= 0) { cell(R + 1, c, t, sH); if (c === wkc[0]) cell(R, c, TH.wk || 'יום חול', sH); else cell(R, c, '', sH); }
+        if (wkc.indexOf(c) >= 0) { cell(R + 1, c, t, sH); if (c === wkc[0]) cell(R, c, TH.wk || T('יום חול', 'thWk'), sH); else cell(R, c, '', sH); }
         else { cell(R, c, t, sH); cell(R + 1, c, '', sH); merges.push(ref(c, R) + ':' + ref(c, R + 1)); }
       });
       merges.push(ref(wkc[0], R) + ':' + ref(wkc[wkc.length - 1], R));
@@ -136,7 +141,7 @@ var LCXlsx = (function () {
             var pre = M.cols.length > 1 ? (x.span ? M.cols.slice(ci, ci + x.span).map(function (c) { return c.label; }).join(' + ') : M.cols[ci].label) + ': ' : '';
             if (x.ntxt) notes.push(pre + x.ntxt);
             if (x.txt != null) { cell(rr, 3 + ci, x.txt, tmS(x.key, r)); lines = Math.max(lines, Math.ceil(x.txt.length / W[3 + ci])); return; }   // טקסט מהעריכה במקום השעות
-            if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : 'אינו פעיל', tmS(x.key, r, true)); return; }
+            if (!x.ents.length && !(x.rm || []).length) { cell(rr, 3 + ci, LB.off != null ? LB.off : T('אינו פעיל', 'off'), tmS(x.key, r, true)); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
             // משמאל לימין: LRM לפני הסימן (שלפני השעה) ובסוף — כך הסימן לא הופך את סדר השעות ונשאר צמוד לשעה שלו
             // (סימני LRM — ולא LRE/PDF, ש-LibreOffice מציג לא נכון). מימין לשמאל — כמו קודם
@@ -150,21 +155,23 @@ var LCXlsx = (function () {
                 : (al || e.n > 1 ? '\u202a' + al + e.t + (e.n > 1 ? '×' + e.n : '') + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : '');
               return { t: t, red: !!e.rm, strike: !!e.rm, b: !!al, color: e.k ? '1F9152' : al && e.ac ? hexOf(e.ac) : e.c || '' };
             });
-            if (x.rm && x.rm.length > 6) notes.push(pre + 'בוטלו: ' + x.rm.map(function (e) { return e.t + (e.part ? ' (' + e.part + ')' : ''); }).join(', '));
+            if (x.rm && x.rm.length > 6) notes.push(pre + T('בוטלו: ', 'cancelled') + x.rm.map(function (e) { return e.t + (e.part ? ' (' + e.part + ')' : ''); }).join(', '));
             x.ents.forEach(function (e) {
-              if (e.k === 'sh') notes.push(pre + e.t + ' — ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm(e.was));
-              else if (e.nwp) notes.push(pre + e.t + ' — ' + (e.was != null ? e.nwp + ': ' + (e.m < e.was ? 'הוקדם' : 'נדחה') + ' מ-' + hm(e.was) : 'חדש ב-' + e.nwp));
+              var ea = function () { return (e.m < e.was ? T('הוקדם', 'earlier') : T('נדחה', 'later')) + T(' מ-', 'fromT'); };
+              if (e.k === 'sh') notes.push(pre + e.t + ' — ' + ea() + hm(e.was));
+              else if (e.nwp) notes.push(pre + e.t + ' — ' + (e.was != null ? e.nwp + ': ' + ea() + hm(e.was) : T('חדש ב-', 'newOn') + e.nwp));
             });
             (x.notes || []).forEach(function (nt) { if (nt.plain && x.ntxt == null) notes.push(pre + nt.plain); });
             cell(rr, 3 + ci, { runs: runs, dc: tmC(x.key, r) || '' }, tmS(x.key, r));
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.all ? (nt.L ? nt.L + ' ' : '') + 'כל הנסיעות' : nt.L ? LRM + nt.L : nt.times.map(function (t) { return LRM + t; }).join(' ')) + ' — ' + nt.txt + ' (חלופה)', c: nt.c ? hexOf(nt.c) : '' }); });
+            if (x.ntxt == null) x.notes.forEach(function (nt) { if (!nt.plain) notes.push({ t: pre + (nt.all ? (nt.L ? nt.L + ' ' : '') + T('כל הנסיעות', 'allTrips').trim() : nt.L ? LRM + nt.L : nt.times.map(function (t) { return LRM + t; }).join(' ')) + ' — ' + nt.txt + (XEN ? '' : ' (חלופה)'), c: nt.c ? hexOf(nt.c) : '' }); });
             var pt = x.ents.filter(function (e) { return e.part; });
-            if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
+            if (pt.length) notes.push(M.cols[ci].label + ': ' + (XEN ? pt.map(function (e) { return e.t + ' ' + e.part + (/^except/.test(e.part) ? '' : T('', 'xOnly')); }).join(', ')
+              : pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1')));
           });
-          if (!k && r.until) notes.push('הלו״ז בתוקף עד ' + dmy(r.until));
-          if (!k && r.from) notes.push(/^החל /.test(r.from) ? 'הלו״ז ' + r.from : 'הלו״ז החדש ' + r.from);
+          if (!k && r.until) notes.push(T('הלו״ז בתוקף עד ', 'xValidUntil') + dmy(r.until));
+          if (!k && r.from) notes.push(XEN ? r.from : /^החל /.test(r.from) ? 'הלו״ז ' + r.from : 'הלו״ז החדש ' + r.from);
           // ההערות: כל אחת בשורה; הערה על חלופה — בצבע של החלופה
           var ntx = notes.map(function (n0) { return typeof n0 === 'string' ? { t: n0 } : n0; });
           cell(rr, last, ntx.some(function (n0) { return n0.c; }) ? { runs: ntx.map(function (n0) { return { t: n0.t, color: n0.c || 'C81E1E', b: !!n0.c, sz: 9 }; }), sep: '\n' } : ntx.map(function (n0) { return n0.t; }).join('\n'), sNt);
@@ -180,21 +187,21 @@ var LCXlsx = (function () {
     M.bands.forEach(function (b0) {
       b0.rows.forEach(function (r) {
         if (r.off || !r.alts || !r.alts.length) return;
-        cell(R, 0, 'קו ' + r.line + (r.n > 1 && (r.towardAll || r.toward) ? ' ' + (r.towardAll || r.toward) : ''), sL); merges.push('A' + R + ':C' + R);
+        cell(R, 0, T('קו', 'line') + ' ' + r.line + (r.n > 1 && (r.towardAll || r.toward) ? ' ' + (r.towardAll || r.toward) : ''), sL); merges.push('A' + R + ':C' + R);
         cell(R, 3, { runs: r.alts.map(function (a, i) { return { t: a.L + ' ' + a.txt + (i < r.alts.length - 1 ? ' ·' : ''), color: hexOf(a.c), b: true }; }) }, st.get({ sz: 10 }));
         merges.push(ref(3, R) + ':' + ref(last, R)); heights[R] = 20; R++;
       });
     });
-    if (M.note) { cell(R, 0, LB.upd != null ? LB.upd : 'עדכונים', sL); cell(R, 1, M.note, sU); merges.push('B' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
+    if (M.note) { cell(R, 0, LB.upd != null ? LB.upd : T('עדכונים', 'upd'), sL); cell(R, 1, M.note, sU); merges.push('B' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
     // מוקדי מידע: טבלה אחת — חברה | טלפון (המסגרת והרקע גם בתאים הממוזגים, ראו fillMerged)
     var c0 = R;
-    cell(R, 0, LB.ph != null ? LB.ph : 'מוקדי מידע', sL); cell(R, 1, 'חברה', sL); merges.push('B' + R + ':C' + R); cell(R, 3, 'טלפון', sL); R++;
+    cell(R, 0, LB.ph != null ? LB.ph : T('מוקדי מידע', 'ph'), sL); cell(R, 1, T('חברה', 'xOp'), sL); merges.push('B' + R + ':C' + R); cell(R, 3, T('טלפון', 'xPhone'), sL); R++;
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, M.legend != null ? M.legend : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת') + (M.x2 === false ? '' : ' · ×2 — שני אוטובוסים') + ' · לפי נתוני משרד התחבורה', sC);
+    cell(R, 0, M.legend != null ? M.legend : XEN ? T('', 'legendDep') + ' · ' + (M.chg ? T('', 'legendNew') + ' · ' + T('', 'legendRm') : T('', 'legendAlt')) + (M.x2 === false ? '' : ' · ' + T('', 'legendX2')) + ' · ' + T('', 'legendMot') : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת') + (M.x2 === false ? '' : ' · ×2 — שני אוטובוסים') + ' · לפי נתוני משרד התחבורה', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
-    R++; cell(R, 0, 'המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
+    R++; cell(R, 0, T('המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', 'priv'), st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }
 
     // תאים ריקים בתוך מיזוג — עם הסגנון של התא הראשון, כדי שהמסגרת והרקע יופיעו על כל השטח
@@ -222,7 +229,7 @@ var LCXlsx = (function () {
     // תאים ריקים בתוך מיזוג — עם אותו סגנון (כדי שהמסגרת והצבע יופיעו)
     var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
       '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:' + ref(last, R) + '"/>' +
-      '<sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="' + head + '" topLeftCell="A' + (head + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+      '<sheetViews><sheetView' + (XEN ? '' : ' rightToLeft="1"') + ' workbookViewId="0"><pane ySplit="' + head + '" topLeftCell="A' + (head + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
       '<sheetFormatPr defaultRowHeight="15"/><cols>' + W.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>' +
       '<sheetData>' + sd + '</sheetData><mergeCells count="' + merges.length + '">' + merges.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' +
       (links.length ? '<hyperlinks>' + links.map(function (r, i) { return '<hyperlink ref="' + r + '" r:id="rId' + (3 + i) + '" tooltip="kavbochan.app"/>'; }).join('') + '</hyperlinks>' : '') +
@@ -235,14 +242,15 @@ var LCXlsx = (function () {
       comments.map(function (c, i) {
         var col = COLS.indexOf(c.ref.charAt(0)), row = +c.ref.slice(1) - 1;
         return '<v:shape id="_x0000_s' + (1025 + si * 1024 + i) + '" type="#_x0000_t202" style="position:absolute;margin-left:80pt;margin-top:2pt;width:220pt;height:60pt;z-index:' + (i + 1) + ';visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">' +
-          '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/><v:textbox style="mso-direction-alt:auto"><div style="text-align:right"></div></v:textbox>' +
+          '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/><v:textbox style="mso-direction-alt:auto"><div style="text-align:' + (XEN ? 'left' : 'right') + '"></div></v:textbox>' +
           '<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>' + (col + 1) + ', 15, ' + row + ', 2, ' + (col + 4) + ', 15, ' + (row + 4) + ', 2</x:Anchor><x:AutoFill>False</x:AutoFill><x:Row>' + row + '</x:Row><x:Column>' + col + '</x:Column></x:ClientData></v:shape>';
       }).join('') + '</xml>';
     return { sheet: sheet, cmt: cmt, vml: vml, links: links, head: head, headTop: headTop };
   }
   /* קובץ עם כמה גיליונות: list = [[M, 'שם הגיליון'], ...] */
   function book(list) {
-    var st = new Styles(), sh = list.map(function (x, i) { var o = sheetOf(x[0], st, i); o.name = x[1]; return o; });
+    XEN = !!(list[0] && list[0][0] && list[0][0].en);
+    var st = new Styles(), sh = list.map(function (x, i) { var o = sheetOf(x[0], st, i); o.name = XEN ? sheetEn(x[1]) : x[1]; return o; });
     var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/', CT = 'application/vnd.openxmlformats-officedocument.';
     var q = function (n) { return "'" + String(n).replace(/'/g, "''") + "'"; };
     var files = [
@@ -275,6 +283,12 @@ var LCXlsx = (function () {
     return zip(files);
   }
   function board(M) { return book([[M, 'לוח זמנים']]); }
+  /* שם גיליון באנגלית: השמות הקבועים מהמילון; "עד 28.11" / "החל מ-29.11"; שם אחר (קו ויעד) — כמו שהוא */
+  function sheetEn(n) {
+    var S = (window.LCBoardEN || {}).SHEET || {};
+    if (S[n]) return S[n];
+    return String(n).replace(/(^| )עד /, '$1Until ').replace(/(^| )החל מ-/, '$1From ').replace(/^קו /, 'Line ');
+  }
   function dmy(iso) { var p = String(iso).split('-'); return +p[2] + '.' + +p[1] + '.' + p[0]; }
   function hm(m) { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
   return { board: board, book: book };

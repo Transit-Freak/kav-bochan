@@ -602,3 +602,32 @@ def test_tts_direction_line_names(tmp_path, monkeypatch):
 def test_tts_no_line_name_when_same(tmp_path, monkeypatch):
     sh, r = run_tts(tmp_path, monkeypatch, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
     assert 'l' not in r and '_l' not in r
+
+
+# ---------------------------------------------------------------- שמות באנגלית (translations.txt) ללוח באנגלית
+
+def test_en_lookup_quotes_and_headsign():
+    rows = ({'trans_id': 0, 'lang': 1, 'translation': 2},
+            iter([['בי"ס בר לב/בן יהודה', 'EN', 'Bar Lev School/Ben Yehuda'], ['צפת', 'EN', 'Safed'], ['צפת', 'AR', 'صفد'],
+                  ['תחנה מרכזית', 'EN', 'Central Station'], ['ריק', 'EN', ''], []]))
+    en = L.read_en(rows)
+    assert L.en_of(en, "בי''ס בר לב/בן יהודה") == 'Bar Lev School/Ben Yehuda'   # '' ב-stops.txt מול " בתרגומים
+    assert L.en_of(en, 'בי״ס בר לב/בן יהודה') == 'Bar Lev School/Ben Yehuda'
+    assert L.en_of(en, 'צפת_תחנה מרכזית') == 'Safed, Central Station'          # יעד "עיר_תחנה" — מהחלקים
+    assert L.en_of(en, 'צפת_נוף כנרת') is None and L.en_of(en, 'ריק') is None
+
+
+def test_tts_english_names_and_headsign(tmp_path, monkeypatch):
+    """בקובץ: en — {עברית: אנגלית} לשמות שבו (רק מה שיש לו תרגום), ו-h — היעד המפורסם של הכיוון"""
+    t0 = D(2026, 11, 23)
+    f = TTFeed(t0, {'o': (wk_days(D(2026, 11, 22), D(2026, 12, 31)), [420, 480])}, D(2026, 12, 31))
+    f.en = {'לוד': 'Lod', 'בני ברק': 'Bnei Brak', 'תחנה': 'Station'}
+    f.trip_hs = {t: 'בני ברק_תחנה' for t in f.trips}
+    monkeypatch.setattr(L, 'OUTDIR', str(tmp_path))
+    monkeypatch.setenv('LH_SCHED', str(tmp_path / 'none'))
+    L.current_tts(f, t0)
+    sh = json.load(open(tmp_path / 'data' / 'tt' / f'{L.tt_shard("14384")}.json', encoding='utf-8'))
+    r = sh['lines']['14384']['d']['1']
+    assert r['h'] == 'בני ברק_תחנה'
+    assert sh['en']['בני ברק_תחנה'] == 'Bnei Brak, Station' and sh['en']['לוד'] == 'Lod' and sh['en']['בני ברק'] == 'Bnei Brak'
+    assert 'en' not in sh['lines']

@@ -13,7 +13,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'common.js'), 'utf8'), ctx);
 // deck.js והחלקים שלו — באותו סדר כמו בדף (LCDeckLoad ב-index.html)
-for (const f of ['deck.js', 'deck-sign.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
+for (const f of ['deck.js', 'deck-sign.js', 'board-en.js', 'deck-board.js', 'deck-maps.js']) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx);
 const T = ctx.LCDeck._test;
 
 // מסלול ישר צפונה, נקודה כל ~22 מ' (0.0002°), ומסלול שני שזז מזרחה בקטע אחד
@@ -454,4 +454,44 @@ test('הודעה על שינוי: חג עם לו"ז אחר (hx) בעמודה נ�
   const M = ctx.LCDeck.boardModel([p], { ...ed, bdays: { sep: { '2026-12-01': 1 } } });
   assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'ערב חג 1.12', 'יום שישי']);
   assert.deepEqual(J(M.bands[0].rows[0].cells[1].ents.map((e) => e.t)), ['10:00', '11:00']);
+});
+
+// ---------- לוח באנגלית (board-en.js): תרגום שמות, גרשיים, רשימת השמות בלי תרגום ----------
+test('LCBoardEN.name: גרשיים אחידים, יעד "עיר_תחנה", שם שהוקלד, ורשימת החסרים', () => {
+  const EN = ctx.LCBoardEN, ix = EN.index({ 'בי"ס בר לב/בן יהודה': 'Bar Lev School/Ben Yehuda', 'צפת': 'Safed', 'תחנה מרכזית': 'Central Station' }), miss = {};
+  assert.equal(EN.name("בי''ס בר לב/בן יהודה", ix, null, miss), 'Bar Lev School/Ben Yehuda');
+  assert.equal(EN.name('בי״ס בר לב/בן יהודה', ix, null, miss), 'Bar Lev School/Ben Yehuda');
+  assert.equal(EN.name('צפת_תחנה מרכזית', ix, null, miss), 'Safed, Central Station');
+  assert.equal(EN.name('נוף כנרת', ix, null, miss), 'נוף כנרת');
+  assert.equal(EN.name('נוף כנרת', ix, { 'נוף כנרת': 'Nof Kinneret' }, miss), 'Nof Kinneret');
+  assert.equal(EN.name('Safed', ix, null, miss), 'Safed', 'בלי עברית — כמו שהוא');
+  assert.deepEqual(Object.keys(miss), ['נוף כנרת']);
+  assert.equal(EN.days([0, 1, 2, 3, 4]), 'Sun–Thu'); assert.equal(EN.days([4]), 'Thu'); assert.equal(EN.days([0, 4]), 'Sun, Thu');
+});
+
+test('לוח באנגלית: טקסטים קבועים, שמות מהמילון, כיוון לפי היעד המפורסם, ושמות בלי תרגום ב-miss; בלי — כמו קודם', () => {
+  const p = datePage(); p.until = '';
+  p.dirs[0].h = 'צפת_תחנה מרכזית'; p.dirs[0].f = 'בית חולים זיו'; p.dirs[0].fc = '51041';
+  const he = ctx.LCDeck.boardModel([p], { bsplit: false });
+  assert.equal(he.en, false); assert.deepEqual(J(he.miss), []);
+  assert.match(he.title, /^זמני נסיעות/); assert.equal(he.th.line, 'קו');
+  const en = { 'צפת': 'Safed', 'בית חולים זיו': 'Ziv Hospital', 'תחנה מרכזית': 'Central Station' };
+  const M = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en });
+  assert.equal(M.en, true);
+  assert.equal(M.title, 'Timetable · Line \u20661א\u2069');
+  assert.match(M.sub, /^Valid from 24\.11\.2026/);
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['Days Sun–Thu', 'Friday', 'Saturday night']);
+  assert.deepEqual(J([M.th.line, M.th.orig, M.lbl.off]), ['Line', 'From', 'No service']);
+  const r = M.bands[0].rows[0];
+  assert.equal(r.origin, 'Ziv Hospital'); assert.equal(r.toward, 'To Safed, Central Station'); assert.equal(r.op, 'Nateev Express');
+  assert.equal(M.bands[0].label, 'City line · Safed');
+  assert.deepEqual(J(M.miss), [], 'הכול מתורגם');
+  const M2 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en: { 'צפת': 'Safed' } });
+  assert.deepEqual(J(M2.miss).sort(), ['בית חולים זיו', 'צפת_תחנה מרכזית'].sort());
+  assert.equal(M2.bands[0].rows[0].origin, 'בית חולים זיו', 'בלי תרגום — בעברית');
+  const M3 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en: { 'צפת': 'Safed' }, ben: { 'בית חולים זיו': 'Ziv Medical Center' } });
+  assert.equal(M3.bands[0].rows[0].origin, 'Ziv Medical Center', 'שם שהמשתמש הקליד');
+  // טקסט שנערך בלוח בעברית — לא נכנס ללוח באנגלית
+  const M4 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en, bd: { t: { title: 'כותרת' } } });
+  assert.equal(M4.title, 'Timetable · Line \u20661א\u2069');
 });
