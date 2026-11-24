@@ -199,7 +199,11 @@ var LCXlsx = (function () {
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
     merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
-    cell(R, 0, M.legend != null ? M.legend : XEN ? T('', 'legendDep') + ' · ' + (M.chg ? T('', 'legendNew') + ' · ' + T('', 'legendRm') : T('', 'legendAlt')) + (M.x2 === false ? '' : ' · ' + T('', 'legendX2')) + ' · ' + T('', 'legendMot') : 'השעות הן שעות היציאה מהתחנה הראשונה · ' + (M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת') + (M.x2 === false ? '' : ' · ×2 — שני אוטובוסים') + ' · לפי נתוני משרד התחבורה', sC);
+    // במקרא: נסיעה בסימן ו-×2 — רק כשיש כאלה בגיליון (כמו בכל עמוד בלוח)
+    var anyE = function (f) { return M.bands.some(function (b0) { return b0.rows.some(function (r) { return !r.off && (r.cells || []).some(function (x) { return x.txt == null && (x.ents || []).some(f); }); }); }); };
+    var hasAlt = anyE(function (e) { return e.a; }), hasX2 = M.x2 !== false && anyE(function (e) { return e.n > 1; });
+    cell(R, 0, M.legend != null ? M.legend : (XEN ? [T('', 'legendDep'), M.chg ? T('', 'legendNew') + ' · ' + T('', 'legendRm') : hasAlt ? T('', 'legendAlt') : '', hasX2 ? T('', 'legendX2') : '', T('', 'legendMot')]
+      : ['השעות הן שעות היציאה מהתחנה הראשונה', M.chg ? 'בירוק — נסיעה חדשה או בשעה חדשה · באדום מחוק — נסיעה שבוטלה' : hasAlt ? 'בסימן ובצבע (# ^ $…) — נסיעה בדרך אחרת' : '', hasX2 ? '×2 — שני אוטובוסים' : '', 'לפי נתוני משרד התחבורה']).filter(Boolean).join(' · '), sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 22;
     R++; cell(R, 0, T('המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד', 'priv'), st.get({ b: 1, sz: 9, color: '5B6B65', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 18;
     if (M.credit !== false) { R++; cell(R, 0, CR, st.get({ b: 1, sz: 13, color: '1F9152', h: 'center', border: false })); merges.push('A' + R + ':' + ref(last, R)); heights[R] = 26; links.push(ref(0, R)); }

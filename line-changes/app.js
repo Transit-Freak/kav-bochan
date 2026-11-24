@@ -1105,10 +1105,23 @@
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
-      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, blang: tv === 'board' ? edits.blang : undefined, ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — רק בלוח המודעות
+      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, blang: tv === 'board' ? blangOf() : undefined, ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — רק בלוח המודעות
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }
+  /* שפת הלוח: מה שנבחר בלוח הזה (edits.blang — 'en' / 'he'); בלי בחירה — עברית, ובממשק באנגלית (אחרי שעברו אליו בפעם הראשונה) — אנגלית */
+  function blangOf() {
+    if (edits.blang === 'en' || edits.blang === 'he') return edits.blang === 'en' ? 'en' : undefined;
+    var auto = false; try { auto = localStorage.getItem('lc-blang-auto') === 'en'; } catch (e) { /* בלי אחסון */ }
+    return window.LCUI && LCUI.en && auto ? 'en' : undefined;
+  }
+  A.blangOf = blangOf;
+  // שפת הממשק (ui-en.js): הכפתורים בסרגל השלבים
+  document.querySelectorAll('[data-uil]').forEach(function (b) {
+    var l = b.getAttribute('data-uil'), cur = window.LCUI && LCUI.en ? 'en' : 'he';
+    b.setAttribute('aria-pressed', l === cur ? 'true' : 'false');
+    b.addEventListener('click', function () { if (l !== cur && window.LCUI) LCUI.set(l); });
+  });
   var wantBoard = null;
   function render(pages) {
     if (!deckOk()) return;

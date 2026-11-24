@@ -119,7 +119,7 @@
       var M = cu ? LCDeck.boardModel(pages, A.edOpts(formOf())) : LCDeck.chgBoardModel(pages, A.edOpts(formOf()));
       A.$('bdtitle').placeholder = M.dflt;
       // לוח באנגלית — כותרת והערות משלו (btitleEn / bnoteEn), כדי שהעברית לא תיכנס ללוח באנגלית ולהפך
-      var en = A.edits.blang === 'en', tk = en ? 'btitleEn' : 'btitle', nk = en ? 'bnoteEn' : 'bnote';
+      var en = A.blangOf() === 'en', tk = en ? 'btitleEn' : 'btitle', nk = en ? 'bnoteEn' : 'bnote';
       if (document.activeElement !== A.$('bdtitle')) A.$('bdtitle').value = (en ? 'en|title' : 'title') in A.edits.bd.t ? '' : A.edits[tk] || M.dflt;
       if (document.activeElement !== A.$('bdnote')) A.$('bdnote').value = A.edits[nk] || '';
       A.$('bdnote').placeholder = A.edits[nk] ? '' : M.note;
@@ -135,7 +135,7 @@
       [['bopseg', 'data-bopn', A.edits.bop === false ? '0' : '1'], ['bendseg', 'data-bend', A.edits.bend === false ? '0' : '1'], ['bx2seg', 'data-bx2', A.edits.bx2 === false ? '0' : '1'], ['bltrseg', 'data-bltr', A.edits.bltr ? '1' : '0']].forEach(function (x) {
         A.$(x[0]).querySelectorAll('[' + x[1] + ']').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute(x[1]) === x[2] ? 'true' : 'false'); });
       });
-      A.$('blangseg').querySelectorAll('[data-blang]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-blang') === (A.edits.blang === 'en' ? 'en' : 'he') ? 'true' : 'false'); });
+      A.$('blangseg').querySelectorAll('[data-blang]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-blang') === (A.blangOf() === 'en' ? 'en' : 'he') ? 'true' : 'false'); });
       enUi(M);
       A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
       daysUi(pages);
@@ -244,7 +244,7 @@
   });
   /* לפני הורדה / הדפסה / אקסל: בלוח באנגלית עם שמות בלי תרגום — קודם אזהרה, וההורדה רק אחרי "להמשיך" (פעם אחת לאותה רשימה) */
   A.enGate = function (fn) {
-    if (A.edits.blang !== 'en' || !enMiss.length || enAck === enMiss.join('|')) return true;
+    if (A.blangOf() !== 'en' || !enMiss.length || enAck === enMiss.join('|')) return true;
     enPend = fn; enUi({ en: true, miss: enMiss });
     A.$('ennote').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return false;
@@ -260,7 +260,7 @@
   ['bdtitle', 'bdnote'].forEach(function (id) {
     A.$(id).addEventListener('input', function () {
       var v = this.value;
-      var en = A.edits.blang === 'en';
+      var en = A.blangOf() === 'en';
       if (id === 'bdtitle') A.edits[en ? 'btitleEn' : 'btitle'] = v.trim() && v.trim() !== this.placeholder ? v : undefined; else A.edits[en ? 'bnoteEn' : 'bnote'] = v.trim() ? v : undefined;
       delete A.edits.bd.t[(en ? 'en|' : '') + (id === 'bdtitle' ? 'title' : 'note')];
       saveEdits(); clearTimeout(bdT); bdT = setTimeout(function () { A.keepScroll(function () { A.render(A.curPages); }); }, 450);
@@ -345,7 +345,7 @@
       else if (bo.hasAttribute('data-bend')) A.edits.bend = bo.getAttribute('data-bend') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bx2')) A.edits.bx2 = bo.getAttribute('data-bx2') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bltr')) A.edits.bltr = bo.getAttribute('data-bltr') === '1' || undefined;
-      else if (bo.hasAttribute('data-blang')) { A.edits.blang = bo.getAttribute('data-blang') === 'en' ? 'en' : undefined; enAck = ''; }
+      else if (bo.hasAttribute('data-blang')) { A.edits.blang = bo.getAttribute('data-blang') === 'en' ? 'en' : 'he'; enAck = ''; }   // בחירה מפורשת — גם עברית (לא נדרסת בממשק באנגלית)
       else A.edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }

@@ -94,7 +94,9 @@
     var base = LCDeck.deckTitle(A.curPages);   // כמו בשער: שינוי בקו 9 / שינויים בקווים 9, 18 ו-54 / אותו שינוי ב-3 קווים
     if (f === 'sign') base = 'שלט-להדפסה-' + base;
     if (f === 'status') base = 'סטטוס-' + base;
-    return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + (f === 'status' ? '' : '.pdf');
+    var nm = (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-');
+    if (window.LCUI && LCUI.en) nm = LCUI.file(nm);   // ממשק באנגלית — שם הקובץ באנגלית (השמות עצמם כמו שהם)
+    return nm + (f === 'status' ? '' : '.pdf');
   }
   var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var SAFARI = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
@@ -297,11 +299,11 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=18'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=19'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
-  function fileName(s) { var un = userName(); if (un) return un + '.xlsx'; return s.replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-') + '.xlsx'; }
+  function fileName(s) { var un = userName(); if (un) return un + '.xlsx'; s = s.replace(/[\\\/:*?"<>|,\s]+/g, '-').replace(/-+/g, '-'); return (window.LCUI && LCUI.en ? LCUI.file(s) : s) + '.xlsx'; }
   function exportXlsx() {
     var cu = A.curPages.filter(function (p) { return p.kind === 'current'; }), tt = A.curPages.filter(LCDeck.ttCap);
     if (!cu.length && !tt.length) return;

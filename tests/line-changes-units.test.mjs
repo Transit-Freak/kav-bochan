@@ -495,3 +495,22 @@ test('לוח באנגלית: טקסטים קבועים, שמות מהמילון,
   const M4 = ctx.LCDeck.boardModel([p], { bsplit: false, blang: 'en', en, bd: { t: { title: 'כותרת' } } });
   assert.equal(M4.title, 'Timetable · Line \u20661א\u2069');
 });
+
+// ---------- ממשק באנגלית (ui-en.js): לכל מפתח יש אנגלית, ולכל טקסט בעברית בדף (index.html) יש תרגום ----------
+test('ui-en.js: לכל טקסט במילון יש אנגלית, ולכל טקסט ותכונה בעברית ב-index.html יש תרגום', () => {
+  const c2 = {}; vm.createContext(c2);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'ui-en.js'), 'utf8'), c2);
+  const U = c2.LCUI;
+  const empty = Object.keys(U.UI).filter((k) => !String(U.UI[k] || '').trim() || /[א-ת]/.test(U.UI[k].replace(/1א/g, '')));
+  assert.deepEqual(empty, [], 'מפתחות בלי אנגלית');
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  const he = new Set();
+  html.replace(/>([^<]*)</g, (m, t) => { t = t.replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim(); if (/[א-ת]/.test(t)) he.add(t); return m; });
+  html.replace(/\s(?:placeholder|aria-label|title|alt)="([^"]*)"/g, (m, t) => { t = t.replace(/&quot;/g, '"'); if (/[א-ת]/.test(t)) he.add(t.trim()); return m; });
+  const miss = [...he].filter((t) => U.tr(t) == null);
+  assert.deepEqual(miss, [], 'טקסטים בדף בלי תרגום');
+  assert.equal(U.tr('טוען 14 קווים…'), 'Loading 14 lines…');
+  assert.equal(U.tr('  חזרה '), '  Back ');
+  assert.equal(U.tr('צפת'), null, 'שם — לא במילון');
+  assert.equal(U.file('לוח-זמנים-קו-1-2026-11-24'), 'timetable-line-1-2026-11-24');
+});

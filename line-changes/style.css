@@ -544,3 +544,8 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .ennote input{font:600 14px var(--f-body);padding:5px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);direction:ltr;text-align:left;min-width:0}
 .ennote .enact{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .ennote.pend{outline:3px solid var(--after)}
+
+/* שפת הממשק: עברית | English בסרגל השלבים */
+.uilang{display:flex;align-items:center;gap:2px;font:700 13px var(--f-body);color:var(--sub);flex:0 0 auto}
+.uilang button{background:none;border:0;padding:6px 6px;min-height:36px;color:var(--sub);font:inherit;cursor:pointer;border-radius:8px}
+.uilang button[aria-pressed="true"]{color:var(--fg);font-weight:900;text-decoration:underline;text-underline-offset:3px}

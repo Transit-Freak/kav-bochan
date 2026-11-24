@@ -610,6 +610,8 @@
     return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', ((btitle || '').trim() || dflt) + (WK ? ' · ' + bdX('untilD', 'עד ') + LC.dm(WK) : BD_FE ? ' · ' + bdX('fromD', 'החל מ-') + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (bnote || '').trim() || (alts ? bdX('altNote', 'נסיעות שמסומנות בסימן ובצבע (# ^ $…) עוברות בדרך אחרת') : '')), contacts: contacts,
+      // המשפט על הנסיעות בסימן — רק בעמוד שיש בו נסיעה כזו (bdFoot), כשהמשתמש לא כתב או שינה את "עדכונים"
+      noteAuto: !(bnote || '').trim() && bdT('note', null) == null,
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', credit: D.ED.credit !== false, tord: D.ED.tord || 'ltr', x2: bdX2On(),
       // כל טקסט בלוח ניתן לעריכה: כותרות העמודות, "עדכונים", "מוקדי מידע", שורת ההסבר והקרדיט (את הקרדיט מורידים ב"להוסיף קרדיט", שלמה 22.11)
       th: { line: bdT('th:line', bdX('thLine', 'קו')), orig: bdT('th:orig', bdX('thOrig', 'מוצא')), wk: bdT('th:wk', bdX('thWk', 'יום חול')) }, lbl: { upd: bdT('lbl:upd', bdX('upd', 'עדכונים')), ph: bdT('lbl:ph', bdX('ph', 'מוקדי מידע')), cont: bdT('lbl:cont', bdX('cont', '(המשך)')), off: bdT('lbl:off', bdX('off', 'אינו פעיל')), same: bdT('lbl:same', bdX('same', 'ללא שינוי')) },
@@ -737,7 +739,7 @@
   function bdLineCell(r, span) {
     var bg = r.color2 ? 'background:linear-gradient(to bottom,' + r.color + ' 0 74%,' + r.color2 + ' 74%)' : 'background:' + r.color;
     var lk = bdLk(r.p);
-    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + lk, 'badge sm num' + (r.color2 ? ' two' : ''), r.add ? 'קו' : '') + ' style="' + bg + ';color:#fff">' + E(r.line) + '</span>' + (r.hideOp ? '' : '<small' + bdK('op:' + lk, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>') +
+    return '<td class="bl" rowspan="' + span + '"><span' + bdK('ln:' + lk, 'badge sm num' + (r.color2 ? ' two' : ''), r.add ? 'קו' : '') + ' style="' + bg + ';color:#fff">' + (bdEn() ? '\u200e' : '') + E(r.line) + '</span>' + (r.hideOp ? '' : '<small' + bdK('op:' + lk, 'op', r.add ? 'מפעיל' : '') + '>' + E(r.op) + '</small>') +
       (r.until ? '<small' + bdK('un:' + lk, 'un') + '>' + E(r.untilTxt) + '</small>' : '') +
       (r.p.chg === 'new' ? '<small' + bdK('nl:' + r.p.makat, 'nwl') + '>' + E(bdT('nl:' + r.p.makat, bdX('newLine', 'קו חדש'))) + '</small>' : '') +
       (r.from ? '<small' + bdK('fr:' + lk, 'un') + '>' + E(r.from) + '</small>' : '') + '</td>';
@@ -978,12 +980,18 @@
   /* מוקדי מידע: רק החברות שהקווים שלהן בעמוד הזה (ops), ומשרד התחבורה. בלי ops — כל החברות שבלוח. rows — השורות בעמוד (למקרא החלופות) */
   function bdFoot(M, ops, pgi, rows) {
     var cs = ops ? M.contacts.filter(function (c) { return c[2] === 'משרד התחבורה' || ops.indexOf(c[2]) >= 0; }) : M.contacts, X = M.en ? window.LCBoardEN.TXT : null;
-    return '<div class="bd-foot">' + bdAltLegend(rows) + (M.note ? '<p class="bd-upd">' + (M.lbl.upd ? '<b' + bdK('lbl:upd') + '>' + E(M.lbl.upd) + '</b> ' : '') + '<span' + bdK('note') + '>' + E(M.note) + '</span></p>' : '') +
+    // מה שבעמוד הזה (שלמה 24.11): נסיעה בסימן (חלופה) — המשפט ב"עדכונים" והחלק במקרא; ×2 — החלק במקרא. בלי rows (מדידה) — כל הלוח
+    var vr = (rows || M.bands.reduce(function (a, b) { return a.concat(b.rows); }, [])).filter(function (r) { return r && !r.off && r.cells; });
+    var pAlt = vr.some(function (r) { return r.cells.some(function (x) { return x.txt == null && x.ents.some(function (e) { return e.a; }); }); });
+    var pX2 = M.x2 !== false && vr.some(function (r) { return r.cells.some(function (x) { return x.txt == null && x.ents.some(function (e) { return e.n > 1; }); }); });
+    var note = M.note && (pAlt || !M.noteAuto) ? M.note : '';
+    var leg = X ? [X.legendDep, M.chg ? '<span class="nwt">' + X.legendNew.replace(' — ', '</span> — ') + ' · <span class="alt">' + X.legendRm.replace(' — ', '</span> — ') : pAlt ? '<span class="alt">' + X.legendAlt.replace(' (', '</span> (') : '', pX2 ? X.legendX2 : '', X.legendMot + (M.feed ? ' · ' + LC.dmy(M.feed) : '')]
+      : ['שעות היציאה מהתחנה הראשונה', M.chg ? '<span class="nwt">בירוק</span> — נסיעה חדשה או בשעה חדשה · <span class="alt">באדום מחוק</span> — נסיעה שבוטלה' : pAlt ? '<span class="alt">בסימן ובצבע</span> (# ^ $…) — נסיעה בדרך אחרת' : '', pX2 ? '×2 — שני אוטובוסים' : '', 'לפי נתוני משרד התחבורה' + (M.feed ? ' מ-' + LC.dmy(M.feed) : '')];
+    return '<div class="bd-foot">' + bdAltLegend(rows) + (note ? '<p class="bd-upd">' + (M.lbl.upd ? '<b' + bdK('lbl:upd') + '>' + E(M.lbl.upd) + '</b> ' : '') + '<span' + bdK('note') + '>' + E(note) + '</span></p>' : '') +
       (cs.length ? '<p class="bd-ph">' + (M.lbl.ph ? '<b' + bdK('lbl:ph') + '>' + E(M.lbl.ph) + '</b> ' : '') + cs.map(function (c) {
         return '<span>' + (c[0] ? '<span' + bdK('phn:' + c[2]) + '>' + E(c[0]) + '</span>' : '') + ' ' + (c[1] ? '<b' + bdK('php:' + c[2], 'ltr') + '>' + E(c[1]) + '</b>' : '') + '</span>';
       }).join('') + '</p>' : '') +
-      '<div class="cu-foot"><span' + bdK('legend') + '>' + (M.legend != null ? E(M.legend) : X ? X.legendDep + ' · ' + (M.chg ? '<span class="nwt">' + X.legendNew.replace(' — ', '</span> — ') + ' · <span class="alt">' + X.legendRm.replace(' — ', '</span> — ') : '<span class="alt">' + X.legendAlt.replace(' (', '</span> (')) + (M.x2 === false ? '' : ' · ' + X.legendX2) + ' · ' + X.legendMot + (M.feed ? ' · ' + LC.dmy(M.feed) : '') : 'שעות היציאה מהתחנה הראשונה · ' + (M.chg ? '<span class="nwt">בירוק</span> — נסיעה חדשה או בשעה חדשה · <span class="alt">באדום מחוק</span> — נסיעה שבוטלה' : '<span class="alt">בסימן ובצבע</span> (# ^ $…) — נסיעה בדרך אחרת') + (M.x2 === false ? '' : ' · ×2 — שני אוטובוסים') + ' · לפי נתוני משרד התחבורה' +
-      (M.feed ? ' מ-' + LC.dmy(M.feed) : '')) + '</span><span' + bdK('pg:' + (pgi || 0), 'pg num') + '></span></div>' +
+      '<div class="cu-foot"><span' + bdK('legend') + '>' + (M.legend != null ? E(M.legend) : leg.filter(Boolean).join(' · ')) + '</span><span' + bdK('pg:' + (pgi || 0), 'pg num') + '></span></div>' +
       // בכל עמוד, גם בצפוף ובעמוד אחד: שורת "אדם פרטי" (לא ניתנת לעריכה) והקרדיט (אפשר לשנות את הניסוח; מורידים אותו ב"להוסיף קרדיט")
       '<p class="bd-priv">' + (X ? X.priv : 'המידע הוכן על ידי אדם פרטי · לא פרסום רשמי · לפני הנסיעה בדקו במוקד') + '</p>' +
       (M.credit ? '<p' + bdK('credit', 'bd-cr') + '>' + (M.creditTxt === BD_CR ? (X ? E(X.credit) : 'הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · <span class="ltr">kavbochan.app</span>') : E(M.creditTxt)) + '</p>' : '') + '</div>';
