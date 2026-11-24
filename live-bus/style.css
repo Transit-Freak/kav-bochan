@@ -218,3 +218,8 @@ html.kb-dark{--kab:#FB923C;--kab-bg:#3B2414;--kab-ink:#FDBA74}
 /* שורת הפתיחה: באילו חברות וערים הדף עובד */
 .intro{margin:-2px 4px 10px;font-size:12.5px;color:var(--mut);line-height:1.5;text-align:center}
 .intro b{color:var(--ink);font-weight:700}
+/* שיבוץ חריג — הערה ניטרלית בכתום, מתחת להערכה */
+.odd{margin-top:8px;background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:7px 10px;font-size:12.5px;font-weight:600;line-height:1.45}
+/* שיבוץ שלא מופיע בלוח הזמנים — אפור, עם הערה קטנה */
+.trips li.unm{color:var(--dim)}
+.unmn{display:block;font-size:11.5px;color:var(--dim);font-weight:500;margin-top:2px}
