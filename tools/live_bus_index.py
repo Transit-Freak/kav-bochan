@@ -14,6 +14,7 @@
   lines  — [[מק"ט-כיוון-חלופה, תיאור רשמי, יעד לפרסום, שלט במוצא], ...] לקווים פעילים של החברות, בסדר של lines.json
   area   — הערים שבהן הקווים מתחילים ומסתיימים (לפחות AREA_MIN פעמים), מהנפוצה — לשורת הפתיחה
   stops  — קודי התחנות במסלול הנוכחי של הקווים (line-history/data/lines/<rd>.json) — להצעות בחיפוש תחנה
+  term   — מק"ט-כיוון-חלופה → [רוחב, אורך של תחנת המוצא, רוחב, אורך של התחנה האחרונה] — לנסיעה הריקה בין מסופים
   cities — כל שמות הערים מהתיאורים של כל הקווים (KNOWN_CITIES), בסדר שבו הדף בנה אותם
   rq, ride — נוסעים בשבוע מ-kavpach-ridership.json (המקור של קו פח): מק"ט → [נוסעים בשבוע ברבעון האחרון,
            מספר הרבעון ב-rq, נסיעות בשבוע באותו רבעון (אם יש)]
@@ -176,7 +177,7 @@ def build_lines(root):
                 t = p[-1].strip()
                 if t:
                     cities.setdefault(t, None)
-    lines, area, stops = [], collections.Counter(), {}
+    lines, area, stops, term = [], collections.Counter(), {}, {}
     names = set(OPS.values())
     for l in L:
         if l.get('historicalOnly') or l.get('observationOnly') or l.get('lk') == 'removed':
@@ -190,8 +191,11 @@ def build_lines(root):
             p = x.split('-')
             if len(p) > 1 and p[-1].strip():
                 area[p[-1].strip()] += 1
-        for c in line_stops(root, l['rd']):
+        codes, tm = line_route(root, l['rd'])
+        for c in codes:
             stops[c] = None
+        if tm:
+            term[l['rd']] = tm
         row = [l['rd'], l.get('dest') or '', l.get('hs') or '', l.get('hso') or '']
         while len(row) > 2 and not row[-1]:
             row.pop()
@@ -199,26 +203,34 @@ def build_lines(root):
     out = {'lines': lines, 'cities': list(cities), 'area': [c for c, n in area.most_common() if n >= AREA_MIN]}
     if stops:
         out['stops'] = sorted(stops, key=lambda c: int(c) if c.isdigit() else 0)
+    if term:
+        out['term'] = term
     return out
 
 
-def line_stops(root, rd):
-    """קודי התחנות של המסלול האחרון של הקו — מ-line-history/data/lines/<rd>.json (כמו fsafe בהקו בזמן)."""
+def line_route(root, rd):
+    """המסלול האחרון של הקו — מ-line-history/data/lines/<rd>.json (כמו fsafe בהקו בזמן):
+    (קודי התחנות, [רוחב ואורך של תחנת המוצא, רוחב ואורך של התחנה האחרונה] או None)."""
     lf = load(root, 'line-history/data/lines/' + rd.replace('#', 'H').replace('/', '_') + '.json')
     if not isinstance(lf, dict):
-        return []
+        return [], None
     pool = lf.get('pool') or []
     for v in reversed(lf.get('versions') or []):
         st = v.get('stops')
         if isinstance(st, list) and st:
-            out = []
+            out, pts = [], []
             for x in st:
                 e = pool[x] if isinstance(x, int) and 0 <= x < len(pool) else x
                 c = e[0] if isinstance(e, list) and e else (e.get('c') or e.get('code')) if isinstance(e, dict) else None
                 if c:
                     out.append(str(c))
-            return out
-    return []
+                ll = e[2:4] if isinstance(e, list) and len(e) >= 4 else None
+                pts.append(ll if ll and all(isinstance(q, (int, float)) for q in ll) else None)
+            term = None
+            if pts and pts[0] and pts[-1]:
+                term = [round(q, 5) for q in pts[0] + pts[-1]]
+            return out, term
+    return [], None
 
 
 # ---------- נוסעים — kavpach-ridership.json (tools/kavpach_ridership.py) ----------
