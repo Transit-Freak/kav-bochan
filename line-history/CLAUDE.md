@@ -36,7 +36,7 @@
   4. `scan_vcnt_daily.py`, `linehistory_rishui.py`, `linehistory_ltype.py`, `last_sched.py`.
   5. סריקת קו באג (OSRM, GPS) על אותו GTFS, וכתיבה ל-`kavbug-data/`.
   6. העלאת ה-GTFS כ-artifact בשם `gtfs-daily`, לשימוש של צינורות אחרים.
-  7. **commit:** אחרי rebase על השינויים של אחרים רצה שרשרת עיבוד-אחרי: `enrich_stop_diffs`, `fix_dest_kind`, `drop_rename_only`, `enrich_2017`, `fix_false_removed`, `mark_reverted_changes`, `repair_*`, `build_archive_months`, `build_stop_shards`, `compact_lines`, `rebuild_lines_index`, `build_alt_desc.mjs`, `link_mot2012`, `line_successors`, `build_stop_history`, `build_city_search`, `build_kavpach_live`, `build_stop_lines_2012`. הקומיט: `data: line-history — ...`.
+  7. **commit:** אחרי rebase על השינויים של אחרים רצה שרשרת עיבוד-אחרי: `enrich_stop_diffs`, `fix_dest_kind`, `drop_rename_only`, `enrich_2017`, `fix_false_removed`, `mark_reverted_changes`, `repair_*`, `build_archive_months`, `build_stop_shards`, `foi_taxi`, `compact_lines`, `rebuild_lines_index`, `build_alt_desc.mjs`, `link_mot2012`, `line_successors`, `build_stop_history`, `build_city_search`, `build_kavpach_live`, `build_stop_lines_2012`. הקומיט: `data: line-history — ...`.
 
 ### מה רץ אחרי (workflow_run על `line-history`)
 | workflow | מה הוא עושה |
@@ -129,6 +129,10 @@
 - **`changes/` מתפרסם כ-`.json.gz`** רק באתר (`pages-deploy`). במאגר הקבצים הם `.json`. בקוד הדף משתמשים ב-`dfetch` ולא ב-`fetch` רגיל.
 - **שם הקובץ שונה מ-rd** (`#`←`H`). חיפוש `lines/10001-3-#.json` לא ימצא את הקובץ.
 - **`rebuild_lines_index.py` גם מוחק שדות** (למשל `tt`) כשהם יורדים מקובץ הקו, אחרת סיווג ישן נשאר באינדקס. כשמוסיפים שדה לאינדקס, צריך גם למחוק אותו כשהוא נעלם.
+- **מוניות שירות מנתוני חופש המידע (2013–2017) בלי מספר קו.** `import_foi_routes.py` מנחש מספר קו משלוש הספרות האחרונות של המק"ט,
+  ובמוניות זה שגוי. `tools/foi_taxi.py` (נקרא מהייבוא וגם בשרשרת של `line-history.yml`) מזהה אותן (`foiOnly`, מק"ט של 7 ספרות,
+  שתי תחנות, "תחנת מוניות"), שם `tt:"taxi"` ו-`line:""`, ומשאיר מספר רק כשאומת (`CONFIRMED`). לקווים שהמשיכו ב-GTFS יש
+  `foiNext`, והמפה בעמוד הקו מציגה את המסלול של הקו שהמשיך. בדף: `taxiName()` ב-`src/08-search.jsx`. האינדקס מקבל `foi:1`.
 - **`versions` עם `hid`** לא נספרות ולא מוצגות. הערות כמו "שוחזר בדיעבד" נשארות בנתונים אבל מוסתרות בציר הזמן (PR #251).
 - **ריצת ה-commit עושה rebase ומריצה מחדש את כל שרשרת העיבוד** על הקבצים שהשתנו אצל אחרים. סקריפט חדש שצריך לרוץ אחרי כל שינוי בנתונים צריך להיכנס לשרשרת הזו, ולא רק לצעד ה-diff.
 - **`line-history.yml` רץ ב-push רק על main** (`if: github.ref == 'refs/heads/main' || ...`). בענף עבודה הוא לא בונה נתונים.

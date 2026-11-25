@@ -265,7 +265,7 @@ function MapTab({ idx, openLine, cities }) {
         const r = routes[l.rd + "@" + mon];
         if (!r || !r.length || sel.has(l.rd)) return;
         r.forEach((p) => pts.push(p));
-        const html = `<b>קו ${esc(l.line || "")}</b> · ${esc(l.op || "")}<br><span class="pcode">${esc(l.dest || "")}</span><br><a href="#${encodeURIComponent(l.rd)}" class="plink">לעמוד הקו ←</a>`;
+        const html = `<b>${esc(l.line ? "קו " + l.line : taxiName(l) || "קו")}</b> · ${esc(l.op || "")}<br><span class="pcode">${esc(l.dest || "")}</span><br><a href="#${encodeURIComponent(l.rd)}" class="plink">לעמוד הקו ←</a>`;
         L.polyline(r, { color: LINE_PALETTE[lineHash(l.line || l.rd) % LINE_PALETTE.length], weight: 2.5, opacity: 0.75 }).bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
       });
       shownLines.forEach((x) => {
@@ -274,7 +274,7 @@ function MapTab({ idx, openLine, cities }) {
         r.forEach((p) => pts.push(p));
         const k0 = x.chs.find((c) => kinds.has(c.k)) || x.chs[0];
         const color = catColor(k0.k) || (KINDS[k0.k] || {}).color || "#7c3aed";
-        const html = `<b>קו ${esc(x.l.line || "")}</b> · ${esc(x.l.op || "")}<br><span class="pcode">${esc(x.l.dest || "")}</span><br>` +
+        const html = `<b>${esc(x.l.line ? "קו " + x.l.line : taxiName(x.l) || "קו")}</b> · ${esc(x.l.op || "")}<br><span class="pcode">${esc(x.l.dest || "")}</span><br>` +
           x.chs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${catColor(c.k)};margin-inline-end:5px"></i>${fmtD(c.d)} · <b>${esc((KINDS[c.k] || { label: c.k }).label)}</b>${c.note ? " — " + esc(noteFix(c.note)).slice(0, 220) : ""}</span>`).join("<br>") +
           `<br><a href="#${encodeURIComponent(x.rd)}" class="plink">לעמוד הקו ←</a>`;
         // קו שהשתנה: מסגרת לבנה ומעליה צבע הקטגוריה, עבה — בולט מעל שאר הקווים

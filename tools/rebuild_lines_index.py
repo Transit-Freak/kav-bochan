@@ -72,6 +72,12 @@ for fn in os.listdir(f'{OUTDIR}/lines'):
         e['tw'] = ' '.join(lf['towns'])
     else:
         e.pop('tw', None)
+    # קו שמוכר רק מנתוני חופש המידע (2013–2017) — בחיפוש מוניות השירות שלו מקובצות לפי מספר הקו
+    # (מק"ט 5104104 הוא קווים 4 ו-5א), ולא כרטיס אחד למק"ט
+    if lf.get('foiOnly'):
+        e['foi'] = 1
+    else:
+        e.pop('foi', None)
     if lf.get('observationOnly'):
         e['observationOnly'] = True
     else:

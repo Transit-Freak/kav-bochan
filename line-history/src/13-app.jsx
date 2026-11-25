@@ -162,7 +162,9 @@ function App() {
     const toks = sQ(needle).split(/\s+/).filter(Boolean);
     // טאב "קווים" הוא אוטובוסים. קווי "שירות לפי דרישה" מופעלים בידי חברות
     // האוטובוס ונשארים גם כאן, ולא רק בטאב סוגי התחבורה (בקשת המשתמש).
-    const buses = idx.lines.filter((l) => !l.tt || l.tt === "demand");
+    // מי שכותב "מונית" מחפש מוניות שירות — הן נכנסות גם כאן, לא רק בטאב סוגי התחבורה
+    const wantTaxi = /מוני/.test(needle);
+    const buses = idx.lines.filter((l) => !l.tt || l.tt === "demand" || (wantTaxi && l.tt === "taxi"));
     let list = buses.filter((l) => inKats(l) && matchesRouteSearch(l, needle, citySearch.data, null, true));
     const onlyRemoval = kats.size > 0 && [...kats].every((k) => REMOVAL_CATS.has(k));
     // דירוג: קודם מספר הקו המדויק, אחריו קווים שמתחילים בו, ורק בסוף
@@ -307,7 +309,7 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : destShow(l.dest)}{ad && <small className="altdesc">{ad}</small>}</span>
+                  <span className="ldest">{taxiName(l) || (lite ? (routeTitle(l.dest, l) || l.dest) : destShow(l.dest))}{ad ? <small className="altdesc">{ad}</small> : taxiName(l) && <small className="taxidest">{destShow(l.dest)}</small>}</span>
                   <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>

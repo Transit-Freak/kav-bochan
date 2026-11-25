@@ -405,6 +405,8 @@ a.whymark:hover { background: #92400e; }
 .lgitems .lrow .badge { display: none; }   /* מספר הקו כבר בכותרת הכרטיס */
 .altlab { font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; background: #ede9fe; color: #5b21b6; white-space: nowrap; }
 .altdesc { display: block; font-size: 12px; color: #6d28d9; font-weight: 600; }
+/* מונית שירות בלי מספר קו: תחנות הקצה מתחת ל"מונית שירות · עיר ↔ עיר" */
+.taxidest { display: block; font-size: 12px; color: #64748b; font-weight: 600; }
 .lgsep { font-size: 14px; font-weight: 800; color: #475569; margin: 14px 2px 8px; padding-top: 10px; border-top: 2px solid #e2e8f0; }
 
 /* ───────── תצוגה חדשה (body.lite) — פחות מידע על המסך, הפרטים בלחיצה (שלמה 08.10) ─────────

@@ -144,6 +144,22 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
       .catch((e) => { if (ok) setErr(e); });
     return () => { ok = false; };
   }, [rd, rty, initDate, initCats]);
+  // מונית מחופש המידע שהמשיכה בתקופת ה-GTFS (lf.foiNext, tools/foi_taxi.py): במפה — המסלול של הקו
+  // שהמשיך, מהשרטוט הראשון שלו, במקום קו ישר בין שתי תחנות הקצה
+  const nextRd = lf && lf.foiNext ? lf.foiNext.rd : null;
+  const [nextGeo, setNextGeo] = useState(null);
+  useEffect(() => {
+    setNextGeo(null);
+    if (!nextRd) return;
+    let ok = true;
+    dfetch("data/lines/" + fsafe(nextRd) + ".json").then((r) => (r.ok ? r.json() : null)).then((s) => {
+      if (!ok || !s) return;
+      materializeLf(s);
+      const v = (s.versions || []).filter((x) => !x.hid && x.shp).sort((a, b) => a.d.localeCompare(b.d))[0];
+      if (v) setNextGeo({ pts: decodeShape(v.shp), d: v.d });
+    }).catch(() => {});
+    return () => { ok = false; };
+  }, [nextRd]);
   // הודעת שגיאה אחת לשני מצבים שונים הטעתה: כשל רשת רגעי בנייד הוצג
   // כ"לא נמצאו נתונים" והגולש הסיק שאין מה לראות. סטטוס HTTP (404) הוא
   // באמת קו שאין לו קובץ; כל השאר — תקלה, עם כפתור לנסות שוב.
@@ -449,8 +465,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
   const borrowed = !cmpOn && !ownGeo && !plannedV && gv !== v;
   // "מקורב" נמדד על הגרסה שמצוירת בפועל — כשהמפה שאולה מגרסה אחרת,
   // הדיוק שלה הוא של אותה גרסה ולא של האירוע שנבחר
-  const approx = !gv.shp && (gv.stops || []).length > 1;
-  const cur = toPts(gv) || [];
+  const useNext = !!(nextGeo && nextGeo.pts.length > 1 && gv.src === "mot-foi" && !gv.shp && !cmpOn && !plannedV);
+  const approx = !useNext && !gv.shp && (gv.stops || []).length > 1;
+  const cur = useNext ? nextGeo.pts : (toPts(gv) || []);
   // המסלול הקודם מוצג רק כשיש באמת מה להשוות: הגרסה מתעדת שינוי תחנות
   // (כולל הפרש-פער מול "תיעוד ראשון") או שינוי מסלול, או ששתי הגרסאות
   // מדויקות. בלי זה, קירוב-לפי-תחנות מול גאומטריה מלאה מצייר "מסלול ישן"
@@ -668,7 +685,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
           sg={onlyCur || cmpOn || m12only ? null : (v.sg || null)}
           plats={m12only ? null : rdPlat}
           nowNames={(gv.foiNames || (pgv && pgv.foiNames)) ? new Set([...(gv.foiNames || []), ...((pgv && pgv.foiNames) || [])].map(String)) : null}
-          remPins={onlyCur || cmpOn || m12only ? null : remPinsOf(v, vi, gv).pins} />
+          remPins={onlyCur || cmpOn || m12only ? null : remPinsOf(v, vi, gv).pins} succ={useNext && !m12only} />
         {/* תחנה שירדה ואין לה מיקום באף מקור — נאמרת במפורש, לא נעלמת */}
         {!cmpOn && !onlyCur && !m12only && (() => {
           const un = remPinsOf(v, vi, gv).unplaced
@@ -685,7 +702,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
             {plDiff && !plSame && <span><span className="dot" style={{ background: "#fff", border: "3px solid #dc2626" }} /> תחנה במסלול בפועל שלא הייתה בתוכנית</span>}
           </> : <>
           {prev && !onlyCur && <span><i style={{ borderColor: "#dc2626", borderStyle: "dashed" }} /> המסלול הקודם{prevApprox ? " (מקורב לפי תחנות)" : ""}</span>}
-          <span><i style={{ borderColor: prev && !onlyCur ? "#16a34a" : "#4c1d95" }} /> {prev && !onlyCur ? "המסלול החדש" : "המסלול"}</span>
+          {useNext ? <span><i style={{ borderColor: "#0e7490", borderStyle: "dashed" }} /> המסלול לפי הקו שהמשיך ({nextGeo.d.slice(0, 4)})</span>
+            : <span><i style={{ borderColor: prev && !onlyCur ? "#16a34a" : "#4c1d95" }} /> {prev && !onlyCur ? "המסלול החדש" : "המסלול"}</span>}
           <span><span className="dot" style={{ background: "#16a34a" }} /> תחנה שנוספה</span>
           <span><span className="dot" style={{ background: "#fff", border: "3px solid #dc2626" }} /> תחנה שירדה</span>
           </>}
@@ -700,6 +718,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
           ? <div className="mut">ℹ️ רצף התחנות בצילום זהה לגרסה הסמוכה — מוצג המסלול המלא שלה במקום קו מקורב. {(v.stops || []).length} תחנות בגרסה זו.</div>
           : plannedV
           ? <div className="mut">ℹ️ {gv.shp ? "השרטוט המלא של המסלול שתוכנן, כפי שפורסם בפיד" : "המסלול שתוכנן מצויר כקו ישר בין התחנות — לתוכנית הזו לא נשמר שרטוט"}.</div>
+          : useNext
+          ? <div className="mut">ℹ️ בנתוני משרד התחבורה אין שרטוט מסלול. המפה מציגה את המסלול של <a href={lineHref(lf.foiNext.rd)}>קו {lf.foiNext.line}</a> כפי שנרשם ב-{fmtD(nextGeo.d)}, אחרי שהקו המשיך במק״ט אחר; ייתכן שהמסלול לפני כן היה שונה.</div>
           : approx
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
@@ -715,7 +735,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
       <div className="card side">
         {<BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{destShow(lf.dest)}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{taxiName(lf) || destShow(lf.dest)}{taxiName(lf) && <small className="taxidest">{destShow(lf.dest)}</small>}</span>
           
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
@@ -727,7 +747,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
               const b = e.currentTarget;
               // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
               // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
-              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
+              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : taxiName(lf) || lf.dest), url }).catch(() => {}); return; }
               const t = b.textContent;
               const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
               if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
@@ -767,6 +787,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
           )}
           {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
         <SuccBox rd={rd} />
+        {lf.foiNext && <div className="succbox">➡️ הקו המשיך במק״ט אחר: <a href={lineHref(lf.foiNext.rd)}>קו {lf.foiNext.line}</a> (מונית שירות), מ-{fmtD(lf.foiNext.d)}.</div>}
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}

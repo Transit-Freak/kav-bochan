@@ -92,7 +92,8 @@ function groupSearch(list, needle) {
   const num = citySearchNorm(needle || "").split(/\s+/).find((t) => /^\d+[א-ת]?$/.test(t)) || null;
   const groups = [], byKey = new Map(), loose = [];
   const add = (key, l) => { let g = byKey.get(key); if (!g) { g = { key, line: l.line, op: l.op, items: [] }; byKey.set(key, g); groups.push(g); } g.items.push(l); };
-  for (const l of list) { const mk = String(l.rd).split("-")[0]; if (/^\d+$/.test(mk) && String(l.rd).includes("-")) add(mk, l); else loose.push(l); }
+  // מוניות מחופש המידע: מק"ט אחד יכול להיות כמה קווים (5104104 = קו 4 וקו 5א) — כרטיס לכל מספר
+  for (const l of list) { const mk = String(l.rd).split("-")[0]; if (/^\d+$/.test(mk) && String(l.rd).includes("-")) add(l.foi && l.tt === "taxi" ? mk + "|" + (l.line || "") : mk, l); else loose.push(l); }
   for (const l of loose) {
     // רשומת ארכיון מצטרפת לכרטיס של מק"ט רק כששני הקצוות שלה זהים לאחת החלופות — עיר משותפת אחת
     // לא מספיקה (449 אופקים–ירושלים מ-2012 צורף ל-449 קרית גת–ירושלים, שלמה 09.10: "לעשות לפי מק"ט")
@@ -136,6 +137,7 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
     const st = String(pool[0].dest || "").replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return cut((p.length > 1 ? p.slice(0, -1) : p).join("-").trim()); });
     route = orig[0] + ": " + st[0] + (st.length > 1 ? " – " + st[st.length - 1] : "");
   }
+  if (!g.line && taxiName(pool[0])) route = taxiName(pool[0]);
   // תווית לכל חלופה: ראשית / מקוצר (מתחיל או מסתיים במקום אחר) / חלופה, ותיאור קצר אם יש
   const label = (l) => {
     if (!/^\d+-/.test(l.rd)) return [String(l.rd).startsWith("website") ? "אתר מידע" : "ארכיון 2012", null];
@@ -192,6 +194,21 @@ function hsParts(h) {
 function destShow(d) {
   return String(d || "").split("<->").map((x) => { const i = x.lastIndexOf("-"); if (i <= 0) return x;
     const st = x.slice(0, i).trim(), c = x.slice(i + 1).trim(); return c && (st.includes(c) || st.includes(c.replace(/ יפו$/, ""))) ? st : x; }).join("<->");
+}
+// מונית שירות בלי מספר קו (מוניות 2013–2019 מנתוני חופש המידע — המספר לא ידוע, tools/foi_taxi.py):
+// "מונית שירות · תל אביב יפו ↔ ירושלים", ובתוך עיר אחת — "מונית שירות · אשדוד: מונטיפיורי ↔ הבושם"
+function taxiName(l) {
+  if (!l || l.line || l.tt !== "taxi" || !l.dest) return "";
+  const sides = String(l.dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => {
+    const i = x.lastIndexOf("-");
+    return i > 0 ? { st: x.slice(0, i).trim(), c: x.slice(i + 1).trim() } : { st: x.trim(), c: "" };
+  });
+  const a = sides[0], b = sides[sides.length - 1];
+  a.c = fullCity(a.c, b.c); b.c = fullCity(b.c, a.c);
+  if (a.c && b.c && a.c !== b.c) return "מונית שירות · " + a.c + " ↔ " + b.c;
+  const c = a.c || b.c;
+  const short = (st) => { for (const p of [c, c.replace(/ יפו$/, "")]) if (p && st.startsWith(p + " ")) return st.slice(p.length + 1); return st; };
+  return "מונית שירות · " + (c ? c + ": " : "") + short(a.st) + (b !== a ? " ↔ " + short(b.st) : "");
 }
 function routeTitle(dest, m) {
   if (!dest) return "";
