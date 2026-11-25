@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script src="ui-en.js?v=4"></script>
+<script src="ui-en.js?v=5"></script>
 <script src="../theme-boot.js?v=20261120c" data-inline="off"></script>
 <link rel="stylesheet" href="../dark/line-changes.css?v=20261119">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -48,11 +48,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=45'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=9'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=45'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=10'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=45'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=9'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=45'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=10'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -272,6 +272,11 @@
                 <button type="button" class="lnk" id="bdreset" hidden>לבטל את הבחירה</button>
               </div>
             </details>
+            <div class="btyw" id="bcolw" hidden>
+              <span class="flabel sm">סדר העמודות</span>
+              <ol class="btyl" id="bcoll" aria-label="סדר העמודות"></ol>
+              <button type="button" class="lnk" id="bcolreset" hidden>סדר מקורי</button>
+            </div>
             <div id="bordw">
             <span class="flabel sm">סדר הקווים</span>
             <div class="seg2 tvseg bor" id="borseg" role="radiogroup" aria-label="סדר הקווים">
@@ -425,13 +430,13 @@
 </footer>
 
 <script src="common.js?v=8"></script>
-<script src="app-settings.js?v=4"></script>
+<script src="app-settings.js?v=5"></script>
 <script src="app-edit.js?v=3"></script>
 <script src="app-images.js?v=1"></script>
 <script src="app-export.js?v=7"></script>
 <!-- שמות החברות באנגלית (LCBoardEN.OPS) — גם לרשימת הקווים בממשק באנגלית -->
 <script src="board-en.js?v=3"></script>
-<script src="app.js?v=54"></script>
+<script src="app.js?v=55"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

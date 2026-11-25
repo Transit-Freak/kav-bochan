@@ -138,6 +138,7 @@
       enM = M;
       A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
       daysUi(pages);
+      colsUi(M);
       var bst = A.edits.bstop === 'dir' || A.edits.bstop === 'none' ? A.edits.bstop : 'all';
       A.$('bstseg').querySelectorAll('[data-bst]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bst') === bst ? 'true' : 'false'); });
       A.$('btalseg').querySelectorAll('[data-btal]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-btal') === (A.edits.btal === 'c' ? 'c' : 'r') ? 'true' : 'false'); });
@@ -207,6 +208,26 @@
         '<button type="button" class="bds" data-bds="' + x.iso + '" aria-pressed="' + (x.sep ? 'true' : 'false') + '"' + (x.na || x.off ? ' disabled' : '') + ' aria-label="עמודה נפרדת ל-' + dmT + '">נפרד</button></span>';
     }).join('');
     A.$('bdg').innerHTML = html;
+  }
+  /* סדר העמודות (edits.bcols — מזהי העמודות, LCDeck.boardColId): רשימה עם ↑↓, למעלה — הראשונה בלוח. עמודות "יום חול" מפוצלות —
+     פריט אחד. "סדר מקורי" — רק כשהסדר שונה מהרגיל (לעמודה שזזה יש _i) */
+  var colIds = [];
+  function colsUi(M) {
+    var us = [], lb = {}, sub = {};
+    M.cols.forEach(function (c) {
+      var id = LCDeck.boardColId(c);
+      if (!lb[id]) { us.push(id); lb[id] = c.wk ? M.th.wk : c.label; sub[id] = []; }
+      if (c.wk) sub[id].push(c.label);
+    });
+    colIds = us;
+    A.$('bcolw').hidden = us.length < 2;
+    A.$('bcolreset').hidden = !M.cols.some(function (c) { return c._i != null; });
+    A.$('bcoll').innerHTML = us.length < 2 ? '' : us.map(function (id, i) {
+      var t = (lb[id] || '').trim() || id, nm = A.E(t);
+      return '<li data-bcol="' + A.E(id) + '"><button type="button" class="mv" data-bcol-mv="-1" aria-label="להקדים את העמודה ' + nm + '"' + (i ? '' : ' disabled') + '>↑</button>' +
+        '<button type="button" class="mv" data-bcol-mv="1" aria-label="לאחר את העמודה ' + nm + '"' + (i < us.length - 1 ? '' : ' disabled') + '>↓</button>' +
+        '<b>' + nm + '</b>' + (sub[id].length ? '<small>' + A.E(sub[id].join(' · ')) + '</small>' : '') + '</li>';
+    }).join('');
   }
   /* לוח באנגלית: שמות שאין להם תרגום (M.miss) — מופיעים בעברית. רשימה מעל הלוח עם שדה לשם באנגלית (edits.ben),
      ולפני הורדה, הדפסה או אקסל — אזהרה שצריך לאשר (A.enGate) */
@@ -333,6 +354,20 @@
       if (cw.getAttribute('data-bcw') === 'auto') A.edits.bcw = undefined;
       else if (!A.edits.bcw) { A.edits.bcw = A.bdColsNow() || undefined; if (!A.editMode) setEdit(true); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
+    }
+    // סדר העמודות: ↑↓ ו"סדר מקורי"
+    var cm = ev.target.closest('[data-bcol-mv],#bcolreset');
+    if (cm) {
+      if (cm.id === 'bcolreset') A.edits.bcols = undefined;
+      else {
+        var cs = colIds.slice(), c0 = cm.closest('[data-bcol]').getAttribute('data-bcol'), i2 = cs.indexOf(c0), j2 = i2 + +cm.getAttribute('data-bcol-mv');
+        if (i2 < 0 || j2 < 0 || j2 >= cs.length) return;
+        cs[i2] = cs[j2]; cs[j2] = c0; A.edits.bcols = cs;
+      }
+      saveEdits(); A.keepScroll(function () { A.render(A.curPages); });
+      if (cm.id === 'bcolreset') setTimeout(function () { var f = A.$('bcoll').querySelector('.mv:not(:disabled)'); if (f) f.focus(); }, 0);
+      else setTimeout(function () { var f = A.$('bcoll').querySelector('[data-bcol="' + CSS.escape(c0) + '"] [data-bcol-mv="' + cm.getAttribute('data-bcol-mv') + '"]'); if (f && !f.disabled) f.focus(); }, 0);
+      return;
     }
     // בחירת תאריכים: תאריך (בלוח / לא), "נפרד", הצעה, וביטול
     var dd = ev.target.closest('[data-bdd],[data-bds],[data-bsg],#bdreset');
