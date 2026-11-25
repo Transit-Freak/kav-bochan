@@ -1569,11 +1569,11 @@ def main():
         by_sid[sid].append([rid, v[0], v[1]])
     bunch_stops = {}
     for sid, hrs in B_sh.items():
-        st = stops.get(sid)
-        if not st or not st[2] or sum(v[0] for v in hrs.values()) < 2:
+        so = stops.get(sid)   # לא st — st (רצף התחנות של כל נסיעה) נדרש אחר כך לדוח היציאות
+        if not so or not so[2] or sum(v[0] for v in hrs.values()) < 2:
             continue
         top = sorted(by_sid[sid], key=lambda x: (-x[2], -x[1]))[:4]
-        bunch_stops[st[0]] = [round(st[2], 5), round(st[3], 5), [[h, *v] for h, v in sorted(hrs.items())], top]
+        bunch_stops[so[0]] = [round(so[2], 5), round(so[3], 5), [[h, *v] for h, v in sorted(hrs.items())], top]
     if os.environ.get('BUNCH_DIR'):
         import gzip
         os.makedirs(os.environ['BUNCH_DIR'], exist_ok=True)
