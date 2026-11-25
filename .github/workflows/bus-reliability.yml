@@ -2,7 +2,7 @@ name: bus-reliability
 
 # מדד דיוק האוטובוסים — ריצה לילית על יום השירות של אתמול (tools/bus_reliability.py):
 # GTFS של אותו יום מהארכיון היומי של דאטאבוס ב-S3, ו-SIRI גולמי (קובץ לדקה)
-# מ-S3 — ליום כולו ולשלוש השעות הראשונות של מחרת (נסיעות אחרי חצות). הכל
+# מ-S3 — מ-00:00 בישראל של היום ועד 02:59 UTC של מחרת (נסיעות אחרי חצות). הכל
 # הורדה מ-S3, בלי קריאות ל-API של דאטאבוס. הפלט: bus/data/.
 # הפעלה ידנית: יום בודד, או טווח (from/to) למילוי לאחור.
 #
@@ -109,7 +109,6 @@ jobs:
             fi
             echo "== $d =="
             Y=${d:0:4}; M=${d:5:2}; D=${d:8:2}
-            n=$(date -u -d "$d + 1 day" +%F); NY=${n:0:4}; NM=${n:5:2}; ND=${n:8:2}
             rm -rf siri gtfs.zip; mkdir -p siri
             # GTFS של אותו יום מהארכיון (נופל ל-gov.il אם חסר)
             if ! curl -fsS -o gtfs.zip "$B/gtfs_archive/$Y/$M/$D/israel-public-transportation.zip"; then
@@ -117,13 +116,10 @@ jobs:
               curl -fSL -A "Mozilla/5.0" --retry 5 --retry-delay 30 -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
             fi
             ls -la gtfs.zip | awk '{print "GTFS:", $5}'
-            # SIRI: 24 שעות של היום + 03 שעות של מחר, 16 הורדות במקביל
-            {
-              for h in $(seq -w 0 23); do for m in $(seq -w 0 59); do echo "stride-siri-requester/$Y/$M/$D/$h/$m.br siri/$h/$m.br"; done; done
-              # שלוש השעות הראשונות של מחר נשמרות כ-24/25/26 כדי שהמיון יישאר כרונולוגי
-              for h in 00 01 02; do for m in $(seq -w 0 59); do echo "stride-siri-requester/$NY/$NM/$ND/$h/$m.br siri/$((24 + 10#$h))/$m.br"; done; done
-            } > list.txt
-            mkdir -p siri/{00..23} siri/24 siri/25 siri/26
+            # SIRI: מ-00:00 בישראל של היום (21:00/22:00 UTC של אתמול) עד 02:59 UTC של מחר, 16 הורדות במקביל.
+            # הרשימה מ-siri_hours ב-bus_reliability.py; התיקיות לפי שעת UTC (YYYYMMDDHH) כדי שהמיון יישאר כרונולוגי
+            python3 tools/bus_reliability.py --day "$d" --siri-list > list.txt
+            cut -d' ' -f2 list.txt | xargs -n1 dirname | sort -u | xargs mkdir -p
             cat list.txt | xargs -P 16 -n 2 sh -c 'curl -fsS --retry 3 -o "$1" "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/$0" || true'
             echo "קבצי SIRI: $(find siri -name '*.br' | wc -l) · $(du -sh siri | cut -f1)"
             # אשכולות המכרז של המשרד (ClusterToLine) — מהארכיון של אותו יום, אחרת מ-gov.il, אחרת בלי
