@@ -21,8 +21,9 @@ MonitoredCall {StopPointRef = מק"ט התחנה הבאה, Order = מספרה ה
 
     python3 tools/bus_reliability.py --day 2026-09-01 --gtfs gtfs.zip --siri siri/ --out bus/data
 
-ב-siri/ מצופים קבצי HH/MM.br של היום ושל שלוש השעות הראשונות של מחרת
-(נסיעות אחרי חצות שייכות ליום השירות הקודם — לפי DataFrameRef).
+ב-siri/ מצופים קבצי YYYYMMDDHH/MM.br (שעת UTC) מ-00:00 בישראל של היום ועד 02:59 UTC של מחרת —
+הרשימה: --siri-list (siri_hours). נסיעות אחרי חצות שייכות ליום השירות הקודם — לפי DataFrameRef,
+כך שנסיעות של אתמול שעוד נוסעות אחרי חצות לא נספרות היום.
 פלט: bus/data/days/YYYY-MM-DD.json (מצומצם), bus/data/routes.json (קטלוג),
 bus/data/index.json.
 """
@@ -406,6 +407,32 @@ def il_sec(ts, day):
     t = t.astimezone(IL_TZ)
     d0 = datetime.date.fromisoformat(day)
     return (t.date() - d0).days * 86400 + t.hour * 3600 + t.minute * 60 + t.second
+
+
+SIRI_TAIL_UTC = 3   # מחר: קבצי ה-UTC של 00:00–02:59 (בישראל 02:00/03:00 עד 04:59/05:59) — נסיעות מאוחרות של היום
+
+
+def siri_hours(day, tail_utc=SIRI_TAIL_UTC):
+    """שעות ה-UTC של קובצי ה-SIRI (stride-siri-requester/YYYY/MM/DD/HH, שעון UTC) ליום השירות day:
+    מ-00:00 בישראל של היום (22:00 או 21:00 UTC של אתמול, לפי שעון חורף/קיץ) ועד tail_utc:00 UTC של מחר.
+    (עד 25.11.2026 ההורדה התחילה ב-00:00 UTC של היום — 02:00/03:00 בישראל — והנסיעות שיצאו בין חצות ל-02:00/03:00 לא נקראו.)"""
+    d = datetime.date.fromisoformat(day)
+    utc = datetime.timezone.utc
+    t = datetime.datetime(d.year, d.month, d.day, tzinfo=IL_TZ).astimezone(utc)
+    n = d + datetime.timedelta(days=1)
+    end = datetime.datetime(n.year, n.month, n.day, tail_utc, tzinfo=utc)
+    out = []
+    while t < end:
+        out.append(t)
+        t += datetime.timedelta(hours=1)
+    return out
+
+
+def siri_list(day, folder='siri'):
+    """שורה לכל קובץ דקה: "נתיב ב-S3 נתיב מקומי". התיקייה המקומית לפי שעת UTC (YYYYMMDDHH, כמו בלולאת היום)
+    כדי שהמיון יישאר כרונולוגי גם כשהיום מתחיל באתמול."""
+    return [f'stride-siri-requester/{h:%Y/%m/%d/%H}/{m:02d}.br {folder}/{h:%Y%m%d%H}/{m:02d}.br'
+            for h in siri_hours(day) for m in range(60)]
 
 
 def dep_sec(dep, day):
@@ -1089,7 +1116,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--day', default='')
     ap.add_argument('--gtfs', default='')
-    ap.add_argument('--siri', default='', help='תיקייה עם HH/MM.br (היום + תחילת מחר)')
+    ap.add_argument('--siri', default='', help='תיקייה עם YYYYMMDDHH/MM.br (מ-00:00 בישראל עד תחילת מחר) — ראו --siri-list')
     ap.add_argument('--out', default='bus/data')
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--site', default='.', help='שורש האתר — לקובצי סוגי הרכב (data-main.json, fleet/data)')
@@ -1102,7 +1129,11 @@ def main():
     ap.add_argument('--margin', type=int, default=PARTIAL_MARGIN, help='עם --partial: דקות אחרי הסיום המתוכנן')
     ap.add_argument('--summary', default='', help='עם --partial: האינדקס (ברירת מחדל: OUT/today.json)')
     ap.add_argument('--st-cache', default='', help='pickle של ה-GTFS ורצפי התחנות של היום: נקרא אם קיים, אחרת נכתב')
+    ap.add_argument('--siri-list', action='store_true', help='רק להדפיס את רשימת קובצי ה-SIRI ליום (--day) להורדה, ולצאת')
     a = ap.parse_args()
+    if a.siri_list:
+        print('\n'.join(siri_list(a.day)))
+        return
     if a.clusters_only:
         catalog_path = f'{a.out}/routes.json'
         catalog = json.load(open(catalog_path, encoding='utf-8'))
