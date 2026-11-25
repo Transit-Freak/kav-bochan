@@ -160,7 +160,12 @@
     [/^לו״ז עדכני · (.+)$/, function (m, r) { return 'Current timetable · ' + lines(r); }], [/^לו״ז משולב · (.+)$/, 'Combined timetable · $1'],
     [/^(.+) · (\d+) קווים לאותו יעד, בטבלה אחת$/, '$1 · $2 lines to the same destination, in one table'],
     [/^מ-(\d+\.\d+(?:\.\d+)?)$/, 'from $1'], [/^עד (\d+\.\d+(?:\.\d+)?)$/, 'until $1'], [/^רחוב (.+)$/, 'Street $1'], [/^שכונת (.+)$/, 'Neighbourhood $1'],
-    [/^המצגת שלך: (.+)$/, 'Your slides: $1'],
+    [/^תמונה (\d+) לסטטוס$/, 'Status image $1'], [/^תמונה (\d+)$/, 'Image $1'], [/^\(ועוד (\d+)\)$/, '(and $1 more)'],
+    [/^שיתוף התמונות \(ווטסאפ ועוד\)$/, 'Share the images (WhatsApp and more)'], [/^שיתוף התמונה \(ווטסאפ ועוד\)$/, 'Share the image (WhatsApp and more)'],
+    [/^\+ כל (\d+) (הקווים עם שינוי מסלול|הקווים החדשים|הקווים שמבוטלים|הקווים עם שינוי בלו״ז|הקווים עם שינוי שכבר התחיל)$/, function (m, n, k) {
+      return '+ All ' + n + ' ' + ({ 'הקווים עם שינוי מסלול': 'lines with a route change', 'הקווים החדשים': 'new lines', 'הקווים שמבוטלים': 'cancelled lines',
+        'הקווים עם שינוי בלו״ז': 'lines with a timetable change', 'הקווים עם שינוי שכבר התחיל': 'lines whose change already started' })[k]; }],
+    [/^המצגת שלך: (.+)$/, function (m, a) { return 'Your slides: ' + (a === 'קו אחד' ? 'one line' : a.replace(/^(\d+) קווים$/, '$1 lines')); }],
     // תגיות בתוצאות (tagOf / badge ב-app.js) וכרטיסי "איזה שינוי?"
     // שינוי בלו"ז — הסיכום מהבונה (kind_summary): "יותר נסיעות בימים א׳–ד׳ ו-ו׳–ש׳, פחות נסיעות ביום חמישי"
     [/^(?:(?:יותר נסיעות|פחות נסיעות|שעות אחרות|נסיעות חדשות|בלי נסיעות) (?:בימי חול|בשישי|בשבת|ביום \S+|בימים [^,]+)(?:, |$))+$/, function (m) { return m.split(', ').map(function (x, i) { var t = ttSum(x); return i ? low(t) : t; }).join('; '); }],
