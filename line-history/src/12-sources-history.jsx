@@ -284,7 +284,7 @@ function ModesTab({ idx, openLine, spec }) {
                 {isRemovedYear(l) ? "בוטל — מעל שנה" : "בוטל"}
               </span>
             )}
-            <span className="ldest">{destShow(l.dest)}</span>
+            <span className="ldest">{taxiName(l) || destShow(l.dest)}</span>
             <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.nalt ? l.nalt + " רכבות שונות — בלו״ז שבעמוד הקו" : l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}

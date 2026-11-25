@@ -76,6 +76,12 @@ def main():
         title = f'קו {line} — הקו בזמן' if line else f'{rd} — הקו בזמן'
         desc = (f'ההיסטוריה המלאה של קו {line}' + (f' אל {dest}' if dest else '')
                 + f' · {e.get("op") or ""} · באתר הקו הבוחן').strip(' ·')
+        if not line and e.get('tt') == 'taxi':
+            # מונית שירות בלי מספר קו (נתוני חופש המידע, tools/foi_taxi.py): "מונית שירות · עיר ↔ עיר"
+            ends = [x.rsplit('-', 1)[-1].strip() for x in (e.get('dest') or '').split('<->')]
+            taxi = 'מונית שירות' + (f' · {ends[0]} ↔ {ends[-1]}' if len(ends) == 2 and ends[0] != ends[-1] else '')
+            title = f'{taxi} — הקו בזמן'
+            desc = f'ההיסטוריה של {taxi} · באתר הקו הבוחן'
         url = f'{BASE}/line-history/#{rd}'
         img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{rendered[line]}/line-h{line.encode().hex()}.png'
                if line and line in rendered else f'{BASE}/line-history/og-image.png?v=4')

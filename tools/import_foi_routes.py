@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from compact_lines import compact, materialize  # noqa: E402
 from backfill_tf import classify  # noqa: E402
+import foi_taxi  # noqa: E402
 
 SRC = 'mot-foi'
 YEARS = range(2013, 2018)
@@ -152,7 +153,7 @@ def line_meta(rd, groups, siblings):
     return meta
 
 
-def build(rd, foi_vs, lf, names, siblings, stats):
+def build(rd, foi_vs, lf, names, siblings, stats, lines_dir=None):
     groups = states(foi_vs)
     if not groups:
         return None
@@ -257,6 +258,10 @@ def build(rd, foi_vs, lf, names, siblings, stats):
         return None
     vs.extend(added)
     vs.sort(key=lambda x: x['d'])
+    # מוניות שירות: בלי מספר קו משוער מהמק"ט, ולקווים שהמשיכו ב-GTFS — קישור לממשיך (tools/foi_taxi.py)
+    if foi_taxi.is_foi_taxi(lf):
+        foi_taxi.apply(lf, lines_dir)
+        stats['taxi'] += 1
     stats['versions'] += len(added)
     stats['lines'] += 1
     for v in added:
@@ -288,7 +293,7 @@ def main():
             continue
         p = out / 'lines' / f'{fsafe(rd)}.json'
         lf = json.load(open(p, encoding='utf-8')) if p.exists() else {}
-        res = build(rd, foi[rd], lf, names, siblings, stats)
+        res = build(rd, foi[rd], lf, names, siblings, stats, out / 'lines')
         if res is None:
             stats['noInfo'] += 1
             continue
