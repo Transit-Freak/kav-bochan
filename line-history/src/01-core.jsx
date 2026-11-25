@@ -542,7 +542,9 @@ function matchesRouteSearch(line, query, data, date, prefix = false) {
   let bc = _baseCache.get(line);
   if (!bc) { bc = {}; _baseCache.set(line, bc); }
   const bk = prefix ? "p" : "f";
-  const base = bc[bk] !== undefined ? bc[bk] : (bc[bk] = citySearchNorm((prefix ? [line.dest, line.op, line.tw] : [line.line, line.rd, line.dest, line.op, line.tw]).join(" ")));
+  const base = bc[bk] !== undefined ? bc[bk] : (bc[bk] = citySearchNorm((prefix ? [line.dest, line.op, line.tw] : [line.line, line.rd, line.dest, line.op, line.tw]).join(" ")
+    // "מונית" מוצא את מוניות השירות — בתיאור כתוב "תחנת מוניות", ובמוניות מחופש המידע גם זה לא
+    + (line.tt === "taxi" ? " מונית שירות מוניות" : "")));
   const towns = citySearchText(data, line.rd, date);
   return tokens.every(t => {
     // A line number must not match random digits inside an archive route ID.

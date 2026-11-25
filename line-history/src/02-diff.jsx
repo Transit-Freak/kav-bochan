@@ -284,7 +284,7 @@ const dedupCount = (arr) => {
   (arr || []).forEach((x) => { const k = typeof x === "string" ? x : x[0] + "|" + x[1]; const e = m.get(k); if (e) e.n += 1; else m.set(k, { x, n: 1 }); });
   return [...m.values()];
 };
-function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly, nowNames }) {
+function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly, nowNames, succ }) {
   // בצילומי אתרי המידע לנוסעים לתחנות אין מיקום ([קוד, שם, null, null]) — מפה עם נקודות null
   // קרסה (L.latLngBounds של רשימה ריקה / circleMarker([null,null])) והורידה את כל הדף
   const finite = (s) => Number.isFinite(s[2]) && Number.isFinite(s[3]);
@@ -351,6 +351,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     if (cur.length > 1) {
       L.polyline(cur, planned
         ? { color: "#9f1239", weight: 5, opacity: 0.9, dashArray: "10 8" }   // המסלול שתוכנן ולא נסע — קו מקווקו בין התחנות
+        : succ
+        ? { color: "#0e7490", weight: 5, opacity: 0.85, dashArray: "12 8" }   // המסלול של הקו שהמשיך (מונית מחופש המידע)
         : approx
         ? { color: "#7c3aed", weight: 4, opacity: 0.8, dashArray: "7 9" }   // קו מקורב בין תחנות
         : { color: prev ? "#16a34a" : "#4c1d95", weight: focused ? 3 : 5, opacity: focused ? 0.25 : 0.9 }).addTo(map);
@@ -433,7 +435,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
         .bindPopup(popHtml([p[0], p[1]], "🔴 תחנה שירדה מהקו בגרסה זו"), { className: "lh-pop", offset: [0, -4] });
     });
     return () => { mapRef.current = null; map.remove(); };
-  }, [cur, prev, curStops, prevStops, addedCodes, focus, diff, chStops, focusPts, canFocus, stops12, shape12, remPins, sgO, sgN, plats]);
+  }, [cur, prev, curStops, prevStops, addedCodes, focus, diff, chStops, focusPts, canFocus, stops12, shape12, remPins, sgO, sgN, plats, succ]);
   // סיכום טקסטואלי למי שלא רואה את המפה — המספרים כבר מחושבים ממילא
   const nAdd = (curStops || []).filter((s) => addedCodes && addedCodes.has(s[0])).length;
   const curC = new Set((curStops || []).map((s) => s[0]));
