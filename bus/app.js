@@ -53,11 +53,26 @@ async function gzJson(url, q) {
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
+// היום (שלמה 25.11: "שהיום יהיה אחת האפשרויות בבחירת היום, עם כל המידע כמו בכל יום"): כל 10 דקות
+// .github/workflows/bus-today.yml מחשב את היום עד עכשיו — רק נסיעות שהסתיימו לפי הלו"ז — לאותם קובצי יום
+// (days/D.json, .stops, .dep, .cover, .cities, .regions, מכווצים) ועוד today.json, בענף bus-today. היום מופיע
+// בבחירת היום רק כשהקובץ של היום בישראל ועודכן בשלוש השעות האחרונות; התקופות (7/30 יום) — רק ימים שלמים
+const TODAY_BASE = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan/bus-today/';
+const TODAY_MAX_AGE = 3 * 3600 * 1000, TODAY_EVERY = 5 * 60 * 1000;
+let TODAY = null, TNAMES = {};
+const isTodayD = d => !!TODAY && d === TODAY.d;
+const ilToday = () => new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+function fetchToday() {
+  return fetch(TODAY_BASE + 'today.json?t=' + Math.floor(Date.now() / 60000), {cache: 'no-store'}).then(r => r.ok ? r.json() : null)
+    .then(j => j && j.fmt >= 2 && j.day && j.day.meas > 0 && j.d === ilToday() && Date.now() - new Date(j.updated) < TODAY_MAX_AGE && !DAYS.some(d => d.d === j.d) ? j : null)
+    .catch(() => null);
+}
 function load(url) {
+  if (TODAY && url.startsWith(DATA + 'days/' + TODAY.d + '.')) return gzJson(TODAY_BASE + url.slice(DATA.length), '?t=' + encodeURIComponent(TODAY.updated));
   if (/(^|\/)days\/[^/]+\.json$/.test(url)) return gzJson(url, '?v=' + Date.now());
   return fetch(url + '?v=' + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
 }
-const stopName = code => (NAMES && NAMES[code]) || code;
+const stopName = code => (NAMES && NAMES[code]) || TNAMES[code] || code;
 // יום שבו נצפו פחות מ-30% מהנסיעות המתוכננות — שידור חלקי, מוצג בנפרד
 const partial = d => d.sched > 0 && d.obs < d.sched * 0.3;
 
@@ -173,6 +188,7 @@ function calHtml() {
   const [y, m] = calYM;
   const nDays = new Date(y, m + 1, 0).getDate(), startDow = new Date(y, m, 1).getDay();
   const byD = new Map(DAYS.map(d => [d.d, d]));
+  if (TODAY) byD.set(TODAY.d, TODAY.day);
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push('<span></span>');
   for (let day = 1; day <= nDays; day++) {
@@ -184,7 +200,7 @@ function calHtml() {
     cells.push(`<button class="${cls}" data-d="${iso}" title="${tip}">${day}</button>`);
   }
   const mm = String(m + 1).padStart(2, '0');
-  const canPrev = DAYS[0].d < `${y}-${mm}-01`, canNext = DAYS[DAYS.length - 1].d > `${y}-${mm}-${nDays}`;
+  const canPrev = DAYS[0].d < `${y}-${mm}-01`, canNext = (TODAY ? TODAY.d : DAYS[DAYS.length - 1].d) > `${y}-${mm}-${nDays}`;
   return `<div class="calhead"><button class="cnav" data-nav="-1" title="חודש קודם" ${canPrev ? '' : 'disabled'}>‹</button><b>${HEMONTHS[m]} ${y}</b><button class="cnav" data-nav="1" title="חודש הבא" ${canNext ? '' : 'disabled'}>›</button></div>
     <div class="calgrid">${['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(w => `<i>${w}׳</i>`).join('')}${cells.join('')}</div>
     <div class="calnote">אפור בהיר: אין נתונים · נקודה: שידור חלקי באותו יום</div>`;
@@ -200,29 +216,35 @@ document.addEventListener('click', e => { if (calOpen && !e.target.closest('.dwr
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && calOpen) { calOpen = false; renderCal(); } });
 function renderPeriods() {
   const el = $('#periods');
-  const chips = [['day', 'יום'], ['7', '7 ימים'], ['30', '30 ימים']].filter(([k]) => k === 'day' || DAYS.length >= 3 && (k === '7' || DAYS.length > 7));
+  const chips = [...(TODAY ? [['today', `היום (עד ${TODAY.until})`]] : []), ['day', 'יום'], ['7', '7 ימים'], ['30', '30 ימים']].filter(([k]) => k === 'today' || k === 'day' || DAYS.length >= 3 && (k === '7' || DAYS.length > 7));
   const curD = dayD || DAYS[DAYS.length - 1].d;
+  const pOn = k => k === 'today' ? period === 'day' && isTodayD(curD) : k === 'day' ? period === 'day' && !isTodayD(curD) : period === k;
   if (!calYM) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1];
-  el.innerHTML = `<div class="seg">${chips.map(([k, t]) => `<button class="pchip${period === k ? ' on' : ''}" data-p="${k}">${t}</button>`).join('')}</div>` +
+  el.innerHTML = `<div class="seg">${chips.map(([k, t]) => `<button class="pchip${pOn(k) ? ' on' : ''}" data-p="${k}"${k === 'today' ? ' title="רק נסיעות שהסתיימו לפי הלו״ז — מתעדכן כל כמה דקות"' : ''}>${t}</button>`).join('')}</div>` +
     `<div class="daynav${period === 'day' ? ' on' : ''}"><button id="dprev" title="יום קודם">‹</button><div class="dwrap"><button id="dpick" class="dbtn" title="בחירת יום">${period === 'day' ? heDate(curD) : 'בחירת יום ▾'}</button><div id="cal" class="cal" hidden></div></div><button id="dnext" title="יום הבא">›</button></div>` +
     (period !== 'day' ? `<div class="seg dtseg" role="group" aria-label="סוג יום">${DTYPES.map(([k, t]) => `<button class="pchip${dtype === k ? ' on' : ''}" data-dt="${k}" title="${k ? 'רק ' + DTNAME[k] + ' מתוך התקופה' : 'כל הימים בתקופה'}">${t}</button>`).join('')}</div>` : '');
-  el.querySelectorAll('.pchip[data-p]').forEach(b => b.onclick = () => { period = b.dataset.p; render(); });
+  el.querySelectorAll('.pchip[data-p]').forEach(b => b.onclick = () => {
+    const k = b.dataset.p;
+    if (k === 'today') { dayD = TODAY.d; period = 'day'; }
+    else { period = k; if (k === 'day' && isTodayD(dayD)) dayD = DAYS[DAYS.length - 1].d; }
+    render();
+  });
   el.querySelectorAll('.pchip[data-dt]').forEach(b => b.onclick = () => { dtype = b.dataset.dt; render(); });
-  const setDay = d => { if (!DAYS.some(x => x.d === d)) return; dayD = d; period = 'day'; render(); };
+  const setDay = d => { if (!DAYS.some(x => x.d === d) && !isTodayD(d)) return; dayD = d; period = 'day'; render(); };
   $('#dpick').onclick = e => { e.stopPropagation(); calOpen = !calOpen; if (calOpen) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1]; renderCal(); };
   const cur = () => DAYS.findIndex(x => x.d === curD);
-  $('#dprev').onclick = () => { const i = cur(); if (period !== 'day') setDay(DAYS[DAYS.length - 1].d); else if (i > 0) setDay(DAYS[i - 1].d); };
-  $('#dnext').onclick = () => { const i = cur(); if (period !== 'day') setDay(DAYS[DAYS.length - 1].d); else if (i < DAYS.length - 1) setDay(DAYS[i + 1].d); };
+  $('#dprev').onclick = () => { const i = cur(); if (period !== 'day' || isTodayD(curD)) setDay(DAYS[DAYS.length - 1].d); else if (i > 0) setDay(DAYS[i - 1].d); };
+  $('#dnext').onclick = () => { const i = cur(); if (period !== 'day') setDay(DAYS[DAYS.length - 1].d); else if (i >= 0 && i < DAYS.length - 1) setDay(DAYS[i + 1].d); else if (i === DAYS.length - 1 && TODAY) setDay(TODAY.d); };
   renderCal();
 }
 function windowDays() {
-  if (period === 'day') return DAYS.filter(d => d.d === dayD);
+  if (period === 'day') return isTodayD(dayD) ? [TODAY.day] : DAYS.filter(d => d.d === dayD);
   return DAYS.slice(-Number(period)).filter(d => !partial(d) && (!dtype || dtypeOf(d.d) === dtype));
 }
 
 // ---------------------------------------------------------------- תצוגה
 function heroHtml(a, days) {
-  const title = (days.length === 1 ? heDate(days[0].d) : days.length ? `${shortDate(days[0].d)} – ${shortDate(days[days.length - 1].d)}.${days[days.length - 1].d.slice(0, 4)} · ${days.length} ימים` : '') + (period !== 'day' && dtype ? ' · רק ' + DTNAME[dtype] : '');
+  const title = (days.length === 1 ? heDate(days[0].d) : days.length ? `${shortDate(days[0].d)} – ${shortDate(days[days.length - 1].d)}.${days[days.length - 1].d.slice(0, 4)} · ${days.length} ימים` : '') + (period !== 'day' && dtype ? ' · רק ' + DTNAME[dtype] : '') + (days.length === 1 && isTodayD(days[0].d) ? ` · חלקי — נסיעות שהסתיימו עד ${TODAY.until}` : '');
   const on = a.meas ? pct(a.c[1], a.meas) : '—';
   const oT = a.o.reduce((x, y) => x + y, 0);
   // כל נתון מסביר את עצמו במקום, במשפט פשוט (שלמה 06.09: "לא מובן מה כל דבר אומר")
@@ -576,7 +598,7 @@ function render() {
   if (need.length) {
     app.innerHTML = `<div class="msg">טוען את נתוני הימים…${need.length > 1 ? ` <span id="dprog">0 מתוך ${need.length}</span>` : ''}</div>`;
     let done = 0;
-    Promise.all(need.map(d => load(DATA + 'days/' + d.d + '.json').then(j => { dayCache[d.d] = j; const p = $('#dprog'); if (p) p.textContent = `${++done} מתוך ${need.length}`; }))).then(render).catch(e => { app.innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
+    Promise.all(need.map(d => Promise.all([load(DATA + 'days/' + d.d + '.json'), isTodayD(d.d) ? load(DATA + 'days/' + d.d + '.cat.json').then(todayCat, () => {}) : null]).then(([j]) => { dayCache[d.d] = j; const p = $('#dprog'); if (p) p.textContent = `${++done} מתוך ${need.length}`; }))).then(render).catch(e => { app.innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
     return;
   }
   const loaded = days.map(d => dayCache[d.d]);
@@ -1583,11 +1605,16 @@ function renderDepLine(el) {
 
 function init() {
   $('#method').innerHTML = METHOD;
+  const today = fetchToday();
   Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({})), (SHOW_GPS_FREQ ? load(DATA + 'gps.json').catch(() => null) : null)]).then(([idx, cat, gps]) => {
     IDX = idx; CAT = cat || {}; GPS = gps && gps.v ? gps : null;
     // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
     DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));
     if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין ימים מחושבים.</div>'; $('#sub').textContent = ''; return; }
+    // היום — לא מחכים לו יותר משתי שניות (ענף bus-today ב-GitHub); אם יגיע אחר כך, הוא נוסף לבחירה ברענון
+    return Promise.race([today, new Promise(r => setTimeout(() => r(null), 2000))]).then(j => { TODAY = j && !DAYS.some(d => d.d === j.d) ? j : null; start(); });
+  }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
+  function start() {
     const [h, t, q] = decodeURIComponent((location.hash || '').slice(1)).split('/');
     if (q) { const u = new URLSearchParams(q); if (u.get('stop') && u.get('tile')) STOPQ = {stop: u.get('stop'), tile: u.get('tile'), h: u.has('h') ? +u.get('h') : null};
       if (u.get('line')) openLine = u.get('line');
@@ -1599,13 +1626,30 @@ function init() {
       if (u.get('dag')) depAg = u.get('dag');
       if (u.get('dcl')) depCl = u.get('dcl');
       if (u.get('dl')) depLine = u.get('dl'); }
-    dayD = DAYS.some(d => d.d === h) ? h : DAYS[DAYS.length - 1].d;
+    dayD = DAYS.some(d => d.d === h) || isTodayD(h) ? h : DAYS[DAYS.length - 1].d;
     if (t) tab = t;
     const pm = /^(7|30)(?:-(wk|fri|sat))?$/.exec(h || '');
     period = pm && DAYS.length >= 3 && (pm[1] === '7' || DAYS.length > 7) ? pm[1] : 'day';
     if (pm && period !== 'day') dtype = pm[2] || '';
     render();
-  }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
+    setInterval(() => { if (document.visibilityState === 'visible') refreshToday(); }, TODAY_EVERY);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - todayAt > TODAY_EVERY) refreshToday(); });
+  }
+}
+// מסלולים ותחנות של היום שעוד אין בקטלוג (קו חדש) — מ-days/D.cat.json
+function todayCat(c) { for (const [k, v] of Object.entries((c && c.r) || {})) if (!CAT[k]) CAT[k] = v; TNAMES = (c && c.s) || {}; }
+// רענון: עדכון חדש של היום — אם היום מוצג (ולא מקלידים בחיפוש), נטען מחדש; אחרת רק התווית בבחירת היום
+let todayAt = Date.now();
+function refreshToday() {
+  todayAt = Date.now();
+  fetchToday().then(j => {
+    if ((j && j.updated) === (TODAY && TODAY.updated)) return;
+    const showing = period === 'day' && isTodayD(dayD);
+    if (showing && document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    if (TODAY) [dayCache, stopCache, coverCache, cityCache, regionCache, depCache].forEach(c => { delete c[TODAY.d]; });
+    TODAY = j;
+    if (showing) { if (!TODAY) dayD = DAYS[DAYS.length - 1].d; render(); } else renderPeriods();
+  });
 }
 init();
 

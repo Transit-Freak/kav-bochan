@@ -1,5 +1,8 @@
-"""היום עד עכשיו (--partial) במדד דיוק האוטובוסים: סינון הנסיעות שהסתיימו ובניית הסיכום."""
+"""היום (--partial) במדד דיוק האוטובוסים: סינון הנסיעות שהסתיימו, today.json, ולולאת העדכון של bus-today.yml."""
 import importlib.util
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,11 +15,6 @@ def _load(name):
 
 
 b = _load('bus_reliability')
-
-
-def acc(sched=0, obs=0, c=(0, 0, 0, 0, 0), d=(), o=(0, 0, 0, 0, 0)):
-    c = list(c)
-    return {'sched': sched, 'obs': obs, 'meas': sum(c), 'c': c, 'd': list(d), 'o': list(o)}
 
 
 class FinishedTripsTests(unittest.TestCase):
@@ -36,55 +34,43 @@ class FinishedTripsTests(unittest.TestCase):
         self.assertEqual(set(), b.finished_trips(st, 23 * 3600))
 
 
-class SummaryTests(unittest.TestCase):
-    def setUp(self):
-        self.routes = {
-            'r1': {'short': '1', 'long': 'א<->ב-1#', 'agency': 'אגד', 'mkt': '10001', 'dir': '1'},
-            'r2': {'short': '2', 'long': 'ג<->ד-1#', 'agency': 'דן', 'mkt': '10002', 'dir': '2'},
-            'r3': {'short': '3', 'long': 'ה<->ו-1#', 'agency': 'דן', 'mkt': '10003', 'dir': '1'},
-        }
-        self.R = {
-            'r1': acc(obs=5, c=(0, 30, 0, 0, 0), d=[0] * 30),             # 100% בזמן
-            'r2': acc(obs=4, c=(2, 10, 6, 4, 2), d=[600] * 24),           # 10/24
-            'r3': acc(obs=1, c=(0, 0, 0, 0, 40), d=[1800] * 40),          # נסיעה אחת — לא בדירוג
-        }
-        self.A = {'אגד': acc(sched=6, obs=5, c=(0, 30, 0, 0, 0), d=[0] * 30, o=(0, 5, 0, 0, 0)),
-                  'דן': acc(sched=7, obs=5, c=(2, 10, 6, 4, 42), d=[600] * 24 + [1800] * 40)}
-        self.tot = acc(sched=13, obs=10, c=(2, 40, 6, 4, 42), d=[0] * 30 + [600] * 24 + [1800] * 40, o=(0, 5, 0, 0, 0))
+class IndexTests(unittest.TestCase):
+    def test_index_has_day_row_and_files(self):
+        tot = {'sched': 13, 'obs': 10, 'meas': 94, 'c': [2, 40, 6, 4, 42], 's': [3.9, 1.6, 15.7], 'o': [0, 5, 0, 0, 0],
+               'far': 1, 'extra': 2, 'reach': [1, 2, 3, 4]}
+        j = b.today_index('2026-11-25', 15 * 3600 + 30 * 60, 15 * 3600 + 15 * 60, '2026-11-25T13:30:00Z', 900, tot, b.PARTIAL_FILES)
+        self.assertTrue(j['partial'])
+        self.assertEqual(2, j['fmt'])
+        self.assertEqual(('15:30', '15:15', 900), (j['now'], j['until'], j['minutes']))
+        # שורת היום — כמו שורה ב-index.json (רק השדות של האינדקס)
+        self.assertEqual({'d': '2026-11-25', 'sched': 13, 'obs': 10, 'meas': 94, 'c': [2, 40, 6, 4, 42], 's': [3.9, 1.6, 15.7], 'o': [0, 5, 0, 0, 0]}, j['day'])
+        self.assertIn('days/2026-11-25.json', j['files'])
+        self.assertIn('days/2026-11-25.stops.json', j['files'])
+        self.assertIn('days/2026-11-25.dep.json', j['files'])
+        self.assertNotIn('days/2026-11-25.deadhead.json', j['files'])   # הדף לא קורא
 
-    def build(self, **kw):
-        return b.today_summary('2026-11-25', 15 * 3600 + 30 * 60, 15 * 3600 + 15 * 60, '2026-11-25T13:30:00Z', 900,
-                               self.tot, self.A, self.R, self.routes, [100, 7, 3], {'דן': [60, 5, 2]}, {'r2': [10, 2, 1]},
-                               {7: [50, 40], 8: [44, 0]}, **kw)
 
-    def test_totals_and_times(self):
-        s = self.build()
-        self.assertTrue(s['partial'])
-        self.assertEqual(('15:30', '15:15', 900), (s['now'], s['until'], s['minutes']))
-        self.assertEqual({'sched': 13, 'obs': 10, 'meas': 94}, {k: s['tot'][k] for k in ('sched', 'obs', 'meas')})
-        self.assertEqual(round(40 / 94, 4), s['on'])
-        self.assertEqual(round(2 / 94, 4), s['early'])
-        self.assertEqual([100, 7, 3], s['bunch'])
-        self.assertEqual([[7, 50, 40], [8, 44, 0]], s['hours'])
+class LoopTests(unittest.TestCase):
+    """tools/bus_today_loop.sh בשעון מדומה: בלי GTFS ליום — אין חישוב; יום חדש — מטמון חדש; d ל-GITHUB_OUTPUT."""
+    SH = Path(__file__).parents[1] / 'tools' / 'bus_today_loop.sh'
 
-    def test_agencies_sorted_by_measurements_with_bunching(self):
-        s = self.build()
-        self.assertEqual(['דן', 'אגד'], [a[0] for a in s['agencies']])
-        self.assertEqual([60, 5, 2], s['agencies'][0][7])
-        self.assertEqual([0, 0, 0], s['agencies'][1][7])
+    def run_loop(self, tmp, now, until):
+        env = dict(os.environ, CACHE=f'{tmp}/cache', INTERVAL='1', DRY='1', NOW_CMD=f'echo {now}', GITHUB_OUTPUT=f'{tmp}/out',
+                   B='http://127.0.0.1:9')   # אין שרת — ה-GTFS "עוד לא עלה"
+        return subprocess.run(['bash', str(self.SH), 'run', str(until)], cwd=tmp, env=env, capture_output=True, text=True, timeout=60)
 
-    def test_worst_lines_need_enough_rides_and_are_worst_first(self):
-        s = self.build()
-        self.assertEqual(['r2', 'r1'], [w[0] for w in s['worst']])   # r3 — נסיעה אחת בלבד
-        w = s['worst'][0]
-        self.assertEqual(['2', 'דן', 4, 24, 10.0, [10, 2, 1]], [w[1], w[3], w[6], w[7], w[9], w[10]])
-        self.assertEqual(['r2'], [w[0] for w in self.build(top=1)['worst']])
-
-    def test_empty_day(self):
-        s = b.today_summary('2026-11-25', 3600, 2700, 'x', 60, acc(), {}, {}, {}, [0, 0, 0], {}, {}, {})
-        self.assertIsNone(s['on'])
-        self.assertEqual([], s['worst'])
-        self.assertEqual([None, None, None], s['tot']['s'])
+    def test_midnight_starts_fresh_cache_and_reports_day(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(f'{tmp}/cache/siri/2026112421')
+            Path(f'{tmp}/cache/day').write_text('2026-11-24\n')
+            Path(f'{tmp}/cache/siri/2026112421/50.br').write_text('x')
+            now = 1795645800          # 2026-11-26 00:30 בישראל
+            r = self.run_loop(tmp, now, now + 1)   # עדכון אחד ויציאה
+            self.assertEqual(0, r.returncode, r.stderr)
+            self.assertEqual('2026-11-26', Path(f'{tmp}/cache/day').read_text().strip())
+            self.assertFalse(os.path.exists(f'{tmp}/cache/siri/2026112421'))
+            self.assertIn('d=2026-11-26', Path(f'{tmp}/out').read_text())
+            self.assertFalse(os.path.exists(f'{tmp}/cache/last'))   # בלי GTFS אין עדכון
 
 
 if __name__ == '__main__':
