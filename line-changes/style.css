@@ -85,6 +85,9 @@ button,input,textarea,select{font-family:inherit}
 .steps .back[hidden]{display:none}
 @media (max-width:560px){
   .steps ol button:not([aria-current="step"]) span{display:none}
+  /* השלב הנוכחי ברוחב הטקסט שלו — שהקו בין השלבים לא יעבור על המילים ("איזה שינוי?") */
+  .steps li:has(button[aria-current="step"]){flex:none}
+  .steps ol button[aria-current="step"] span{white-space:nowrap}
   .steps ol button{padding:var(--sp1) var(--sp2)}
   .steps .back{padding:0 var(--sp3)}
 }

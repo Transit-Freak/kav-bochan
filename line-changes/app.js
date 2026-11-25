@@ -752,9 +752,15 @@
       return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: c.kind ? null : sm,
         kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind, basis: c.inferred ? null : c.basis, inferred: c.inferred });
     }).join('');
-    // שינוי מהארכיון שכבר יש לו רישום מלא (גם לפי התאריך של כיוון אחד) — פעם אחת
+    // שינוי מהארכיון שכבר יש לו רישום מלא (גם לפי התאריך של כיוון אחד) — פעם אחת.
+    // הארכיון רושם את יום הפרסום של קובץ הלו"ז, והרישום המלא את היום הראשון שהשינוי נוסע — עד שבועיים אחרי
+    // (קו 175 של קווים: בארכיון 15.11, ובפועל מ-20.11). מעבר ל-3 ימים — רק כשסוג השינוי מתאים
     var pastEv = clusterPast(recentPast(l)).filter(function (g) {
-      return !l.up.some(function (c) { return !c.kind && [c.formal || c.eff].concat(c.dirs.map(function (d) { return d.eff; })).some(function (x) { return x && Math.abs(LC.daysBetween(x, g.d)) <= 3; }); });
+      return !l.up.some(function (c) { return !c.kind && [c.formal || c.eff].concat(c.dirs.map(function (d) { return d.eff; })).some(function (x) {
+        if (!x) return false;
+        var dd = LC.daysBetween(g.d, x);   // כמה ימים מהארכיון עד הרישום המלא
+        return Math.abs(dd) <= 3 || (dd > 3 && dd <= 14 && pastFits(g, c));
+      }); });
     });
     html += pastEv.map(function (g) {
       return card({ key: 'p-' + l.makat + '-' + g.d, date: g.d, past: true, kinds: g.kinds, dirs: g.rests.length });
@@ -777,6 +783,14 @@
         if (sz && p) sz.textContent = LCDeck.smallInfo(p).small ? 'שינוי קטן — עמוד אחד' : 'שינוי גדול — מצגת מלאה';
       });
     });
+  }
+  /* האם שינוי מהארכיון מתאים לרישום מלא: תחנות שנוספו / בוטלו כמו בשינוי, או שינוי דרך כשהדרך השתנתה */
+  function pastFits(g, c) {
+    var t = c.tot || {}, k = g.kinds;
+    if (k['stops-add'] && !t.add) return false;
+    if (k['stops-del'] && !t.rem) return false;
+    if ((k.route || k.extend || k.shorten || k.terminal) && !t.geo && !t.ext) return false;
+    return true;
   }
   function clusterPast(ev) {
     var out = [];
