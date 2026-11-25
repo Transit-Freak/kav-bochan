@@ -53,7 +53,6 @@
  "line-history": {
   "name": "הקו בזמן",
   "versions": [
-      {"v": "4.20", "d": "2026-11-25", "items": ["מוניות שירות מהשנים 2014–2019 מסומנות כמוניות, בלי מספר קו משוער", "במוניות שהמשיכו בקו אחר: קישור לקו החדש והמסלול שלו במפה"]},
       {"v": "4.19", "d": "2026-11-22", "items": ["מקור חדש בשינויים לפי חודש: הודעות דן ואגד על שינויים בקווים מ-2000 עד 2012", "תיקונים במספרי השינויים בדף הראשי, בכפתור \"הצג עוד\" ובחיפוש ב-2012"]},
       {"v": "4.18", "d": "2026-11-21", "items": ["בשינויים לפי חודש: המקור של כל חודש מסומן בצבע משלו, ומקורות 2012 מופיעים רק כשבוחרים 2012"]},
       {"v": "4.17", "d": "2026-11-18", "items": ["היסטוריה מ-2013 לפי נתוני משרד התחבורה"]},
@@ -108,7 +107,7 @@
  "bus": {
   "name": "מדד דיוק האוטובוסים",
   "versions": [
-      {"v": "3.3", "d": "2026-11-25", "items": ["אפשר לבחור את היום — מתעדכן כל כמה דקות", "נסיעות שיוצאות בין חצות ל-02:00 נספרות עכשיו"]},
+      {"v": "3.3", "d": "2026-11-25", "items": ["אפשר לבחור את היום — מתעדכן כל כמה דקות"]},
       {"v": "3.2", "d": "2026-11-23", "items": ["הוסרה \"תדירות שידור מיקום\" — הנתון לא היה מדויק; אמינות השידורים נשארה", "בלשונית הסדרנים: למה הנסיעות יצאו באיחור", "נסיעות מנהליות בין מסופים נספרות בסיבות האיחור", "סינון לפי סוג יום: חול, שישי, מוצ״ש", "לשונית לפי תחנה", "דוח יציאות לקו"]},
       {"v": "3.1", "d": "2026-11-17", "items": ["תיקון: מאז 25.10 חלק גדול מהנסיעות לא נמדדו — הימים האלה חושבו מחדש"]},
       {"v": "3.0", "d": "2026-11-06", "items": ["עיצוב חדש לכל הדף", "תיקונים בעיצוב בטלפון"]},
@@ -235,7 +234,7 @@
  "line-changes": {
   "name": "מצגת לשינוי בקו", "name_en": "Line change slides",
   "versions": [
-      {"v": "2.1", "d": "2026-11-25", "items": ["שינוי שמופיע גם בארכיון מוצג פעם אחת", "בטלפון שם השלב לא נחתך", "סידור ידני של עמודות הלוח", "תיקונים בתרגום לאנגלית", "לו״ז עדכני מציג רק את הלו״ז שבתוקף עכשיו, עם אפשרות להוסיף את הלו״ז החדש"], "en": ["A change that also appears in the archive is shown once", "On phones the step name is no longer cut off", "Manual column order on the board", "English translation fixes", "Current timetable shows only the timetable in effect now, with an option to add the new one"]},
+      {"v": "2.1", "d": "2026-11-25", "items": ["שינוי שמופיע גם בארכיון מוצג פעם אחת", "בטלפון שם השלב לא נחתך", "סידור ידני של עמודות הלוח", "תיקונים בתרגום לאנגלית", "לו״ז עדכני מציג רק את הלו״ז שבתוקף עכשיו, עם אפשרות להוסיף את הלו״ז החדש", "תיקון: עריכת הכותרת של תאריך נפרד לא משנה את כותרת היום הרגיל"], "en": ["A change that also appears in the archive is shown once", "On phones the step name is no longer cut off", "Manual column order on the board", "English translation fixes", "Current timetable shows only the timetable in effect now, with an option to add the new one", "Fix: editing a separated date's header no longer changes the regular day's header"]},
       {"v": "2.0", "d": "2026-11-24", "items": ["ממשק באנגלית, והמצגת כולה באנגלית, כולל המפה: עורכים בעברית או באנגלית ומדפיסים באנגלית", "המקרא וההערה על נסיעות בסימן ועל ×2 — רק בעמוד שיש בו כאלה", "אפשרויות חדשות בלוח הזמנים: בלי מפעיל, בלי תאריך סיום, בחירת תאריכים עם הצעות לחגים ולימים חריגים, הפרדת קווים עם אות ובלי סימון כפולות", "בסיכום התחנות של שינוי בשני הכיוונים כתוב \"בשני הכיוונים\"", "נסיעה שזזה בעד חצי שעה מופיעה כנסיעה שזזה (\"נדחה מ-\"), לא כנסיעה חדשה ונסיעה שבוטלה", "רשימת הקווים באנגלית", "תיקון לכפתור החזרה ולכפתורים בטלפון"], "en": ["English interface, and the whole presentation in English, including the map: edit in Hebrew or English, print in English", "The legend and note on marked trips and on ×2 — only on a page that has them", "New timetable options: hide the operator, hide the end date, choose dates with suggestions for holidays and unusual days, separate lettered lines, hide double-trip marks", "Stop totals for a change in both directions now say \"in both directions\"", "A trip moved by up to half an hour is shown as retimed, not as a new trip plus a cancelled one", "Line list in English", "Fixed the back button and other buttons on phones"]},
       {"v": "1.6", "d": "2026-11-23", "items": ["קו שמשתנה השבוע: לוח עד השינוי ולוח מהשינוי", "סימון חלופות בסימן לפני השעה (#07:00) במקום אותיות, ובמקרא רק הסימן"], "en": ["A line changing this week: a board until the change and a board from the change", "Variants marked with a symbol before the time (#07:00) instead of letters, and only the symbol in the legend"]},
       {"v": "1.5", "d": "2026-11-22", "items": ["לוח מודעות: עיצוב כמו בוורד — יישור, צבעים ורקע לכותרת, לשורה ולתא, מסרגל העריכה", "לוח מודעות: מעבר לעמוד הבא, וכותרת רק בעמוד הראשון", "מספר הקו בשני הצבעים של החברה", "קובץ האקסל שומר את העיצוב של הלוח", "אפשר להוריד את הקרדיט גם מלוח זמני הנסיעות"], "en": ["Board: Word-like formatting — alignment, colours and background for the title, row and cell, from the edit toolbar", "Board: page break, and title on the first page only", "Line number in both operator colours", "The Excel file keeps the board formatting", "The credit can also be removed from the timetable board"]},

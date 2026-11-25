@@ -434,6 +434,18 @@ test('בחירת תאריכים: עמודה נפרדת לכל מוצ״ש, עם �
   assert.deepEqual(J(M2.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'מוצאי שבת', 'מוצאי שבת 5.12']);
 });
 
+test('בחירת תאריכים: לכותרת של תאריך נפרד מפתח עריכה משלה — עריכה שלה לא משנה את כותרת היום הרגיל', () => {
+  const T = ctx.LCDeck._test, p = datePage(), sep = { bsplit: false, bdays: { sep: { '2026-11-27': 1 } } };
+  const keys = (M) => [...T.bdTable(M, '', ' ').matchAll(/data-bk="([^"]+)"/g)].map((m) => m[1]);
+  const M = ctx.LCDeck.boardModel([p], sep);
+  assert.deepEqual(J(M.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'יום שישי 27.11', 'מוצאי שבת']);
+  assert.deepEqual(keys(M), ['th:line', 'th:orig', 'th:01234', 'th:5', 'th:d2026-11-27', 'th:6'], 'היום הרגיל — אותו מפתח כמו קודם');
+  const A = ctx.LCDeck.boardModel([p], { ...sep, bd: { t: { 'th:d2026-11-27': 'שישי השחור' } } });
+  assert.deepEqual(J(A.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'יום שישי', 'שישי השחור', 'מוצאי שבת']);
+  const B = ctx.LCDeck.boardModel([p], { ...sep, bd: { t: { 'th:5': 'שישי' } } });
+  assert.deepEqual(J(B.cols.map((c) => c.label)), ['ימים א׳–ה׳', 'שישי', 'יום שישי 27.11', 'מוצאי שבת']);
+});
+
 test('רשימת התאריכים והצעות: לו"ז חריג ביום ראשון — הצעה להוציא; לחיצה — כלום לא משתנה עד שמחילים', () => {
   const p = datePage(), ds = ctx.LCDeck.boardDates([p], {});
   assert.equal(ds.length, 14); assert.equal(ds[0].iso, '2026-11-24');
