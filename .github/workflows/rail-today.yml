@@ -1,0 +1,183 @@
+name: rail-today
+
+# מדד אמינות הרכבת — "היום עד עכשיו": היום הנוכחי (לפי השעון בישראל) כיום רגיל בבורר הימים, מתעדכן כל 10 דקות.
+# אותו חישוב של הריצה הלילית (tools/rail_reliability.py) במצב --partial: רק רכבות שהגיעו ליעד לפי הלו"ז לפחות
+# 45 דקות לפני "עכשיו". הפלט באותם מבנים כמו rail/data: day.json (כמו days/D.json) ו-summary.json (רשומה של index.json).
+#
+# GitHub לא מפעיל כאן cron של כל 10 דקות, ולכן ריצה אחת היא לולאה של כ-5:45 שעות (tools/rail_today_loop.sh): סבב כל
+# 10 דקות, שמירת המטמון בכל שעה ובסוף, ובסיום — הזנקת הריצה הבאה (שרשור, כמו ב-rail-reliability.yml).
+# cron שעתי רק כגיבוי שמתניע את השרשרת אם נקטעה. concurrency מבטיח ריצה אחת בכל פעם: ריצה שהוזנקה בזמן
+# שאחרת רצה ממתינה לסיומה, ואם בכל זאת רצה אחרת — יוצאים מיד.
+#
+# המטמון (actions/cache, מפתח rail-today-<התאריך בישראל>-…): מכל דקת SIRI נשמרים רק שידורי רכבת ישראל (כ-2KB),
+# והלו"ז של הרכבת ליום — כ-2MB ליום שלם. מטמונים ישנים של rail-today נמחקים בסוף.
+#
+# פרסום בלי פריסה של האתר ובלי להגדיל את main: summary.json ו-day.json נדחפים (force) כ-commit יחיד בענף rail-today,
+# והדף rail/ קורא אותם מ-raw.githubusercontent.com.
+
+on:
+  schedule:
+    - cron: '17 * * * *'   # גיבוי בלבד — הריצה עצמה היא לולאה שמזניקה את הבאה
+  workflow_dispatch:
+
+permissions:
+  contents: write    # דחיפה לענף rail-today
+  actions: write     # מחיקת מטמונים ישנים והזנקת הריצה הבאה
+
+concurrency:
+  group: rail-today
+  cancel-in-progress: false
+
+jobs:
+  today:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: ריצה אחרת כבר פעילה?
+        id: guard
+        run: |
+          others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow rail-today.yml --status in_progress --json databaseId \
+            --jq "[.[] | select(.databaseId != ${GITHUB_RUN_ID})] | length") || others=0
+          if [ "${others:-0}" != "0" ]; then echo "ריצה אחרת של rail-today פעילה — יוצאים"; echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "stop=$(( $(date +%s) + 345 * 60 ))" >> "$GITHUB_OUTPUT"
+          echo "d=$(TZ=Asia/Jerusalem date +%F)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip != '1'
+        with:
+          sparse-checkout: tools
+          fetch-depth: 1
+
+      - name: המטמון של היום
+        if: steps.guard.outputs.skip != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.guard.outputs.d }}-${{ github.run_id }}
+          restore-keys: rail-today-${{ steps.guard.outputs.d }}-
+
+      - name: תלויות
+        if: steps.guard.outputs.skip != '1'
+        run: pip install -q brotli
+
+      - name: לולאה — שעה 1
+        id: loop1
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 5 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 1
+        if: ${{ !cancelled() && steps.loop1.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop1.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-1
+
+      - name: לולאה — שעה 2
+        id: loop2
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 4 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 2
+        if: ${{ !cancelled() && steps.loop2.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop2.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-2
+
+      - name: לולאה — שעה 3
+        id: loop3
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 3 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 3
+        if: ${{ !cancelled() && steps.loop3.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop3.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-3
+
+      - name: לולאה — שעה 4
+        id: loop4
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 2 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 4
+        if: ${{ !cancelled() && steps.loop4.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop4.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-4
+
+      - name: לולאה — שעה 5
+        id: loop5
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 1 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 5
+        if: ${{ !cancelled() && steps.loop5.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop5.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-5
+
+      - name: לולאה — שעה 6
+        id: loop6
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        env:
+          STOP: ${{ steps.guard.outputs.stop }}
+        run: |
+          s=$(( STOP - 0 * 3600 ))
+          [ "$(date +%s)" -lt "$s" ] || { echo "הזמן נגמר"; exit 0; }
+          bash tools/rail_today_loop.sh "$s"
+
+      - name: שמירת המטמון — שעה 6
+        if: ${{ !cancelled() && steps.loop6.outputs.d != '' && hashFiles('cache/**') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: rail-today-${{ steps.loop6.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}-6
+
+      - name: מחיקת מטמונים ישנים
+        if: ${{ always() && steps.guard.outputs.skip != '1' }}
+        run: |
+          # משאירים רק את המטמון האחרון שנשמר בריצה הזו (rail-today-*, לא נוגעים במטמונים של אחרים).
+          # אם לא נשמר כלום — לא מוחקים, כדי לא לאבד את מה שכבר הורד
+          pre="rail-today-"
+          keys=$(gh api "repos/$GITHUB_REPOSITORY/actions/caches?key=$pre&per_page=100&sort=created_at&direction=desc" --jq '.actions_caches[] | "\(.id) \(.key)"') || exit 0
+          KEEP=$(echo "$keys" | awk -v r="-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-" 'index($2, r) {print $2; exit}')
+          [ -n "$KEEP" ] || { echo "לא נמצא מטמון של הריצה הזו — לא מוחקים"; exit 0; }
+          echo "$keys" | while read -r id key; do
+            case "$key" in rail-today-*) ;; *) continue ;; esac
+            [ -n "$id" ] && [ "$key" != "$KEEP" ] && gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" >/dev/null && echo "נמחק $key"
+          done || true
+
+      - name: הזנקת הריצה הבאה
+        if: ${{ !cancelled() && steps.guard.outputs.skip != '1' }}
+        run: gh workflow run rail-today.yml -R "$GITHUB_REPOSITORY" --ref main

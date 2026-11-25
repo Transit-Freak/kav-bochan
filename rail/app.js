@@ -9,14 +9,14 @@ const C = Object.assign({ok: '#3DD68C', warn: '#F6B93B', late: '#FB8A4B', bad: '
 const BCOL = [C.ok, C.warn, C.late, C.bad];
 const GRID = C.grid, AXIS = C.axis, BG = C.bg;
 const DAYNAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-let IDX = null, ST = {}, SEG = {}, DAYS = [], period = '30', dayD = null, dayData = null, dayCache = {};
+let IDX = null, ST = {}, SEG = {}, DAYS = [], HIST = [], TODAY = null, period = '30', dayD = null, dayData = null, dayCache = {};
 let sortL = {k: 'rides', dir: -1}, sortS = {k: 'rides', dir: -1}, rq = '', rfilter = 'all', showAll = false;
 const $ = (s, el) => (el || document).querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
 const fmt1 = v => v == null ? '—' : (Math.round(v * 10) / 10).toLocaleString('he-IL', {minimumFractionDigits: 1, maximumFractionDigits: 1});
 const num = v => v == null ? '—' : Number(v).toLocaleString('he-IL');
-const heDate = d => { const [y, m, dd] = d.split('-'); return `${DAYNAMES[new Date(+y, m - 1, +dd).getDay()]}, ${+dd}.${+m}.${y}`; };
+const heDate = d => { if (TODAY && d === TODAY.d) return `היום (עד ${TODAY.now})`; const [y, m, dd] = d.split('-'); return `${DAYNAMES[new Date(+y, m - 1, +dd).getDay()]}, ${+dd}.${+m}.${y}`; };
 const shortDate = d => { const [, m, dd] = d.split('-'); return `${+dd}.${+m}`; };
 const hhmm = m => m == null ? '—' : `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const bucketOf = v => v == null ? -1 : v <= 5 ? 0 : v <= 10 ? 1 : v <= 20 ? 2 : 3;
@@ -79,11 +79,12 @@ function aggregate(days) {
 }
 // יום שבו דאטאבוס קלט שידורים מפחות ממחצית הרכבות (16.08: 17 מתוך 660) —
 // המדד שלו אינו מייצג: מוחרג מצבירות התקופה, מסומן בגרף כפער, ומוצג בנפרד
-const partial = d => d.rides > 0 && d.fix < d.rides * 0.5;
+const partial = d => !d.today && d.rides > 0 && d.fix < d.rides * 0.5;
+// היום עד עכשיו (TODAY, מהענף rail-today) — יום לבחירה בבורר הימים, אבל לא בצבירות התקופה ובמגמות
 function windowDays() {
   if (period === 'day') return DAYS.filter(d => d.d === dayD);
-  if (period === 'all') return DAYS;
-  return DAYS.slice(-Number(period));
+  if (period === 'all') return HIST;
+  return HIST.slice(-Number(period));
 }
 function selectedDays() { return period === 'day' ? windowDays() : windowDays().filter(d => !partial(d)); }
 
@@ -186,8 +187,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && calOpen) {
 
 function renderPeriods() {
   const el = $('#periods');
-  const chips = [['7', '7 ימים'], ['30', '30 ימים'], ['90', '90 ימים'], ['all', 'כל התקופה']].filter(([k]) => k === 'all' || DAYS.length > Number(k) || k === '7');
-  const curD = dayD || DAYS[DAYS.length - 1].d;
+  const chips = [['7', '7 ימים'], ['30', '30 ימים'], ['90', '90 ימים'], ['all', 'כל התקופה']].filter(([k]) => k === 'all' || HIST.length > Number(k) || k === '7');
+  const curD = dayD || HIST[HIST.length - 1].d;
   if (!calYM) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1];
   el.innerHTML = `<div class="seg">${chips.map(([k, t]) => `<button class="pchip${period === k ? ' on' : ''}" data-p="${k}">${t}</button>`).join('')}</div>` +
     `<div class="daynav${period === 'day' ? ' on' : ''}"><button id="dprev" title="יום קודם">‹</button><div class="dwrap"><button id="dpick" class="dbtn" title="בחירת יום">${period === 'day' ? heDate(curD) : 'בחירת יום ▾'}</button><div id="cal" class="cal" hidden></div></div><button id="dnext" title="יום הבא">›</button></div>`;
@@ -195,8 +196,8 @@ function renderPeriods() {
   const setDay = d => { if (!DAYS.some(x => x.d === d)) return; dayD = d; period = 'day'; render(); };
   $('#dpick').onclick = e => { e.stopPropagation(); calOpen = !calOpen; if (calOpen) calYM = [Number(curD.slice(0, 4)), Number(curD.slice(5, 7)) - 1]; renderCal(); };
   const cur = () => DAYS.findIndex(x => x.d === curD);
-  $('#dprev').onclick = () => { const i = cur(); if (period !== 'day') setDay(DAYS[DAYS.length - 1].d); else if (i > 0) setDay(DAYS[i - 1].d); };
-  $('#dnext').onclick = () => { const i = cur(); if (period !== 'day') setDay(DAYS[DAYS.length - 1].d); else if (i < DAYS.length - 1) setDay(DAYS[i + 1].d); };
+  $('#dprev').onclick = () => { const i = cur(); if (period !== 'day') setDay(HIST[HIST.length - 1].d); else if (i > 0) setDay(DAYS[i - 1].d); };
+  $('#dnext').onclick = () => { const i = cur(); if (period !== 'day') setDay(HIST[HIST.length - 1].d); else if (i < DAYS.length - 1) setDay(DAYS[i + 1].d); };
   renderCal();
 }
 
@@ -301,11 +302,12 @@ function render() {
   const days = selectedDays();
   const A = aggregate(days);
   const app = $('#app');
-  const last = DAYS[DAYS.length - 1];
-  $('#sub').innerHTML = `כל רכבת שבלו״ז של רכבת ישראל מול המיקום ששידרה בפועל, מנתוני <b>דאטאבוס</b>. שני מספרים: כמה רכבות הגיעו <b>ליעד</b> בזמן (עד 5 דקות איחור בתחנה האחרונה שנמדדה), וכמה מההגעות <b>לתחנות</b>, כולל תחנות הביניים, היו בזמן. ${DAYS.length > 1 ? `נתונים מ-${heDate(DAYS[0].d)} עד ${heDate(last.d)}` : `נתונים ל${heDate(last.d)}`} · מתעדכן כל לילה.`;
+  const last = HIST[HIST.length - 1];
+  $('#sub').innerHTML = `כל רכבת שבלו״ז של רכבת ישראל מול המיקום ששידרה בפועל, מנתוני <b>דאטאבוס</b>. שני מספרים: כמה רכבות הגיעו <b>ליעד</b> בזמן (עד 5 דקות איחור בתחנה האחרונה שנמדדה), וכמה מההגעות <b>לתחנות</b>, כולל תחנות הביניים, היו בזמן. ${HIST.length > 1 ? `נתונים מ-${heDate(HIST[0].d)} עד ${heDate(last.d)}` : `נתונים ל${heDate(last.d)}`} · מתעדכן כל לילה.`;
   const skipped = period === 'day' ? [] : windowDays().filter(partial);
   let html = '';
   if (period === 'day' && days[0] && partial(days[0])) html += `<div class="warn">ביום זה דאטאבוס קלט שידורי מיקום רק מ-${num(days[0].fix)} מתוך ${num(days[0].rides)} רכבות שבלו״ז. המספרים של היום הזה אינם מייצגים, והוא אינו נכלל בממוצעי התקופה.</div>`;
+  if (period === 'day' && days[0] && days[0].today) html += `<div class="warn">חלקי — רכבות שסיימו עד ${esc(days[0].until)}</div>`;
   html += heroHtml(A.acc, days);
   if (skipped.length) html += `<div class="warn">לא נכללו ${skipped.length} ימים שבהם דאטאבוס קלט שידורים מפחות ממחצית הרכבות: ${skipped.map(d => `${shortDate(d.d)} (${num(d.fix)} מתוך ${num(d.rides)})`).join(', ')}.</div>`;
   html += `<div class="tabbar" id="tabbar" role="tablist">${TABS.filter(([k]) => k !== 'rides' || period === 'day').map(([k, t]) => { const b = tabBadge(k, A, days); return `<a class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}" href="${railHref(k)}">${t}${b ? `<small>${b}</small>` : ''}</a>`; }).join('')}</div>`;
@@ -347,7 +349,7 @@ function render() {
 
 function loadDay(d) {
   if (dayCache[d]) { dayData = dayCache[d]; return Promise.resolve(dayData); }
-  return load(`${T.data}days/${d}.json`).then(j => { dayCache[d] = j; dayData = j; return j; }).catch(() => { dayData = null; });
+  return load(TODAY && d === TODAY.d ? TODAY_URL + 'day.json' : `${T.data}days/${d}.json`).then(j => { dayCache[d] = j; dayData = j; return j; }).catch(() => { dayData = null; });
 }
 // שורת תחנה בקובץ היום: [קוד, זמן מתוכנן (דקות מתחילת היום), איחור הגעה, מרחק השידור הקרוב]
 // r.fi = התחנה האחרונה שנמדדה; האיחור בה הוא איחור הנסיעה
@@ -637,16 +639,25 @@ const METHOD = `<p class="ptitle">איך המדד מחושב</p>
     <p><b>הגעות בזמן לתחנות:</b> כל הגעה לכל תחנה, כמו במדד האוטובוסים.</p>
     <p><b>לא נמדד:</b> היציאה מתחנת המוצא, כי המיקום נתקע בתחנה גם אחרי שהרכבת יצאה. רכבת בלי שום שידור לא נספרת כאיחור ולא כביטול, ומוצגת בנפרד.</p>`;
 const methodEl = $('#method'); if (methodEl) methodEl.innerHTML = METHOD;
-Promise.all([load(T.data + 'index.json'), load(T.data + 'stations.json').catch(() => ({})), load(T.data + 'segments.json').catch(() => ({}))]).then(([idx, st, seg]) => {
-  IDX = idx; ST = st || {}; SEG = (seg && seg.segments) || {}; DAYS = (idx.days || []).filter(d => d.rides).sort((a, b) => a.d < b.d ? -1 : 1);
+// היום עד עכשיו: נבנה כל 10 דקות ב-.github/workflows/rail-today.yml (tools/rail_reliability.py --partial) ונדחף לענף
+// rail-today — summary.json (רשומה כמו ב-index.json) ו-day.json (כמו days/D.json)
+const TODAY_URL = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan/rail-today/';
+const ilDate = () => new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Jerusalem'}).format(new Date());
+Promise.all([load(T.data + 'index.json'), load(T.data + 'stations.json').catch(() => ({})), load(T.data + 'segments.json').catch(() => ({})), load(TODAY_URL + 'summary.json').catch(() => null)]).then(([idx, st, seg, td]) => {
+  IDX = idx; ST = st || {}; SEG = (seg && seg.segments) || {}; HIST = (idx.days || []).filter(d => d.rides).sort((a, b) => a.d < b.d ? -1 : 1);
+  DAYS = HIST.slice();
+  if (td && td.rides && td.d === ilDate() && Date.now() - Date.parse(td.updated) < 3 * 3600e3 && HIST.length && !HIST.some(d => d.d === td.d)) {
+    TODAY = Object.assign(td, {today: true}); DAYS.push(TODAY);
+    for (const [c, v] of Object.entries(td.st || {})) if (!ST[c]) ST[c] = v;
+  }
   if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין נתונים — הריצה הראשונה מתבצעת הלילה</div>'; $('#sub').textContent = ''; return; }
   const [h, t0, q0] = location.hash.replace('#', '').split('/');
   const u = new URLSearchParams(q0 || '');
   if (t0) tab = t0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(h) && DAYS.some(d => d.d === h)) { period = 'day'; dayD = h; }
   else if (['7', '30', '90', 'all'].includes(u.get('p'))) period = u.get('p');
-  else if (DAYS.length <= 30) period = 'all';   // כל עוד אין יותר מחודש, 'כל התקופה' היא ברירת המחדל (הכפתור 30 ימים מוסתר)
-  dayD = dayD || DAYS[DAYS.length - 1].d;
+  else if (HIST.length <= 30) period = 'all';   // כל עוד אין יותר מחודש, 'כל התקופה' היא ברירת המחדל (הכפתור 30 ימים מוסתר)
+  dayD = dayD || HIST[HIST.length - 1].d;
   if (u.get('gl')) gLine = u.get('gl');
   render();
   if (u.get('ln')) openLine(u.get('ln'));

@@ -132,21 +132,79 @@ def _parse_locs(op):
     return f
 
 
-def vehicle_locations(op, start, end, before_h=1, after_h=3, threads=THREADS):
+def _local(cache, key):
+    """קובץ דקה במטמון המקומי של "היום עד עכשיו": YYYY/MM/DD/HH/MM.json.gz (UTC, כמו ב-S3)."""
+    return os.path.join(cache, key[:-3] + '.json.gz')
+
+
+def sync_minutes(op, cache, start, now, before_h=1, give_up_min=60, threads=THREADS):
+    """"היום עד עכשיו" (rail_reliability --partial): מוריד מ-S3 רק את קובצי הדקה שעוד אין במטמון, מ-start
+    פחות before_h ועד now, ושומר מכל דקה רק את השידורים של מפעיל op (כ-2KB לדקה במקום כ-270KB).
+    דקה שחסרה ב-S3 יותר מ-give_up_min דקות לא תגיע — מסומנת ‎.none כדי שלא ננסה שוב בכל ריצה."""
+    import gzip
+    ks = _keys_between(start - datetime.timedelta(hours=before_h), now)
+    todo = [k for k in ks if not os.path.exists(_local(cache, k)) and not os.path.exists(_local(cache, k) + '.none')]
+    parse_one = _parse_locs(str(op))
+    old = now.astimezone(UTC).replace(tzinfo=None) - datetime.timedelta(minutes=give_up_min)
+
+    def one(k):
+        raw = fetch(k)
+        p = _local(cache, k)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        if not raw:
+            if datetime.datetime.strptime(k[:-3], '%Y/%m/%d/%H/%M') < old:
+                open(p + '.none', 'w').close()
+            return 0
+        with gzip.open(p + '.tmp', 'wt', encoding='utf-8') as f:
+            json.dump(parse_one(raw), f, separators=(',', ':'))
+        os.replace(p + '.tmp', p)
+        return 1
+
+    st = time.time()
+    with ThreadPoolExecutor(threads) as ex:
+        got = sum(ex.map(one, todo))
+    print(f'  S3: {got}/{len(todo)} דקות חסרות הורדו ({round(time.time() - st)} שנ\')', flush=True)
+    return got, len(todo)
+
+
+def cached_rows(cache):
+    """קורא דקה מהמטמון של sync_minutes: None כשאין קובץ, אחרת אותן שורות כמו _parse_locs."""
+    import gzip
+
+    def f(k):
+        try:
+            with gzip.open(_local(cache, k), 'rt', encoding='utf-8') as fh:
+                return [(tuple(x[0]), x[1], x[2], x[3]) for x in json.load(fh)]
+        except (OSError, ValueError):
+            return None
+    return f
+
+
+def vehicle_locations(op, start, end, before_h=1, after_h=3, threads=THREADS, upto=None, rows_of=None):
     """שידורי המיקום של מפעיל op, לנסיעות שיצאו (לפי הלו"ז) בין start ל-end — באותו מבנה כמו
     /siri_vehicle_locations/list של ה-API (siri_ride__id הוא מספר סידורי לנסיעה, בלי gtfs_ride_id —
-    ההצמדה לנסיעת הלו"ז נעשית לפי קו + שעת יציאה)."""
+    ההצמדה לנסיעת הלו"ז נעשית לפי קו + שעת יציאה).
+    upto — רק דקות עד הרגע הזה ("היום עד עכשיו"); rows_of — מפתח דקה → שורות (None = אין קובץ),
+    למשל cached_rows של המטמון המקומי. בלעדיו — הורדה מ-S3."""
     a, b = start.astimezone(UTC), end.astimezone(UTC)
-    ks = _keys_between(a - datetime.timedelta(hours=before_h), b + datetime.timedelta(hours=after_h))
+    hi = b + datetime.timedelta(hours=after_h)
+    if upto is not None:
+        hi = min(hi, upto.astimezone(UTC))
+    ks = _keys_between(a - datetime.timedelta(hours=before_h), hi)
     rides, seen, out = {}, set(), []
     files = 0
-    parse_one = _parse_locs(str(op))
+    if rows_of is None:
+        parse_one = _parse_locs(str(op))
+
+        def rows_of(k):
+            raw = fetch(k)
+            return parse_one(raw) if raw else None
     with ThreadPoolExecutor(threads) as ex:
-        for raw in ex.map(fetch, ks):
-            if not raw:
+        for rows in ex.map(rows_of, ks):
+            if rows is None:
                 continue
             files += 1
-            for key, rec, la, lo in parse_one(raw):
+            for key, rec, la, lo in rows:
                 try:
                     t = datetime.datetime.fromisoformat(key[2].replace('Z', '+00:00'))
                 except ValueError:
