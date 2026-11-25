@@ -154,7 +154,8 @@
     } catch (e) { /* דפדפן בלי לוח עברי — בלי שם */ }
     return false;
   }
-  function bdDayName(w) { return w === 6 ? 'מוצ״ש' : w === 5 ? 'שישי' : 'יום ' + dShort([w]); }
+  // ההצעות הן טקסט של הממשק (ui-en.js מתרגם אותן) — תמיד בעברית, גם כשהלוח באנגלית (dShort מחזיר אז Thu)
+  function bdDayName(w) { return w === 6 ? 'מוצ״ש' : w === 5 ? 'שישי' : 'יום ' + ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳'][w]; }
   /* הצעות (שלמה 24.11): לחיצה אחת מחילה, ובלי לחיצה — כלום לא משתנה. {txt, off: [תאריכים], sep: [תאריכים]}.
      חג (hol מהבונה או מ-index.json) שהשעות בו שונות — עמודה נפרדת; מוצ״ש של חנוכה (רק כשהשעות שונות) — עמודה נפרדת, כל התאריכים בהצעה אחת;
      תאריך שהלוח מבוסס עליו (בשימוש), ובקו כלשהו הוא היום היחיד שבו השבוע הראשון שונה מהשני, ולא חג — "לו״ז חריג": להוציא מהלוח */
@@ -490,6 +491,8 @@
     var grp = function (p) { return k1 === 'type' ? p._t : k1 === 'op' ? bdOpK(p) : ''; };
     var natK = function (p) { var k0 = k0of(p), g = grp(p); return flat ? 'F|' + (k1 === 'type' ? p._t : '') : g ? g + '>' + k0 : k0; };
     var nat = {}; ps.forEach(function (p) { p._nbk = natK(p); nat[p._nbk] = 1; });
+    // כמה פסים יש עם פסי יעד ובלעדיהם — "בלי פסי יעד" מוצג בהגדרות רק כשזה משנה משהו
+    var bandN = {}, flatN = {}; ps.forEach(function (p) { var g = grp(p), k0 = k0of(p); bandN[g ? g + '>' + k0 : k0] = 1; flatN['F|' + (k1 === 'type' ? p._t : '')] = 1; });
     var by = {}, all = [], used = {};
     ps.forEach(function (p) {
       var bk = p._nbk, mv = man && !flat && D.ED.bmb && D.ED.bmb[p.makat];
@@ -626,7 +629,11 @@
     var ops = opsOf(vps), cities = [];
     if (home) cities.push(home);
     var chg = ps.some(function (p) { return p.chg; });
-    var bplace = bdEn() && bdHeb(D.ED.bplace) ? bdN(D.ED.bplace) : D.ED.bplace;   // בלוח באנגלית — טקסט בעברית של העורך לא נכנס כמו שהוא
+    // המקום ("רמת אביב, תל אביב יפו" — שכונה או רחוב, ועיר): בלוח באנגלית — תרגום של השם כולו, ואם אין — כל חלק לחוד (העיר מתורגמת, השכונה ברשימת החסרים)
+    var bplace = bdEn() && bdHeb(D.ED.bplace) ? (function (s) {
+      var w = window.LCBoardEN.name(s, BD_IX, D.ED.ben, null);
+      return w !== s || s.indexOf(', ') < 0 ? bdN(s) : s.split(', ').map(bdN).join(', ');
+    })(D.ED.bplace) : D.ED.bplace;   // בלוח באנגלית — טקסט בעברית של העורך לא נכנס כמו שהוא
     var dflt = chg ? bdX('titleNew', 'לוח הזמנים החדש') + ' · ' + bdLinesT(ps) : bdX('title', 'זמני נסיעות') + ' · ' + (bplace || (ps.length <= 3 ? bdLinesT(ps) : cities.map(bdN).join(', ')) || bdLinesT(ps));
     var alts = bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.cells.some(function (x) { return x.notes.length && x.ntxt == null && x.txt == null; }); }); });
     // השבוע עד השינוי: "עד 28.11 · מ-29.11 — לוח זמנים חדש" (הלוח שאחריו — "החל מ-29.11")
@@ -636,7 +643,7 @@
       .map(function (c) { return [bdT('phn:' + c[0], bdOpN(c[0])), bdT('php:' + c[0], c[1]), c[0]]; }).filter(function (c) { return c[0] || c[1]; });
     var btitle = bdEn() ? D.ED.btitleEn : D.ED.btitle, bnote = bdEn() ? D.ED.bnoteEn : D.ED.bnote;
     // מראה הלוח — גם לייצוא לאקסל: יישור הכותרת, צבעים, רקע ויישור לשורה ולתא
-    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', ((btitle || '').trim() || dflt) + (WK ? ' · ' + bdX('untilD', 'עד ') + LC.dm(WK) : BD_FE ? ' · ' + bdX('fromD', 'החל מ-') + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
+    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, flatFx: Object.keys(bandN).length > Object.keys(flatN).length, types: bdTypeOrder(), title: bdT('title', ((btitle || '').trim() || dflt) + (WK ? ' · ' + bdX('untilD', 'עד ') + LC.dm(WK) : BD_FE ? ' · ' + bdX('fromD', 'החל מ-') + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (bnote || '').trim() || (alts ? bdX('altNote', 'נסיעות שמסומנות בסימן ובצבע (# ^ $…) עוברות בדרך אחרת') : '')), contacts: contacts,
       // המשפט על הנסיעות בסימן — רק בעמוד שיש בו נסיעה כזו (bdFoot), כשהמשתמש לא כתב או שינה את "עדכונים"

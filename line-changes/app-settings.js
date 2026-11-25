@@ -161,16 +161,18 @@
         A.$('bk1').innerHTML = KN.map(function (k) { return '<option value="' + k[0] + '"' + (keys[0] === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('');
         A.$('bk2').innerHTML = '<option value="">—</option>' + KN.filter(function (k) { return k[0] !== keys[0]; }).map(function (k) { return '<option value="' + k[0] + '"' + (keys[1] === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('');
       }
-      // לפי סוג קו: רשימה קטנה — עירוני / בין-עירוני / אזורי, בסדר שנבחר, עם ↑↓ ו"להציג"; סוג בלי קווים — אפור
-      A.$('btyw').hidden = keys.indexOf('type') < 0;
-      if (keys.indexOf('type') >= 0) {
-        var TN = { u: 'עירוני', i: 'בין-עירוני', r: 'אזורי' }, hide = A.edits.bthide || {}, ty = M.types || ['u', 'i', 'r'];
+      // לפי סוג קו: רשימה קטנה — עירוני / בין-עירוני / אזורי, בסדר שנבחר, עם ↑↓ ו"להציג". רק הסוגים שיש להם קווים בלוח,
+      // ורק כשיש לפחות שניים (או סוג שהוסתר — כדי שאפשר יהיה להחזיר אותו). הסדר השמור של כל הסוגים (edits.btypes) לא משתנה
+      var TN = { u: 'עירוני', i: 'בין-עירוני', r: 'אזורי' }, hide = A.edits.bthide || {};
+      var ty = (M.types || ['u', 'i', 'r']).filter(function (t) { return (M.tcount || {})[t]; });
+      A.$('btyw').hidden = keys.indexOf('type') < 0 || (ty.length < 2 && !ty.some(function (t) { return hide[t]; }));
+      if (!A.$('btyw').hidden) {
         A.$('btyl').innerHTML = ty.map(function (t, i) {
           var n = (M.tcount || {})[t] || 0;
-          return '<li data-bty="' + t + '"' + (n ? '' : ' class="empty"') + '><button type="button" class="mv" data-bty-mv="-1" aria-label="להעביר את ' + TN[t] + ' למעלה"' + (i ? '' : ' disabled') + '>↑</button>' +
+          return '<li data-bty="' + t + '"><button type="button" class="mv" data-bty-mv="-1" aria-label="להעביר את ' + TN[t] + ' למעלה"' + (i ? '' : ' disabled') + '>↑</button>' +
             '<button type="button" class="mv" data-bty-mv="1" aria-label="להעביר את ' + TN[t] + ' למטה"' + (i < ty.length - 1 ? '' : ' disabled') + '>↓</button>' +
-            '<b>' + TN[t] + '</b><small>' + (n === 1 ? 'קו אחד' : n ? n + ' קווים' : 'אין קווים') + '</small>' +
-            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + (n ? '' : ' disabled') + '> להציג</label></li>';
+            '<b>' + TN[t] + '</b><small>' + (n === 1 ? 'קו אחד' : n + ' קווים') + '</small>' +
+            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + '> להציג</label></li>';
         }).join('');
       }
       // לפי מפעיל: המפעילים שבלוח, בסדר שנבחר, עם ↑↓
@@ -182,6 +184,8 @@
           '<b>' + A.E(o.name) + '</b><small>' + (o.n === 1 ? 'קו אחד' : o.n + ' קווים') + '</small></li>';
       }).join('');
       A.$('bflat').checked = !!A.edits.bflat;
+      // "בלי פסי יעד" — רק כשיש יותר מפס אחד לאותו סוג (כשזה מסומן — תמיד, כדי שאפשר יהיה לבטל)
+      A.$('bflatw').hidden = !A.edits.bflat && !M.flatFx;
       A.$('bcwseg').querySelectorAll('[data-bcw]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bcw') === (A.edits.bcw ? 'man' : 'auto') ? 'true' : 'false'); });
     }
   }
@@ -330,9 +334,12 @@
     if (tm) {
       var ty = (A.edits.btypes || []).filter(function (t) { return 'uir'.indexOf(t) >= 0; });
       'uir'.split('').forEach(function (t) { if (ty.indexOf(t) < 0) ty.push(t); });
-      var t0 = tm.closest('[data-bty]').getAttribute('data-bty'), i0 = ty.indexOf(t0), j0 = i0 + +tm.getAttribute('data-bty-mv');
-      if (j0 < 0 || j0 >= ty.length) return;
-      ty[i0] = ty[j0]; ty[j0] = t0; A.edits.btypes = ty;
+      // מחליפים עם הסוג הסמוך ברשימה שמוצגת (סוג בלי קווים לא מוצג — נשאר במקומו)
+      var vis = Array.prototype.map.call(A.$('btyl').querySelectorAll('[data-bty]'), function (li) { return li.getAttribute('data-bty'); });
+      var t0 = tm.closest('[data-bty]').getAttribute('data-bty'), t1 = vis[vis.indexOf(t0) + +tm.getAttribute('data-bty-mv')];
+      if (!t1) return;
+      var i0 = ty.indexOf(t0), j0 = ty.indexOf(t1);
+      ty[i0] = t1; ty[j0] = t0; A.edits.btypes = ty;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); });
       setTimeout(function () { var f = A.$('btyl').querySelector('[data-bty="' + t0 + '"] [data-bty-mv="' + tm.getAttribute('data-bty-mv') + '"]'); if (f && !f.disabled) f.focus(); }, 0);
       return;

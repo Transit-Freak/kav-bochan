@@ -553,6 +553,14 @@ test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, 
     const src = fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');
     for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
       const lit = m[1]; if (!/[א-ת]/.test(lit)) continue;
+      // גם תכונות בתוך תגית בטקסט (aria-label="…", title="…") — עד תחילת ערך שמחובר מבחוץ
+      for (const a of lit.matchAll(/\s(?:aria-label|title|placeholder|alt)="([^"]*)"/g)) {
+        const t = a[1].replace(/&quot;/g, '"').trim();
+        if (/[א-ת]/.test(t) && !UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ' (תכונה): ' + t);
+      }
+      for (const a of lit.matchAll(/\s(?:aria-label|title|placeholder|alt)="([^"]*)$/g)) {   // ערך שנמשך אחרי הטקסט (' + x + ') — רק החלק הקבוע, אם הוא שלם
+        const t = a[1].trim(); if (/[א-ת]/.test(t) && !/[\s\-–:(]$/.test(a[1]) && !UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ' (תכונה, חלק): ' + t);
+      }
       for (let p of lit.split(/<[^>]*>/)) {
         p = p.replace(/&quot;/g, '"');
         if (!/[א-ת]/.test(p)) continue;
