@@ -1,0 +1,140 @@
+name: bus-today
+
+# מדד דיוק האוטובוסים — "היום עד עכשיו": כל 10 דקות, היום הנוכחי (לפי השעון בישראל) עד לפני כמה דקות.
+# אותו חישוב של הריצה הלילית (tools/bus_reliability.py) במצב --partial: רק נסיעות שהסתיימו לפי הלו"ז,
+# והפלט קובץ סיכום קטן אחד (today.json).
+#
+# בלי להוריד את כל היום בכל ריצה: קובצי ה-SIRI של היום (קובץ לדקה מ-S3), ה-GTFS של היום ורצפי התחנות
+# המוכנים (pickle) נשמרים ב-actions/cache במפתח של התאריך בישראל. כל ריצה משחזרת את המטמון האחרון של היום,
+# מורידה רק את הדקות שעוד חסרות (מ-00:00 בישראל ועד לפני 2 דקות), ושומרת מטמון חדש; הישנים נמחקים.
+# אחרי חצות — תאריך חדש, מפתח חדש, מתחילים מאפס.
+#
+# פרסום בלי פריסה של האתר ובלי להגדיל את main: הקובץ נדחף (force) כקובץ יחיד בענף נפרד bus-today
+# (commit יחיד בלי היסטוריה), והדף bus/ קורא אותו מ-raw.githubusercontent.com.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write    # דחיפה לענף bus-today
+  actions: write     # מחיקת מטמונים ישנים של היום
+
+concurrency:
+  group: bus-today
+  cancel-in-progress: false
+
+jobs:
+  today:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      B: https://openbus-stride-public.s3.eu-west-1.amazonaws.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+          fetch-depth: 1
+
+      - name: התאריך בישראל
+        id: day
+        run: |
+          set -euo pipefail
+          D=$(TZ=Asia/Jerusalem date +%F)
+          echo "d=$D" >> "$GITHUB_OUTPUT"
+          echo "היום בישראל: $D · עכשיו $(TZ=Asia/Jerusalem date +%H:%M)"
+
+      - name: המטמון של היום
+        uses: actions/cache/restore@v4
+        with:
+          path: cache
+          key: bus-today-${{ steps.day.outputs.d }}-${{ github.run_id }}
+          restore-keys: bus-today-${{ steps.day.outputs.d }}-
+
+      - name: תלויות
+        run: pip install -q brotli
+
+      - name: הורדת הדקות החסרות
+        id: dl
+        env:
+          D: ${{ steps.day.outputs.d }}
+        run: |
+          set -euo pipefail
+          mkdir -p cache/siri
+          Y=${D:0:4}; M=${D:5:2}; DD=${D:8:2}
+          # GTFS של היום מהארכיון (עולה ל-S3 בסביבות 02:00 בישראל). אחרי הריצה הראשונה נשאר רק ה-pickle
+          if [ ! -s cache/gtfs.pkl ] && [ ! -s cache/gtfs.zip ]; then
+            if ! curl -fsS -o cache/gtfs.zip "$B/gtfs_archive/$Y/$M/$DD/israel-public-transportation.zip"; then
+              rm -f cache/gtfs.zip
+              echo "אין עדיין GTFS של $D בארכיון — מדלגים"; echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          fi
+          # כל דקה מ-00:00 בישראל עד לפני 2 דקות. הנתיב ב-S3 לפי UTC; בדיסק siri/YYYYMMDDHH/MM.br (UTC, ממוין כרונולוגית)
+          start=$(TZ=Asia/Jerusalem date -d "$D 00:00" +%s)
+          end=$(( $(date -u +%s) / 60 * 60 - 120 ))
+          old=$(( end - 3600 ))
+          : > list.txt
+          for (( t=start; t<=end; t+=60 )); do
+            u=$(date -u -d "@$t" +%Y/%m/%d/%H/%M)
+            l="cache/siri/${u:0:4}${u:5:2}${u:8:2}${u:11:2}/${u:14:2}.br"
+            [ -s "$l" ] && continue
+            # דקה שחסרה ב-S3 יותר משעה — לא תגיע; מסומנת כדי שלא ננסה שוב בכל ריצה
+            [ -e "$l.none" ] && continue
+            echo "stride-siri-requester/$u.br $l $t" >> list.txt
+          done
+          echo "חסרות $(wc -l < list.txt) דקות"
+          cut -d' ' -f2 list.txt | xargs -r -n1 dirname | sort -u | xargs -r mkdir -p
+          export OLD=$old
+          cat list.txt | xargs -r -P 16 -n 3 sh -c 'curl -fsS --retry 3 -o "$1.tmp" "$B/$0" && mv "$1.tmp" "$1" || { rm -f "$1.tmp"; [ "$2" -lt "$OLD" ] && touch "$1.none"; true; }'
+          echo "קבצי SIRI: $(find cache/siri -name '*.br' | wc -l) · $(du -sh cache/siri | cut -f1) · עד $(TZ=Asia/Jerusalem date -d "@$end" +%H:%M)"
+          echo "now=$(date -u -d "@$(( end + 60 ))" +%FT%TZ)" >> "$GITHUB_OUTPUT"
+          rm -f list.txt
+
+      - name: חישוב
+        if: steps.dl.outputs.skip != '1'
+        env:
+          D: ${{ steps.day.outputs.d }}
+          NOW: ${{ steps.dl.outputs.now }}
+        run: |
+          set -euo pipefail
+          time python3 tools/bus_reliability.py --day "$D" --gtfs cache/gtfs.zip --siri cache/siri --partial --now "$NOW" \
+            --st-cache cache/gtfs.pkl --summary today.json --workers 4 --no-rishui
+          # ה-zip נדרש רק לריצה הראשונה של היום (ה-pickle מחזיק את מה שצריך) — לא נשמר במטמון
+          [ -s cache/gtfs.pkl ] && rm -f cache/gtfs.zip
+          ls -la today.json
+
+      - name: פרסום בענף bus-today
+        if: steps.dl.outputs.skip != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf pub && mkdir pub && cp today.json pub/
+          cd pub
+          git init -q -b bus-today
+          git add today.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "data: bus — היום עד עכשיו"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" bus-today
+
+      - name: שמירת המטמון
+        if: always() && steps.day.outputs.d != ''
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: bus-today-${{ steps.day.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: מחיקת מטמונים ישנים
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP: bus-today-${{ steps.day.outputs.d }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          # משאירים רק את המטמון שנשמר עכשיו (מגבלה של 10GB למאגר; מטמון של יום שלם ~300MB).
+          # אם השמירה לא הצליחה — לא מוחקים כלום, כדי לא לאבד את מה שכבר הורד
+          keys=$(gh api "repos/$GITHUB_REPOSITORY/actions/caches?key=bus-today-&per_page=100" --jq '.actions_caches[] | "\(.id) \(.key)"') || exit 0
+          echo "$keys" | grep -q " $KEEP\$" || { echo "המטמון החדש לא נמצא — לא מוחקים"; exit 0; }
+          echo "$keys" | while read -r id key; do
+            [ -n "$id" ] && [ "$key" != "$KEEP" ] && gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" >/dev/null && echo "נמחק $key"
+          done || true
