@@ -64,7 +64,7 @@
     'פיצול ימי חול': 'Split weekdays', 'אוטומטי': 'Automatic', 'לא': 'No', 'שם המפעיל': 'Operator name', 'להציג': 'Show', 'בלי': 'Hide', 'תאריך סיום ("עד…")': 'End date ("until…")', 'תאריך סיום': 'End date',
     'סימון נסיעות כפולות (×2)': 'Double trips mark (×2)', 'סימון נסיעות כפולות': 'Double trips mark', 'קווים עם אות (1 ו־1א)': 'Lines with a letter (1 and 1א)', 'קווים עם אות': 'Lines with a letter',
     'שורה אחת': 'One row', 'כמו היום': 'As today', 'בנפרד': 'Separate', '1 ו־1א בשורות נפרדות': '1 and 1א in separate rows',
-    'בחירת תאריכים': 'Choose dates', 'הצעות': 'Suggestions', 'הצעה:': 'Suggestion:', 'יש בחירה': 'Dates chosen', 'תאריכים': 'Dates', 'לבטל את הבחירה': 'Clear the choice', 'נפרד': 'Separate',
+    'בחירת תאריכים': 'Choose dates', 'סדר העמודות': 'Column order', 'סדר מקורי': 'Original order', 'הצעות': 'Suggestions', 'הצעה:': 'Suggestion:', 'יש בחירה': 'Dates chosen', 'תאריכים': 'Dates', 'לבטל את הבחירה': 'Clear the choice', 'נפרד': 'Separate',
     'הלוח נבנה מהתאריך הראשון של כל יום בשבוע (מודגש). לחיצה על תאריך מוציאה אותו — ואז נלקח אותו יום בשבוע הבא. "נפרד" — עמודה משלו עם התאריך. נקודה — השעות שונות מאותו יום בשבוע האחר.': 'The board uses the first date of each weekday (bold). Tap a date to leave it out — the same weekday next week is used instead. "Separate" — its own column with the date. Dot — the times differ from the same weekday in the other week.',
     'סדר הקווים': 'Line order', 'לפי סוג קו': 'By line type', 'לפי הסדר שהוספתם': 'In the order you added', 'לפי יעד': 'By destination', 'לפי מפעיל': 'By operator', 'לפי מספר קו': 'By line number', 'ידני': 'Manual',
     'במצב עריכה: לוחצים על קו או על פס בלוח, ומזיזים עם "העברה למעלה ↑" / "העברה למטה ↓". קו שבראש פס עובר בלחיצה על ↑ לפס שמעליו (ו-↓ בסוף פס — לפס שמתחתיו), ושם הוא מופיע בפס משלו, עם היעד שלו. קו שעומד לבד בפס משלו זז כמו פס — מעל הפס שמעליו או מתחת לפס שמתחתיו.': 'In edit mode: click a line or a band on the board and move it with "Move up ↑" / "Move down ↓". A line at the top of a band moves with ↑ to the band above (and ↓ at the end of a band — to the band below), where it gets its own band with its destination. A line alone in its band moves like a band — above the band above it or below the band below it.',
@@ -119,6 +119,9 @@
     '← חזרה לקו הבוחן': '← Back to HaKav HaBochen', 'חזרה לעמוד הראשי של הקו הבוחן': 'Back to the HaKav HaBochen home page',
     '© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור ·': '© 2026 Shlomo Hartman · Built with AI following his instructions · You may quote and link with attribution ·',
     'זכויות יוצרים ותנאי שימוש': 'Copyright and terms of use',
+    // בשורת העריכה של שקף ובתיבות שבשקף (noprint)
+    'הגדלת המפה': 'Zoom in the map', 'הקטנת המפה': 'Zoom out the map', 'גרירה': 'Drag', 'מחיקת התמונה': 'Delete the image',
+    'תיאור התמונה לקוראי מסך': 'Image description for screen readers', 'שינוי גודל': 'Resize',
     // תחתית
     '· הקו הבוחן': '· HaKav HaBochen', 'שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה': 'Upcoming changes are detected every night from Ministry of Transport data',
     ', ושינויים שהתחילו בשבועיים האחרונים — מהנתונים של הלילות הקודמים ומהארכיון של הקו הבוחן. זה לא פרסום רשמי.': ', and changes that started in the last two weeks — from previous nights and the HaKav HaBochen archive. This is not an official publication.'
@@ -146,10 +149,11 @@
     [/^(\d+) תחנות מבוטלות$/, '$1 stops cancelled'], [/^(\d+) תחנות חדשות$/, '$1 new stops'], [/^(\d+) תחנות עוברות מקום$/, '$1 stops are relocated'],
     [/^(\d+) שמות בלי תרגום לאנגלית — יופיעו בעברית\.$/, '$1 names have no English translation and will appear in Hebrew.'],
     [/^יש הצעות לימים מיוחדים \((\d+)\)$/, 'Suggestions for special days ($1)'], [/^להוציא את קו (\S+) מהמצגת$/, 'Remove line $1 from the slides'], [/^להעביר את (?:קו )?(.+) למעלה$/, function (m, x) { return 'Move ' + (UI[x] || x) + ' up'; }], [/^להעביר את (?:קו )?(.+) למטה$/, function (m, x) { return 'Move ' + (UI[x] || x) + ' down'; }], [/^קו (\S+)$/, 'Line $1'],
+    [/^להקדים את העמודה (.+)$/, function (m, x) { return 'Move the ' + (UI[x] || x) + ' column earlier'; }], [/^לאחר את העמודה (.+)$/, function (m, x) { return 'Move the ' + (UI[x] || x) + ' column later'; }],
     [/^השם באנגלית: (.+)$/, 'English name: $1'], [/^עמודה נפרדת ל-(.+)$/, 'Separate column for $1'],
     [/^השלט ארוך — (\d+) עמודים\.$/, 'The sign is long — $1 pages.'], [/^לגרסה המקוצרת \((\d+) עמודים\)$/, 'Short version ($1 pages)'], [/^להציג את כל (\d+) העמודים$/, 'Show all $1 pages'],
     [/^גם באותיות הקטנות ביותר שעוד אפשר לקרוא, הלוח לא נכנס — צריך לפחות (\d+) עמודים\.$/, 'Even at the smallest readable size the board does not fit — it needs at least $1 pages.'],
-    [/^חנוכה: (.+)$/, function (m, r) { return 'Hanukkah: ' + r.replace(/מוצ״ש/g, 'Saturday night').replace(/ ו-/g, ' and ').replace(/ בעמודות נפרדות$/, ' in separate columns').replace(/ בעמודה נפרדת$/, ' in a separate column'); }],
+    [/^חנוכה: (.+)$/, function (m, r) { return 'Hanukkah: ' + r.replace(/מוצ״ש/g, 'Saturday night').replace(/יום ([א-ת]׳)/g, function (x, d) { return DOWS[d] || x; }).replace(/שישי/g, 'Fri').replace(/ ו-/g, ' and ').replace(/ בעמודות נפרדות$/, ' in separate columns').replace(/ בעמודה נפרדת$/, ' in a separate column'); }],
     [/^(.+) (\d+\.\d+): עמודה נפרדת$/, '$1 $2: separate column'],
     [/^(\S+ \S+) (\d+\.\d+) — לו״ז חריג \(שונה מ-(\d+\.\d+)\): להוציא מהלוח\?$/, function (m, d, a, b) { return (DOWS[d.replace(/^יום /, '')] || d) + ' ' + a + ' — unusual timetable (differs from ' + b + '): leave it out of the board?'; }],
     [/^יום (\S+) (\d+\.\d+)((?:, [^,]+)*)$/, function (m, d, t, r) { return (DOWS[d] || d) + ' ' + t + r.replace(/, [^,]+/g, function (x) { return CHIP[x] || x; }); }],
@@ -158,8 +162,15 @@
     [/^לוח לפי יעד(?: \((\d+)\/(\d+)\))?$/, function (m, a, b) { return 'Board' + (a ? ' (' + a + '/' + b + ')' : ''); }],
     [/^לו״ז עדכני · (.+)$/, function (m, r) { return 'Current timetable · ' + lines(r); }], [/^לו״ז משולב · (.+)$/, 'Combined timetable · $1'],
     [/^(.+) · (\d+) קווים לאותו יעד, בטבלה אחת$/, '$1 · $2 lines to the same destination, in one table'],
+    // "הקווים במצגת" (drawPicked ב-app.js): מתי — עם שנה
+    [/^היה ב-(\d+\.\d+(?:\.\d+)?)$/, 'was on $1'], [/^קו חדש מ-(\d+\.\d+\.\d+)$/, 'new line from $1'], [/^לו״ז מ-(\d+\.\d+(?:\.\d+)?)$/, 'timetable from $1'],
     [/^מ-(\d+\.\d+(?:\.\d+)?)$/, 'from $1'], [/^עד (\d+\.\d+(?:\.\d+)?)$/, 'until $1'], [/^רחוב (.+)$/, 'Street $1'], [/^שכונת (.+)$/, 'Neighbourhood $1'],
-    [/^המצגת שלך: (.+)$/, 'Your slides: $1'],
+    [/^תמונה (\d+) לסטטוס$/, 'Status image $1'], [/^תמונה (\d+)$/, 'Image $1'], [/^\(ועוד (\d+)\)$/, '(and $1 more)'],
+    [/^שיתוף התמונות \(ווטסאפ ועוד\)$/, 'Share the images (WhatsApp and more)'], [/^שיתוף התמונה \(ווטסאפ ועוד\)$/, 'Share the image (WhatsApp and more)'],
+    [/^\+ כל (\d+) (הקווים עם שינוי מסלול|הקווים החדשים|הקווים שמבוטלים|הקווים עם שינוי בלו״ז|הקווים עם שינוי שכבר התחיל)$/, function (m, n, k) {
+      return '+ All ' + n + ' ' + ({ 'הקווים עם שינוי מסלול': 'lines with a route change', 'הקווים החדשים': 'new lines', 'הקווים שמבוטלים': 'cancelled lines',
+        'הקווים עם שינוי בלו״ז': 'lines with a timetable change', 'הקווים עם שינוי שכבר התחיל': 'lines whose change already started' })[k]; }],
+    [/^המצגת שלך: (.+)$/, function (m, a) { return 'Your slides: ' + (a === 'קו אחד' ? 'one line' : a.replace(/^(\d+) קווים$/, '$1 lines')); }],
     // תגיות בתוצאות (tagOf / badge ב-app.js) וכרטיסי "איזה שינוי?"
     // שינוי בלו"ז — הסיכום מהבונה (kind_summary): "יותר נסיעות בימים א׳–ד׳ ו-ו׳–ש׳, פחות נסיעות ביום חמישי"
     [/^(?:(?:יותר נסיעות|פחות נסיעות|שעות אחרות|נסיעות חדשות|בלי נסיעות) (?:בימי חול|בשישי|בשבת|ביום \S+|בימים [^,]+)(?:, |$))+$/, function (m) { return m.split(', ').map(function (x, i) { var t = ttSum(x); return i ? low(t) : t; }).join('; '); }],
@@ -170,7 +181,15 @@
     [/^(\d+) משתנים$/, '$1 changing'], [/^(\d+) תחנות מבוטלות$/, '$1 stops cancelled'],
     [/^אותו שינוי ב-(\d+) קווים(?: · (.+))?$/, function (m, n, r) { return 'Same change on ' + n + ' lines' + (r ? ' · ' + r.split(' · ').map(function (x) { return (tr(x) || x).trim(); }).join(' · ') : ''); }],
     [/^· (.+) \(מתוך (\d+) שעוצרים כאן\)$/, function (m, a, n) { return '· ' + (tr(a) || a).trim() + ' (of ' + n + ' that stop here)'; }],
-    [/^(.+) \((\d+) ועוד (\d+)\)$/, '$1 ($2 and $3 more)'], [/^(.+) \(ועוד (\d+)\)$/, '$1 ($2 more)'],
+    // "· 74 קווים עוצרים כאן" (בכותרת של רשימת הקווים במקום) — החלק אחרי הנקודה
+    [/^· (.+)$/, function (m, a) { var x = tr(a); return x == null ? m : '· ' + x.trim(); }],
+    // "גודל המצגת" (drawKinds ב-app-settings.js): "<b>שינוי קטן</b> — עמוד אחד (לפי הבחירה שלכם)"
+    [/^— (עמוד אחד|מצגת מלאה)( \(לפי הבחירה שלכם\))?$/, function (m, a, b) { return '— ' + (a === 'עמוד אחד' ? 'one page' : 'full slides') + (b ? ' (your choice)' : ''); }],
+    // על מה מבוססת ההשוואה (basis מהבונה — כמו b_basis ב-deck-en-b.js), בכרטיס "איזה שינוי?"
+    [/^לפי לוח הזמנים: לחלופה (.+?) אין נסיעות מ-([\d.]+)\.$/, 'According to the timetable, variant $1 has no trips from $2.'],
+    [/^חלופה (.+?) מופיעה לראשונה ב-([\d.]+)\.$/, 'Variant $1 first appears on $2.'],
+    [/^ההשוואה היא בין חלופה (.+?) \(עד ([\d.]+)\) לחלופה (.+?) \(מ-([\d.]+)\) של אותו קו ובאותו כיוון, שהחליפה אותה\.$/, 'The comparison is between variant $1 (until $2) and variant $3 (from $4) of the same line and direction, which replaced it.'],
+    [/^(.+) \((\d+) ועוד (\d+)\)$/, function (m, a, n, k) { return (tr(a) || a).trim() + ' (' + n + ' and ' + k + ' more)'; }], [/^(.+) \(ועוד (\d+)\)$/, function (m, a, n) { return (tr(a) || a).trim() + ' (' + n + ' more)'; }],
     [/^(.+) — בשבועיים הקרובים או בשבועיים האחרונים \((\d+)\)$/, function (m, a, n) { return (UI[a.replace(/^קווים/, 'הקווים')] || a) + ' — in the next two weeks or the last two weeks (' + n + ')'; }],
     [/^קווים שהשתנו בשבועיים האחרונים \((\d+)\)$/, 'Lines that changed in the last two weeks ($1)'],
     [/^(\d+) (קווים עם שינוי מסלול|קווים החדשים|קווים שמבוטלים|קווים עם שינוי בלו״ז|קווים עם שינוי שכבר התחיל)$/, function (m, n, a) { return n + ' ' + low(UI['ה' + a]); }],
@@ -191,11 +210,38 @@
     var q = (/[?&]lang=(en|he)\b/.exec(location.search) || [])[1];
     if (q) { lang = q; localStorage.setItem(KEY, q); if (q === 'en' && !localStorage.getItem('lc-blang-auto')) localStorage.setItem('lc-blang-auto', 'en'); } else lang = localStorage.getItem(KEY) === 'en' ? 'en' : 'he';
   } catch (e) { /* בלי אחסון — עברית */ }
+  /* שמות השקפים (label מ-deck*.js): ברשימת "השקפים במצגת", בשורת העריכה ובתיאור של השקף (aria-label) — "מפה · <הנסיעה>".
+     החלקים הקבועים לאנגלית; החלק עם הנסיעה או השם (בשפת המצגת) — כמו שהוא */
+  var LAB = { 'מפה': 'Map', 'מפה קרובה': 'Close-up map', 'עמוד אחד': 'One page', 'שלט': 'Sign', 'לוח הזמנים': 'Timetable', 'לוח הזמנים החדש': 'New timetable',
+    'מתי הקו נוסע': 'When the line runs', 'תמונה לסטטוס': 'Status image', 'סטטוס': 'Status', 'התחנות': 'Stops', 'תחנות': 'Stops', 'מה משתנה': 'What changes',
+    'במקום זה: קווים אחרים': 'Instead: other lines', 'המסלול של הקו החדש': 'The route of the new line', 'המסלול של הקו שמבוטל': 'The route of the cancelled line',
+    'לו״ז': 'Timetable', 'לוחות הזמנים: מה משתנה': 'Timetables: what changes', 'לוחות הזמנים החדשים': 'The new timetables' };
+  var LABP = [[/^(עמוד|שלט|תמונה לסטטוס) (\d+)$/, function (m, a, n) { return ({ 'עמוד': 'Page', 'שלט': 'Sign', 'תמונה לסטטוס': 'Status image' })[a] + ' ' + n; }],
+    [/^מפה קרובה (.+)$/, 'Close-up map $1']];
+  function lab(s) {
+    var k = String(s).trim().replace(/\s+/g, ' ');
+    if (!/[א-ת]/.test(k)) return null;
+    var w = tr(k); if (w != null) return w.trim();
+    var any = false, ps = k.split(' · ').map(function (x) {
+      var m = /^(.*?)( \((?:\d+\/\d+|\d+)\))?$/.exec(x), b = m[1], sf = m[2] || '', y = null;
+      if (!/[א-ת]/.test(b)) return x;
+      if (Object.prototype.hasOwnProperty.call(LAB, b)) y = LAB[b];
+      for (var i = 0; y == null && i < LABP.length; i++) if (LABP[i][0].test(b)) y = b.replace(LABP[i][0], LABP[i][1]);
+      if (y == null) { y = tr(b); if (y != null) y = y.trim(); }
+      if (y == null) return x;
+      any = true; return y + sf;
+    });
+    return any ? ps.join(' · ') : null;
+  }
+  // איפה הטקסט הוא שם של שקף (לא תוכן השקף)
+  var LABEL_AT = '.ebar-n,#toggles label';
+  function isSlideBox(el) { return !!(el && el.matches && el.matches('.sframe > .slide')); }
   function tr(s) {
     var t = String(s), k = t.trim().replace(/\s+/g, ' ');
     if (!k || !/[א-ת→←]/.test(k)) return null;
     if (Object.prototype.hasOwnProperty.call(UI, k)) return t.replace(t.trim(), UI[k]);
-    for (var i = 0; i < UIP.length; i++) if (UIP[i][0].test(k)) return t.replace(t.trim(), k.replace(UIP[i][0], UIP[i][1]));
+    // תבנית שהפונקציה שלה לא מצאה תרגום (מחזירה את הטקסט כמו שהוא) — ממשיכים לתבנית הבאה
+    for (var i = 0, r; i < UIP.length; i++) if (UIP[i][0].test(k) && (r = k.replace(UIP[i][0], UIP[i][1])) !== k) return t.replace(t.trim(), r);
     // כמה חלקים עם " · " ביניהם (למשל בכרטיס "איזה שינוי?": סוג השינוי · הלוך וחזור · מהארכיון) — כל חלק בנפרד, רק כשלכולם יש תרגום
     if (k.indexOf(' · ') > 0) {
       var ps = k.split(' · '), ok = true;
@@ -213,21 +259,22 @@
   var DONE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
   function text(x) {
     if (skip(x.parentElement) || (DONE && DONE.get(x) === x.nodeValue)) return;
-    var t = tr(x.nodeValue);
+    var p = x.parentElement, t = p && p.closest && p.closest(LABEL_AT) ? lab(x.nodeValue) : tr(x.nodeValue);
     if (t != null && t !== x.nodeValue) { x.nodeValue = t; if (DONE) DONE.set(x, t); }
   }
   function attr(el, a) {
     var v = el.getAttribute(a), d = DONE && DONE.get(el);
     if (!v || (d && d[a] === v)) return;
-    var t = tr(v);
+    var t = isSlideBox(el) ? lab(v) : tr(v);
     if (t != null && t !== v) { el.setAttribute(a, t); if (DONE) { if (!d) DONE.set(el, (d = {})); d[a] = t; } }
   }
   function run(root) {
     if (!root) return;
     if (root.nodeType === 3) return text(root);
+    if (root.nodeType === 1 && isSlideBox(root)) attr(root, 'aria-label');   // השם של השקף — גם בתוך .sframe
     if (root.nodeType !== 1 || skip(root)) return;
     var els = [root].concat(Array.prototype.slice.call(root.querySelectorAll('[placeholder],[aria-label],[title],[alt]')));
-    els.forEach(function (el) { if (skip(el)) return; ATTR.forEach(function (a) { attr(el, a); }); });
+    els.forEach(function (el) { if (skip(el) && !isSlideBox(el)) return; ATTR.forEach(function (a) { attr(el, a); }); });
     var w = document.createTreeWalker(root, 4, null), n, list = [];
     while ((n = w.nextNode())) list.push(n);
     list.forEach(text);
@@ -247,7 +294,7 @@
     try { localStorage.setItem(KEY, l); if (l === 'en' && !localStorage.getItem('lc-blang-auto')) localStorage.setItem('lc-blang-auto', 'en'); } catch (e) { /* בלי אחסון */ }
     var u = new URL(location.href); u.searchParams.set('lang', l); location.replace(u.toString());
   }
-  g.LCUI = { UI: UI, UIP: UIP, tr: tr, file: file, lang: lang, en: lang === 'en', set: set };
+  g.LCUI = { UI: UI, UIP: UIP, tr: tr, lab: lab, file: file, lang: lang, en: lang === 'en', set: set };
   if (typeof document === 'undefined') return;
   if (lang === 'en') {
     // data-kb-lang — סימן לחלקים המשותפים לאתר (version.js) שהדף הזה באנגלית; בכל שאר הדפים הם כמו קודם

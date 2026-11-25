@@ -1018,6 +1018,8 @@
       var pr = infPairs(p), no = !!infNo[p.id];
       return '<div class="iq" data-iq="' + E(p.id) + '"><span class="flabel">קו ' + E(p.line) + ' · השוואה משוערת</span>' +
         '<ul>' + pr.map(function (d) {
+          // ממשק באנגלית: המשפט כולו באנגלית (המילון מתרגם רק טקסט שלם, והמשפט כאן מורכב מחלקים)
+          if (UIEN) return '<li>According to the timetable, variant <b><bdi dir="ltr">' + E(d.was) + '</bdi></b>' + (d.was_last ? ' (until ' + LC.dmy(d.was_last) + ')' : '') + ' stopped, and variant <b><bdi dir="ltr">' + E(d.rd) + '</bdi></b> (from ' + LC.dmy(d.eff) + ') started in the same direction' + (d.od && d.od[1] ? ' (to ' + E(enN(d.od[1])) + ')' : '') + '.</li>';
           return '<li>לפי לוח הזמנים, חלופה <b><bdi dir="ltr">' + E(d.was) + '</bdi></b>' + (d.was_last ? ' (עד ' + LC.dmy(d.was_last) + ')' : '') + ' הפסיקה, וחלופה <b><bdi dir="ltr">' + E(d.rd) + '</bdi></b> (מ-' + LC.dmy(d.eff) + ') התחילה באותו כיוון' + (d.od && d.od[1] ? ' (ל' + E(d.od[1]) + ')' : '') + '.</li>';
         }).join('') + '</ul>' +
         '<div class="iqmap"></div><div class="iqkey"><span><i class="o"></i>החלופה שהפסיקה</span><span><i></i>החלופה שהתחילה</span></div>' +
@@ -1160,7 +1162,7 @@
       btitle: edits.btitle, bnote: edits.bnote, bplace: edits.bplace, bpl: edits.bpl, bd: edits.bd, editing: editMode, tord: tordOf(),
       bsplit: edits.bsplit, bdense: edits.bdense, bpages: edits.bpages, bbrk: edits.bbrk, bord: edits.bord, bman: edits.bman, btypes: edits.btypes, bthide: edits.bthide, bsub: edits.bsub,
       bk: edits.bk, bops: edits.bops, bflat: edits.bflat, bmb: edits.bmb, bcw: edits.bcw, bstop: edits.bstop, btal: edits.btal, bt1: edits.bt1, bclr: edits.bclr,
-      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, blang: blangOf(), ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — בכל התצוגות (לוח מודעות, תקציר, טבלה לכל קו, טבלה משולבת)
+      bop: edits.bop, bend: edits.bend, bx2: edits.bx2, bltr: edits.bltr, bdays: edits.bdays, bcols: edits.bcols, blang: blangOf(), ben: edits.ben, en: EN_NAMES, btitleEn: edits.btitleEn, bnoteEn: edits.bnoteEn,   // לוח באנגלית — בכל התצוגות (לוח מודעות, תקציר, טבלה לכל קו, טבלה משולבת)
       ltype: LT, towns: townsOf(),
       pord: picks.map(function (p) { return p.makat; }) };   // סדר הקווים בלוח: "לפי הסדר שהוספתם" — לפי הסדר של הקווים במצגת
   }

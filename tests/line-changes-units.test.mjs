@@ -553,6 +553,14 @@ test('ui-en.js: לכל טקסט בעברית בקוד של הממשק (app*.js, 
     const src = fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).map((l) => l.replace(/\s\/\/.*$/, '')).join('\n');
     for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
       const lit = m[1]; if (!/[א-ת]/.test(lit)) continue;
+      // גם תכונות בתוך תגית בטקסט (aria-label="…", title="…") — עד תחילת ערך שמחובר מבחוץ
+      for (const a of lit.matchAll(/\s(?:aria-label|title|placeholder|alt)="([^"]*)"/g)) {
+        const t = a[1].replace(/&quot;/g, '"').trim();
+        if (/[א-ת]/.test(t) && !UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ' (תכונה): ' + t);
+      }
+      for (const a of lit.matchAll(/\s(?:aria-label|title|placeholder|alt)="([^"]*)$/g)) {   // ערך שנמשך אחרי הטקסט (' + x + ') — רק החלק הקבוע, אם הוא שלם
+        const t = a[1].trim(); if (/[א-ת]/.test(t) && !/[\s\-–:(]$/.test(a[1]) && !UI_LINT_SKIP.has(t) && c3.LCUI.tr(t) == null) miss.add(f + ' (תכונה, חלק): ' + t);
+      }
       for (let p of lit.split(/<[^>]*>/)) {
         p = p.replace(/&quot;/g, '"');
         if (!/[א-ת]/.test(p)) continue;
@@ -735,4 +743,20 @@ test('נסיעה אחת שזזה ב-10 דקות: נסיעה שזזה (sh), לא 
   assert.deepEqual(J(D.mergeSh([455, 720], [530, 720])).map((x) => x[1]), ['rm', 'ad', ''], 'יותר מ-30 דקות — חדשה ומבוטלת');
   const X = ctx.LCDeckEN;
   assert.equal(X.c_diffSummary({ t: ['d4'], n: [465, 720] }, { ad: [], rm: [], sh: [[455, 465]] }), '<b>On Thursday:</b> 1 trip retimed (7:35 → 7:45). The other trips are unchanged.');
+});
+
+test('סדר העמודות בלוח (ED.bcols): סדר ידני, מזהים שכבר אין, ועמודה חדשה במקום הרגיל שלה', () => {
+  const o = (ids, saved) => Array.from(T.bdColOrder(ids, saved));
+  const dflt = ['01234', '5', 'h2026-11-27', '6', 'h2026-11-28'];
+  assert.deepEqual(o(dflt, undefined), dflt, 'בלי בחירה — כמו קודם');
+  assert.deepEqual(o(dflt, []), dflt);
+  // התאריכים לפני ימי השבוע
+  const man = ['h2026-11-27', 'h2026-11-28', '01234', '5', '6'];
+  assert.deepEqual(o(dflt, man), man);
+  // מזהה שכבר אין (התאריך כבר לא נפרד) — לא נחשב; כפילות — פעם אחת
+  assert.deepEqual(o(['01234', '5', '6', 'h2026-11-28'], ['h2026-11-27', 'h2026-11-28', '01234', '01234', '5', '6']), ['h2026-11-28', '01234', '5', '6']);
+  // עמודה חדשה (הופרד עוד תאריך) — אחרי העמודה שלפניה בסדר הרגיל
+  assert.deepEqual(o(['01234', '5', 'h2026-11-27', 'h2026-12-04', '6', 'h2026-11-28'], man), ['h2026-11-27', 'h2026-12-04', 'h2026-11-28', '01234', '5', '6']);
+  // עמודה חדשה ראשונה בסדר הרגיל — בהתחלה
+  assert.deepEqual(o(['wk', '5', '6'], ['6', '5']), ['wk', '6', '5']);
 });

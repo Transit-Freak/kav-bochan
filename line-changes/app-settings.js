@@ -138,6 +138,7 @@
       enM = M;
       A.$('bltrw').hidden = !(A.edits.bltr || pages.some(function (p) { return (p.dirs || []).some(function (d) { return d.l && d.l !== p.line; }); }));
       daysUi(pages);
+      colsUi(M);
       var bst = A.edits.bstop === 'dir' || A.edits.bstop === 'none' ? A.edits.bstop : 'all';
       A.$('bstseg').querySelectorAll('[data-bst]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bst') === bst ? 'true' : 'false'); });
       A.$('btalseg').querySelectorAll('[data-btal]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-btal') === (A.edits.btal === 'c' ? 'c' : 'r') ? 'true' : 'false'); });
@@ -160,16 +161,18 @@
         A.$('bk1').innerHTML = KN.map(function (k) { return '<option value="' + k[0] + '"' + (keys[0] === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('');
         A.$('bk2').innerHTML = '<option value="">—</option>' + KN.filter(function (k) { return k[0] !== keys[0]; }).map(function (k) { return '<option value="' + k[0] + '"' + (keys[1] === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('');
       }
-      // לפי סוג קו: רשימה קטנה — עירוני / בין-עירוני / אזורי, בסדר שנבחר, עם ↑↓ ו"להציג"; סוג בלי קווים — אפור
-      A.$('btyw').hidden = keys.indexOf('type') < 0;
-      if (keys.indexOf('type') >= 0) {
-        var TN = { u: 'עירוני', i: 'בין-עירוני', r: 'אזורי' }, hide = A.edits.bthide || {}, ty = M.types || ['u', 'i', 'r'];
+      // לפי סוג קו: רשימה קטנה — עירוני / בין-עירוני / אזורי, בסדר שנבחר, עם ↑↓ ו"להציג". רק הסוגים שיש להם קווים בלוח,
+      // ורק כשיש לפחות שניים (או סוג שהוסתר — כדי שאפשר יהיה להחזיר אותו). הסדר השמור של כל הסוגים (edits.btypes) לא משתנה
+      var TN = { u: 'עירוני', i: 'בין-עירוני', r: 'אזורי' }, hide = A.edits.bthide || {};
+      var ty = (M.types || ['u', 'i', 'r']).filter(function (t) { return (M.tcount || {})[t]; });
+      A.$('btyw').hidden = keys.indexOf('type') < 0 || (ty.length < 2 && !ty.some(function (t) { return hide[t]; }));
+      if (!A.$('btyw').hidden) {
         A.$('btyl').innerHTML = ty.map(function (t, i) {
           var n = (M.tcount || {})[t] || 0;
-          return '<li data-bty="' + t + '"' + (n ? '' : ' class="empty"') + '><button type="button" class="mv" data-bty-mv="-1" aria-label="להעביר את ' + TN[t] + ' למעלה"' + (i ? '' : ' disabled') + '>↑</button>' +
+          return '<li data-bty="' + t + '"><button type="button" class="mv" data-bty-mv="-1" aria-label="להעביר את ' + TN[t] + ' למעלה"' + (i ? '' : ' disabled') + '>↑</button>' +
             '<button type="button" class="mv" data-bty-mv="1" aria-label="להעביר את ' + TN[t] + ' למטה"' + (i < ty.length - 1 ? '' : ' disabled') + '>↓</button>' +
-            '<b>' + TN[t] + '</b><small>' + (n === 1 ? 'קו אחד' : n ? n + ' קווים' : 'אין קווים') + '</small>' +
-            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + (n ? '' : ' disabled') + '> להציג</label></li>';
+            '<b>' + TN[t] + '</b><small>' + (n === 1 ? 'קו אחד' : n + ' קווים') + '</small>' +
+            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + '> להציג</label></li>';
         }).join('');
       }
       // לפי מפעיל: המפעילים שבלוח, בסדר שנבחר, עם ↑↓
@@ -181,6 +184,8 @@
           '<b>' + A.E(o.name) + '</b><small>' + (o.n === 1 ? 'קו אחד' : o.n + ' קווים') + '</small></li>';
       }).join('');
       A.$('bflat').checked = !!A.edits.bflat;
+      // "בלי פסי יעד" — רק כשיש יותר מפס אחד לאותו סוג (כשזה מסומן — תמיד, כדי שאפשר יהיה לבטל)
+      A.$('bflatw').hidden = !A.edits.bflat && !M.flatFx;
       A.$('bcwseg').querySelectorAll('[data-bcw]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bcw') === (A.edits.bcw ? 'man' : 'auto') ? 'true' : 'false'); });
     }
   }
@@ -207,6 +212,26 @@
         '<button type="button" class="bds" data-bds="' + x.iso + '" aria-pressed="' + (x.sep ? 'true' : 'false') + '"' + (x.na || x.off ? ' disabled' : '') + ' aria-label="עמודה נפרדת ל-' + dmT + '">נפרד</button></span>';
     }).join('');
     A.$('bdg').innerHTML = html;
+  }
+  /* סדר העמודות (edits.bcols — מזהי העמודות, LCDeck.boardColId): רשימה עם ↑↓, למעלה — הראשונה בלוח. עמודות "יום חול" מפוצלות —
+     פריט אחד. "סדר מקורי" — רק כשהסדר שונה מהרגיל (לעמודה שזזה יש _i) */
+  var colIds = [];
+  function colsUi(M) {
+    var us = [], lb = {}, sub = {};
+    M.cols.forEach(function (c) {
+      var id = LCDeck.boardColId(c);
+      if (!lb[id]) { us.push(id); lb[id] = c.wk ? M.th.wk : c.label; sub[id] = []; }
+      if (c.wk) sub[id].push(c.label);
+    });
+    colIds = us;
+    A.$('bcolw').hidden = us.length < 2;
+    A.$('bcolreset').hidden = !M.cols.some(function (c) { return c._i != null; });
+    A.$('bcoll').innerHTML = us.length < 2 ? '' : us.map(function (id, i) {
+      var t = (lb[id] || '').trim() || id, nm = A.E(t);
+      return '<li data-bcol="' + A.E(id) + '"><button type="button" class="mv" data-bcol-mv="-1" aria-label="להקדים את העמודה ' + nm + '"' + (i ? '' : ' disabled') + '>↑</button>' +
+        '<button type="button" class="mv" data-bcol-mv="1" aria-label="לאחר את העמודה ' + nm + '"' + (i < us.length - 1 ? '' : ' disabled') + '>↓</button>' +
+        '<b>' + nm + '</b>' + (sub[id].length ? '<small>' + A.E(sub[id].join(' · ')) + '</small>' : '') + '</li>';
+    }).join('');
   }
   /* לוח באנגלית: שמות שאין להם תרגום (M.miss) — מופיעים בעברית. רשימה מעל הלוח עם שדה לשם באנגלית (edits.ben),
      ולפני הורדה, הדפסה או אקסל — אזהרה שצריך לאשר (A.enGate) */
@@ -309,9 +334,12 @@
     if (tm) {
       var ty = (A.edits.btypes || []).filter(function (t) { return 'uir'.indexOf(t) >= 0; });
       'uir'.split('').forEach(function (t) { if (ty.indexOf(t) < 0) ty.push(t); });
-      var t0 = tm.closest('[data-bty]').getAttribute('data-bty'), i0 = ty.indexOf(t0), j0 = i0 + +tm.getAttribute('data-bty-mv');
-      if (j0 < 0 || j0 >= ty.length) return;
-      ty[i0] = ty[j0]; ty[j0] = t0; A.edits.btypes = ty;
+      // מחליפים עם הסוג הסמוך ברשימה שמוצגת (סוג בלי קווים לא מוצג — נשאר במקומו)
+      var vis = Array.prototype.map.call(A.$('btyl').querySelectorAll('[data-bty]'), function (li) { return li.getAttribute('data-bty'); });
+      var t0 = tm.closest('[data-bty]').getAttribute('data-bty'), t1 = vis[vis.indexOf(t0) + +tm.getAttribute('data-bty-mv')];
+      if (!t1) return;
+      var i0 = ty.indexOf(t0), j0 = ty.indexOf(t1);
+      ty[i0] = t1; ty[j0] = t0; A.edits.btypes = ty;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); });
       setTimeout(function () { var f = A.$('btyl').querySelector('[data-bty="' + t0 + '"] [data-bty-mv="' + tm.getAttribute('data-bty-mv') + '"]'); if (f && !f.disabled) f.focus(); }, 0);
       return;
@@ -333,6 +361,20 @@
       if (cw.getAttribute('data-bcw') === 'auto') A.edits.bcw = undefined;
       else if (!A.edits.bcw) { A.edits.bcw = A.bdColsNow() || undefined; if (!A.editMode) setEdit(true); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
+    }
+    // סדר העמודות: ↑↓ ו"סדר מקורי"
+    var cm = ev.target.closest('[data-bcol-mv],#bcolreset');
+    if (cm) {
+      if (cm.id === 'bcolreset') A.edits.bcols = undefined;
+      else {
+        var cs = colIds.slice(), c0 = cm.closest('[data-bcol]').getAttribute('data-bcol'), i2 = cs.indexOf(c0), j2 = i2 + +cm.getAttribute('data-bcol-mv');
+        if (i2 < 0 || j2 < 0 || j2 >= cs.length) return;
+        cs[i2] = cs[j2]; cs[j2] = c0; A.edits.bcols = cs;
+      }
+      saveEdits(); A.keepScroll(function () { A.render(A.curPages); });
+      if (cm.id === 'bcolreset') setTimeout(function () { var f = A.$('bcoll').querySelector('.mv:not(:disabled)'); if (f) f.focus(); }, 0);
+      else setTimeout(function () { var f = A.$('bcoll').querySelector('[data-bcol="' + CSS.escape(c0) + '"] [data-bcol-mv="' + cm.getAttribute('data-bcol-mv') + '"]'); if (f && !f.disabled) f.focus(); }, 0);
+      return;
     }
     // בחירת תאריכים: תאריך (בלוח / לא), "נפרד", הצעה, וביטול
     var dd = ev.target.closest('[data-bdd],[data-bds],[data-bsg],#bdreset');

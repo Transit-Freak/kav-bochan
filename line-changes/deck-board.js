@@ -154,7 +154,8 @@
     } catch (e) { /* דפדפן בלי לוח עברי — בלי שם */ }
     return false;
   }
-  function bdDayName(w) { return w === 6 ? 'מוצ״ש' : w === 5 ? 'שישי' : 'יום ' + dShort([w]); }
+  // ההצעות הן טקסט של הממשק (ui-en.js מתרגם אותן) — תמיד בעברית, גם כשהלוח באנגלית (dShort מחזיר אז Thu)
+  function bdDayName(w) { return w === 6 ? 'מוצ״ש' : w === 5 ? 'שישי' : 'יום ' + ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳'][w]; }
   /* הצעות (שלמה 24.11): לחיצה אחת מחילה, ובלי לחיצה — כלום לא משתנה. {txt, off: [תאריכים], sep: [תאריכים]}.
      חג (hol מהבונה או מ-index.json) שהשעות בו שונות — עמודה נפרדת; מוצ״ש של חנוכה (רק כשהשעות שונות) — עמודה נפרדת, כל התאריכים בהצעה אחת;
      תאריך שהלוח מבוסס עליו (בשימוש), ובקו כלשהו הוא היום היחיד שבו השבוע הראשון שונה מהשני, ולא חג — "לו״ז חריג": להוציא מהלוח */
@@ -402,6 +403,34 @@
     });
     return out;
   }
+  /* סדר העמודות (ED.bcols — רשימת מזהים, bdColId): ידני, מההגדרות. מזהה שכבר אין לו עמודה — לא נחשב; עמודה חדשה (למשל תאריך
+     שהופרד עכשיו) — אחרי העמודה שלפניה בסדר הרגיל. מחזיר את המזהים בסדר החדש */
+  function bdColOrder(ids, saved) {
+    if (!saved || !saved.length) return ids.slice();
+    var out = [], have = {};
+    ids.forEach(function (id) { have[id] = 1; });
+    saved.forEach(function (id) { if (have[id] && out.indexOf(id) < 0) out.push(id); });
+    ids.forEach(function (id, i) {
+      if (out.indexOf(id) >= 0) return;
+      var at = 0;
+      for (var j = i - 1; j >= 0; j--) { var k = out.indexOf(ids[j]); if (k >= 0) { at = k + 1; break; } }
+      out.splice(at, 0, id);
+    });
+    return out;
+  }
+  /* מזהה עמודה: ימים ("01234", "5", "6"), תאריך ("h2026-11-27"); עמודות "יום חול" מפוצלות זזות יחד — "wk" */
+  function bdColId(c) { return c.wk ? 'wk' : bdColKey(c); }
+  /* העמודות בסדר הידני; _i — המקום הרגיל של העמודה (המפתח של טקסט שנכתב בתא נשאר אותו מפתח) */
+  function bdColsOrdered(cols, saved) {
+    if (!saved || !saved.length || cols.length < 2) return cols;
+    var units = [], by = {};
+    cols.forEach(function (c, i) { var id = bdColId(c); if (!by[id]) { by[id] = []; units.push(id); } by[id].push(i); });
+    var ord = bdColOrder(units, saved);
+    if (ord.join(',') === units.join(',')) return cols;
+    var out = [];
+    ord.forEach(function (id) { by[id].forEach(function (i) { var c = cols[i]; c._i = i; out.push(c); }); });
+    return out;
+  }
   function bdModel(pages, xo) {
     var keys = bdKeys(), man = !keys.length, k1 = keys[0] || '', flat = !!D.ED.bflat;
     BD_MISS = {}; BD_IX = bdEn() ? window.LCBoardEN.index(D.ED.en) : null;
@@ -462,6 +491,8 @@
     var grp = function (p) { return k1 === 'type' ? p._t : k1 === 'op' ? bdOpK(p) : ''; };
     var natK = function (p) { var k0 = k0of(p), g = grp(p); return flat ? 'F|' + (k1 === 'type' ? p._t : '') : g ? g + '>' + k0 : k0; };
     var nat = {}; ps.forEach(function (p) { p._nbk = natK(p); nat[p._nbk] = 1; });
+    // כמה פסים יש עם פסי יעד ובלעדיהם — "בלי פסי יעד" מוצג בהגדרות רק כשזה משנה משהו
+    var bandN = {}, flatN = {}; ps.forEach(function (p) { var g = grp(p), k0 = k0of(p); bandN[g ? g + '>' + k0 : k0] = 1; flatN['F|' + (k1 === 'type' ? p._t : '')] = 1; });
     var by = {}, all = [], used = {};
     ps.forEach(function (p) {
       var bk = p._nbk, mv = man && !flat && D.ED.bmb && D.ED.bmb[p.makat];
@@ -574,6 +605,7 @@
       if (bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.d && r.d.x && r.d.x[h[0]]; }); }))
         cols.push({ days: [isoDow(h[0])], hol: h, label: bdHolN(h[2]) + ' ' + LC.dm(h[0]) });
     });
+    cols = bdColsOrdered(cols, D.ED.bcols);
     bands.forEach(function (b) { b.rows.forEach(function (r) {
       // שורה שבה כמה עמודות של ימי חול זהות — תא אחד על פני כולן
       var mcols = cols.map(function (c) { return c; });
@@ -584,7 +616,7 @@
         if (z - a > 1) { mcols[a] = { days: [].concat.apply([], cols.slice(a, z).map(function (c) { return c.days; })).sort(), label: cols[a].label, span: z - a }; for (var y = a + 1; y < z; y++) mcols[y] = { skip: true }; }
         a = z - 1;
       }
-      r.cells = mcols.map(function (c, i) { if (c.skip) return { skip: true, ents: [], notes: [] }; var x = bdCellX(r, c, i); if (c.span) x.span = c.span; return x; });
+      r.cells = mcols.map(function (c, i) { if (c.skip) return { skip: true, ents: [], notes: [] }; var x = bdCellX(r, c, cols[i]._i != null ? cols[i]._i : i); if (c.span) x.span = c.span; return x; });
       bdAltMarks(r);
     }); });
     function bdCellX(r, c, i) {
@@ -597,7 +629,11 @@
     var ops = opsOf(vps), cities = [];
     if (home) cities.push(home);
     var chg = ps.some(function (p) { return p.chg; });
-    var bplace = bdEn() && bdHeb(D.ED.bplace) ? bdN(D.ED.bplace) : D.ED.bplace;   // בלוח באנגלית — טקסט בעברית של העורך לא נכנס כמו שהוא
+    // המקום ("רמת אביב, תל אביב יפו" — שכונה או רחוב, ועיר): בלוח באנגלית — תרגום של השם כולו, ואם אין — כל חלק לחוד (העיר מתורגמת, השכונה ברשימת החסרים)
+    var bplace = bdEn() && bdHeb(D.ED.bplace) ? (function (s) {
+      var w = window.LCBoardEN.name(s, BD_IX, D.ED.ben, null);
+      return w !== s || s.indexOf(', ') < 0 ? bdN(s) : s.split(', ').map(bdN).join(', ');
+    })(D.ED.bplace) : D.ED.bplace;   // בלוח באנגלית — טקסט בעברית של העורך לא נכנס כמו שהוא
     var dflt = chg ? bdX('titleNew', 'לוח הזמנים החדש') + ' · ' + bdLinesT(ps) : bdX('title', 'זמני נסיעות') + ' · ' + (bplace || (ps.length <= 3 ? bdLinesT(ps) : cities.map(bdN).join(', ')) || bdLinesT(ps));
     var alts = bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.cells.some(function (x) { return x.notes.length && x.ntxt == null && x.txt == null; }); }); });
     // השבוע עד השינוי: "עד 28.11 · מ-29.11 — לוח זמנים חדש" (הלוח שאחריו — "החל מ-29.11")
@@ -607,7 +643,7 @@
       .map(function (c) { return [bdT('phn:' + c[0], bdOpN(c[0])), bdT('php:' + c[0], c[1]), c[0]]; }).filter(function (c) { return c[0] || c[1]; });
     var btitle = bdEn() ? D.ED.btitleEn : D.ED.btitle, bnote = bdEn() ? D.ED.bnoteEn : D.ED.bnote;
     // מראה הלוח — גם לייצוא לאקסל: יישור הכותרת, צבעים, רקע ויישור לשורה ולתא
-    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, types: bdTypeOrder(), title: bdT('title', ((btitle || '').trim() || dflt) + (WK ? ' · ' + bdX('untilD', 'עד ') + LC.dm(WK) : BD_FE ? ' · ' + bdX('fromD', 'החל מ-') + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
+    return { look: { tal: D.ED.btal || '', clr: D.ED.bclr || null, bg: (D.ED.bd && D.ED.bd.bg) || {}, al: (D.ED.bd && D.ED.bd.al) || {} }, ord: ord, keys: keys, flat: flat, opList: opl.map(function (o) { return opn[o]; }).filter(Boolean), cw: bdCwOf(cols), tcount: tcount, flatFx: Object.keys(bandN).length > Object.keys(flatN).length, types: bdTypeOrder(), title: bdT('title', ((btitle || '').trim() || dflt) + (WK ? ' · ' + bdX('untilD', 'עד ') + LC.dm(WK) : BD_FE ? ' · ' + bdX('fromD', 'החל מ-') + LC.dm(BD_FE) : '')), dflt: dflt, valid: valid, fe: BD_FE, wk: WK, until: until, sub: bdT(WK ? 'wsub' : 'sub', sub), subDflt: sub, subK: WK ? 'wsub' : 'sub', home: home, cols: cols, bands: bands, pages: vps.length ? vps : ps,
       // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה); נמחק בלוח — לא מופיע
       note: bdT('note', (bnote || '').trim() || (alts ? bdX('altNote', 'נסיעות שמסומנות בסימן ובצבע (# ^ $…) עוברות בדרך אחרת') : '')), contacts: contacts,
       // המשפט על הנסיעות בסימן — רק בעמוד שיש בו נסיעה כזו (bdFoot), כשהמשתמש לא כתב או שינה את "עדכונים"
@@ -1000,7 +1036,7 @@
     var nw = M.cols.filter(function (c) { return c.wk; }).length, two = nw > 1, rs = two ? ' rowspan="2"' : '';
     var th = function (c) { return '<th' + (two && !c.wk ? rs : '') + '><span' + bdK('th:' + c.days.join('')) + '>' + E(c.label) + '</span></th>'; };
     var head = '<tr><th' + rs + '><span' + bdK('th:line') + '>' + E(M.th.line) + '</span></th><th' + rs + '><span' + bdK('th:orig') + '>' + E(M.th.orig) + '</span></th>' +
-      (two ? '<th colspan="' + nw + '" class="wkh"><span' + bdK('th:wk') + '>' + E(M.th.wk) + '</span></th>' + M.cols.filter(function (c) { return !c.wk; }).map(th).join('') + '</tr><tr class="wk2">' + M.cols.filter(function (c) { return c.wk; }).map(th).join('')
+      (two ? M.cols.map(function (c, i) { return !c.wk ? th(c) : i && M.cols[i - 1].wk ? '' : '<th colspan="' + nw + '" class="wkh"><span' + bdK('th:wk') + '>' + E(M.th.wk) + '</span></th>'; }).join('') + '</tr><tr class="wk2">' + M.cols.filter(function (c) { return c.wk; }).map(th).join('')
         : M.cols.map(th).join('')) + '</tr>';
     return '<table class="bd-t">' + (cg || bdColgroup(M)) + '<thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
   }
@@ -1347,6 +1383,6 @@
   LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.boardInk = bdInk; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
   LCDeck.boardMove = bdMovePlan; LCDeck.boardWhere = bdWhereSel; LCDeck.boardDates = bdDates; LCDeck.boardSuggest = bdSuggest;
   LCDeck._test.bdDatePage = bdDatePage; LCDeck._test.bdOnDate = bdOnDate; LCDeck._test.bdLtrSplit = function (ps, ed) { var keep = D.ED; D.ED = ed || {}; try { return bdLtrSplit(ps); } finally { D.ED = keep; } };
-  LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
+  LCDeck._test.bdColOrder = bdColOrder; LCDeck.boardColId = bdColId; LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
   LCDeck.boardWidths = function () { var g = BD_CG[BD_GEO.form + '|' + BD_GEO.sc]; return g ? { tw: g.tw, cl: g.cl, co: g.co, ws: g.ws.slice(), man: g.man, mt: g.mt, cost: bdCost(g.mt, g.ws), rows: g.mt.rows.map(function (r) { return Math.max.apply(null, [r.fl].concat(r.cells.map(function (c) { var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += g.ws[k]; return bdCellH(g.mt, c, w); }))); }) } : null; };
 })(LCDeck._in);
