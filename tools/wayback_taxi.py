@@ -2,7 +2,8 @@
 שלב 1: CDX — כתובות שמורות באתרי העיריות ומשרד התחבורה שהכתובת שלהן מרמזת על מוניות.
 שלב 2: הורדה של עד MAXF עמודים (בקצב איטי), חילוץ טקסט, ושמירת קטעים שמזכירים מוניות שירות.
 פלט: wayback-taxi/candidates.json, wayback-taxi/hits.json, wayback-taxi/hits.txt"""
-import json, re, time, os, html, urllib.request, urllib.parse
+import json, re, time, os, html, urllib.request, urllib.parse, urllib.error
+GAP = 4.0   # שניות בין בקשות — כ-15 בדקה, מתחת למגבלה של הארכיון
 
 UA = 'kav-bochan-research/1.0'
 OUT = 'wayback-taxi'
@@ -24,6 +25,16 @@ def get(url, tries=2):
             req = urllib.request.Request(url, headers={'User-Agent': UA})
             with urllib.request.urlopen(req, timeout=40) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:
+            last = e
+            # 429 = מגבלת קצב של הארכיון: מי שממשיך לבקש — נחסם לשעה (ומכפיל). מחכים דקה ומאטים
+            if e.code in (429, 503):
+                global GAP
+                GAP = min(GAP * 2, 30)
+                print('rate limited, gap', GAP, flush=True)
+                time.sleep(70)
+            else:
+                time.sleep(5 * (i + 1))
         except Exception as e:  # noqa: BLE001
             last = e
             time.sleep(5 * (i + 1))
@@ -76,7 +87,7 @@ def main():
         if time.time() - T0 > BUDGET / 2:
             print('CDX budget reached', flush=True)
             break
-        time.sleep(2)
+        time.sleep(GAP)
     json.dump(cands, open(f'{OUT}/candidates.json', 'w'), ensure_ascii=False, indent=1)
     hits, n = [], 0
     for c in cands:
@@ -85,7 +96,7 @@ def main():
         url = f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
         b = get(url)
         n += 1
-        time.sleep(1.5)
+        time.sleep(GAP)
         if not b:
             continue
         t = text_of(b)

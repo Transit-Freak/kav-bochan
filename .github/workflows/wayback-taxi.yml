@@ -6,6 +6,9 @@ on:
     branches: [claude/stoic-allen-3g21ru]
     paths: ['.github/workflows/wayback-taxi.yml', 'tools/wayback_taxi.py']
   workflow_dispatch:
+concurrency:
+  group: wayback-taxi
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
