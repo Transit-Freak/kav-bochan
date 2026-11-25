@@ -1001,6 +1001,62 @@ def departures_day(st, trips, dep_of):
     return out
 
 
+# ---------------------------------------------------------------- היום עד עכשיו (--partial)
+# ריצה כל 10 דקות על היום הנוכחי (.github/workflows/bus-today.yml): רק נסיעות שהסתיימו לפי הלו"ז עד
+# "עכשיו פחות מרווח" נספרות — נסיעה שעוד בדרך הייתה נמדדת רק על חלק מהתחנות, ומטה את התמונה.
+# הפלט: קובץ סיכום קטן אחד (today.json), בלי לגעת ב-bus/data.
+PARTIAL_MARGIN = 15     # דקות אחרי הסיום המתוכנן — גם נסיעה באיחור קל הספיקה להגיע
+TODAY_TOP = 15          # הקווים הכי פחות מדייקים
+TODAY_MIN_OBS = 3       # קו בדירוג: לפחות כך וכך נסיעות שנמדדו היום
+TODAY_MIN_MEAS = 20     # ולפחות כך וכך הגעות לתחנות
+
+
+def finished_trips(st, cutoff):
+    """trip_id של הנסיעות שהסיום המתוכנן שלהן (ההגעה לתחנה האחרונה) עד cutoff (שניות מחצות של יום השירות)."""
+    return {tid for tid, lst in st.items() if lst and lst[-1][2] <= cutoff}
+
+
+def _delay_stats(d):
+    if not d:
+        return [None, None, None]
+    d = sorted(d)
+    return [round(statistics.mean(d) / 60, 1), round(d[len(d) // 2] / 60, 1), round(d[int(len(d) * 0.9)] / 60, 1)]
+
+
+def today_summary(day, now_sec, cutoff, updated, minutes, tot, agencies, route_acc, routes, bunch_tot, bunch_ag, bunch_route, hours,
+                  top=TODAY_TOP, min_obs=TODAY_MIN_OBS, min_meas=TODAY_MIN_MEAS):
+    """סיכום "היום עד עכשיו". tot/agencies/route_acc — המצברים של main (sched, obs, meas, c, d, o);
+    bunch_* — [זוגות, צמודים, רווח כפול]; hours — שעה → [הגעות, בזמן]."""
+    hm = lambda s: f'{s // 3600:02d}:{s % 3600 // 60:02d}'  # noqa: E731
+    meas = tot['meas']
+    share = lambda a, b: round(a / b, 4) if b else None  # noqa: E731
+    lines = []
+    for rid, r in route_acc.items():
+        if r['obs'] < min_obs or r['meas'] < min_meas:
+            continue
+        info = routes.get(rid, {})
+        avg = sum(r['d']) / len(r['d']) / 60 if r['d'] else None
+        lines.append([rid, info.get('short', ''), info.get('long', ''), info.get('agency', ''), info.get('mkt', ''), info.get('dir', ''),
+                      r['obs'], r['meas'], r['c'], round(avg, 1) if avg is not None else None, bunch_route.get(rid, [0, 0, 0])])
+    lines.sort(key=lambda x: (x[8][ONTIME] / x[7], -(x[9] or 0)))
+    ags = sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], _delay_stats(v['d']), v['o'], bunch_ag.get(ag, [0, 0, 0])]
+                  for ag, v in agencies.items() if v['meas']], key=lambda x: -x[3])
+    return {
+        'd': day, 'fmt': 1, 'partial': True, 'updated': updated,
+        'now': hm(now_sec), 'until': hm(cutoff), 'minutes': minutes,
+        'tot': {'sched': tot['sched'], 'obs': tot['obs'], 'meas': meas, 'c': tot['c'], 's': _delay_stats(tot['d']), 'o': tot['o']},
+        'on': share(tot['c'][ONTIME], meas), 'early': share(tot['c'][EARLY], meas),
+        'bunch': list(bunch_tot),
+        'hours': [[h, v[0], v[1]] for h, v in sorted(hours.items())],
+        'agencies': ags,
+        'worst': lines[:top],
+        'cols': {'tot': 'sched = trips scheduled to end by "until" · obs = of them measured · meas = stop passages · c = [early, on time, 5-10, 10-20, 20+] · s = [avg, median, p90] min · o = origin departures by category',
+                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'bunch[pairs, bunched, double gap]'],
+                 'worst': ['route_id', 'line', 'long name', 'agency', 'mkt', 'dir', 'obs', 'meas', 'cats', 'avg delay min', 'bunch[pairs, bunched, double gap]'],
+                 'hours': '[hour, passages, on time]'},
+    }
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -1074,6 +1130,11 @@ def main():
     ap.add_argument('--dump-rides', default='', help='קובץ JSON עם שורה לכל נסיעה שנמדדה (להשוואה מול נתוני המשרד)')
     ap.add_argument('--clusters', default='', help='ClusterToLine (txt/zip) של המשרד — אשכול וסוג לכל קו בקטלוג')
     ap.add_argument('--clusters-only', action='store_true', help='רק לעדכן את האשכולות בקטלוג הקיים (בלי יום, בלי SIRI)')
+    ap.add_argument('--partial', action='store_true', help='היום עד עכשיו: רק נסיעות שהסתיימו, והפלט רק --summary')
+    ap.add_argument('--now', default='', help='עם --partial: "עכשיו" (ISO עם אזור זמן); ברירת מחדל — השעון')
+    ap.add_argument('--margin', type=int, default=PARTIAL_MARGIN, help='עם --partial: דקות אחרי הסיום המתוכנן')
+    ap.add_argument('--summary', default='today.json', help='עם --partial: קובץ הסיכום')
+    ap.add_argument('--st-cache', default='', help='pickle של ה-GTFS ורצפי התחנות של היום: נקרא אם קיים, אחרת נכתב')
     a = ap.parse_args()
     if a.clusters_only:
         catalog_path = f'{a.out}/routes.json'
@@ -1087,6 +1148,11 @@ def main():
             ap.error(f'--{k} נדרש')
     day = a.day
     t0 = datetime.datetime.now()
+    if a.partial:
+        now_iso = a.now or datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now_sec = il_sec(now_iso.replace('Z', '+00:00'), day)
+        cutoff = now_sec - a.margin * 60
+        print(f'היום עד עכשיו: {day} עד {now_sec // 3600:02d}:{now_sec % 3600 // 60:02d} — נסיעות שהסתיימו בלו"ז עד {cutoff // 3600:02d}:{cutoff % 3600 // 60:02d}', flush=True)
 
     files = []
     for hh in sorted(os.listdir(a.siri)):
@@ -1114,15 +1180,32 @@ def main():
     if GPS_FREQ:
         print(f'GPS: {len(gps_v):,} רכבים עם מרווחי שידור', flush=True)
 
-    g = load_gtfs(a.gtfs, day)
+    st = None
+    if a.st_cache and os.path.exists(a.st_cache):
+        import pickle
+        with open(a.st_cache, 'rb') as f:
+            g, st = pickle.load(f)
+        print(f'GTFS ורצפי התחנות מהמטמון {a.st_cache}', flush=True)
+    else:
+        g = load_gtfs(a.gtfs, day)
     print(f'GTFS: {len(g["trips"]):,} נסיעות פעילות · {len(g["routes"]):,} מסלולים · {len(g["stops"]):,} תחנות', flush=True)
-    plan_details = {}
-    plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day, plan_details)
-    vehicle_types, vehicle_types_date = load_vehicle_types(a.site)
+    if a.partial:
+        # היום עד עכשיו: בלי סוג הרכב (לא בסיכום)
+        plan_details, plan_cls, veh_cls, vehicle_types, vehicle_types_date = {}, {}, {}, {}, None
+    else:
+        plan_details = {}
+        plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day, plan_details)
+        vehicle_types, vehicle_types_date = load_vehicle_types(a.site)
     print(f'סוגי רכב: {len(plan_cls):,} מק"טים עם סוג שנקבע · {len(veh_cls):,} רכבים עם סוג ידוע', flush=True)
     # רצפי התחנות של כל הנסיעות הפעילות היום — נדרש גם להצמדה (שעת היציאה
     # של התחנה הראשונה) וגם למדידה
-    st = load_stop_times(g, set(g['trips']))
+    if st is None:
+        st = load_stop_times(g, set(g['trips']))
+        if a.st_cache:
+            import pickle
+            with open(a.st_cache + '.tmp', 'wb') as f:
+                pickle.dump(({k: v for k, v in g.items() if k != 'zip'}, st), f, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(a.st_cache + '.tmp', a.st_cache)
     print(f'stop_times: {sum(len(v) for v in st.values()):,} שורות ל-{len(st):,} נסיעות · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
     # מעברים מתוכננים בכל תחנה של כל מסלול — המכנה של "מהמתוכנן" בטבלת "תחנה אחרי תחנה"
     # (שלמה 17.09: "לתת לכמות כאן גם אחוז מתכנון")
@@ -1186,6 +1269,12 @@ def main():
             for k in keys[1:]:
                 del jt[k]
                 dup += 1
+    if a.partial:
+        # נסיעה שעוד לא הסתיימה בלו"ז לא נספרת (גם לא במכנה — sched_per_route למטה)
+        fin = finished_trips(st, cutoff)
+        n_unf = sum(1 for tid in jt.values() if tid not in fin)
+        jt = {k: tid for k, tid in jt.items() if tid in fin}
+        print(f'היום עד עכשיו: {len(fin):,} נסיעות בלו"ז הסתיימו · {n_unf:,} נסיעות ששודרו ועוד לא הסתיימו — לא נספרות', flush=True)
     print(f'הוצמדו ל-GTFS: {len(jt):,} נסיעות SIRI ({len(used):,} נסיעות GTFS שונות, {dup:,} שידורים כפולים הושמטו) · לא: {dict(unmatched)} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
 
     # --- מדידה ---
@@ -1194,7 +1283,7 @@ def main():
     # הקו המזין: תחנות אוטובוס ליד תחנות רכבת (קואורדינטות התחנות — מקובץ מדד הרכבת)
     feed_near = {}      # stop_id → [(קוד תחנת רכבת, מרחק במטרים)]
     try:
-        rail_st = json.load(open(f'{a.site}/rail/data/stations.json', encoding='utf-8'))
+        rail_st = {} if a.partial else json.load(open(f'{a.site}/rail/data/stations.json', encoding='utf-8'))
     except (OSError, ValueError):
         rail_st = {}
     for sid, st_ in stops.items():
@@ -1261,6 +1350,8 @@ def main():
     hms_ = lambda s: f'{s // 3600:02d}:{s % 3600 // 60:02d}'  # noqa: E731
     worst = []
     sched_per_route = collections.Counter(g['trips'].values())
+    if a.partial:
+        sched_per_route = collections.Counter(rid for tid, rid in g['trips'].items() if tid in fin)
     for rid, n in sched_per_route.items():
         A[routes.get(rid, {}).get('agency', '?')]['sched'] += n
         tot['sched'] += n
@@ -1574,6 +1665,14 @@ def main():
             continue
         top = sorted(by_sid[sid], key=lambda x: (-x[2], -x[1]))[:4]
         bunch_stops[so[0]] = [round(so[2], 5), round(so[3], 5), [[h, *v] for h, v in sorted(hrs.items())], top]
+    if a.partial:
+        summ = today_summary(day, now_sec, cutoff, datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), len(files),
+                             tot, A, R, routes, B_tot, B_ag, B_route, H)
+        os.makedirs(os.path.dirname(a.summary) or '.', exist_ok=True)
+        json.dump(summ, open(a.summary, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        print(f'נכתב {a.summary} ({os.path.getsize(a.summary) / 1e3:.0f}KB) · בזמן: {summ["on"] or 0:.1%} · {tot["obs"]:,} נסיעות מתוך {tot["sched"]:,} · '
+              f'{(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+        return
     if os.environ.get('BUNCH_DIR'):
         import gzip
         os.makedirs(os.environ['BUNCH_DIR'], exist_ok=True)
