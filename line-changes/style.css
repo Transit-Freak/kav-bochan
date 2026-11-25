@@ -86,8 +86,15 @@ button,input,textarea,select{font-family:inherit}
 @media (max-width:560px){
   .steps ol button:not([aria-current="step"]) span{display:none}
   /* השלב הנוכחי ברוחב הטקסט שלו — שהקו בין השלבים לא יעבור על המילים ("איזה שינוי?") */
-  .steps li:has(button[aria-current="step"]){flex:none}
-  .steps ol button[aria-current="step"] span{white-space:nowrap}
+  .steps li:has(button[aria-current="step"]){flex:none;min-width:0;max-width:75%}
+  .steps li + li::before{flex-basis:8px;margin:0 2px}
+  .steps ol button[aria-current="step"] span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .steps ol{overflow:hidden}
+}
+/* טלפון צר: "חזרה" רק חץ, כדי ששם השלב הנוכחי ייכנס במלואו (גם באנגלית) */
+@media (max-width:430px){
+  .steps .back{font-size:0;padding:0 12px;gap:0}
+  .steps .back span{font-size:18px}
   .steps ol button{padding:var(--sp1) var(--sp2)}
   .steps .back{padding:0 var(--sp3)}
 }
@@ -168,6 +175,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .ccard .pick-arrow{font-size:22px;color:var(--after);flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.ccard .chip{white-space:normal;max-width:100%}   /* תגית ארוכה (באנגלית) עוברת שורה ולא נחתכת */
 .chip.geo{background:var(--add-bg);color:var(--add)}
 .chip.rem{background:var(--before-bg);color:var(--before)}
 .chip.add{background:var(--add-bg);color:var(--add)}
