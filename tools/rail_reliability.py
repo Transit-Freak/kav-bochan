@@ -504,8 +504,9 @@ def diagnose(by_ride, fixes):
                 + (f'הגעה {datetime.datetime.fromtimestamp(tm[0], IL).strftime("%H:%M")} יציאה {datetime.datetime.fromtimestamp(tm[1], IL).strftime("%H:%M")} מרחק {int(tm[2])}מ׳' if tm else 'אין שידור ≤2000מ׳ בחלון'))
 
 
-def process_day(d, stations):
-    start, stops, locs = fetch_day(d)
+def process_day(d, stations, fetched=None):
+    """fetched — (start, stops, locs) מוכנים ("היום עד עכשיו", fetch_today); בלעדיו — fetch_day."""
+    start, stops, locs = fetched or fetch_day(d)
     by_ride, fixes, vehs = build_rides(stops, locs)
     if os.environ.get('DIAG') == '1':
         diagnose(by_ride, fixes)
@@ -598,7 +599,92 @@ def summarize(day, stations):
     return out
 
 
+# ---------------------------------------------------------------- היום עד עכשיו (--partial)
+# ריצה כל 10 דקות על היום הנוכחי (.github/workflows/rail-today.yml): אותו חישוב בדיוק (process_day,
+# summarize), רק על נסיעות שלפי הלו"ז הגיעו ליעד לפחות PARTIAL_MARGIN דקות לפני "עכשיו" — נסיעה שעוד
+# בדרך הייתה נמדדת רק על חלק מהתחנות. הפלט באותם מבנים כמו הריצה הלילית: day.json (כמו days/D.json)
+# ו-summary.json (רשומה של index.json, ועוד partial/updated/now/until ו-st — התחנות של היום).
+PARTIAL_MARGIN = 45     # דקות — כמו TIME_WIN: כל השידורים שיכולים להיספר ביעד כבר נקלטו
+
+
+def finished_stops(stops, cutoff):
+    """רק התחנות של נסיעות שההגעה המתוכננת לתחנה האחרונה שלהן עד cutoff (שניות epoch)."""
+    last = {}
+    for s in stops:
+        t = ts(s.get('arrival_time'))
+        rid = s.get('gtfs_ride_id')
+        if t is not None and (rid not in last or t > last[rid]):
+            last[rid] = t
+    return [s for s in stops if s.get('gtfs_ride_id') in last and last[s.get('gtfs_ride_id')] <= cutoff]
+
+
+def fetch_today(d, now, siri_dir, sched_cache='', margin=PARTIAL_MARGIN):
+    """כמו fetch_day_s3, עד now: הלו"ז מהמטמון (או מהארכיון, ונשמר), השידורים מקובצי הדקה במטמון
+    המקומי (siri_s3.sync_minutes מוריד רק את החסרים). מחזיר (start, stops, locs) של הנסיעות שהסתיימו."""
+    import gzip
+    import siri_s3
+    start = datetime.datetime.combine(d, datetime.time(0), tzinfo=IL)
+    end = start + datetime.timedelta(days=1)
+    if sched_cache and os.path.exists(sched_cache):
+        with gzip.open(sched_cache, 'rt', encoding='utf-8') as f:
+            stops = json.load(f)
+        log(f'  לו"ז מהמטמון {sched_cache}')
+    else:
+        stops = archive_schedule(d, start)
+        s0, s1 = start.timestamp(), end.timestamp()
+        stops = [s for s in stops if s0 - 1 <= (ts(s.get('gtfs_ride__start_time')) or 0) < s1]
+        if not stops:
+            raise ValueError('אין נסיעות רכבת בקובץ ה-GTFS של היום בארכיון')
+        if sched_cache:
+            os.makedirs(os.path.dirname(sched_cache) or '.', exist_ok=True)
+            with gzip.open(sched_cache + '.tmp', 'wt', encoding='utf-8') as f:
+                json.dump(stops, f, ensure_ascii=False, separators=(',', ':'))
+            os.replace(sched_cache + '.tmp', sched_cache)
+    cutoff = now - datetime.timedelta(minutes=margin)
+    stops = finished_stops(stops, cutoff.timestamp())
+    log(f'  לו"ז: {len(stops)} תחנות-נסיעה בנסיעות שהסתיימו עד {cutoff.astimezone(IL):%H:%M}')
+    siri_s3.sync_minutes(OP, siri_dir, start, now)
+    locs = siri_s3.vehicle_locations(OP, start, end, upto=now, rows_of=siri_s3.cached_rows(siri_dir))
+    return start, stops, locs
+
+
+def partial_main(argv):
+    import argparse
+    ap = argparse.ArgumentParser(description='מדד אמינות הרכבת — היום עד עכשיו')
+    ap.add_argument('--partial', action='store_true')
+    ap.add_argument('--now', default='', help='"עכשיו" (ISO עם אזור זמן); ברירת מחדל — לפני 2 דקות, מעוגל לדקה')
+    ap.add_argument('--day', default='', help='ברירת מחדל — התאריך בישראל של now')
+    ap.add_argument('--siri', required=True, help='תיקיית המטמון של קובצי הדקה (רק רכבת ישראל)')
+    ap.add_argument('--sched-cache', default='', help='הלו"ז של היום (json.gz): נקרא אם קיים, אחרת נכתב')
+    ap.add_argument('--margin', type=int, default=PARTIAL_MARGIN)
+    ap.add_argument('--out', default='rail-today', help='תיקיית הפלט: summary.json ו-day.json')
+    a = ap.parse_args(argv)
+    if a.now:
+        now = datetime.datetime.fromisoformat(a.now.replace('Z', '+00:00'))
+    else:
+        now = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).replace(second=0, microsecond=0)
+    d = datetime.date.fromisoformat(a.day) if a.day else now.astimezone(IL).date()
+    hm = lambda t: t.astimezone(IL).strftime('%H:%M')  # noqa: E731
+    until = now - datetime.timedelta(minutes=a.margin)
+    log(f'{d} עד {hm(now)} — נסיעות שהגיעו ליעד לפי הלו"ז עד {hm(until)}')
+    stations = {}
+    day, summ = process_day(d, stations, fetch_today(d, now, a.siri, a.sched_cache, a.margin))
+    log(f'  נסיעות {summ["rides"]} · עם שידור {summ["fix"]} · נמדדו {summ["meas"]} · '
+        f'בזמן {summ.get("on", 0):.0%} · ממוצע {summ.get("avg", 0)} דק׳ ({elapsed_min():.1f} דק׳)')
+    if not day['rides']:
+        log('  עוד אין נסיעות שהסתיימו — אין פלט')
+        return 0
+    extra = {'partial': True, 'now': hm(now), 'until': hm(until)}
+    day.update(extra)
+    summ.update(extra, updated=iso(datetime.datetime.now(IL)), st={str(k): v for k, v in sorted(stations.items(), key=lambda kv: str(kv[0]))})
+    jdump(day, f'{a.out}/day.json')
+    jdump(summ, f'{a.out}/summary.json')
+    return 0
+
+
 def main():
+    if '--partial' in sys.argv[1:]:
+        return partial_main(sys.argv[1:])
     os.makedirs(DAYS, exist_ok=True)
     stations = jload(STATIONS, {})
     index = jload(INDEX, {'days': []})
