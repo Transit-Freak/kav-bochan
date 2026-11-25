@@ -144,22 +144,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
       .catch((e) => { if (ok) setErr(e); });
     return () => { ok = false; };
   }, [rd, rty, initDate, initCats]);
-  // מונית מחופש המידע שהמשיכה בתקופת ה-GTFS (lf.foiNext, tools/foi_taxi.py): במפה — המסלול של הקו
-  // שהמשיך, מהשרטוט הראשון שלו, במקום קו ישר בין שתי תחנות הקצה
-  const nextRd = lf && lf.foiNext ? lf.foiNext.rd : null;
-  const [nextGeo, setNextGeo] = useState(null);
-  useEffect(() => {
-    setNextGeo(null);
-    if (!nextRd) return;
-    let ok = true;
-    dfetch("data/lines/" + fsafe(nextRd) + ".json").then((r) => (r.ok ? r.json() : null)).then((s) => {
-      if (!ok || !s) return;
-      materializeLf(s);
-      const v = (s.versions || []).filter((x) => !x.hid && x.shp).sort((a, b) => a.d.localeCompare(b.d))[0];
-      if (v) setNextGeo({ pts: decodeShape(v.shp), d: v.d });
-    }).catch(() => {});
-    return () => { ok = false; };
-  }, [nextRd]);
   // הודעת שגיאה אחת לשני מצבים שונים הטעתה: כשל רשת רגעי בנייד הוצג
   // כ"לא נמצאו נתונים" והגולש הסיק שאין מה לראות. סטטוס HTTP (404) הוא
   // באמת קו שאין לו קובץ; כל השאר — תקלה, עם כפתור לנסות שוב.
@@ -465,7 +449,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
   const borrowed = !cmpOn && !ownGeo && !plannedV && gv !== v;
   // "מקורב" נמדד על הגרסה שמצוירת בפועל — כשהמפה שאולה מגרסה אחרת,
   // הדיוק שלה הוא של אותה גרסה ולא של האירוע שנבחר
-  const useNext = !!(nextGeo && nextGeo.pts.length > 1 && gv.src === "mot-foi" && !gv.shp && !cmpOn && !plannedV);
+  const useNext = false, nextGeo = null;   // לקווים בלי שרטוט מסלול לא מציגים מסלול של קו אחר במקומו
   const approx = !useNext && !gv.shp && (gv.stops || []).length > 1;
   const cur = useNext ? nextGeo.pts : (toPts(gv) || []);
   // המסלול הקודם מוצג רק כשיש באמת מה להשוות: הגרסה מתעדת שינוי תחנות

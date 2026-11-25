@@ -90,7 +90,7 @@ def test_confirmed_numbers_and_successors(tmp_path):
         assert (lf.get('foiNext') or {}).get('rd') == nxt, rd
         if nxt:
             assert lf['foiNext'] == {'rd': nxt, 'line': line, 'd': '2019-07-18'}
-            assert 'והמפה מציגה את המסלול של הקו שהמשיך אותו.' in lf['versions'][0]['note']
+            assert 'והמפה מחברת את התחנות בקווים ישרים.' in lf['versions'][0]['note']
 
 
 def test_line_16_direction_and_missing_successor(tmp_path):
