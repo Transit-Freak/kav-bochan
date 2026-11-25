@@ -16,7 +16,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&am
 const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
 const fmt1 = v => v == null ? '—' : (Math.round(v * 10) / 10).toLocaleString('he-IL', {minimumFractionDigits: 1, maximumFractionDigits: 1});
 const num = v => v == null ? '—' : Number(v).toLocaleString('he-IL');
-const heDate = d => { if (TODAY && d === TODAY.d) return `היום (עד ${TODAY.now})`; const [y, m, dd] = d.split('-'); return `${DAYNAMES[new Date(+y, m - 1, +dd).getDay()]}, ${+dd}.${+m}.${y}`; };
+const heDate = d => { if (TODAY && d === TODAY.d) return `היום (עד ${TODAY.until})`; const [y, m, dd] = d.split('-'); return `${DAYNAMES[new Date(+y, m - 1, +dd).getDay()]}, ${+dd}.${+m}.${y}`; };
 const shortDate = d => { const [, m, dd] = d.split('-'); return `${+dd}.${+m}`; };
 const hhmm = m => m == null ? '—' : `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const bucketOf = v => v == null ? -1 : v <= 5 ? 0 : v <= 10 ? 1 : v <= 20 ? 2 : 3;
@@ -307,7 +307,7 @@ function render() {
   const skipped = period === 'day' ? [] : windowDays().filter(partial);
   let html = '';
   if (period === 'day' && days[0] && partial(days[0])) html += `<div class="warn">ביום זה דאטאבוס קלט שידורי מיקום רק מ-${num(days[0].fix)} מתוך ${num(days[0].rides)} רכבות שבלו״ז. המספרים של היום הזה אינם מייצגים, והוא אינו נכלל בממוצעי התקופה.</div>`;
-  if (period === 'day' && days[0] && days[0].today) html += `<div class="warn">חלקי — רכבות שסיימו עד ${esc(days[0].until)}</div>`;
+  if (period === 'day' && days[0] && days[0].today) html += `<div class="warn">חלקי — רק רכבות שסיימו את הנסיעה עד ${esc(days[0].until)} (עודכן ב-${esc(TODAY && TODAY.now || '')})</div>`;
   html += heroHtml(A.acc, days);
   if (skipped.length) html += `<div class="warn">לא נכללו ${skipped.length} ימים שבהם דאטאבוס קלט שידורים מפחות ממחצית הרכבות: ${skipped.map(d => `${shortDate(d.d)} (${num(d.fix)} מתוך ${num(d.rides)})`).join(', ')}.</div>`;
   html += `<div class="tabbar" id="tabbar" role="tablist">${TABS.filter(([k]) => k !== 'rides' || period === 'day').map(([k, t]) => { const b = tabBadge(k, A, days); return `<a class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}" href="${railHref(k)}">${t}${b ? `<small>${b}</small>` : ''}</a>`; }).join('')}</div>`;
