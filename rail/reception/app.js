@@ -84,7 +84,7 @@ function init() {
   NPTS = 0; for (const s of Object.values(D.segs)) for (const p of s.pts) p[9] = NPTS++;
   map = L.map('map', {zoomControl: true, preferCanvas: true}); window.__recepMap = map;
   RENDERER = L.canvas({padding: 0.3});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 18, attribution: '&copy; OpenStreetMap, &copy; CARTO'}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
   const all = []; for (const s of Object.values(D.segs)) for (const p of s.pts) all.push([p[0], p[1]]);
   map.fitBounds(L.latLngBounds(all).pad(0.05));
   antLayer = L.layerGroup().addTo(map);
