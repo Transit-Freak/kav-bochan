@@ -2230,9 +2230,15 @@ var LCDeck = (function () {
       return q;
     });
   }
+  /* לוחות לשבוע של השינוי (ED.bwk): בלי בחירה — רק הלו"ז שבתוקף עכשיו (הלוח עד השינוי); 'new' — רק הלוח מהשינוי;
+     'both' — שניהם, הלוח "עד…" ואחריו הלוח "החל מ-…" */
+  function wkSel(v) { return { a: v !== 'new', b: v === 'new' || v === 'both' }; }
   function curBuild(pages, feed) {
     var pre = curPre(pages);
     if (!pre) return curBuild1(pages, feed);
+    var sel = wkSel(D.ED.bwk);
+    if (!sel.a) return curBuild1(pages, feed);
+    if (!sel.b) return curBuild1(pre, feed);
     var wu = pre[0].wkUntil, fe = LC.addDays(wu, 1);
     var a = curBuild1(pre, feed).filter(function (s) { return s.id !== 'close'; }), b = curBuild1(pages, feed), out = [];
     a.forEach(function (s) { s.id = 'wk-' + s.id; s.label = 'עד ' + LC.dm(wu) + ' · ' + s.label; out.push(s); });
@@ -2635,5 +2641,5 @@ var LCDeck = (function () {
       D.agOf = agOf; D.lookVars = lookVars; D.ENd = ENd; D.ENb = ENb; D.sN = sN; D.Eb = Eb; D.enOp = enOp; D.enOd = enOd; D.enN = enN; D.enWd = enWd; D.ENc = ENc; D.TX = TX; D.NM = NM; D.OPN = OPN; D.LDIR = LDIR; D.WDM = WDM;
   // לבדיקות (tests/line-changes-units.test.mjs): פונקציות פנימיות — לא בשימוש בדף
   var _test = { realRuns: realRuns, offRuns: offRuns, cuMerge: cuMerge, dShort: dShort, hm2: hm2, noNear: noNear, remCols: remCols, altSym: altSym };
-  return { curPre: curPre, combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };
+  return { curPre: curPre, wkSel: wkSel, combOk: combOk, _test: _test, setPhones: setPhones, fmtPhone: fmtPhone, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return D.SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating, _in: D };
 })();

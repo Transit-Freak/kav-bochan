@@ -321,6 +321,10 @@
         var wkOf = function (g, MM, name) {
           var pre = LCDeck.curPre(g); if (!pre) return [[MM, name]];
           var W = LCDeck.boardModel(pre, o, { hol: true }), wu = W.wk, cut = function (n, s) { return (n ? n.slice(0, 30 - s.length).trim() + ' ' : '') + s; };
+          // "לוחות לשבוע של השינוי": בלי בחירה — רק הגיליון עד השינוי; רק החדש — הגיליון מהשינוי בלבד (בשם הרגיל); שניהם — שני הגיליונות
+          var sel = LCDeck.wkSel(o.bwk);
+          if (!sel.a) return [[MM, name]];
+          if (!sel.b) return [[W, cut(name === 'לוח זמנים' ? '' : name, 'עד ' + LC.dm(wu))]];
           return [[W, cut(name === 'לוח זמנים' ? '' : name, 'עד ' + LC.dm(wu))], [MM, cut(name === 'לוח זמנים' ? '' : name, 'החל מ-' + LC.dm(LC.addDays(wu, 1)))]];
         };
         if (tv === 'board' || cu.length === 1) blob = LCXlsx.book(wkOf(cu, M, 'לוח זמנים'));

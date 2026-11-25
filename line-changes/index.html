@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script src="ui-en.js?v=7"></script>
+<script src="ui-en.js?v=8"></script>
 <script src="../theme-boot.js?v=20261120c" data-inline="off"></script>
 <link rel="stylesheet" href="../dark/line-changes.css?v=20261119">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -48,11 +48,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=45'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=11'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=46'), js('deck-sign.js?v=4'), js('board-en.js?v=3'), js('deck-en-a.js?v=3'), js('deck-en-b.js?v=3'), js('deck-en-c.js?v=3'), js('deck-en-d.js?v=2'), js('deck-board.js?v=11'), js('deck-maps.js?v=2'), js('editor.js?v=12'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=45'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=11'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=46'], ['deck-sign.js?v=4'], ['board-en.js?v=3'], ['deck-en-a.js?v=3'], ['deck-en-b.js?v=3'], ['deck-en-c.js?v=3'], ['deck-en-d.js?v=2'], ['deck-board.js?v=11'], ['deck-maps.js?v=2'], ['editor.js?v=12']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -191,6 +191,14 @@
         </div>
         <label class="credit-opt" id="tallw" hidden><input type="checkbox" id="tall"> <span>להציג את כל השעות</span></label>
         <div class="tvopts" id="tvopts">
+          <div id="bwkw" hidden>
+            <span class="flabel sm">לוחות לשבוע של השינוי</span>
+            <div class="seg2 tvseg" id="bwkseg" role="radiogroup" aria-label="לוחות לשבוע של השינוי">
+              <button type="button" role="radio" data-bwk="cur"><b>הלו״ז הנוכחי</b></button>
+              <button type="button" role="radio" data-bwk="new"><b>רק הלו״ז החדש</b></button>
+              <button type="button" role="radio" data-bwk="both"><b>שניהם</b></button>
+            </div>
+          </div>
           <div class="bdopts" id="bdopts" hidden>
             <h4 class="tvsh">אפשרויות ללוח המודעות</h4>
             <label class="fld"><span>כותרת</span><input type="text" id="bdtitle" maxlength="90" autocomplete="off"></label>
@@ -430,13 +438,13 @@
 </footer>
 
 <script src="common.js?v=8"></script>
-<script src="app-settings.js?v=6"></script>
+<script src="app-settings.js?v=7"></script>
 <script src="app-edit.js?v=3"></script>
 <script src="app-images.js?v=1"></script>
-<script src="app-export.js?v=7"></script>
+<script src="app-export.js?v=8"></script>
 <!-- שמות החברות באנגלית (LCBoardEN.OPS) — גם לרשימת הקווים בממשק באנגלית -->
 <script src="board-en.js?v=3"></script>
-<script src="app.js?v=56"></script>
+<script src="app.js?v=57"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

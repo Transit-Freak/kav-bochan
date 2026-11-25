@@ -111,6 +111,10 @@
     A.$('tallw').hidden = tv !== 'sum';
     A.$('tall').checked = A.edits.tall === true;
     A.$('bdopts').hidden = !bd;
+    // קו שמשתנה השבוע: אילו לוחות להוציא — הלו"ז הנוכחי (ברירת המחדל, הלוח "עד…") / רק החדש / שניהם. בכל התצוגות
+    var wk = cu && !!LCDeck.curPre(pages);
+    A.$('bwkw').hidden = !wk;
+    if (wk) A.$('bwkseg').querySelectorAll('[data-bwk]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-bwk') === (A.edits.bwk === 'new' || A.edits.bwk === 'both' ? A.edits.bwk : 'cur') ? 'true' : 'false'); });
     // סדר השעות — בכל תצוגה עם רשימות שעות (לא בתקציר בלי "כל השעות")
     A.$('ttow').hidden = tv === 'sum' && A.edits.tall !== true;
     A.$('ttoseg').querySelectorAll('[data-tto]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-tto') === A.tordOf() ? 'true' : 'false'); });
@@ -385,7 +389,7 @@
       else { var g = bsug[+dd.getAttribute('data-bsg')]; if (!g) return; g.off.forEach(function (x) { setDay('off', x, true); setDay('sep', x, false); }); g.sep.forEach(function (x) { setDay('sep', x, true); setDay('off', x, false); }); }
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
     }
-    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr]');
+    var bo = ev.target.closest('[data-bpg],[data-bdn],[data-bsp],[data-bor],[data-bsub],[data-bst],[data-btal],[data-bt1],[data-bclr],[data-bopn],[data-bend],[data-bx2],[data-bltr],[data-bwk]');
     if (bo) {
       if (bo.hasAttribute('data-bor')) {
         var nb = bo.getAttribute('data-bor');
@@ -404,6 +408,7 @@
       else if (bo.hasAttribute('data-bopn')) A.edits.bop = bo.getAttribute('data-bopn') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bend')) A.edits.bend = bo.getAttribute('data-bend') === '0' ? false : undefined;
       else if (bo.hasAttribute('data-bx2')) A.edits.bx2 = bo.getAttribute('data-bx2') === '0' ? false : undefined;
+      else if (bo.hasAttribute('data-bwk')) { var wv = bo.getAttribute('data-bwk'); A.edits.bwk = wv === 'new' || wv === 'both' ? wv : undefined; }
       else if (bo.hasAttribute('data-bltr')) A.edits.bltr = bo.getAttribute('data-bltr') === '1' || undefined;
       else A.edits.bsplit = bo.getAttribute('data-bsp') === 'no' ? false : undefined;
       saveEdits(); A.keepScroll(function () { A.render(A.curPages); }); return;
