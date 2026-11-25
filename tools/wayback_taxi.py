@@ -7,19 +7,22 @@ import json, re, time, os, html, urllib.request, urllib.parse
 UA = 'kav-bochan-research/1.0'
 OUT = 'wayback-taxi'
 MAXF = int(os.environ.get('MAXF', '250'))
+T0 = time.time()
+BUDGET = int(os.environ.get('BUDGET', '2400'))   # שניות — אחר כך שומרים את מה שיש
 DOMAINS = ['mot.gov.il', 'tel-aviv.gov.il', 'haifa.muni.il', 'petah-tikva.muni.il', 'netanya.muni.il',
            'rishonlezion.muni.il', 'ashdod.muni.il', 'rehovot.muni.il', 'jerusalem.muni.il', 'nahariya.muni.il',
            'beer-sheva.muni.il', 'ramat-gan.muni.il', 'bat-yam.muni.il', 'holon.muni.il', 'herzliya.muni.il',
-           'kfar-saba.muni.il', 'raanana.muni.il', 'ashkelon.muni.il', 'bnei-brak.muni.il', 'gov.il']
+           'kfar-saba.muni.il', 'raanana.muni.il', 'ashkelon.muni.il', 'bnei-brak.muni.il']
 KEYS = r'.*([Tt]axi|monit|sherut|share|%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA|%D7%9E%D7%95%D7%A0%D7%99%D7%AA).*'
 WORDS = re.compile(r'מוני(?:ו)?ת(?: ה)?שירות|מונית שירות|מוניות שירות|קווי מוניות|תחנת מוניות')
 
 
-def get(url, tries=3):
+def get(url, tries=2):
+    last = None
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers={'User-Agent': UA})
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=40) as r:
                 return r.read()
         except Exception as e:  # noqa: BLE001
             last = e
@@ -54,18 +57,30 @@ def text_of(b):
     return re.sub(r'\n\s*\n+', '\n', s)
 
 
+def save(hits):
+    json.dump(hits, open(f'{OUT}/hits.json', 'w'), ensure_ascii=False, indent=1)
+    with open(f'{OUT}/hits.txt', 'w') as f:
+        for h in hits:
+            f.write(f"=== {h['ts']} {h['url']} ({h['n']})\n{h['wb']}\n" + '\n'.join('  • ' + s[:600] for s in h['snips']) + '\n\n')
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
+    save([])
     cands = []
     for d in DOMAINS:
         rows = cdx(d)
-        print(d, len(rows), flush=True)
+        print(d, len(rows), round(time.time() - T0), flush=True)
         cands += [dict(r, domain=d) for r in rows]
+        json.dump(cands, open(f'{OUT}/candidates.json', 'w'), ensure_ascii=False, indent=1)
+        if time.time() - T0 > BUDGET / 2:
+            print('CDX budget reached', flush=True)
+            break
         time.sleep(2)
     json.dump(cands, open(f'{OUT}/candidates.json', 'w'), ensure_ascii=False, indent=1)
     hits, n = [], 0
     for c in cands:
-        if n >= MAXF:
+        if n >= MAXF or time.time() - T0 > BUDGET:
             break
         url = f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
         b = get(url)
@@ -83,10 +98,8 @@ def main():
             snip.append(' | '.join(x.strip() for x in lines[max(0, i - 3): i + 6] if x.strip()))
         hits.append({'url': c['original'], 'ts': c['timestamp'], 'wb': url.replace('id_/', '/'), 'n': len(idx), 'snips': snip})
         print('HIT', c['timestamp'], c['original'], len(idx), flush=True)
-    json.dump(hits, open(f'{OUT}/hits.json', 'w'), ensure_ascii=False, indent=1)
-    with open(f'{OUT}/hits.txt', 'w') as f:
-        for h in hits:
-            f.write(f"=== {h['ts']} {h['url']} ({h['n']})\n{h['wb']}\n" + '\n'.join('  • ' + s[:600] for s in h['snips']) + '\n\n')
+        save(hits)
+    save(hits)
     print('candidates', len(cands), 'fetched', n, 'hits', len(hits))
 
 
