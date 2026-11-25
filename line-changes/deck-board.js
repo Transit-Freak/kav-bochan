@@ -603,7 +603,7 @@
       if (WK && h[0] > WK) return;
       if (DSEL && (DSEL.off[h[0]] || DSEL.sep[h[0]])) return;
       if (bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.d && r.d.x && r.d.x[h[0]]; }); }))
-        cols.push({ days: [isoDow(h[0])], hol: h, label: bdHolN(h[2]) + ' ' + LC.dm(h[0]) });
+        cols.push({ days: [isoDow(h[0])], hol: h, label: bdT('th:d' + h[0], bdHolN(h[2]) + ' ' + LC.dm(h[0])) });
     });
     cols = bdColsOrdered(cols, D.ED.bcols);
     bands.forEach(function (b) { b.rows.forEach(function (r) {
@@ -815,6 +815,8 @@
   var BD_GEO = { form: 'sign', sc: 1 }, BD_CG = {}, BD_LASTW = {};
   var BD_WMIN = 0.07, BD_WMAX = 0.5, BD_WU = 4;
   function bdColKey(c) { return c.hol ? 'h' + c.hol[0] : c.days.join(''); }
+  // מפתח העריכה של כותרת העמודה: לתאריך נפרד או לחג — לפי התאריך (th:d<iso>), כדי שעריכה שלה לא תשנה את כותרת היום הרגיל (th:5)
+  function bdThKey(c) { return 'th:' + (c.hol ? 'd' + c.hol[0] : c.days.join('')); }
   function bdManW() { var w = D.ED.bcw; return w && typeof w === 'object' && Object.keys(w).length ? w : null; }
   /* החלקים (המוצא וכל עמודה) מתוך ED.bcw או מהרוחב האוטומטי האחרון; עמודה שאין לה רוחב שמור — כמו הממוצע של השאר */
   function bdFracs(w, cols) {
@@ -1034,7 +1036,7 @@
   }
   function bdTable(M, rows, cg) {
     var nw = M.cols.filter(function (c) { return c.wk; }).length, two = nw > 1, rs = two ? ' rowspan="2"' : '';
-    var th = function (c) { return '<th' + (two && !c.wk ? rs : '') + '><span' + bdK('th:' + c.days.join('')) + '>' + E(c.label) + '</span></th>'; };
+    var th = function (c) { return '<th' + (two && !c.wk ? rs : '') + '><span' + bdK(bdThKey(c)) + '>' + E(c.label) + '</span></th>'; };
     var head = '<tr><th' + rs + '><span' + bdK('th:line') + '>' + E(M.th.line) + '</span></th><th' + rs + '><span' + bdK('th:orig') + '>' + E(M.th.orig) + '</span></th>' +
       (two ? M.cols.map(function (c, i) { return !c.wk ? th(c) : i && M.cols[i - 1].wk ? '' : '<th colspan="' + nw + '" class="wkh"><span' + bdK('th:wk') + '>' + E(M.th.wk) + '</span></th>'; }).join('') + '</tr><tr class="wk2">' + M.cols.filter(function (c) { return c.wk; }).map(th).join('')
         : M.cols.map(th).join('')) + '</tr>';
@@ -1256,7 +1258,7 @@
         var ds = sig[k], kk = ds.join(',');
         return { days: ds, label: bdEn() ? (kk === '5' ? bdX('friday') : kk === '6' ? bdX('satNight') : bdDs(ds)) : kk === '0,1,2,3,4' ? 'ימים א׳–ה׳' : kk === '5' ? 'יום שישי' : kk === '6' ? 'מוצ״ש' : ds.length === 1 ? 'יום ' + dShort(ds) : dShort(ds) };
       });
-      if (!old) (D.ED.hol || []).forEach(function (h) { if (all.some(function (r) { return r.d.hx && r.d.hx[h[0]]; })) cols.push({ days: [isoDow(h[0])], hol: h, label: bdHolN(h[2]) + ' ' + LC.dm(h[0]) }); });
+      if (!old) (D.ED.hol || []).forEach(function (h) { if (all.some(function (r) { return r.d.hx && r.d.hx[h[0]]; })) cols.push({ days: [isoDow(h[0])], hol: h, label: bdT('th:d' + h[0], bdHolN(h[2]) + ' ' + LC.dm(h[0])) }); });
       var cell = function (r, c) {
         if (c.hol && r.d.hx && r.d.hx[c.hol[0]]) return { ents: r.d.hx[c.hol[0]].map(function (m) { return { t: hm2(m), n: 1 }; }), notes: [] };
         var d = day(r, c.days[0]);
@@ -1383,6 +1385,6 @@
   LCDeck.boardFit = function () { return BOARD_FIT; }; LCDeck.boardInk = bdInk; LCDeck.chgBoardModel = chgBoardModel; LCDeck.boardModel = boardModel; LCDeck.chgModel = chgModel;
   LCDeck.boardMove = bdMovePlan; LCDeck.boardWhere = bdWhereSel; LCDeck.boardDates = bdDates; LCDeck.boardSuggest = bdSuggest;
   LCDeck._test.bdDatePage = bdDatePage; LCDeck._test.bdOnDate = bdOnDate; LCDeck._test.bdLtrSplit = function (ps, ed) { var keep = D.ED; D.ED = ed || {}; try { return bdLtrSplit(ps); } finally { D.ED = keep; } };
-  LCDeck._test.bdColOrder = bdColOrder; LCDeck.boardColId = bdColId; LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
+  LCDeck._test.bdColOrder = bdColOrder; LCDeck._test.bdTable = bdTable; LCDeck.boardColId = bdColId; LCDeck._test.bdWkSplit = bdWkSplit; LCDeck._test.bdAutoW = bdAutoW; LCDeck._test.bdCost = bdCost; LCDeck._test.bdFracs = bdFracs;
   LCDeck.boardWidths = function () { var g = BD_CG[BD_GEO.form + '|' + BD_GEO.sc]; return g ? { tw: g.tw, cl: g.cl, co: g.co, ws: g.ws.slice(), man: g.man, mt: g.mt, cost: bdCost(g.mt, g.ws), rows: g.mt.rows.map(function (r) { return Math.max.apply(null, [r.fl].concat(r.cells.map(function (c) { var w = 0; for (var k = c.c; k < c.c + c.s; k++) w += g.ws[k]; return bdCellH(g.mt, c, w); }))); }) } : null; };
 })(LCDeck._in);
