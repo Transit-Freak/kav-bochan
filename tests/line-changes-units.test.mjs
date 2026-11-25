@@ -364,6 +364,37 @@ test('קו שמשתנה השבוע: גם לוח של השבוע עד השינו�
   assert.equal(M2.sub.split(' · ')[0], 'החל מ-29.11'); assert.equal(M2.wk, ''); assert.equal(M2.cols[0].label, 'ימים א׳–ה׳');
 });
 
+test('לוחות לשבוע של השינוי (ED.bwk): בלי בחירה — רק הלוח "עד" (הלו"ז שבתוקף עכשיו); רק החדש — בלי הלוח "עד"; שניהם — "עד" ואחריו "החל מ-"', () => {
+  assert.deepEqual(J(ctx.LCDeck.wkSel(undefined)), { a: true, b: false });
+  assert.deepEqual(J(ctx.LCDeck.wkSel('cur')), { a: true, b: false });
+  assert.deepEqual(J(ctx.LCDeck.wkSel('new')), { a: false, b: true });
+  assert.deepEqual(J(ctx.LCDeck.wkSel('both')), { a: true, b: true });
+  assert.deepEqual(J(ctx.LCDeck.wkSel('xyz')), { a: true, b: false }, 'ערך לא מוכר — כמו ברירת המחדל');
+  const e = JSON.parse(fs.readFileSync(path.join(FIXD, 'tt', '48.json'), 'utf8')).lines['14384'];
+  const r1 = JSON.parse(JSON.stringify(e.d['1']));
+  const neu = r1.L[0].map((m) => (m === 440 ? 435 : m === 460 ? 450 : m));
+  r1.L.push(neu); r1.A.push(r1.A[0]);
+  const NEW = r1.L.length - 1, W = ctx.LC.ttFromEff(Object.assign({}, r1, { w: [NEW, 0, 0, 0, 0, 1, 2], w1: [NEW, NEW, NEW, NEW, NEW, 1, 2] }), '2026-11-23', '2026-11-29', true);
+  const dir = (days) => ({ dir: '1', od: r1.od, f: r1.f, fc: r1.fc, t: r1.t, cs: r1.cs, cn: r1.cn, sc: r1.sc, du: r1.du, days, x: {}, v: r1.v, da: days.map(() => 0), dn: days.map(() => 0) });
+  const preDays = [[], r1.L[0], r1.L[0], r1.L[0], r1.L[0], r1.L[1], r1.L[2]];
+  const mk = () => ({ id: 'tt-14384', kind: 'current', line: e.l, op: e.o, ag: e.a, makat: '14384', od: r1.od, eff: '2026-11-29', valid: '2026-11-29', fromEff: '2026-11-29', until: '', hol: [],
+    dirs: [dir(W.map((i) => r1.L[i]))], pre: { dirs: [dir(preDays)], valid: '2026-11-23', eff: '2026-11-23', wkUntil: '2026-11-28', dow: [1, 2, 3, 4, 5, 6], hol: [] } });
+  for (const form of ['deck', 'sign', 'status']) {
+    // בלי DOM — לא לוח מודעות (שצריך מדידה), אלא טבלה לכל קו; אותה בחירה בכל התצוגות (curBuild)
+    const run = (bwk) => ctx.LCDeck.build([mk()], '', { form, modes: {}, ttc: 'sep', tt: { v: 'det', f: 'table' }, bwk });
+    const dflt = run(undefined), cur = run('cur'), nw = run('new'), both = run('both');
+    const wk = (ss) => ss.filter((x) => /^wk-/.test(x.id));
+    const ids = (ss) => ss.map((x) => x.id);
+    assert.ok(wk(both).length > 0 && both.length > wk(both).length, form + ': שניהם — לוח "עד" ולוח "החל מ-"');
+    assert.deepEqual(ids(dflt), ids(cur)); assert.deepEqual(dflt.map((x) => x.html), cur.map((x) => x.html), form + ': ברירת המחדל = הלו"ז הנוכחי');
+    assert.equal(wk(nw).length, 0, form + ': רק החדש — בלי לוח "עד"');
+    assert.deepEqual(nw.map((x) => x.html), both.filter((x) => !/^wk-/.test(x.id)).map((x) => x.html), form + ': רק החדש — בדיוק הלוח "החל מ-"');
+    assert.deepEqual(dflt.filter((x) => x.id !== 'close').map((x) => x.html), wk(both).map((x) => x.html), form + ': ברירת המחדל — בדיוק הלוח "עד"');
+    assert.ok(dflt.every((x) => !/^wk-/.test(x.id)));
+    if (form === 'deck') assert.ok(dflt.some((x) => x.id === 'close'), 'ברירת המחדל — עם שקף הסיום');
+  }
+});
+
 // ---------- אפשרויות בלוח (24.11): בחירת תאריכים, קווים עם אות, מפעיל, תאריך סיום, ×2 ----------
 // עמוד כמו ttPick: tv — היום הראשון בנתונים (שלישי 24.11), wd — הלו"ז לכל יום בשבוע מ-r.w, wd1 — מהשבוע שאחריו
 function datePage(opt = {}) {
