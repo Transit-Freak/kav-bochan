@@ -1004,11 +1004,11 @@ def departures_day(st, trips, dep_of):
 # ---------------------------------------------------------------- היום עד עכשיו (--partial)
 # ריצה כל 10 דקות על היום הנוכחי (.github/workflows/bus-today.yml): רק נסיעות שהסתיימו לפי הלו"ז עד
 # "עכשיו פחות מרווח" נספרות — נסיעה שעוד בדרך הייתה נמדדת רק על חלק מהתחנות, ומטה את התמונה.
-# הפלט: קובץ סיכום קטן אחד (today.json), בלי לגעת ב-bus/data.
+# הפלט: אותם קובצי יום של הריצה הלילית (days/D.json, .stops, .dep, .cover, .cities, .regions, .deadhead)
+# תחת --out, ועוד days/D.cat.json (מסלולים ושמות תחנות שאין בקטלוג של האתר) ו-today.json (אינדקס קטן).
+# בלי קטלוג, בלי index.json, בלי תקופות ובלי הקו המזין / צי יומי — הדף בוחר את היום כמו כל יום אחר.
 PARTIAL_MARGIN = 15     # דקות אחרי הסיום המתוכנן — גם נסיעה באיחור קל הספיקה להגיע
-TODAY_TOP = 15          # הקווים הכי פחות מדייקים
-TODAY_MIN_OBS = 3       # קו בדירוג: לפחות כך וכך נסיעות שנמדדו היום
-TODAY_MIN_MEAS = 20     # ולפחות כך וכך הגעות לתחנות
+PARTIAL_FILES = ('json', 'stops.json', 'dep.json', 'cover.json', 'cities.json', 'regions.json', 'cat.json')   # מה שהדף קורא ליום
 
 
 def finished_trips(st, cutoff):
@@ -1016,45 +1016,12 @@ def finished_trips(st, cutoff):
     return {tid for tid, lst in st.items() if lst and lst[-1][2] <= cutoff}
 
 
-def _delay_stats(d):
-    if not d:
-        return [None, None, None]
-    d = sorted(d)
-    return [round(statistics.mean(d) / 60, 1), round(d[len(d) // 2] / 60, 1), round(d[int(len(d) * 0.9)] / 60, 1)]
-
-
-def today_summary(day, now_sec, cutoff, updated, minutes, tot, agencies, route_acc, routes, bunch_tot, bunch_ag, bunch_route, hours,
-                  top=TODAY_TOP, min_obs=TODAY_MIN_OBS, min_meas=TODAY_MIN_MEAS):
-    """סיכום "היום עד עכשיו". tot/agencies/route_acc — המצברים של main (sched, obs, meas, c, d, o);
-    bunch_* — [זוגות, צמודים, רווח כפול]; hours — שעה → [הגעות, בזמן]."""
+def today_index(day, now_sec, cutoff, updated, minutes, tot, files):
+    """today.json: מתי ועד מתי, שורת היום כמו ב-index.json (sched, obs, meas, c, s, o) ורשימת הקבצים."""
     hm = lambda s: f'{s // 3600:02d}:{s % 3600 // 60:02d}'  # noqa: E731
-    meas = tot['meas']
-    share = lambda a, b: round(a / b, 4) if b else None  # noqa: E731
-    lines = []
-    for rid, r in route_acc.items():
-        if r['obs'] < min_obs or r['meas'] < min_meas:
-            continue
-        info = routes.get(rid, {})
-        avg = sum(r['d']) / len(r['d']) / 60 if r['d'] else None
-        lines.append([rid, info.get('short', ''), info.get('long', ''), info.get('agency', ''), info.get('mkt', ''), info.get('dir', ''),
-                      r['obs'], r['meas'], r['c'], round(avg, 1) if avg is not None else None, bunch_route.get(rid, [0, 0, 0])])
-    lines.sort(key=lambda x: (x[8][ONTIME] / x[7], -(x[9] or 0)))
-    ags = sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], _delay_stats(v['d']), v['o'], bunch_ag.get(ag, [0, 0, 0])]
-                  for ag, v in agencies.items() if v['meas']], key=lambda x: -x[3])
-    return {
-        'd': day, 'fmt': 1, 'partial': True, 'updated': updated,
-        'now': hm(now_sec), 'until': hm(cutoff), 'minutes': minutes,
-        'tot': {'sched': tot['sched'], 'obs': tot['obs'], 'meas': meas, 'c': tot['c'], 's': _delay_stats(tot['d']), 'o': tot['o']},
-        'on': share(tot['c'][ONTIME], meas), 'early': share(tot['c'][EARLY], meas),
-        'bunch': list(bunch_tot),
-        'hours': [[h, v[0], v[1]] for h, v in sorted(hours.items())],
-        'agencies': ags,
-        'worst': lines[:top],
-        'cols': {'tot': 'sched = trips scheduled to end by "until" · obs = of them measured · meas = stop passages · c = [early, on time, 5-10, 10-20, 20+] · s = [avg, median, p90] min · o = origin departures by category',
-                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'bunch[pairs, bunched, double gap]'],
-                 'worst': ['route_id', 'line', 'long name', 'agency', 'mkt', 'dir', 'obs', 'meas', 'cats', 'avg delay min', 'bunch[pairs, bunched, double gap]'],
-                 'hours': '[hour, passages, on time]'},
-    }
+    return {'d': day, 'fmt': 2, 'partial': True, 'updated': updated, 'now': hm(now_sec), 'until': hm(cutoff), 'minutes': minutes,
+            'day': {'d': day, **{k: tot[k] for k in ('sched', 'obs', 'meas', 'c', 's', 'o') if k in tot}},
+            'files': [f'days/{day}.{f}' for f in files]}
 
 
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
@@ -1130,10 +1097,10 @@ def main():
     ap.add_argument('--dump-rides', default='', help='קובץ JSON עם שורה לכל נסיעה שנמדדה (להשוואה מול נתוני המשרד)')
     ap.add_argument('--clusters', default='', help='ClusterToLine (txt/zip) של המשרד — אשכול וסוג לכל קו בקטלוג')
     ap.add_argument('--clusters-only', action='store_true', help='רק לעדכן את האשכולות בקטלוג הקיים (בלי יום, בלי SIRI)')
-    ap.add_argument('--partial', action='store_true', help='היום עד עכשיו: רק נסיעות שהסתיימו, והפלט רק --summary')
+    ap.add_argument('--partial', action='store_true', help='היום עד עכשיו: רק נסיעות שהסתיימו; קובצי היום תחת --out ו-today.json')
     ap.add_argument('--now', default='', help='עם --partial: "עכשיו" (ISO עם אזור זמן); ברירת מחדל — השעון')
     ap.add_argument('--margin', type=int, default=PARTIAL_MARGIN, help='עם --partial: דקות אחרי הסיום המתוכנן')
-    ap.add_argument('--summary', default='today.json', help='עם --partial: קובץ הסיכום')
+    ap.add_argument('--summary', default='', help='עם --partial: האינדקס (ברירת מחדל: OUT/today.json)')
     ap.add_argument('--st-cache', default='', help='pickle של ה-GTFS ורצפי התחנות של היום: נקרא אם קיים, אחרת נכתב')
     a = ap.parse_args()
     if a.clusters_only:
@@ -1189,13 +1156,9 @@ def main():
     else:
         g = load_gtfs(a.gtfs, day)
     print(f'GTFS: {len(g["trips"]):,} נסיעות פעילות · {len(g["routes"]):,} מסלולים · {len(g["stops"]):,} תחנות', flush=True)
-    if a.partial:
-        # היום עד עכשיו: בלי סוג הרכב (לא בסיכום)
-        plan_details, plan_cls, veh_cls, vehicle_types, vehicle_types_date = {}, {}, {}, {}, None
-    else:
-        plan_details = {}
-        plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day, plan_details)
-        vehicle_types, vehicle_types_date = load_vehicle_types(a.site)
+    plan_details = {}
+    plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day, plan_details)
+    vehicle_types, vehicle_types_date = load_vehicle_types(a.site)
     print(f'סוגי רכב: {len(plan_cls):,} מק"טים עם סוג שנקבע · {len(veh_cls):,} רכבים עם סוג ידוע', flush=True)
     # רצפי התחנות של כל הנסיעות הפעילות היום — נדרש גם להצמדה (שעת היציאה
     # של התחנה הראשונה) וגם למדידה
@@ -1210,7 +1173,11 @@ def main():
     # מעברים מתוכננים בכל תחנה של כל מסלול — המכנה של "מהמתוכנן" בטבלת "תחנה אחרי תחנה"
     # (שלמה 17.09: "לתת לכמות כאן גם אחוז מתכנון")
     plan_stop = collections.defaultdict(collections.Counter)
+    # היום עד עכשיו: נסיעה שעוד לא הסתיימה בלו"ז לא נספרת בשום מכנה (מעברים מתוכננים, נסיעות בלו"ז, דוח היציאות)
+    fin = finished_trips(st, cutoff) if a.partial else None
     for tid, lst in st.items():
+        if fin is not None and tid not in fin:
+            continue
         rid_ = g['trips'].get(tid)
         for s_ in lst:
             plan_stop[rid_][s_[1]] += 1
@@ -1271,7 +1238,6 @@ def main():
                 dup += 1
     if a.partial:
         # נסיעה שעוד לא הסתיימה בלו"ז לא נספרת (גם לא במכנה — sched_per_route למטה)
-        fin = finished_trips(st, cutoff)
         n_unf = sum(1 for tid in jt.values() if tid not in fin)
         jt = {k: tid for k, tid in jt.items() if tid in fin}
         print(f'היום עד עכשיו: {len(fin):,} נסיעות בלו"ז הסתיימו · {n_unf:,} נסיעות ששודרו ועוד לא הסתיימו — לא נספרות', flush=True)
@@ -1665,15 +1631,7 @@ def main():
             continue
         top = sorted(by_sid[sid], key=lambda x: (-x[2], -x[1]))[:4]
         bunch_stops[so[0]] = [round(so[2], 5), round(so[3], 5), [[h, *v] for h, v in sorted(hrs.items())], top]
-    if a.partial:
-        summ = today_summary(day, now_sec, cutoff, datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), len(files),
-                             tot, A, R, routes, B_tot, B_ag, B_route, H)
-        os.makedirs(os.path.dirname(a.summary) or '.', exist_ok=True)
-        json.dump(summ, open(a.summary, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-        print(f'נכתב {a.summary} ({os.path.getsize(a.summary) / 1e3:.0f}KB) · בזמן: {summ["on"] or 0:.1%} · {tot["obs"]:,} נסיעות מתוך {tot["sched"]:,} · '
-              f'{(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
-        return
-    if os.environ.get('BUNCH_DIR'):
+    if os.environ.get('BUNCH_DIR') and not a.partial:
         import gzip
         os.makedirs(os.environ['BUNCH_DIR'], exist_ok=True)
         with gzip.open(f"{os.environ['BUNCH_DIR']}/{day}.bunch.json.gz", 'wt') as f:
@@ -1697,9 +1655,11 @@ def main():
     os.makedirs(f'{a.out}/days', exist_ok=True)
     catalog_path = f'{a.out}/routes.json'
     try:
-        catalog = json.load(open(catalog_path, encoding='utf-8'))
+        # היום עד עכשיו: הקטלוג של האתר (לאשכולות) נקרא בלבד; מסלולים שאין בו — ל-days/D.cat.json
+        catalog = json.load(open(f'{a.site}/bus/data/routes.json' if a.partial else catalog_path, encoding='utf-8'))
     except Exception:  # noqa: BLE001
         catalog = {}
+    cat_known = set(catalog)
     out_routes = []
     profiles = {}       # route_id → [[מק"ט, הגעות, איחור ממוצע בעשיריות דקה, בזמן]] לאורך הקו
     city_routes = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0.0]))   # עיר → route_id → [הגעות, בזמן, סכום איחור שנ׳]
@@ -1757,6 +1717,7 @@ def main():
     day_obj = {
         'blame': blame,
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
+        **({'partial': {'now': f'{now_sec // 3600:02d}:{now_sec % 3600 // 60:02d}', 'until': f'{cutoff // 3600:02d}:{cutoff % 3600 // 60:02d}'}} if a.partial else {}),
         'minutes': len(files), 'records': n_rec,
         'tot': {'sched': tot['sched'], 'obs': tot['obs'], 'meas': tot['meas'], 'c': tot['c'], 's': stats(tot['d']), 'o': tot['o'],
                 'far': far, 'extra': unmatched.get('no_trip', 0), 'vt': vt_tot, 'reach': tot['reach'], 'cov': tot['cov']},
@@ -1825,47 +1786,51 @@ def main():
 
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    json.dump(departures_day(st, g['trips'], DEP), open(f'{a.out}/days/{day}.dep.json', 'w', encoding='utf-8'), separators=(',', ':'))
-    for old in sorted(f[:10] for f in os.listdir(f'{a.out}/days') if f.endswith('.dep.json'))[:-DEP_KEEP]:
-        os.remove(f'{a.out}/days/{old}.dep.json')
-    # הקו המזין: לכל תחנת רכבת — תחנות האוטובוס הסמוכות, והמעברים בפועל בכל אחת (שניות מחצות)
-    fst, fr = collections.defaultdict(list), {}
-    # ייחודיות הקו לפי משרד התחבורה (סדיר / תלמידים / לילה / קווים מזינים) — נשמרת ב"הקו בזמן"
-    try:
-        uniq = {k: v[1] for k, v in json.load(open(f'{a.site}/line-history/data/ltype-state.json', encoding='utf-8'))['m'].items()}
-    except (OSError, ValueError, KeyError):
-        uniq = {}
-    for sid, near in feed_near.items():
-        if sid not in FEED:
-            continue
-        for rc, dm in near:
-            # כמה רציפים (stop_id) עם אותו מק"ט — פעם אחת, במרחק הקרוב
-            same = next((x for x in fst[rc] if x[0] == stops[sid][0]), None)
-            if same is None:
-                fst[rc].append([stops[sid][0], stops[sid][1], dm, round(stops[sid][2], 5), round(stops[sid][3], 5)])
-            elif dm < same[2]:
-                same[2] = dm
-        for row in FEED[sid]:
-            rt = routes.get(row[0], {})
-            fr.setdefault(row[0], [rt.get('short', ''), rt.get('agency', ''), rt.get('long', ''), rt.get('mkt', ''), rt.get('dir', ''),
-                                   1 if uniq.get(rt.get('mkt', '')) == 'קווים מזינים' else 0])
-    fp = collections.defaultdict(lambda: collections.defaultdict(list))   # מק"ט → route_id → [מקום, מתוכנן, בפועל, …]
-    for sid, v in FEED.items():
-        for rid_, pos, sc_, ac_ in sorted(v, key=lambda x: x[3]):
-            fp[stops[sid][0]][rid_] += [pos, sc_, ac_]
-    os.makedirs(f'{a.out}/feeder', exist_ok=True)
-    json.dump({'d': day, 'fmt': 1,
-               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק אווירי מ\', lat, lon] של תחנות האוטובוס הסמוכות]',
-                        'r': 'route_id → [מספר קו, מפעיל, שם ארוך, מק"ט, כיוון, 1 = קו מזין לפי משרד התחבורה]',
-                        'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף; +10 = משוער מתחנה סמוכה באותה נסיעה), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
-               'st': dict(fst), 'r': fr, 'p': fp},
-              open(f'{a.out}/feeder/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    # שלושה שבועות אחורה מספיקים לדף (כ-3MB ליום); הישנים נמחקים
-    fdays = sorted(f[:10] for f in os.listdir(f'{a.out}/feeder') if re.match(r'\d{4}-\d{2}-\d{2}\.json$', f))
-    for old in fdays[:-21]:
-        os.remove(f'{a.out}/feeder/{old}.json')
-    json.dump({'days': fdays[-21:]}, open(f'{a.out}/feeder/index.json', 'w', encoding='utf-8'), separators=(',', ':'))
-    print(f'הקו המזין: {sum(len(v) for v in FEED.values()):,} מעברים ב-{len(FEED):,} תחנות ליד {len(fst)} תחנות רכבת', flush=True)
+    json.dump(departures_day({k: v for k, v in st.items() if k in fin} if a.partial else st, g['trips'], DEP),
+              open(f'{a.out}/days/{day}.dep.json', 'w', encoding='utf-8'), separators=(',', ':'))
+    if not a.partial:
+        for old in sorted(f[:10] for f in os.listdir(f'{a.out}/days') if f.endswith('.dep.json'))[:-DEP_KEEP]:
+            os.remove(f'{a.out}/days/{old}.dep.json')
+    # (לא בהיום עד עכשיו — הקו המזין קורא ימים שלמים)
+    if not a.partial:
+        # הקו המזין: לכל תחנת רכבת — תחנות האוטובוס הסמוכות, והמעברים בפועל בכל אחת (שניות מחצות)
+        fst, fr = collections.defaultdict(list), {}
+        # ייחודיות הקו לפי משרד התחבורה (סדיר / תלמידים / לילה / קווים מזינים) — נשמרת ב"הקו בזמן"
+        try:
+            uniq = {k: v[1] for k, v in json.load(open(f'{a.site}/line-history/data/ltype-state.json', encoding='utf-8'))['m'].items()}
+        except (OSError, ValueError, KeyError):
+            uniq = {}
+        for sid, near in feed_near.items():
+            if sid not in FEED:
+                continue
+            for rc, dm in near:
+                # כמה רציפים (stop_id) עם אותו מק"ט — פעם אחת, במרחק הקרוב
+                same = next((x for x in fst[rc] if x[0] == stops[sid][0]), None)
+                if same is None:
+                    fst[rc].append([stops[sid][0], stops[sid][1], dm, round(stops[sid][2], 5), round(stops[sid][3], 5)])
+                elif dm < same[2]:
+                    same[2] = dm
+            for row in FEED[sid]:
+                rt = routes.get(row[0], {})
+                fr.setdefault(row[0], [rt.get('short', ''), rt.get('agency', ''), rt.get('long', ''), rt.get('mkt', ''), rt.get('dir', ''),
+                                       1 if uniq.get(rt.get('mkt', '')) == 'קווים מזינים' else 0])
+        fp = collections.defaultdict(lambda: collections.defaultdict(list))   # מק"ט → route_id → [מקום, מתוכנן, בפועל, …]
+        for sid, v in FEED.items():
+            for rid_, pos, sc_, ac_ in sorted(v, key=lambda x: x[3]):
+                fp[stops[sid][0]][rid_] += [pos, sc_, ac_]
+        os.makedirs(f'{a.out}/feeder', exist_ok=True)
+        json.dump({'d': day, 'fmt': 1,
+                   'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק אווירי מ\', lat, lon] של תחנות האוטובוס הסמוכות]',
+                            'r': 'route_id → [מספר קו, מפעיל, שם ארוך, מק"ט, כיוון, 1 = קו מזין לפי משרד התחבורה]',
+                            'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף; +10 = משוער מתחנה סמוכה באותה נסיעה), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
+                   'st': dict(fst), 'r': fr, 'p': fp},
+                  open(f'{a.out}/feeder/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        # שלושה שבועות אחורה מספיקים לדף (כ-3MB ליום); הישנים נמחקים
+        fdays = sorted(f[:10] for f in os.listdir(f'{a.out}/feeder') if re.match(r'\d{4}-\d{2}-\d{2}\.json$', f))
+        for old in fdays[:-21]:
+            os.remove(f'{a.out}/feeder/{old}.json')
+        json.dump({'days': fdays[-21:]}, open(f'{a.out}/feeder/index.json', 'w', encoding='utf-8'), separators=(',', ':'))
+        print(f'הקו המזין: {sum(len(v) for v in FEED.values()):,} מעברים ב-{len(FEED):,} תחנות ליד {len(fst)} תחנות רכבת', flush=True)
     # חורי GPS: תחנות שאוטובוסים ודאי עברו בהן (נמדדו לפניהן ואחריהן) ובכל זאת פחות מ-70% מהמעברים נמדדו.
     # אם זה קורה לכמה מפעילים באותה תחנה — זו קליטה, לא המפעיל (שלמה 17.09: "להפריד איפה יש בעיות של GPS")
     # וגם: התחנות שאחריהן נסיעות "נעלמות" (נמדדו עד כאן ולא הלאה, ולא בגלל סיבוב הבא) — 5 ומעלה ביום
@@ -1881,6 +1846,22 @@ def main():
               open(f'{a.out}/days/{day}.cities.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump({reg: sorted([[rid, v[0], v[1], round(v[2] / 6)] for rid, v in rr.items()], key=lambda x: -x[1]) for reg, rr in region_routes.items()},
               open(f'{a.out}/days/{day}.regions.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    if a.partial:
+        # מסלולים ותחנות שעוד אין בקטלוג ובשמות של האתר (קו חדש היום) — הדף משלים מכאן
+        try:
+            known_names = json.load(open(f'{a.site}/bus/data/stops.json', encoding='utf-8'))
+        except (OSError, ValueError):
+            known_names = {}
+        json.dump({'r': {rid: catalog[rid] for rid in R if rid not in cat_known}, 's': {k: v for k, v in stop_names.items() if v and known_names.get(k) != v}},
+                  open(f'{a.out}/days/{day}.cat.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        idx = today_index(day, now_sec, cutoff, datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), len(files),
+                          day_obj['tot'], PARTIAL_FILES)
+        summary = a.summary or f'{a.out}/today.json'
+        json.dump(idx, open(summary, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        sz = sum(os.path.getsize(f'{a.out}/{f}') for f in idx['files'])
+        print(f'נכתב {summary} + {len(idx["files"])} קובצי יום ({sz / 1e6:.1f}MB) · עד {idx["until"]} · בזמן: {tot["c"][ONTIME] / max(tot["meas"], 1):.1%} · '
+              f'{tot["obs"]:,} נסיעות מתוך {tot["sched"]:,} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+        return
     if a.clusters:
         n_cl = apply_clusters(catalog, load_clusters(a.clusters))
         print(f'אשכולות: {n_cl:,} מסלולים בקטלוג עם אשכול', flush=True)
