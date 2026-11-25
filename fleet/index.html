@@ -806,6 +806,7 @@ function cityVehRows(c,ign){
   if(RTF) out=out.filter(r=>isBack(r.v));
   if(TYPEF&&!(ign&&ign.t)) out=out.filter(r=>(gT(r.v)||'')===TYPEF);
   if(CYF&&!(ign&&ign.y)) out=out.filter(r=>+gY(r.v)===CYF);
+  if(ELF!==null) out=out.filter(r=>(r.v._el||0)===ELF);   // חשמליים / לא חשמליים (25.11)
   if(ign) return out;
   const key={o:r=>r.o.name,p:r=>r.v[0],t:r=>gT(r.v)||'',y:r=>gY(r.v)||0,m:r=>gM(r.v)||'',dd:r=>r.dd||0,rt:r=>r.rt||0,r:r=>gR(r.v)||0,f:r=>r.v[1],l:r=>r.v[2]}[SORTK]||(r=>r.v[2]);
   const dir=SORTK?SORTD:-1;
@@ -820,7 +821,7 @@ function cityVehPanel(c){
   const aD=avg(rows.map(r=>r.dd)), aR=avg(rows.map(r=>gR(r.v))), tR=rows.reduce((s,r)=>s+(r.rt||0),0);
   const th=(k,t)=>`<th onclick="srt('${k}')">${t}${SORTK===k?(SORTD>0?' ▲':' ▼'):''}</th>`;
   const shown=rows.slice(0,LIMIT), mon=CITYMON?CITYMON.slice(5)+'.'+CITYMON.slice(0,4):'';
-  return `<div class="panel"><p class="ptitle">הרכבים שפעלו ב${esc(c)}${mon?' · '+mon:''}${TYPEF?' · '+esc(TYPEF):''}${CYF?' · שנתון '+CYF:''} · ${fmt(n)} רכבים</p>
+  return `<div class="panel"><p class="ptitle">הרכבים שפעלו ב${esc(c)}${mon?' · '+mon:''}${TYPEF?' · '+esc(TYPEF):''}${CYF?' · שנתון '+CYF:''}${ELF!==null?' · '+(ELF?'חשמליים':'לא חשמליים'):''} · ${fmt(n)} רכבים</p>
     <div class="kpis" style="margin-bottom:10px">
       <div class="kpi"><b>${fmt(n)}</b><span>רכבים${mon?' ששידרו ב-'+mon:' שנצפו בעיר'}</span></div>
       <div class="kpi"><b>${fmt(act)}</b><span>מהם פעילים היום</span></div>
@@ -829,11 +830,13 @@ function cityVehPanel(c){
       ${tR?`<div class="kpi"><b>${fmt(tR)}</b><span>נסיעות שנמדדו בסך הכול</span></div>`:''}
     </div>
     <div class="filters">
-      <button class="fchip ${STATF===null&&KABF===null&&!RTF&&!CHKF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;CHKF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===null&&KABF===null&&!RTF&&!CHKF&&ELF===null?'on':''}" onclick="STATF=null;KABF=null;RTF=null;CHKF=null;ELF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}${chkChip(rows.map(r=>r.v))}
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
+      <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}
       ${backBtn()}
       <span class="fcount">${fmt(n)} רכבים</span>
     </div>
