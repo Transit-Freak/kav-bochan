@@ -259,7 +259,7 @@
   <select id="fScope"><option value="term">מסופים ותחנות מרכזיות</option><option value="plat">רק רציפים ממוספרים (הכי ודאי)</option><option value="all">כל תחנות המוצא</option></select>
   <input id="fCity" class="fin" list="cities" placeholder="מרחב: כל הארץ — הקלידו עיר…"><datalist id="cities"></datalist>
   <select id="fOp"><option value="">מפעיל: הכול</option></select>
-  <select id="fWin"><option value="">חלון: יום שלם</option><option value="am">שיא הבוקר 06:00–09:00</option><option value="pm">שיא הערב 15:00–19:00</option><option value="nomid" title="יציאה ב-00:00 היא לרוב שעה שממלאת מקום ברישוי">בלי 00:00 (שעה שלרוב ממלאת מקום ברישוי)</option></select>
+  <select id="fWin"><option value="">חלון: יום שלם</option><option value="am">שיא הבוקר 06:00–09:00</option><option value="pm">שיא הערב 15:00–19:00</option><option value="nomid" title="יציאה ב-00:00 היא לרוב לא שעה אמיתית, אלא שעה שהוזנה כשאין שעה">בלי יציאות ב-00:00 (לרוב לא שעה אמיתית)</option></select>
   <span class="sevbox" title="כמה אוטובוסים יוצאים מהרציף באותה דקה">
     <span>יוצאים יחד</span>
     <select id="fSevOp"><option value="ge">לפחות</option><option value="eq">בדיוק</option><option value="lt">פחות מ-</option></select>
@@ -430,7 +430,7 @@ function occPanel(ix){
       busy.map(([t,n,lns])=>`<span onclick="const i=this.querySelector('i');if(i)i.hidden=!i.hidden" title="${lns?'קווים: '+esc(lns):''}" class="om">${esc(t)}${n>1?' ·'+n:''}${lns?`<i hidden> — קו ${esc(lns)}</i>`:''}</span>`).join('')+'</div>';
   }
   if(!inner)return `<div class="oc-h">אין ברציף הזה דקות עמוסות — כל היציאות בודדות ומרווחות</div>`;
-  return `<div class="oc-h">מתי הרציף תפוס: דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות · ‏·3 = שלושה אוטובוסים באותה דקה, בלי מספר: דקה צמודה · לחיצה על שעה מציגה את הקווים</div>${inner}`;
+  return `<div class="oc-h">מתי הרציף תפוס: דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות. מספר אחרי השעה (·3) הוא כמה אוטובוסים יוצאים באותה דקה. לחיצה על שעה מציגה את הקווים.</div>${inner}`;
 }
 // כתובת ייחודית לכל מסך (שלמה 22.10): הסינון והמיון נכתבים לכתובת, כך שהעתקה מהדפדפן
 // פותחת בדיוק את אותו מסך. רק מה ששונה מברירת המחדל נכנס לכתובת

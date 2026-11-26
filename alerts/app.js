@@ -239,7 +239,7 @@
         return subs;
       }));
       var anyAlt = GRP.some(function (g) { return g.alt || g.rs.length > 1; });
-      $("routes").innerHTML = (GRP.length > 1 || anyAlt ? '<p class="rhint">בחרו קו לראות במפה.' + (anyAlt ? " \"חלופה\" = גרסה של הקו בלו״ז, לא העקיפה." : "") + "</p>" : "") + GRP.map(function (g, i) {
+      $("routes").innerHTML = (GRP.length > 1 || anyAlt ? '<p class="rhint">בחרו קו כדי לראות אותו במפה.' + (anyAlt ? " \"חלופה\" היא גרסה של הקו בלוח הזמנים, לא המסלול העוקף." : "") + "</p>" : "") + GRP.map(function (g, i) {
         var dirs = {}; GRP.forEach(function (q) { if (q.lab === g.lab) dirs[q.dir] = 1; });
         var x = (Object.keys(dirs).length > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.alt ? " · " + g.alt : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
         return '<button type="button" data-i="' + i + '">' + esc(g.lab + x) + "</button>";

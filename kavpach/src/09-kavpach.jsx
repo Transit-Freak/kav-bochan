@@ -1833,7 +1833,7 @@ const DAYS_FILTER = [
                   title="מה נחשב קו לא יעיל? כאן קובעים את הניקוד"
                   accent="rose"
                   settings={pset} update={updPset} reset={resetPset} isDefault={psetDefault}
-                  intro='קובעים כמה נקודות כל דבר שווה. שדה ריק = ברירת המחדל של האתר.'
+                  intro='קובעים כמה נקודות כל דבר שווה. בשדה ריק נשארת ברירת המחדל של האתר.'
                   rows={[
                     { key: 'lowTrips', label: 'נסיעות שפל', hint: 'אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה' },
                     { key: 'wastedKm', label: 'קילומטר מבוזבז', hint: 'חלק הק"מ בנסיעות ריקות, ועוד תוספת אם יש מעל 100 ק"מ סרק בשבוע' },
@@ -2049,7 +2049,7 @@ const DAYS_FILTER = [
                               <span className="font-black text-slate-900">{res.count}</span>
                               {res.live && !res.live.rm && res.live.ntr > 0 && (
                                 <div className="text-[10px] font-bold text-slate-500" title='מספר הנסיעות בפיד העדכני, מארכיון "הקו בזמן" — נתוני הכרטיס הם צילום מיוני 2026'>
-                                  היום בפיד: {res.live.ntr.toLocaleString()} ביום (לפי הלו"ז העדכני)
+                                  היום: {res.live.ntr.toLocaleString()} נסיעות ביום, לפי לוח הזמנים העדכני
                                 </div>
                               )}
                             </span>
@@ -2156,7 +2156,7 @@ const DAYS_FILTER = [
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
                   <div>
                     <h2 className="text-2xl font-black text-slate-900">האזורים הכי לא יעילים</h2>
-                    <p className="text-slate-500 font-bold">נספרים רק קווים חמורים (80+).{areaViewMode === 'city' ? ' קו בין שתי ערים מופיע בשתיהן.' : ''}</p>
+                    <p className="text-slate-500 font-bold">נספרים רק קווים חמורים, עם ציון 80 ומעלה.{areaViewMode === 'city' ? ' קו בין שתי ערים מופיע בשתיהן.' : ''}</p>
                     <p className="text-slate-500 font-bold text-sm mt-1">מדד חומרה: ממוצע ציוני הקווים החמורים, ועוד תוספת על הרבה ק"מ מבוזבזים.</p>
                   </div>
                   <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
@@ -2360,7 +2360,7 @@ const DAYS_FILTER = [
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
-                    <b>מה בטבלה:</b> זוגות = הלוך-חזור שנצפו · ימים = בכמה ימים · רכבים = כמה רכבים שונים · בקו אחר = חזר בקו אחר · פער ממוצע = דקות מההגעה עד היציאה חזרה · ריק בספירות = % חזרות עם עד 1.5 נוסעים בספירות.
+                    <b>מה בטבלה:</b> "זוגות" — כמה פעמים נצפה הלוך-חזור. "ימים" — בכמה ימים זה קרה. "רכבים" — כמה רכבים שונים. "בקו אחר" — כמה פעמים חזר בקו אחר. "פער ממוצע" — כמה דקות עברו מההגעה לקצה עד היציאה חזרה. "ריק בספירות" — אחוז החזרות שעלו אליהן עד 1.5 נוסעים בספירות.
                   </p>
                   <p className="text-xs text-slate-500 font-bold mt-2 leading-relaxed">
                     לא ברשימה: {D.normal.toLocaleString('he-IL')} קווים שהחזרה בהם עם נוסעים, ו-{D.noCountsN.toLocaleString('he-IL')} קווים בלי ספירות.
@@ -2420,7 +2420,7 @@ const DAYS_FILTER = [
                           </div>
                           {activeTooltip === 'ridership' && (
                             <div className="absolute z-30 top-full right-0 mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl font-normal normal-case text-right leading-relaxed border border-slate-700">
-                              <strong className="block mb-1 text-indigo-300">נוסעים (יעילות):</strong> כמה עלו לאורך כל המסלול. המספר הקטן: הנוסעים או העומס בשיא (הגבוה מביניהם) חלקי קיבולת הרכב (1 = מלא).
+                              <strong className="block mb-1 text-indigo-300">נוסעים (יעילות):</strong> כמה נוסעים עלו לאורך כל המסלול. המספר הקטן הוא חלק מהקיבולת של הרכב: 1 פירושו רכב מלא. הוא מחושב לפי הנוסעים או לפי העומס בשיא, הגבוה מביניהם.
                             </div>
                           )}
                         </th>
@@ -2633,7 +2633,7 @@ const DAYS_FILTER = [
                             <option value="ridership">נוסעים בפועל</option>
                             <option value="peakLoad">עומס שיא</option>
                           </select>
-                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">לפי מה מחליטים: כל מי שעלה, או הרגע הכי עמוס.</p>
+                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">האם להחליט לפי כל מי שעלה בנסיעה, או לפי הרגע הכי עמוס בה.</p>
                         </div>
                         <div className="space-y-2">
                           <label className="block text-[11px] font-black text-slate-500 uppercase pr-1">מרווח איחוד (דק&apos;)</label>
@@ -3030,7 +3030,7 @@ const DAYS_FILTER = [
                         <li><strong>קילומטר מבוזבז (עד {pset.c.wastedKm.on ? pset.c.wastedKm.max : 0} נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
                         <li><strong>עלות תפעולית לנוסע (עד {pset.c.cost.on ? pset.c.cost.max : 0} נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
                         <li><strong>ממוצע נוסעים ועומס שיא (עד {pset.c.riders.on ? pset.c.riders.max : 0} נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
-                        <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> רכב שחזר ריק תוך 15 דקות. 7 בשבוע = מלוא הנקודות.</li>
+                        <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> רכב שחזר ריק תוך 15 דקות. מ-7 פעמים בשבוע הקו מקבל את כל הנקודות.</li>
                         <li><strong>קווים לאילת:</strong> נספרת רק הנסיעה התפעולית, כי רוב הנוסעים לא מתקפים.</li>
                         <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. אפשר לשנות את הניקוד בלוח ⚙️ שבלשונית &quot;קווים לא יעילים&quot;.</li>
                       </ul>
@@ -3104,7 +3104,7 @@ const DAYS_FILTER = [
                       <h4 className="font-black text-slate-800 text-sm mb-2">איך החישוב עובד</h4>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
                         <li>הניתוח מתייחס <strong>רק לקווים עם ציון 80+</strong> (סטטוס "חמור — דורש התערבות"), כדי לזקק את התמונה.</li>
-                        <li>לכל אזור: קווים חמורים, נסיעות, ק"מ מבוזבז ועלות. בלי קווים שבוטלו. בתצוגה לפי עיר, קו בין שתי ערים מופיע בשתיהן.</li>
+                        <li>לכל אזור נסכמים הקווים החמורים, הנסיעות, הק"מ המבוזבזים והעלות. קווים שבוטלו לא נספרים. בתצוגה לפי עיר, קו בין שתי ערים מופיע בשתיהן.</li>
                         <li><strong>מדד חומרה:</strong> ממוצע ציוני הקווים החמורים באזור, ועוד נקודה לכל 15,000 ק"מ מבוזבזים (עד 40 נקודות), ולכל היותר 100.</li>
                         <li>לחיצה על אזור מעבירה ישירות לטאב "קווים לא יעילים" עם פילטר מתאים.</li>
                       </ul>
@@ -3138,7 +3138,7 @@ const DAYS_FILTER = [
                       <h3 className="text-xl font-black text-slate-900">אלגוריתם ייעול (סימולטור)</h3>
                     </div>
                     <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
-                      <strong>מה הוא עושה:</strong> לכל נסיעה: <strong>לאחד</strong>, <strong>לבטל</strong> או <strong>להשאיר</strong>, עם הנימוק.
+                      <strong>מה הוא עושה:</strong> ממליץ לכל נסיעה אם <strong>לאחד</strong> אותה עם נסיעה צמודה, <strong>לבטל</strong> או <strong>להשאיר</strong>, ומסביר למה.
                     </p>
 
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-3">

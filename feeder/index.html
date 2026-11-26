@@ -234,15 +234,15 @@
 </div>
 <div class="lay">
   <aside><details class="side" id="side"><summary>⚙️ טווחים, סינון ותחנות</summary>
-    <div class="box"><h3>טווחי זמן (דקות)</h3><p class="hint">הפער בין האוטובוס לרכבת, כולל הליכה. המספר = הגבול העליון.</p><div class="th" id="th"></div></div>
+    <div class="box"><h3>טווחי זמן (דקות)</h3><p class="hint">הפער בין האוטובוס לרכבת, כולל הליכה. המספר בכל טווח הוא הגבול העליון שלו.</p><div class="th" id="th"></div></div>
     <div class="box"><h3>סינון</h3>
       <select id="lines" style="width:100%;margin-bottom:6px"><option value="2">קווים מזינים בלבד</option><option value="1" selected>מזינים + מסוף ליד הרכבת</option><option value="0">כל הקווים</option></select>
-      <p class="hint">מזין: מוגדר כך במשרד התחבורה · מסוף: מתחיל או נגמר ליד הרכבת</p>
+      <p class="hint">"מזין" — קו שמשרד התחבורה הגדיר כקו מזין. "מסוף" — קו שמתחיל או נגמר ליד הרכבת.</p>
       <select id="walk" style="width:100%;margin-bottom:6px"><option value="3">תחנות עד 3 דק' הליכה</option><option value="5">עד 5 דק' הליכה</option><option value="7" selected>עד 7 דק' הליכה</option><option value="10">עד 10 דק' הליכה</option></select>
       <select id="op" style="width:100%;margin-bottom:8px"><option value="">כל המפעילים</option></select>
       <label for="dir" style="display:block;font-size:12px;color:var(--mut);font-weight:600;margin-bottom:3px">כיוון הרכבת</label>
       <select id="dir" style="width:100%"></select>
-      <p class="hint" style="margin:6px 0 0">לאיזו רכבת נמדד החיבור. ברירת מחדל: רכבות לתל אביב</p>
+      <p class="hint" style="margin:6px 0 0">לאיזו רכבת נמדד החיבור. ברירת המחדל היא רכבות לתל אביב.</p>
     </div>
     <div class="box"><h3>תחנות רכבת</h3><input type="search" id="q" placeholder="חיפוש תחנה" style="width:100%"><p class="hint" style="margin:8px 0 0">באדום: חיבורים שדורשים עדכון</p><div class="stl" id="stl"></div></div>
   </details></aside>
@@ -264,7 +264,7 @@
       <li><b>המלצה:</b> כמה דקות להקדים או לאחר את הקו כדי שהחציון ייפול באמצע הטווח התקין. נקודת פתיחה לבדיקה, לא תיקון אוטומטי.</li>
       <li><b>זמן הליכה:</b> לפי מסלול הליכה ב-OpenStreetMap (בלי מסלול: לפי המרחק, "משוער"). הטווחים כוללים את ההליכה.</li>
       <li><b>ממוצע:</b> של 5 ימי חול, 3 ימי שישי או 3 מוצאי שבת. בהגדרות אחרות (טווחים, הליכה או "כל הקווים") מוצג רק היום האחרון.</li>
-      <li>כל נסיעה נספרת פעם אחת, בתחנה הקרובה ביותר לרכבת. "משוער" = לא נמדד בתחנה הזו, ולכן לפי התחנה הסמוכה.</li>
+      <li>כל נסיעה נספרת פעם אחת, בתחנה הקרובה ביותר לרכבת. "משוער" פירושו שלא נמדד בתחנה הזו, ולכן לפי התחנה הסמוכה.</li>
     </ul>
     <details><summary>פרטים מלאים</summary><ul>
       <li><b>האוטובוסים:</b> הזמן שבו כל אוטובוס עבר בפועל בתחנה ליד תחנת רכבת, מנתוני ה-GPS (SIRI) של דאטאבוס — אותו חישוב של מדד דיוק האוטובוסים.</li>
@@ -432,7 +432,7 @@
         // (שלמה 14.10). קובץ לכל תחנת רכבת, נטען רק כשפותחים קו.
         const T = TRIPS[kind() + "|" + r.st], list = T && T.modes[S.mode] && T.modes[S.mode][r.dir.dk + "|" + r.rid];
         if (!T) loadTrips(r.st);
-        const dayBtns = r.days ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px"><span class="mut" style="align-self:center">לפירוט יום (חיבורים · % דורש עדכון):</span>' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + WD[wdOf(d)] + " " + K.fmtD(d).slice(0, 5) + " · " + x[1] + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "";
+        const dayBtns = r.days ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px"><span class="mut" style="align-self:center">לפירוט יום — מספר החיבורים, ואחוז מהם שדורש עדכון:</span>' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + WD[wdOf(d)] + " " + K.fmtD(d).slice(0, 5) + " · " + x[1] + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "";
         const fm = (m) => m == null ? "–" : K.fmt(m), lt = (a, b) => { const d = Math.round(a - b); return d ? ' <span class="mut">(' + (d > 0 ? "+" : "") + d + ")</span>" : ""; };
         const tbl = !T ? '<div class="msg" style="padding:14px">טוען את הנסיעות…</div>' : !list ? '<div class="mut">אין פירוט ממוצע לכיוון הזה — אפשר לבחור יום למטה או למעלה.</div>' :
           "<table><thead><tr><th>בלו\"ז</th><th>" + (S.mode === "to" ? "האוטובוס בממוצע" : "האוטובוס בממוצע") + "</th><th>ימים</th><th>" + (S.mode === "to" ? "הרכבת" : "הרכבת שהגיעה") + "</th><th>הרכבת בממוצע</th><th>פער ממוצע</th><th></th></tr></thead><tbody>" +
@@ -441,10 +441,10 @@
             return '<tr style="--cc:' + K.CATS[c].c + '"><td class="d-sch"><span class="mo">בלו"ז </span><b>' + K.fmt(sch) + '</b></td><td class="d-bus"><span class="mo">' + what + "</span>" + fm(act) + lt(act, sch) + (est === n ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + (pos === 0 ? ' <span class="est">מוצא</span>' : "") +
               '</td><td class="mut d-stp">' + n + " ימים</td><td class=\"d-trt\">" + (tp == null ? "אין רכבת" : '<span class="mo">🚆 </span>' + K.fmt(tp) + " " + K.esc((S.mode === "to" ? "ל" : "מ") + T.names[ti])) + '</td><td class="d-trn">' + (tAct == null ? "" : fm(tAct) + lt(tAct, tp)) +
               '</td><td class="d-gap"><b>' + (gap == null ? "–" : Math.round(gap) + " דק'") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[c].c + '"></span>' + K.CATS[c].label + "</td></tr>"; }).join("") + "</tbody></table>";
-        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px"><b>כל הנסיעות, ' + (SUM.days.length === 1 ? "ב" + KINDS[kind()].label + " האחרון" : "בממוצע של " + SUM.days.length + " " + (kind() === "wk" ? "ימי חול" : kind() === "fri" ? "ימי שישי" : "מוצאי שבת")) + '</b> <span class="mut">· בסוגריים — הפער מהלו"ז · משוער = לפי התחנה הסמוכה</span>' + dayBtns + tbl + "</div></td></tr>";
+        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px"><b>כל הנסיעות, ' + (SUM.days.length === 1 ? "ב" + KINDS[kind()].label + " האחרון" : "בממוצע של " + SUM.days.length + " " + (kind() === "wk" ? "ימי חול" : kind() === "fri" ? "ימי שישי" : "מוצאי שבת")) + '</b> <span class="mut">· המספר בסוגריים הוא הפער מהלו"ז · "משוער" — נמדד בתחנה הסמוכה</span>' + dayBtns + tbl + "</div></td></tr>";
       }
       if (S.open === key && r.rows) {
-        h += '<tr class="det"><td colspan="11"><div class="dw">' + (r.rows.some((x) => x.est) ? '<div class="mut" style="font-size:12px;margin-bottom:6px">משוער = לפי התחנה הסמוכה</div>' : "") + '<table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
+        h += '<tr class="det"><td colspan="11"><div class="dw">' + (r.rows.some((x) => x.est) ? '<div class="mut" style="font-size:12px;margin-bottom:6px">"משוער" — נמדד בתחנה הסמוכה</div>' : "") + '<table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
           r.rows.map((x) => '<tr style="--cc:' + K.CATS[x.c].c + '"><td class="d-bus"><b>' + K.fmt(x.act) + "</b>" + (x.est ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + '</td><td class="mut d-sch"><span class="mo">בלו"ז </span>' + K.fmt(x.sched) + '</td><td class="mut d-stp">' + K.esc(x.sname) + " · " + K.walkText(x.wk) + "</td><td class=\"d-trt\">" + (x.tr ? '<span class="mo">🚆 </span><b>' + K.fmt(x.tr.t) + "</b>" : "–") + '</td><td class="d-trn">' + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + '</td><td class="mut d-dly">' + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + '</td><td class="d-gap"><b>' + (isFinite(x.gap) ? Math.round(x.gap) + " דק'" : "–") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
           "</tbody></table></div></td></tr>";
       }

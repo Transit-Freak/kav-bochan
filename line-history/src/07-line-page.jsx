@@ -751,7 +751,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
         </div>}
         <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
           {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
-          {lf.clu ? <> · <TipTag cls="" tip="אשכול = חבילת המכרז שבה הקו מופעל">אשכול</TipTag> {lf.clu}</> : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+          {lf.clu ? <> · <TipTag cls="" tip="אשכול הוא חבילת המכרז שבה הקו מופעל">אשכול</TipTag> {lf.clu}</> : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
           {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
           {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
               אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
@@ -789,7 +789,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                 של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
                 הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
                 הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
-            🚐 <b title="הסיווג בפיד הארצי: route_type 715">שירות לפי דרישה</b>: ייתכן שצריך להזמין נסיעה מראש. כדאי לבדוק מול המפעיל.
+            🚐 <b title="כך הקו מסווג בנתוני משרד התחבורה">שירות לפי דרישה</b>: ייתכן שצריך להזמין נסיעה מראש. כדאי לבדוק מול המפעיל.
           </div>
         )}
         {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
@@ -910,12 +910,12 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
             })}
           </div>
         )}
-        {months.length > 1 && <div className="dayhelp">סינון לפי חודש · המספר = שינויים באותו חודש</div>}
+        {months.length > 1 && <div className="dayhelp">סינון לפי חודש. המספר ליד כל חודש הוא כמה שינויים היו בו</div>}
         {months.length > 1 && (
           <div className="months">
             <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
             {months.map((m) => (
-              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="סינון לחודש הזה · המספר = שינויים באותו חודש" onClick={() => setMon(m)}>
+              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="סינון לחודש הזה. המספר הוא כמה שינויים היו בו" onClick={() => setMon(m)}>
                 {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
               </button>
             ))}

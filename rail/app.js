@@ -206,7 +206,7 @@ function heroHtml(a, days) {
   const title = days.length === 1 ? heDate(days[0].d) : days.length ? `${shortDate(days[0].d)} – ${shortDate(days[days.length - 1].d)}.${days[days.length - 1].d.slice(0, 4)} · ${days.length} ימים` : '';
   const on = a.n ? pct(a.ok, a.n) : '—', avg = a.avg == null ? '—' : fmt1(a.avg), b3 = a.n ? pct(a.b[3], a.n) : '—';
   const items = [
-    ['איחור ממוצע', avg, 'דק׳', a.med != null ? `חצי מהרכבות עד ${fmt1(a.med)} דק׳ · 90% עד ${fmt1(a.p90)}` : `על ${num(a.n)} רכבות שנמדדו`],
+    ['איחור ממוצע', avg, 'דק׳', a.med != null ? `חצי מהרכבות עד ${fmt1(a.med)} דק׳ · 90% מהרכבות עד ${fmt1(a.p90)} דק׳` : `על ${num(a.n)} רכבות שנמדדו`],
     ['מעל 20 דקות', b3, '', `${num(a.b[3])} רכבות · מעל 10 דק׳: ${a.n ? pct(a.b[2] + a.b[3], a.n) : '—'}`],
     ['נסיעות בלו״ז', num(a.rides), '', `נמדדו ${pct(a.n, a.rides)} · רק ${pct(a.term, a.n)} נמדדו עד התחנה האחרונה`],
     ['ללא שידור', pct(noFix, a.rides), '', `${num(noFix)} נסיעות · ביטול או תקלת שידור`],
@@ -323,10 +323,10 @@ function render() {
     <div class="panel"><p class="ptitle">איחור ממוצע ביעד, יום אחרי יום <small>דקות</small></p><div class="chart" id="c-avg"></div></div>`;
   }
   html += `<div class="panel"><p class="ptitle">בזמן לפי שעת היציאה <small>אחוז הרכבות שנמדדו באיחור של עד 5 דק׳</small></p><div class="chart" id="c-hours"></div><div class="legend"><span><i style="background:${C.ok}"></i>90% ומעלה</span><span><i style="background:${C.warn}"></i>75–90%</span><span><i style="background:${C.bad}"></i>מתחת ל-75%</span></div></div></div>`;
-  if (period === 'day') html += `<div class="tabsec" data-tab="rides"><div class="panel" id="rides-panel"><p class="ptitle">לוח הנסיעות של היום <small id="rides-n"></small></p><div class="filters"><input id="rq" placeholder="חיפוש: קו, תחנה, מספר רכבת" value="${esc(rq)}">${[['all', 'הכול'], ['late', 'איחור מעל 5 דק׳'], ['bad', 'מעל 20 דק׳'], ['none', 'ללא שידור']].map(([k, t]) => `<button class="fchip${rfilter === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('')}</div><p class="pdesc">איחור קל: 5–10 דק׳ · איחור: 10–20 · איחור חמור: מעל 20 · לא נמדד: היה שידור, אבל לא ליד התחנות</p><div id="rides"><div class="empty">טוען…</div></div></div></div>`;
-  html += `<div class="tabsec" data-tab="lines"><div class="panel"><p class="ptitle">לפי קו <small>${Object.keys(A.lines).length} קווים</small></p><p class="pdesc">נמדדו = נסיעות עם שידור מיקום. לחיצה על כותרת ממיינת.</p>${linesTable(A.lines)}</div></div>`;
+  if (period === 'day') html += `<div class="tabsec" data-tab="rides"><div class="panel" id="rides-panel"><p class="ptitle">לוח הנסיעות של היום <small id="rides-n"></small></p><div class="filters"><input id="rq" placeholder="חיפוש: קו, תחנה, מספר רכבת" value="${esc(rq)}">${[['all', 'הכול'], ['late', 'איחור מעל 5 דק׳'], ['bad', 'מעל 20 דק׳'], ['none', 'ללא שידור']].map(([k, t]) => `<button class="fchip${rfilter === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('')}</div><p class="pdesc">איחור קל — 5 עד 10 דק׳. איחור — 10 עד 20 דק׳. איחור חמור — מעל 20 דק׳. "לא נמדד" — היה שידור, אבל לא ליד התחנות.</p><div id="rides"><div class="empty">טוען…</div></div></div></div>`;
+  html += `<div class="tabsec" data-tab="lines"><div class="panel"><p class="ptitle">לפי קו <small>${Object.keys(A.lines).length} קווים</small></p><p class="pdesc">"נמדדו" — נסיעות שהיה בהן שידור מיקום. לחיצה על כותרת ממיינת.</p>${linesTable(A.lines)}</div></div>`;
   html += `<div class="tabsec" data-tab="gain"><div id="gainbox"><div class="panel"><div class="empty">טוען…</div></div></div></div>`;
-  html += `<div class="tabsec" data-tab="stations"><div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p><p class="pdesc">נמדדו = נסיעות עם שידור מיקום. לחיצה על כותרת ממיינת.</p>${stationsTable(A.stations)}</div></div>`;
+  html += `<div class="tabsec" data-tab="stations"><div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p><p class="pdesc">"נמדדו" — נסיעות שהיה בהן שידור מיקום. לחיצה על כותרת ממיינת.</p>${stationsTable(A.stations)}</div></div>`;
   app.innerHTML = html;
   $('#tabbar').onclick = e => { const b = e.target.closest('.tab'); if (b && b.dataset.t && nv(e)) showTab(b.dataset.t); };
   showTab(tab);
@@ -431,7 +431,7 @@ async function renderGain() {
   const lineOpts = [...names].sort((a, b) => a.localeCompare(b, 'he'));
   let h = `<div class="panel"><p class="ptitle">איפה הרכבות צוברות איחור <small>${multi ? `${ds.length} ימים` : heDate(ds[0])} · נמדדו ${pct(meas, plan)} מההגעות לתחנות</small></p>
     <div class="filters"><label class="glab" for="gline">סינון לפי קו:</label><select id="gline" class="gsel"><option value="">כל הקווים</option>${lineOpts.map(n => `<option${n === gLine ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
-    <p class="pdesc">כל קטע צבוע לפי כמה דקות איחור נוספו בו בממוצע. מינוס = הרכבת צמצמה איחור.</p>
+    <p class="pdesc">כל קטע צבוע לפי כמה דקות איחור נוספו בו בממוצע. במינוס — הרכבת צמצמה את האיחור.</p>
     <div id="gmap"></div>
     ${gainLegend}
   </div>`;
@@ -545,15 +545,15 @@ function meetTable(list, multi) {
 const MEET_NOTE = `<p class="note">במסילה יחידה רכבת מחכה בתחנה לרכבת מהכיוון השני. כשזו מאחרת, גם הממתינה מאחרת.</p>`;
 // איך מחושב הטאב "איפה נצבר איחור" (וחלון הקו) — מהמעקב דקה-אחר-דקה (tools/rail_trace.py), לא מהמדד הלילי
 const GAIN_HOW = extra => `<details class="how"><summary>איך זה מחושב</summary>
-    <p>הטאב הזה, וגם הפירוט לפי תחנה בחלון של קו, מחושבים ממעקב נפרד, דקה אחר דקה. לכן המספרים כאן יכולים להיות שונים מעט מהמבט הכללי.</p>
+    <p>הלשונית הזו, וגם הפירוט לפי תחנה בחלון של קו, מחושבים ממעקב נפרד, דקה אחר דקה. לכן המספרים כאן יכולים להיות שונים מעט מהמבט הכללי.</p>
     <p><b>הגעה לתחנה:</b> בכל דקה רכבת ישראל משדרת לכל רכבת את מיקום ה-GPS ואת "התחנה הנוכחית" לפי מערכת המעקב שלה, גם כשאין GPS (בנתב"ג, במנהרות, כשהמשדר תקוע). ההגעה היא הדקה הראשונה שבה הרכבת עומדת בתחנה לפי ה-GPS; בלי GPS — הדקה שבה "התחנה הנוכחית" התחלפה אליה. כך נמדדות כ-85% מההגעות, לעומת כ-40% לפי GPS בלבד. בבדיקה מול המדידה לפי GPS ההפרש החציוני הוא 0 דקות, ו-90% מההגעות בטווח של דקה וחצי. ${extra}</p>
     <p><b>איחור שנוסף בקטע:</b> האיחור בהגעה לתחנה שבסוף הקטע, פחות האיחור בתחנה שבתחילתו. העמידה בתחנה שבתחילת הקטע נכללת בו.</p>
     <p><b>יציאה מתחנת המוצא:</b> נמדדת רק כשה-GPS מראה את הרכבת זזה ליד התחנה. בתחנות תת-קרקעיות (ירושלים יצחק נבון, מודיעין מרכז) ה-GPS לא מתעדכן עד היציאה מהמנהרה.</p>
     <p><b>מפגש רכבות:</b> במסילה יחידה (עמק יזרעאל, באר שבע–דימונה, אשקלון–באר שבע דרך שדרות ונתיבות, המסילה המזרחית). מופיעה רכבת שעמדה בתחנה ויצאה עד 2.5 דקות אחרי שהגיעה אליה רכבת מהקטע שאליו היא ממשיכה.</p>
-    <p><b>עצירה בדרך:</b> רכבת שעמדה לפי ה-GPS יותר מדקה וחצי במקום שרחוק יותר מ-600 מ׳ מכל תחנה — לרוב רמזור אדום או המתנה שהמסילה שלפניה תתפנה. "עברה ליד" = רכבת אחרת ששידרה מיקום עד 1.5 ק"מ משם בזמן העמידה.</p>
+    <p><b>עצירה בדרך:</b> רכבת שעמדה לפי ה-GPS יותר מדקה וחצי במקום שרחוק יותר מ-600 מ׳ מכל תחנה — לרוב רמזור אדום או המתנה שהמסילה שלפניה תתפנה. "עברה ליד" היא רכבת אחרת ששידרה מיקום עד 1.5 ק"מ משם בזמן העמידה.</p>
     <p><b>בוטלה באמצע המסלול:</b> לא הגיעה לתחנה הבאה 20 דקות אחרי שהייתה אמורה (ההגעה בפועל לתחנה האחרונה + זמן הנסיעה המתוכנן). או שהמשיכה לשדר ונשארה במקום, או שהפסיקה לשדר בזמן שרכבות אחרות המשיכו — ובמקרה השני רק כשנותרו לה לפחות 3 תחנות, כי כמעט כל הרכבות מפסיקות לשדר תחנה-שתיים לפני היעד. דוגמה: ב-5.10 בבוקר נמצאו 6 רכבות כאלה בין תל אביב ללוד, בזמן שתנועת הרכבות שם הופסקה.</p>
   </details>`;
-const gainLegend = `<div class="legend"><span><b>איחור שנוסף בקטע:</b></span><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>עובי הקו = מספר הרכבות</span><span><i style="background:#7C3AED;border-radius:50%"></i>מפגש רכבות</span><span><i style="background:#F59E0B;border-radius:50%"></i>עצירה בדרך</span><span><i style="background:${C.bad};border-radius:50%"></i>רכבת שבוטלה</span></div>`;
+const gainLegend = `<div class="legend"><span><b>איחור שנוסף בקטע:</b></span><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>קו עבה יותר — יותר רכבות</span><span><i style="background:#7C3AED;border-radius:50%"></i>מפגש רכבות</span><span><i style="background:#F59E0B;border-radius:50%"></i>עצירה בדרך</span><span><i style="background:${C.bad};border-radius:50%"></i>רכבת שבוטלה</span></div>`;
 
 // ---------------------------------------------------------------- קו: באיזו תחנה הוא מתעכב
 // (שלמה 06.10) לחיצה על קו בלשונית "לפי קו": לכל תחנה לפי הסדר — האיחור בהגעה, כמה איחור נוסף
@@ -649,7 +649,7 @@ const METHOD = `<p class="ptitle">על המדד</p>
     <p><b>בזמן ביעד:</b> כל רכבת פעם אחת, לפי התחנה האחרונה שנמדדה. השידור נפסק פעמים רבות לפני היעד, ולכן מצוין עד איפה נמדד.</p>
     <p><b>הגעות בזמן לתחנות:</b> כל הגעה לכל תחנה, כמו במדד האוטובוסים.</p>
     <p><b>לא נמדד:</b> היציאה מתחנת המוצא, כי המיקום נתקע בתחנה גם אחרי שהרכבת יצאה. רכבת בלי שום שידור לא נספרת כאיחור ולא כביטול, ומוצגת בנפרד.</p>
-    <p><b>איפה נצבר איחור:</b> הטאב הזה וחלון הקו מחושבים ממעקב נפרד, דקה אחר דקה, שבו ההגעה נקבעת גם לפי "התחנה הנוכחית" ששידרה רכבת ישראל, ונמדדת גם היציאה מהמוצא. ההסבר המלא בתחתית הטאב.</p>
+    <p><b>איפה נצבר איחור:</b> הלשונית הזו וחלון הקו מחושבים ממעקב נפרד, דקה אחר דקה, שבו ההגעה נקבעת גם לפי "התחנה הנוכחית" ששידרה רכבת ישראל, ונמדדת גם היציאה מהמוצא. ההסבר המלא בתחתית הטאב.</p>
     </details>`;
 const methodEl = $('#method'); if (methodEl) methodEl.innerHTML = METHOD;
 // היום עד עכשיו: נבנה כל 10 דקות ב-.github/workflows/rail-today.yml (tools/rail_reliability.py --partial) ונדחף לענף

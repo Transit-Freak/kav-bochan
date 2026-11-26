@@ -262,7 +262,7 @@ function Detail({ it, db, onLine }) {
       </div>
       <div className="facts">
         <p>
-          עובר <b>{it.dist} מ'</b> מהתחנה. עוצר לפני: <b>{it.bstop && it.bstop.n}</b> · אחרי: <b>{it.astop && it.astop.n}</b>.
+          עובר <b>{it.dist} מ'</b> מהתחנה. עוצר לפניה ב-<b>{it.bstop && it.bstop.n}</b> ואחריה ב-<b>{it.astop && it.astop.n}</b>.
         </p>
         <p>
           בתחנה עוצרים <b>{it.onum}</b> קווים אחרים:{" "}
@@ -653,7 +653,7 @@ function App() {
       </header>
 
       <div className="explain">
-        <p>קו שעובר צמוד לתחנה ולא עוצר בה. דילוגים של כמה קווים יחד מוסתרים. הרשימה מתחילה מהחשודים.</p>
+        <p>קו שעובר צמוד לתחנה ולא עוצר בה. דילוגים של כמה קווים יחד מוסתרים. הרשימה מתחילה מהחשודים ביותר.</p>
         <details className="how">
           <summary>איך זה מחושב</summary>
           <p>
@@ -691,7 +691,7 @@ function App() {
         <div className="hint">
           {byStop
             ? "תחנות ש-2 קווים או יותר מדלגים עליהן, על מפה אחת."
-            : "שיטתי = 3 קווים או יותר מדלגים על אותה תחנה. כנראה מכוון."}
+            : "דילוג שיטתי — 3 קווים או יותר מדלגים על אותה תחנה, כנראה בכוונה."}
         </div>
         <input
           className="search" type="search" dir="rtl"
@@ -727,8 +727,8 @@ function App() {
               </select>
             )}
             {uniqs.length > 1 && (
-              <select aria-label="סינון לפי סוג רישוי" title="סדיר, לילה או קו מזין" className="fsel" value={fUniq} onChange={(e) => setFUniq(e.target.value)}>
-                <option value="">רישוי: הכול</option>
+              <select aria-label="סינון לפי סוג שירות" title="סדיר, לילה או קו מזין" className="fsel" value={fUniq} onChange={(e) => setFUniq(e.target.value)}>
+                <option value="">סוג שירות: הכול</option>
                 {uniqs.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             )}

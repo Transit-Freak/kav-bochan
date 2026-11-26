@@ -503,7 +503,7 @@
     var tt = mode === 'tt';
     document.body.setAttribute('data-mode', mode);
     $('qhead').textContent = tt ? 'איזה קווים?' : 'איזה קו?';
-    $('qhint').textContent = tt ? 'מספר קו, רחוב, שכונה, עיר או חברה — גם כל הקווים במקום אחד.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
+    $('qhint').textContent = tt ? 'מספר קו, רחוב, שכונה, עיר או חברה. ברחוב או בשכונה — כל הקווים שעוצרים שם.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
     $('chiprow').style.display = tt ? 'none' : ''; $('kfil').style.display = tt ? 'none' : '';
     $('q').placeholder = tt ? 'למשל 494, גני איילון, אופקים ירושלים' : 'למשל 988, הרצל, קרית חב"ד';
   }

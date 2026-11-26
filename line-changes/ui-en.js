@@ -128,17 +128,17 @@
     // הסברים קצרים (26.11)
     'השינויים מתעדכנים כל לילה מנתוני משרד התחבורה': 'Changes are updated every night from Ministry of Transport data',
     '. זה לא פרסום רשמי.': '. This is not an official publication.',
-    'מספר קו, רחוב, שכונה, עיר או חברה — גם כל הקווים במקום אחד.': 'Line number, street, neighbourhood, city or operator — or all the lines in one place.',
+    'מספר קו, רחוב, שכונה, עיר או חברה. ברחוב או בשכונה — כל הקווים שעוצרים שם.': 'Line number, street, neighbourhood, city or operator. A street or neighbourhood gives all the lines that stop there.',
     'במצב עריכה לוחצים על שורה, תא או כותרת — כדי למחוק, לשנות טקסט או לצבוע.': 'In edit mode, click a row, cell or title to delete it, change the text or colour it.',
     'במצב עריכה לוחצים על קו או על פס, ומזיזים עם ↑ ו-↓.': 'In edit mode, click a line or a band and move it with ↑ and ↓.',
     'הטקסט נוצר מהנתונים. ב"עריכת הטקסט" אפשר לשנות כל טקסט ולהוסיף תמונות — הן לא עולות לשום מקום.': 'The text is made from the data. In "Edit text" you can change any text and add images — they are not uploaded anywhere.',
-    'התאריכים המודגשים בונים את הלוח. לחיצה מוציאה תאריך; "נפרד" — עמודה משלו; נקודה — שעות שונות.': 'The dates in bold build the board. Click to leave a date out; "Separate" — its own column; dot — different times.',
+    'הלוח נבנה מהתאריכים המודגשים. לחיצה על תאריך מוציאה אותו. "נפרד" נותן לתאריך עמודה משלו. נקודה ליד תאריך — השעות בו שונות מאותו יום בשבוע האחר.': 'The board is built from the dates in bold. Click a date to leave it out. "Separate" gives the date its own column. A dot by a date — its times differ from the same weekday in the other week.',
     'תחנה, קוד וכיוון': 'Stop, code and direction',
     '"לכיוון…"': '"Towards…"',
     'יום חול עם לו״ז שונה מקבל עמודה משלו': 'A weekday with a different timetable gets its own column',
-    'לרוב זה רק סוף הנתונים, לא סוף הקו': 'Usually this is only where the data ends, not the end of the line',
+    'לרוב התאריך הזה הוא רק סוף הנתונים שפורסמו, לא סוף הקו': 'Usually this date is only where the published data ends, not the end of the line',
     'סימון נסיעות כפולות (×2 — שני אוטובוסים באותה שעה)': 'Double trips mark (×2 — two buses at the same time)',
-    'הקו משתנה השבוע — איזה לו״ז להוציא: עד השינוי, אחריו או שניהם': 'The line changes this week — which timetable to use: until the change, after it, or both',
+    'הקו משתנה השבוע. בוחרים איזה לו״ז להוציא: עד השינוי, אחריו או שניהם': 'The line changes this week. Choose which timetable to use: until the change, after it, or both',
     'פחות רווח, כדי שהלוח ייכנס בפחות עמודים': 'Less space, so the board fits on fewer pages',
     'המוקדמת משמאל': 'Earliest on the left',
     'המוקדמת מימין': 'Earliest on the right',
@@ -152,8 +152,8 @@
     'מכאן הלוח ממשיך בעמוד חדש': 'From here the board continues on a new page',
     'הכותרת ושורת "בתוקף" — רק בעמוד הראשון של הלוח': 'The title and "valid" line — only on the first page of the board',
     'הכותרת ושורת "בתוקף" — בכל עמוד של הלוח': 'The title and "valid" line — on every page of the board',
-    'רק הכיוון הזה': 'Only this direction',
-    'הקו מכל הלוח': 'The line from the whole board'
+    'מוחק רק את הכיוון הזה': 'Deletes only this direction',
+    'מוחק את הקו מכל הלוח': 'Deletes the line from the whole board'
   };
   /* טקסטים עם מספרים ותאריכים */
   var DOWS = { 'א׳': 'Sun', 'ב׳': 'Mon', 'ג׳': 'Tue', 'ד׳': 'Wed', 'ה׳': 'Thu', 'ו׳': 'Fri', 'ש׳': 'Sat', 'שבת': 'Sat', 'שישי': 'Fri' };
@@ -180,7 +180,7 @@
     [/^יש הצעות לימים מיוחדים \((\d+)\)$/, 'Suggestions for special days ($1)'], [/^להוציא את קו (\S+) מהמצגת$/, 'Remove line $1 from the slides'], [/^להעביר את (?:קו )?(.+) למעלה$/, function (m, x) { return 'Move ' + (UI[x] || x) + ' up'; }], [/^להעביר את (?:קו )?(.+) למטה$/, function (m, x) { return 'Move ' + (UI[x] || x) + ' down'; }], [/^קו (\S+)$/, 'Line $1'],
     [/^להקדים את העמודה (.+)$/, function (m, x) { return 'Move the ' + (UI[x] || x) + ' column earlier'; }], [/^לאחר את העמודה (.+)$/, function (m, x) { return 'Move the ' + (UI[x] || x) + ' column later'; }],
     [/^השם באנגלית: (.+)$/, 'English name: $1'], [/^עמודה נפרדת ל-(.+)$/, 'Separate column for $1'],
-    [/^השלט ארוך — (\d+) עמודים\.$/, 'The sign is long — $1 pages.'], [/^לגרסה המקוצרת \((\d+) עמודים\)$/, 'Short version ($1 pages)'], [/^להציג את כל (\d+) העמודים$/, 'Show all $1 pages'], [/^השלט ארוך מדי \((\d+) עמ׳\), אז הכנו גרסה מקוצרת של (\d+) עמ׳\.$/, 'The sign is too long ($1 pp.), so we made a short version of $2 pp.'],
+    [/^השלט ארוך — (\d+) עמודים\.$/, 'The sign is long — $1 pages.'], [/^לגרסה המקוצרת \((\d+) עמודים\)$/, 'Short version ($1 pages)'], [/^להציג את כל (\d+) העמודים$/, 'Show all $1 pages'], [/^השלט יוצא ארוך מדי, (\d+) עמודים\. הכנו גרסה מקוצרת של (\d+) עמודים\.$/, 'The sign is too long, $1 pages. We made a short version of $2 pages.'],
     [/^גם באותיות הקטנות ביותר שעוד אפשר לקרוא, הלוח לא נכנס — צריך לפחות (\d+) עמודים\.$/, 'Even at the smallest readable size the board does not fit — it needs at least $1 pages.'],
     [/^חנוכה: (.+)$/, function (m, r) { return 'Hanukkah: ' + r.replace(/מוצ״ש/g, 'Saturday night').replace(/יום ([א-ת]׳)/g, function (x, d) { return DOWS[d] || x; }).replace(/שישי/g, 'Fri').replace(/ ו-/g, ' and ').replace(/ בעמודות נפרדות$/, ' in separate columns').replace(/ בעמודה נפרדת$/, ' in a separate column'); }],
     [/^(.+) (\d+\.\d+): עמודה נפרדת$/, '$1 $2: separate column'],

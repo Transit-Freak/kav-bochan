@@ -272,7 +272,7 @@ function TimesDiff({ tl, tn }) {
           <div className="tdiff-leg">
             {[["same", "ללא שינוי"], ["moved", "זזה / תגבור השתנה"], ["removed", "ירדה"], ["added", "נוספה"]].map(([c, t]) =>
               <span key={c} className={"legchip td-" + c}><span className="num">{t}</span></span>)}
-            {" "}2× = שני אוטובוסים
+            {" "}2× — שני אוטובוסים יחד
           </div>
         </div>
       )}
@@ -459,13 +459,13 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
           צמוד (כיכר חדשה בקו 26 — הקו הישן משיק לה) אין בכלל מה לסמן
           באדום, ואומרים את זה במקום להמציא קטע (דרישת שלמה) */}
       {diff && diff.derived === "prev" && diff.prevSegs.length > 0 && (
-        <div className="mut">ℹ️ אדום = התוואי הישן, ירוק = התיקון.</div>
+        <div className="mut">ℹ️ באדום התוואי הישן, ובירוק התיקון.</div>
       )}
       {diff && diff.derived === "prev" && diff.prevSegs.length === 0 && (
         <div className="mut">ℹ️ נוסף תוואי (ירוק). הישן עבר צמוד לחדש, ולכן אין קטע אדום.</div>
       )}
       {diff && diff.derived === "cur" && diff.curSegs.length > 0 && (
-        <div className="mut">ℹ️ ירוק = התיקון, אדום = מה שירד.</div>
+        <div className="mut">ℹ️ בירוק התיקון, ובאדום מה שירד.</div>
       )}
       {diff && diff.derived === "cur" && diff.curSegs.length === 0 && (
         <div className="mut">ℹ️ ירד תוואי (אדום). החדש עובר צמוד לישן, ולכן אין קטע ירוק.</div>

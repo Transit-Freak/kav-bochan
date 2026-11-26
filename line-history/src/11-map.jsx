@@ -337,7 +337,7 @@ function MapTab({ idx, openLine, cities }) {
         </div>
       )}
       <div className="mapstat">
-        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות {inPlace} ברישום 2012 · לחיצה על תחנה: שם, מק״ט וכתובת של אז · מקור: <a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener" title="רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap: 32,987 תחנות בארץ, רישיון ODbL">OpenStreetMap</a></>)
+        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות {inPlace} ברישום 2012 · לחיצה על תחנה מראה את השם, המק״ט והכתובת של אז · מקור: <a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener" title="רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap: 32,987 תחנות בארץ, רישיון ODbL">OpenStreetMap</a></>)
           : !canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length.toLocaleString()} תחנות ${inPlace} השתנו ${bP(mon)}` : `אין תחנות ${inPlace} שהשתנו ${bP(mon)}`)
           : (lineChs === null || prog ? "טוען…" : canon === "*"
             ? `כל הארץ: ${lineGroups.length.toLocaleString()} קווים השתנו ${bP(mon)} — על המפה רק הם, לא כל קווי הארץ` + (lineGroups.length ? (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי להבליט אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")

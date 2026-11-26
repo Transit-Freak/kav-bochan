@@ -447,7 +447,7 @@ const fold=(h,t)=>`<details class="note"><summary style="cursor:pointer;font-wei
 // שורת הסבר קצרה מתחת לשבבי הסינון — גלויה גם בטלפון, שאין בו ריחוף (26.11)
 function fhint(kab){const t=[];
   if(kab&&DATA.enriched)t.push('קבלן: לא רשום בצי החברה, בדרך כלל רכב הסעות');
-  if(STATF===0&&BIT&&Object.keys(BIT).length)t.push('לא יחזרו = בוטלו סופית · עשויים לחזור = הרישיון הופקד');
+  if(STATF===0&&BIT&&Object.keys(BIT).length)t.push('"לא יחזרו" — בוטלו סופית. "עשויים לחזור" — הרישיון רק הופקד זמנית');
   if(CHKF)t.push('לבדיקה: לפי המאגר ירד מהכביש, אבל עדיין נוסע');
   if(RTF)t.push('חזרו לאחרונה: נעלמו חודש ומעלה וחזרו לנסוע');
   if(ARF)t.push('ממוגנים: מיגון נגד ירי או אבנים, לפי משרד התחבורה');
@@ -475,7 +475,7 @@ function kpis(){
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
     ${kab?`<div class="kpi" title="לא רשומים בצי של החברות, בדרך כלל רכבי הסעות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
   </div>
-  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">השידורים עד <b>${fd(last)}</b> · עדכון ${fd(DATA.updated)} · העדכון הבא בלילה<br>פעיל = נסע בחודש האחרון${kab?' · קבלן = לא רשום בצי החברה':''}</div>`;
+  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">השידורים עד <b>${fd(last)}</b> · עדכון ${fd(DATA.updated)} · העדכון הבא בלילה<br>"פעיל" — נסע בחודש האחרון${kab?' · "קבלן" — לא רשום בצי החברה':''}</div>`;
 }
 
 function home(){
@@ -683,7 +683,7 @@ function clusterHome(f){
           return main+Object.keys(tot).sort((a,b)=>tot[b]-tot[a]).map(c=>`<tr class="brk"><td style="text-align:right">${esc(c)}</td>${br.map(o=>`<td>${o?fmt(o[c]||0):'—'}</td>`).join('')}</tr>`).join('');
         }).join('')}
       </tbody></table></div>
-      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" = נסעו באותו יום בקווים של שתי הערים. אם האשכול יפוצל, אלה הרכבים המשותפים.${sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש "עבדו בשתיהן" גבוה מדי.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" עוד יחושבו מחדש.':''}</p>${fold('קו שייך לערים שבקצוות שלו (מוצא ויעד): קו בין-עירוני שרק עובר בעיר בדרך, כמו 885 ממודיעין עילית לבית שמש דרך מודיעין, לא נחשב לה.'+(sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש הספירה היא לפי כל עיר שהקו עוצר בה.':'')+(CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':'')+(CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט.':''))}</div>`:''}
+      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — רכבים שנסעו באותו יום בקווים של שתי הערים. אם האשכול יפוצל, אלה הרכבים המשותפים.${sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש "עבדו בשתיהן" גבוה מדי.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" עוד יחושבו מחדש.':''}</p>${fold('קו שייך לערים שבקצוות שלו (מוצא ויעד): קו בין-עירוני שרק עובר בעיר בדרך, כמו 885 ממודיעין עילית לבית שמש דרך מודיעין, לא נחשב לה.'+(sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש הספירה היא לפי כל עיר שהקו עוצר בה.':'')+(CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':'')+(CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט.':''))}</div>`:''}
     ${note}`;
 }
 function opName(ref){const o=op(+ref);return o?o.name:'מפעיל '+ref;}
@@ -994,10 +994,10 @@ function movesHome(){
     <div class="filters" style="margin-top:8px;align-items:center">
       <b style="font-size:13px;color:var(--mut)">סוג הרכב:</b><button class="fchip ${MVK===null?'on':''}" onclick="MVK=null;LIMIT=200;render()">כל הסוגים</button>
       ${types.map(([t,n])=>`<button class="fchip ${MVK===t?'on':''}" data-k="${esc(t)}" onclick="MVK=MVK===this.dataset.k?null:this.dataset.k;LIMIT=200;render()">${esc(t)} · ${fmt(n)}</button>`).join('')}
-      <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש (5+ ימים בכל צד)</button>
+      <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש פירושו שהרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש (5+ ימים בכל צד)</button>
     </div>
     ${mvWhenHtml(pre)}
-    <p class="note">מעבר = הרכב התחיל לנסוע ביעד אחרי שנסע במקור. בין חברות: מאז ${fd(MOVES.since)}. בין ערים: רק בחלק מהתקופה.</p>${fold(`רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}`)}
+    <p class="note">"מעבר" — הרכב התחיל לנסוע ביעד אחרי שנסע במקור. בין חברות: מאז ${fd(MOVES.since)}. בין ערים: רק בחלק מהתקופה.</p>${fold(`רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}`)}
   </div>`;
   const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<a class="type" data-mv="${side}" data-k="${esc(k)}" href="${sh(side==='to'?{mt:k}:{mf:k})}" onclick="if(nv(event))mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></a>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
   let body='';
@@ -1056,7 +1056,7 @@ function typeHome(f){
   const MOT=!!(BSOF&&Object.keys(BSOF).length)&&TSORT!=='g', motOn=MOT&&RSRC==='m';
   const seg=(k,l)=>`<button onclick="RSRC='${k}';render()" style="flex:1;border:0;border-radius:10px;padding:8px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;background:${(k==='m')===motOn?'var(--ink)':'transparent'};color:${(k==='m')===motOn?'#fff':'var(--mut)'}">${l}</button>`;
   const segBar=MOT&&TSORT!=='r'?`<div style="display:flex;gap:4px;background:var(--chipbg);border-radius:12px;padding:4px;margin-bottom:4px;max-width:440px">${seg('b','לפי השידורים שלנו')}${seg('m','לפי משרד התחבורה')}</div><p class="note" style="margin:0 0 10px">${motOn?'משרד התחבורה: כמה בוטלו סופית או הורדו מהכביש':'השידורים שלנו: כמה ירדו, וכמה נעלמו חודש או יותר וחזרו'}</p>`:'';
-  const tHint=TSORT==='g'?'אחוז הרכבים שנעלמו חודש או יותר וחזרו · מ-20 רכבים, בלי רכבי קבלן':TSORT==='r'?'נפילות לעומת רכבים בני אותו גיל · רק רכבי קו':'';
+  const tHint=TSORT==='g'?'אחוז הרכבים שנעלמו חודש או יותר וחזרו. רק דגמים עם 20 רכבים ומעלה, בלי רכבי קבלן':TSORT==='r'?'נפילות לעומת רכבים בני אותו גיל · רק רכבי קו':'';
   return kpis()+`<div class="filters" style="margin-bottom:10px">
     <button class="fchip ${TSORT==='n'?'on':''}" onclick="TSORT='n';render()">הדגמים הגדולים</button>
     <button class="fchip ${TSORT==='r'?'on':''}" onclick="TSORT='r';render()" title="לכל דגם: נפילות, ק&quot;מ ונסיעות — רק רכבי קו">מדד אמינות הדגמים</button>
@@ -1108,7 +1108,7 @@ function modelRel(f){
   const xCol=x=>x>=1.4?'#B91C1C':x<=.8?'var(--ok)':'inherit';
   const relNote='לפי השידורים שלנו: כמה רכבים מכל דגם נעלמו לחודש או יותר וחזרו, לעומת רכבים בני אותו גיל (פי 1 זה רגיל, מעל 1 נופל יותר). לפי משרד התחבורה: כמה בוטלו סופית וכמה הורדו מהכביש. רק רכבי קו, דגמים עם 100 רכבים ומעלה.';
   const MOT=!!(BSOF&&Object.keys(BSOF).length);
-  const relShort=MOT&&RSRC==='m'?'בוטלו סופית והורדו מהכביש, לפי מאגרי משרד התחבורה. רק רכבי קו, מ-100 רכבים.':'"פי 1" = נופל כמו רכבים בני אותו גיל. מעל 1 = נופל יותר. רק רכבי קו, מ-100 רכבים.';
+  const relShort=MOT&&RSRC==='m'?'בוטלו סופית והורדו מהכביש, לפי מאגרי משרד התחבורה. רק רכבי קו, בדגמים עם 100 רכבים ומעלה.':'"פי 1" — הדגם נופל כמו רכבים בני אותו גיל, ומעל 1 — נופל יותר. רק רכבי קו, בדגמים עם 100 רכבים ומעלה.';
   const relMore='רכב יכול להיעלם גם כשעמד ברזרבה, לא רק בתקלה. רכב שעבר בין חברות נספר פעם אחת, והמעבר עצמו לא נחשב נפילה.';
   // בטלפון: שורה קומפקטית לכל דגם במקום טבלה רחבה שגוללת לצדדים
   // מתג בראש המסך בין שתי הקטגוריות — בטלפון ובמחשב (שלמה 23.10: "זה נמצא באמצע המסך")

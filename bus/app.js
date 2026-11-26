@@ -223,7 +223,7 @@ function renderPeriods() {
   el.innerHTML = `<div class="seg">${chips.map(([k, t]) => `<button class="pchip${pOn(k) ? ' on' : ''}" data-p="${k}"${k === 'today' ? ' title="רק נסיעות שהסתיימו לפי הלו״ז — מתעדכן כל כמה דקות"' : ''}>${t}</button>`).join('')}</div>` +
     `<div class="daynav${period === 'day' ? ' on' : ''}"><button id="dprev" title="יום קודם">‹</button><div class="dwrap"><button id="dpick" class="dbtn" title="בחירת יום">${period === 'day' ? heDate(curD) : 'בחירת יום ▾'}</button><div id="cal" class="cal" hidden></div></div><button id="dnext" title="יום הבא">›</button></div>` +
     (period !== 'day' ? `<div class="seg dtseg" role="group" aria-label="סוג יום">${DTYPES.map(([k, t]) => `<button class="pchip${dtype === k ? ' on' : ''}" data-dt="${k}" title="${k ? 'רק ' + DTNAME[k] + ' מתוך התקופה' : 'כל הימים בתקופה'}">${t}</button>`).join('')}</div>` : '') +
-    `<div class="phint">${period === 'day' ? '"יום" = יום שלם אחד. 7 / 30 = כל הימים האלה יחד.' : `${period} הימים האחרונים יחד. אפשר לבחור רק ימי חול, רק שישי או רק מוצאי שבת.`}</div>`;
+    `<div class="phint">${period === 'day' ? 'אפשר לבחור יום אחד, או את 7 או 30 הימים האחרונים יחד.' : `${period} הימים האחרונים יחד. אפשר לבחור רק ימי חול, רק שישי או רק מוצאי שבת.`}</div>`;
   el.querySelectorAll('.pchip[data-p]').forEach(b => b.onclick = () => {
     const k = b.dataset.p;
     if (k === 'today') { dayD = TODAY.d; period = 'day'; }
@@ -251,13 +251,13 @@ function heroHtml(a, days) {
   // כל נתון מסביר את עצמו במקום, במשפט פשוט (שלמה 06.09: "לא מובן מה כל דבר אומר")
   const items = [
     ['יציאה בזמן מהמוצא', oT ? pct(a.o[1], oT) : '—', '', oT ? `${pct(a.o[0], oT)} מוקדם · ${pct(a.o[2] + a.o[3] + a.o[4], oT)} באיחור` : 'אין מדידה בתחנת המוצא'],
-    ['איחור ממוצע בתחנה', a.avg == null ? '—' : fmt1(a.avg), 'דק׳', a.s && a.s[1] != null ? `חציון ${fmt1(a.s[1])} דק׳ · 90% עד ${fmt1(a.s[2])}` : ''],
+    ['איחור ממוצע בתחנה', a.avg == null ? '—' : fmt1(a.avg), 'דק׳', a.s && a.s[1] != null ? `חציון ${fmt1(a.s[1])} דק׳ · ב-90% מההגעות עד ${fmt1(a.s[2])} דק׳` : ''],
     ['מעל 20 דקות', a.meas ? pct(a.c[4], a.meas) : '—', '', a.meas ? `${pct(a.c[3] + a.c[4], a.meas)} מעל 10 דק׳ · ${pct(a.c[0], a.meas)} מוקדם` : ''],
     ['נסיעות שנצפו', num(a.obs), '', `מתוך ${num(a.sched)} בלו״ז${a.extra ? ` · ועוד ${num(a.extra)} תגבורים` : ''}`],
   ];
   // קצר (ביקורת הסברים 26.11): התאריך של יום בודד כבר כתוב בכפתור היום שמעל
   const capT = days.length === 1 && !isTodayD(days[0].d) ? '' : title + '. ';
-  const cap = `${capT}${num(a.meas)} הגעות לתחנות. "בזמן" = עד 2 דק׳ לפני ועד 5 דק׳ אחרי הלו״ז.`;
+  const cap = `${capT}${num(a.meas)} הגעות לתחנות. "בזמן" פירושו עד 2 דקות לפני הלו״ז ועד 5 דקות אחריו.`;
   const r = 54, circ = 2 * Math.PI * r, share = a.meas ? a.c[1] / a.meas : 0;
   const segs = a.meas ? a.c.map(v => v / a.meas) : [0, 0, 0, 0, 0];
   let off = 0, arcs = '';
@@ -669,10 +669,10 @@ function renderMain(days) {
     </div>
     <div class="tabsec" data-tab="blame" id="blame-box"></div>
     <div class="tabsec" data-tab="vanish">
-    <div class="panel" id="p-vanish"><div class="ptitle">איפה האוטובוס נעלם</div><p class="pdesc">עד איפה נראה כל אוטובוס לאורך המסלול. היעלמות = קליטה גרועה או נסיעה שלא הושלמה.</p><details class="bmore"><summary>איך זה מחושב</summary><p class="pdesc">משרד התחבורה סופר נסיעה כ"בוצעה" אם האוטובוס דיווח בתחנת המוצא. כאן עוקבים אחרי כל נסיעה תחנה אחרי תחנה: האם נראתה עד סוף המסלול, נעלמה באמצע הדרך, נראתה רק בהתחלה, או שידרה מיקום 5 דקות ומעלה בלי לזוז על המסלול. היעלמות יכולה להיות קליטה גרועה, נסיעה שקוצרה, או נסיעה שדווחה ולא נסעה. תחנה שבה אוטובוסים של כמה חברות נעלמים היא כנראה בעיית קליטה, לא של החברה.</p></details><div id="t-vanish"></div></div>
+    <div class="panel" id="p-vanish"><div class="ptitle">איפה האוטובוס נעלם</div><p class="pdesc">עד איפה נראה כל אוטובוס לאורך המסלול. היעלמות היא קליטה גרועה, או נסיעה שלא הושלמה.</p><details class="bmore"><summary>איך זה מחושב</summary><p class="pdesc">משרד התחבורה סופר נסיעה כ"בוצעה" אם האוטובוס דיווח בתחנת המוצא. כאן עוקבים אחרי כל נסיעה תחנה אחרי תחנה: האם נראתה עד סוף המסלול, נעלמה באמצע הדרך, נראתה רק בהתחלה, או שידרה מיקום 5 דקות ומעלה בלי לזוז על המסלול. היעלמות יכולה להיות קליטה גרועה, נסיעה שקוצרה, או נסיעה שדווחה ולא נסעה. תחנה שבה אוטובוסים של כמה חברות נעלמים היא כנראה בעיית קליטה, לא של החברה.</p></details><div id="t-vanish"></div></div>
     </div>
     <div class="tabsec" data-tab="ops">
-    <div class="panel"><div class="ptitle">לפי אשכול</div><p class="pdesc">אשכול = קבוצת קווים שיוצאת למכרז אחד ומופעלת בידי חברה אחת.</p><div id="lt-sum"></div><div id="t-cl"></div></div>
+    <div class="panel"><div class="ptitle">לפי אשכול</div><p class="pdesc">אשכול הוא קבוצת קווים שיוצאת למכרז אחד ומופעלת בידי חברה אחת.</p><div id="lt-sum"></div><div id="t-cl"></div></div>
     </div>
     <div class="tabsec" data-tab="city">
     <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">הדיוק בתחנות שבתוך העיר, מכל הקווים שעוברים בה.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
@@ -991,7 +991,7 @@ function renderLineDetail() {
     ${distHtml(s)}
     <div class="cols2" style="margin-top:10px"><div><div class="ptitle">אחוז בזמן לפי השעה ביום</div><p class="pdesc">ירוק: 80% ומעלה בזמן · אדום: פחות מ-50%.</p><div class="chart" id="c-lh"></div></div>
     <div><div class="ptitle">האיחור הממוצע לאורך הקו</div><p class="pdesc">עמודה לכל תחנה, מהמוצא (ימין) ליעד. איפה שהעמודות קופצות, שם הקו מאבד זמן.</p><div class="chart" id="c-lp"><div class="empty">טוען…</div></div></div></div>
-    <div class="ptitle" style="margin-top:12px">תחנה אחרי תחנה</div><p class="pdesc">קפיצה באיחור = שם הקו מאבד זמן. ירידה ב"מהמתוכנן" = שם האוטובוסים נעלמים.</p><div id="lprof"><div class="empty">טוען…</div></div>
+    <div class="ptitle" style="margin-top:12px">תחנה אחרי תחנה</div><p class="pdesc">איפה שהאיחור קופץ, שם הקו מאבד זמן. איפה ש"מהמתוכנן" יורד, שם האוטובוסים נעלמים.</p><div id="lprof"><div class="empty">טוען…</div></div>
   </div>`;
   barChart($('#c-lh'), hours, {color: C.line, max: 100, unit: '%', h: 160});
   $('#close-l').onclick = () => { openLine = null; el.innerHTML = ''; };
@@ -1007,7 +1007,7 @@ function renderLineDetail() {
     const planCls = p => !p.plan ? '' : p.n / p.plan >= 0.8 ? 'd1' : p.n / p.plan >= 0.6 ? 'd2' : p.n / p.plan >= 0.4 ? 'd3' : 'd4';
     box.innerHTML = `<div class="prof"><div class="ps h"><span></span><span>תחנה</span><span>הגעות</span><span>מהמתוכנן</span><span>איחור ממוצע</span><span>בזמן</span></div>` +
       prof.map((p, i) => `<div class="ps"><span class="dot s${catOf(p.avg)}"></span><span class="rn">${esc(stopName(p.code))} <small>${esc(p.code)}${i === 0 ? ' · מוצא' : i === prof.length - 1 ? ' · יעד' : ''}</small></span><span class="num">${num(p.n)}</span><span class="num ${planCls(p)}" title="${p.plan ? num(p.n) + ' הגעות נמדדו מתוך ' + num(p.plan) + ' נסיעות מתוכננות שעוברות בתחנה' : 'אין מספר מתוכנן לתחנה'}">${p.plan ? Math.round(100 * p.n / p.plan) + '%' : '—'}</span><span class="num ${dcls(p.avg)}">${delayTxt(p.avg)} דק׳</span><span class="num">${Math.round(p.on * 100)}%</span></div>`).join('') + '</div>' +
-      '<div class="mut" style="margin-top:6px">בתחנת המוצא: יציאה (נמדדת רק כשהרכב נראה עומד שם, ולכן "מהמתוכנן" נמוך יותר). בשאר התחנות: הגעה.</div>';
+      '<div class="mut" style="margin-top:6px">בתחנת המוצא נמדדת היציאה, ובשאר התחנות ההגעה. יציאה נמדדת רק כשהרכב נראה עומד במוצא, ולכן שם "מהמתוכנן" נמוך יותר.</div>';
   });
 }
 function renderWorst() {
@@ -1112,7 +1112,7 @@ function renderRegions() {
   const cell = r => `<td>${num(r.sched)}</td><td class="${missCls(r.miss)}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 1000) / 10 + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td><td>${r.bunch == null ? '—' : Math.round(r.bunch * 100) + '%'}</td>`;
   box.innerHTML = `<div class="tblbox"><table id="trg"><thead><tr>${th('מחוז / מרחב', 'nm', sortRg)}${th('נסיעות בלו״ז', 'sched', sortRg)}${th('לא נצפו', 'miss', sortRg)}${th('הגעות נמדדו', 'meas', sortRg)}${th('בזמן', 'on', sortRg)}${th('יצאו מוקדם', 'oearly', sortRg, 'מהנסיעות שמוצאן באזור')}${th('איחור ממוצע', 'avg', sortRg)}${th('מעל 20 דק׳', 'b4', sortRg)}${th('התקבצות', 'bunch', sortRg, 'אחוז הזוגות הצמודים בתחנות שבאזור')}</tr></thead><tbody>` +
     dist.map(x => `<tr style="font-weight:700;background:var(--panel2,transparent)"><td class="nm">${esc(x.d.nm)}</td>${cell(x.d)}</tr>` + x.hubs.map(r => `<tr class="${r.nm === openRegion ? 'on' : ''}"><td class="nm" style="padding-right:22px"><a class="linebtn" data-rg="${esc(r.nm)}" href="${tabHref('region', {rg: r.nm})}" title="הקווים שנמדדו במרחב">${esc(r.nm)}</a> <small style="color:var(--dim)">${num(r.nroutes)} מסלולים</small></td>${cell(r)}</tr>`).join('')).join('') + '</tbody></table></div>' +
-    `<div class="mut" style="margin-top:6px">שורה מודגשת = מחוז. מתחתיה המרחבים שבו.</div>`;
+    `<div class="mut" style="margin-top:6px">שורה מודגשת היא מחוז, ומתחתיה המרחבים שבו.</div>`;
   $('#trg thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortRg = {k, dir: sortRg.k === k ? -sortRg.dir : (k === 'nm' ? 1 : -1)}; renderRegions(); };
   box.querySelectorAll('.linebtn').forEach(b => b.onclick = e => { if (!nv(e)) return; openRegion = b.dataset.rg; renderRegionDetail(); renderRegions(); $('#region-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   renderRegionDetail();
@@ -1134,7 +1134,7 @@ function renderRegionDetail() {
     const cross = rows.filter(r => r.share < .8);
     const s = M.Rg[openRegion];
     box.innerHTML = `<div class="lhead"><span class="badge">${esc(openRegion)}</span><span class="ldest">מחוז ${esc(s.district)} · ${num(s.meas)} הגעות · ${num(rows.length)} מסלולים עם ${MIN_CITY} הגעות לפחות · ${num(cross.length)} מהם חוצי-אזור</span><button class="closebtn" id="close-rg">✕ סגירה</button></div>
-      <p class="pdesc">"חלק במרחב": כמה מהקו עובר כאן. מתחת ל-80% — קו חוצה אזורים (באפור).</p>
+      <p class="pdesc">"חלק במרחב" — כמה מהקו עובר כאן. קו שפחות מ-80% ממנו עובר כאן חוצה אזורים, ומסומן באפור.</p>
       <div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>מפעיל</th><th>אשכול</th><th>הגעות במרחב</th><th>חלק במרחב</th><th>בזמן</th><th>איחור ממוצע</th><th>נסיעות בלו״ז</th><th>לא נצפו</th></tr></thead><tbody>` +
       rows.slice(0, 80).map(r => `<tr${r.share < .8 ? ' style="color:var(--mut)"' : ''}><td class="nm"><a class="linebtn" data-rid="${esc(r.rid)}" href="${tabHref('line', {line: r.rid})}">${esc(r.short)}</a></td><td style="font-size:12px">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px">${esc(r.cluster)}</td><td>${num(r.n)}</td><td>${Math.round(r.share * 100)}%${r.share < .8 ? ' <small>חוצה אזורים</small>' : ''}</td><td>${onCell(r.on)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td><td>${num(r.sched)}</td><td>${r.sched ? Math.round(100 * Math.max(0, 1 - r.obs / r.sched)) + '%' : '—'}</td></tr>`).join('') + '</tbody></table></div>' + (rows.length > 80 ? `<div class="mut">מוצגים 80 מתוך ${num(rows.length)}</div>` : '');
     $('#close-rg').onclick = () => { openRegion = null; renderRegionDetail(); renderRegions(); };
@@ -1285,7 +1285,7 @@ function renderGq() {
   const top = (o, n) => Object.entries(o).sort((p, q) => q[1] - p[1]).slice(0, n).map(([k, v]) => [...k.split('|'), v]);
   const t = (h, r) => `<div class="tblbox" style="margin-top:6px;max-height:none"><table><thead><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${r}</tbody></table></div>`;
   const nf = Object.values(fk).reduce((a, b) => a + b, 0), best = rows[0], worst = rows[rows.length - 1];
-  box.innerHTML = `<div class="ptitle">אמינות השידורים</div><p class="pdesc">ציון יחסי (הכי טוב = 100): כמה שידורי מיקום מזויפים, וכמה נסיעות שודרו בשעה הלא נכונה.</p><details class="bmore"><summary>איך זה מחושב</summary><p class="pdesc">חצי מהציון — זיופי GPS: שידור שהאוטובוס נמצא במקום שאין בו שום רחוב שאוטובוסים נוסעים בו (ים, שטח פתוח). חצי — נסיעות ששודרו בשעה אחרת: השידור הראשון הגיע יותר משעה אחרי שעת היציאה בלו"ז, או שהרכב המשיך לשדר על הנסיעה 4 שעות ומעלה. בכל מרכיב המפעיל הטוב ביותר מקבל 100 והגרוע ביותר 0. את המקומות המזויפים עצמם רואים במפה של <a href="../bus-speed/">איפה האוטובוס נתקע</a> (שכבה "זיופי GPS").</p></details>` +
+  box.innerHTML = `<div class="ptitle">אמינות השידורים</div><p class="pdesc">ציון יחסי, שבו המפעיל הטוב ביותר מקבל 100: כמה שידורי מיקום מזויפים, וכמה נסיעות שודרו בשעה הלא נכונה.</p><details class="bmore"><summary>איך זה מחושב</summary><p class="pdesc">חצי מהציון — זיופי GPS: שידור שהאוטובוס נמצא במקום שאין בו שום רחוב שאוטובוסים נוסעים בו (ים, שטח פתוח). חצי — נסיעות ששודרו בשעה אחרת: השידור הראשון הגיע יותר משעה אחרי שעת היציאה בלו"ז, או שהרכב המשיך לשדר על הנסיעה 4 שעות ומעלה. בכל מרכיב המפעיל הטוב ביותר מקבל 100 והגרוע ביותר 0. את המקומות המזויפים עצמם רואים במפה של <a href="../bus-speed/">איפה האוטובוס נתקע</a> (שכבה "זיופי GPS").</p></details>` +
     (rows.length ? `<div class="stat-row"><div><b>${num(nf)}</b><span>זיופי GPS · ${days.length === 1 ? shortDate(days[0]) : days.length + ' ימים'}</span></div><div><b>${esc(best[0])}</b><span>הציון הגבוה ביותר: ${best[1]}</span></div><div><b>${esc(worst[0])}</b><span>הציון הנמוך ביותר: ${worst[1]}</span></div></div>` +
     t(['מפעיל', '<span title="ציון יחסי: הכי טוב 100, הכי גרוע 0">ציון</span>', 'זיופי GPS', 'זיופים ל-1,000 שידורים', 'נסיעות בשעה אחרת'], rows.map(([a, s, f, r, l]) => `<tr><td class="nm">${esc(a)}</td><td class="${cls(s)}"><b>${s}</b></td><td>${num(f)}</td><td>${Math.round(r * 100) / 100}</td><td>${Math.round(l * 10) / 10}%</td></tr>`).join('')) : '') +
     `<div class="ptitle" style="margin-top:14px">הקווים עם הכי הרבה זיופי GPS</div>` + t(['קו', 'מפעיל', 'זיופים'], top(fl, 10).map(([l, a, n]) => `<tr><td class="nm"><b>${esc(l)}</b></td><td>${esc(a)}</td><td>${num(n)}</td></tr>`).join('')) +

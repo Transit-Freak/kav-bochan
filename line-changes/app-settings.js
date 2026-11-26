@@ -63,7 +63,7 @@
     if (!si || si.full <= si.short && !si.limited && A.edits.a4full !== true) { el.hidden = true; return; }
     el.hidden = false;
     el.innerHTML = si.limited
-      ? 'השלט ארוך מדי (' + si.full + ' עמ׳), אז הכנו גרסה מקוצרת של ' + si.short + ' עמ׳. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
+      ? 'השלט יוצא ארוך מדי, ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
       : 'השלט ארוך — ' + si.full + ' עמודים. <button type="button" class="lnk" data-a4="short">לגרסה המקוצרת (' + si.short + ' עמודים)</button>';
   }
   A.$('a4note').addEventListener('click', function (ev) {

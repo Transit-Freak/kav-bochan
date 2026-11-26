@@ -220,7 +220,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 ⌄ הצג עוד — מוצגים {Math.min(lim, list12.length).toLocaleString()} מתוך {list12.length.toLocaleString()}
               </button>
             )}
-            <div className="katnote">ℹ️ "לא קיים היום" = אין לו קו תואם ברשת של היום. לחיצה על השורה פותחת את רצף התחנות שלו מ-2012.</div>
+            <div className="katnote">ℹ️ "לא קיים היום" — אין לו קו תואם ברשת של היום. לחיצה על השורה פותחת את רצף התחנות שלו מ-2012.</div>
           </div>
         );
       })() : chs === null ? "טוען…" : chErr ? <NetErr onRetry={() => setRty((n) => n + 1)} />

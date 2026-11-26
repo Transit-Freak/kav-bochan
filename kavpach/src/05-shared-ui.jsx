@@ -214,7 +214,7 @@ const RidershipBlock = ({ makat }) => {
           </div>))}
       </div>
       {(rec || e.add) && <div className="text-slate-700 mt-2" style={{ fontSize: 11.5 }}><b>משרד התחבורה ({lab(lq)}):</b> {rec ? 'לבחון ביטול, דילול או שינוי — ' + rec : 'מסומן לתגבור (דרגה ' + e.add + ' מתוך 3)'}</div>}
-      <div className="text-slate-400 mt-1" style={{ fontSize: 10 }}>{lab(lq)} = רבעון {QHE[lqn]}׳ של {ly} · מקור: "נסועה בקווי אוטובוס", משרד התחבורה · כל הכיוונים יחד</div>
+      <div className="text-slate-400 mt-1" style={{ fontSize: 10 }}>{lab(lq)} הוא רבעון {QHE[lqn]}׳ של {ly}. הנוסעים בשני הכיוונים יחד. מקור: "נסועה בקווי אוטובוס", משרד התחבורה</div>
     </div>
   );
 };

@@ -362,7 +362,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
               title="מה נחשב קו מוזהב? כאן קובעים את הניקוד"
               accent="amber"
               settings={gset} update={updGset} reset={resetGset} isDefault={gsetDefault}
-              intro='קובעים כמה נקודות כל דבר שווה. שדה ריק = ברירת המחדל של האתר.'
+              intro='קובעים כמה נקודות כל דבר שווה. בשדה ריק נשארת ברירת המחדל של האתר.'
               rows={[
                 { key: 'highTrips', label: 'נסיעות בביקוש גבוה', hint: 'איזה חלק מהנסיעות עובר את סף הנוסעים של הקטגוריה' },
                 { key: 'efficientKm', label: 'יעילות ק"מ', hint: 'איזה חלק מהקילומטרים נסוע על נסיעות מאוכלסות' },
@@ -1001,7 +1001,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                     className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm" />
                 </div>
               </header>
-              <p className="text-xs text-slate-500 font-bold mb-3">באחוז ליד עומס השיא: כמה מהקיבולת תפוס ברגע הכי עמוס.</p>
+              <p className="text-xs text-slate-500 font-bold mb-3">האחוז ליד עומס השיא הוא כמה מהקיבולת תפוס ברגע הכי עמוס.</p>
               <div className="overflow-x-auto rounded-[2rem] border-2 border-slate-100 max-h-[60vh]">
                 <table className="w-full text-right border-collapse">
                   <thead className="sticky top-0 bg-slate-50 shadow-sm z-20">

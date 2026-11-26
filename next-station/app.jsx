@@ -35,7 +35,7 @@ const TRANS_SUBCATS = {
   wrong:   { label: "תרגום שגוי",   color: "#dc2626", tip: "התרגום לא נכון" },
   missing: { label: "חלק חסר",       color: "#ea580c", tip: "חלק מהשם לא תורגם" },
   literal: { label: "תרגום מילולי",  color: "#7c3aed", tip: "תורגם במקום תעתיק" },
-  format:  { label: "פורמט / כתיב",   color: "#0891b2", tip: "כתיב או אותיות" },
+  format:  { label: "פורמט / כתיב",   color: "#0891b2", tip: "שגיאת כתיב, רווח כפול או סימן מיותר" },
 };
 
 // בדיקות נפרדות על תחנות (שלמה 10.10, stop-checks.json): לא שם↔כתובת, ולכן לא נספרות ב"סה"כ חשודות"
@@ -199,7 +199,7 @@ const CheckRow = React.memo(function CheckRow({ e, on, onSel }) {
       <div className="check-names">
         <span className="check-n">{e.n}</span>
         <span className="code">מס׳ {e.c}</span>
-        {e.typ && <span className="badge" style={{ background: c.color }} title="הסוג הרשום במאגר של משרד התחבורה">רשום כ: {e.typ}</span>}
+        {e.typ && <span className="badge" style={{ background: c.color }} title="הסוג הרשום במאגר של משרד התחבורה">סוג רשום: {e.typ}</span>}
       </div>
       <div className="check-sub">{e.t || "—"}{e.k === "nohs" && e.hood ? " · שכונת " + e.hood : ""}</div>
       <div className="check-why">
@@ -275,7 +275,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
             </div>
           )}
           {s.roads && (s.roads.cur || s.roads.sug) && (
-            <div className="d-map-legend">{s.roads.prim && <span className="lg prim">● הרחוב של התחנה</span>} <span className="lg cur">● בשם כיום</span> <span className="lg sug">● מוצע</span> — מסומנים על המפה</div>
+            <div className="d-map-legend">על המפה: {s.roads.prim && <span className="lg prim">● הרחוב של התחנה</span>} <span className="lg cur">● הרחוב שבשם היום</span> <span className="lg sug">● הרחוב המוצע</span></div>
           )}
         </div>
       )}
@@ -287,7 +287,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
       )}
       {nearPois.length > 0 && (
         <div className="d-poi">
-          <div className="d-poi-h">📍 ליד התחנה (OSM) — עד כ-5 דק׳ הליכה <span className="d-poi-note">(~ = הערכה בקו אווירי)</span>:</div>
+          <div className="d-poi-h">📍 ליד התחנה, עד כ-5 דקות הליכה <span className="d-poi-note">(~ מסמן הערכה בקו אווירי)</span>:</div>
           {nearPois.map(({ x, i }) => {
             let rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
             // אם המסלול ארוך בצורה לא-סבירה מהמרחק האווירי (מחסום/חוסר שביל ב-OSM) — חזרה להערכה
@@ -649,7 +649,7 @@ function App() {
                 : diffs.map((x) => (
                     <span key={x.k}>
                       {" · "}
-                      <button className="cat-btn" title="▲ נוספו / ▼ ירדו מאז הריצה הקודמת — לחצו לרשימה"
+                      <button className="cat-btn" title="▲ נוספו ▼ ירדו מאז הבדיקה הקודמת. לחיצה פותחת את הרשימה"
                         onClick={() => setShowCat(showCat === x.k ? null : x.k)}>
                         {CATS[x.k].label}{" "}
                         <b className={x.d < 0 ? "down" : "up"}>{x.d < 0 ? "▼" : "▲"}{Math.abs(x.d).toLocaleString()}</b>
@@ -734,7 +734,7 @@ function App() {
             </button>
             {showFixed && (
               <div className="fixed-list">
-                <div className="fixed-legend">🔧 תיקון חשודה · ✏️ שינוי שם</div>
+                <div className="fixed-legend">🔧 תחנה חשודה שתוקנה · ✏️ שם שהשתנה</div>
                 {chg.slice().reverse().map((e) => {
                   const rn = e.renamed || [];
                   const rnMore = Math.max(0, rn.length - 200) + (e.rn_more || 0);
@@ -916,7 +916,7 @@ function LetterModal({ data, initial, onClose }) {
         <button className="d-x" onClick={onClose}>×</button>
         <div className="rep-h">📨 מכתב לרשות</div>
         <label className="rep-l">בחרו עיר:</label>
-        <div className="rep-sub">המכתב כולל טעויות ודאיות בלבד, בלי ספק והצעות.</div>
+        <div className="rep-sub">המכתב כולל רק טעויות ודאיות, בלי מקרים מסופקים ובלי הצעות.</div>
         <select className="rep-sel" value={city} onChange={(e) => setCity(e.target.value)}>
           <option value="">— בחרו עיר —</option>
           {cities.map(([t, n]) => <option key={t} value={t}>{t} ({n})</option>)}
@@ -960,7 +960,7 @@ function autoCheck(s) {
     if (w && w.cur && w.sug) {
       if (w.sug.d <= w.cur.d)
         return { tone: "ok", text: "בדיקה אוטומטית: גם בהליכה אמיתית הרחוב המוצע («" + s.ms + "» " + w.sug.d + " מ׳) קרוב יותר מהרחוב שבשם («" + s.cur + "» " + w.cur.d + " מ׳) — ההצעה כנראה מוצדקת.",
-          short: "גם בהליכה «" + s.ms + "» קרוב יותר. ההצעה כנראה נכונה." };
+          short: "גם בדרך ההליכה «" + s.ms + "» קרוב יותר, אז ההצעה כנראה נכונה." };
       return { tone: "warn", text: "בדיקה אוטומטית: בהליכה אמיתית דווקא הרחוב שבשם קרוב יותר — ייתכן שאין כאן צורך בשינוי." };
     }
     return { tone: "neutral", text: "בדיקה אוטומטית: ההצעה מבוססת על מרחק אווירי (אין נתוני הליכה לרחוב זה)." };
