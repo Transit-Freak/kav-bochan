@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<script src="ui-en.js?v=8"></script>
+<script src="ui-en.js?v=9"></script>
 <script src="../theme-boot.js?v=20261120c" data-inline="off"></script>
 <link rel="stylesheet" href="../dark/line-changes.css?v=20261119">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -171,10 +171,10 @@
       <div class="group" id="kindgrp">
         <span class="flabel">גודל המצגת</span>
         <div class="kinds" id="kinds"></div>
+        <p class="hint">עמוד אחד — כל השינוי בשקף אחד, במקום מצגת מלאה</p>
       </div>
       <div class="group" id="ttgrp" hidden>
         <h3 class="tvh">איך להציג את לוח הזמנים</h3>
-        <p class="hint">ההורדה ל-PDF ולאקסל תהיה לפי מה שתבחרו כאן</p>
         <div class="tvcards" id="tvcards" role="radiogroup" aria-label="איך להציג את לוח הזמנים">
           <button type="button" role="radio" class="tvc" data-tv="board"><span class="tvstar">מומלץ</span>
             <span class="tvth th-bd" aria-hidden="true"><i class="bn"></i><span class="r"><i class="n"></i><i></i><i class="g"></i><i></i></span><span class="r"><i class="n"></i><i class="x"></i><i></i><i></i></span><i class="bn o"></i><span class="r"><i class="n"></i><i></i><i></i><i class="g"></i></span></span>
@@ -193,6 +193,7 @@
         <div class="tvopts" id="tvopts">
           <div id="bwkw" hidden>
             <span class="flabel sm">לוחות לשבוע של השינוי</span>
+            <p class="hint">הקו משתנה השבוע — איזה לו״ז להוציא: עד השינוי, אחריו או שניהם</p>
             <div class="seg2 tvseg" id="bwkseg" role="radiogroup" aria-label="לוחות לשבוע של השינוי">
               <button type="button" role="radio" data-bwk="cur"><b>הלו״ז הנוכחי</b></button>
               <button type="button" role="radio" data-bwk="new"><b>רק הלו״ז החדש</b></button>
@@ -202,12 +203,12 @@
           <div class="bdopts" id="bdopts" hidden>
             <h4 class="tvsh">אפשרויות ללוח המודעות</h4>
             <label class="fld"><span>כותרת</span><input type="text" id="bdtitle" maxlength="90" autocomplete="off"></label>
-            <p class="hint">במצב עריכה: לוחצים על שורה בלוח ובוחרים "מחיקת השורה" או "מחיקת הקו". כל טקסט בלוח אפשר גם לשנות או למחוק. בלחיצה על הכותרת, על שורה או על תא — גם עיצוב: רקע, צבע טקסט, יישור, ערכות צבעים לכל הלוח, וכותרת רק בעמוד הראשון.</p>
+            <p class="hint">במצב עריכה לוחצים על שורה, תא או כותרת — כדי למחוק, לשנות טקסט או לצבוע.</p>
             <label class="fld"><span>עדכונים והערות <small>(לא חובה — מופיע בתחתית הלוח)</small></span><textarea id="bdnote" rows="2" maxlength="400"></textarea></label>
             <span class="flabel sm">צפיפות</span>
             <div class="seg2 tvseg" id="bdnseg" role="radiogroup" aria-label="צפיפות">
               <button type="button" role="radio" data-bdn="0"><b>רגילה</b></button>
-              <button type="button" role="radio" data-bdn="1"><b>צפופה</b></button>
+              <button type="button" role="radio" data-bdn="1"><b>צפופה</b><small>פחות רווח, כדי שהלוח ייכנס בפחות עמודים</small></button>
             </div>
             <div id="bpgw"><span class="flabel sm">להכניס ל־ (בשלט A4)</span>
               <div class="seg2 tvseg" id="bpgseg" role="radiogroup" aria-label="כמה עמודים">
@@ -219,8 +220,8 @@
             </div>
             <span class="flabel sm">מתחת למוצא</span>
             <div class="seg2 tvseg" id="bstseg" role="radiogroup" aria-label="מתחת למוצא">
-              <button type="button" role="radio" data-bst="all"><b>הכל</b></button>
-              <button type="button" role="radio" data-bst="dir"><b>רק כיוון</b></button>
+              <button type="button" role="radio" data-bst="all"><b>הכל</b><small>תחנה, קוד וכיוון</small></button>
+              <button type="button" role="radio" data-bst="dir"><b>רק כיוון</b><small>"לכיוון…"</small></button>
               <button type="button" role="radio" data-bst="none"><b>כלום</b></button>
             </div>
             <!-- יישור הכותרת, "רק בעמוד הראשון" והצבעים — עברו לסרגל העריכה (לוחצים על הכותרת). נשארים כאן מוסתרים, כי הקוד מעדכן אותם -->
@@ -248,7 +249,7 @@
             </div>
             <span class="flabel sm">פיצול ימי חול</span>
             <div class="seg2 tvseg" id="bspseg" role="radiogroup" aria-label="פיצול ימי חול">
-              <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b></button>
+              <button type="button" role="radio" data-bsp="auto"><b>אוטומטי</b><small>יום חול עם לו״ז שונה מקבל עמודה משלו</small></button>
               <button type="button" role="radio" data-bsp="no"><b>לא</b></button>
             </div>
             <!-- אפשרויות לפרסום (נחמיה דרך שלמה, 24.11): ברירת המחדל — כמו קודם -->
@@ -262,7 +263,8 @@
               <button type="button" role="radio" data-bend="1"><b>להציג</b></button>
               <button type="button" role="radio" data-bend="0"><b>בלי</b></button>
             </div>
-            <span class="flabel sm">סימון נסיעות כפולות (×2)</span>
+            <p class="hint">לרוב זה רק סוף הנתונים, לא סוף הקו</p>
+            <span class="flabel sm">סימון נסיעות כפולות (×2 — שני אוטובוסים באותה שעה)</span>
             <div class="seg2 tvseg" id="bx2seg" role="radiogroup" aria-label="סימון נסיעות כפולות">
               <button type="button" role="radio" data-bx2="1"><b>להציג</b></button>
               <button type="button" role="radio" data-bx2="0"><b>בלי</b></button>
@@ -275,7 +277,7 @@
             <details class="bdaysd" id="bdaysw" hidden><summary><span class="flabel sm">בחירת תאריכים</span><small class="bdhint" id="bdhint"></small></summary>
               <div class="bsug" id="bsug" aria-label="הצעות"></div>
               <div id="bdgw">
-                <p class="hint">הלוח נבנה מהתאריך הראשון של כל יום בשבוע (מודגש). לחיצה על תאריך מוציאה אותו — ואז נלקח אותו יום בשבוע הבא. "נפרד" — עמודה משלו עם התאריך. נקודה — השעות שונות מאותו יום בשבוע האחר.</p>
+                <p class="hint">התאריכים המודגשים בונים את הלוח. לחיצה מוציאה תאריך; "נפרד" — עמודה משלו; נקודה — שעות שונות.</p>
                 <div class="bdg" id="bdg" role="group" aria-label="תאריכים"></div>
                 <button type="button" class="lnk" id="bdreset" hidden>לבטל את הבחירה</button>
               </div>
@@ -295,7 +297,7 @@
               <button type="button" role="radio" data-bor="num"><b>לפי מספר קו</b></button>
               <button type="button" role="radio" data-bor="man"><b>ידני</b></button>
             </div>
-            <p class="hint" id="bmanh" hidden>במצב עריכה: לוחצים על קו או על פס בלוח, ומזיזים עם "העברה למעלה ↑" / "העברה למטה ↓". קו שבראש פס עובר בלחיצה על ↑ לפס שמעליו (ו-↓ בסוף פס — לפס שמתחתיו), ושם הוא מופיע בפס משלו, עם היעד שלו. קו שעומד לבד בפס משלו זז כמו פס — מעל הפס שמעליו או מתחת לפס שמתחתיו.</p>
+            <p class="hint" id="bmanh" hidden>במצב עריכה לוחצים על קו או על פס, ומזיזים עם ↑ ו-↓.</p>
             <div class="bkw" id="bkw">
               <label class="bkf"><span>קודם לפי</span><select id="bk1" aria-label="קודם לפי"></select></label>
               <label class="bkf"><span>ואז לפי</span><select id="bk2" aria-label="ואז לפי"></select></label>
@@ -320,8 +322,8 @@
           <div id="ttow" hidden>
             <span class="flabel sm">סדר השעות</span>
             <div class="seg2 tvseg" id="ttoseg" role="radiogroup" aria-label="סדר השעות">
-              <button type="button" role="radio" data-tto="ltr"><b>משמאל לימין</b></button>
-              <button type="button" role="radio" data-tto="rtl"><b>מימין לשמאל</b></button>
+              <button type="button" role="radio" data-tto="ltr"><b>משמאל לימין</b><small>המוקדמת משמאל</small></button>
+              <button type="button" role="radio" data-tto="rtl"><b>מימין לשמאל</b><small>המוקדמת מימין</small></button>
             </div>
           </div>
         </div>
@@ -372,13 +374,13 @@
       </div>
       <div class="group editgrp">
         <span class="flabel">הטקסט</span>
-        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט, תמונה (מהקובץ, או הדבקה עם Ctrl+V) או שקף שלם. התמונות נשארות אצלכם ולא עולות לשום מקום.</p>
+        <p class="hint">הטקסט נוצר מהנתונים. ב"עריכת הטקסט" אפשר לשנות כל טקסט ולהוסיף תמונות — הן לא עולות לשום מקום.</p>
         <div class="row2">
           <button type="button" class="btn2" id="editbtn" aria-pressed="false">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
             <span>עריכת הטקסט</span>
           </button>
-          <button type="button" class="lnk" id="resetall">שחזור הכול</button>
+          <button type="button" class="lnk" id="resetall" title="מבטל את כל העריכות וההגדרות של הלוח. הצורה והעיצוב נשארים">שחזור הכול</button>
         </div>
       </div>
       <details class="group" id="tgwrap">
@@ -433,18 +435,18 @@
 <footer class="foot noprint">
   <div class="in">
     <div><b>מצגת לשינוי בקו</b> · הקו הבוחן</div>
-    <div>שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה<span id="feed"></span>, ושינויים שהתחילו בשבועיים האחרונים — מהנתונים של הלילות הקודמים ומהארכיון של הקו הבוחן. זה לא פרסום רשמי.</div>
+    <div>השינויים מתעדכנים כל לילה מנתוני משרד התחבורה<span id="feed"></span>. זה לא פרסום רשמי.</div>
   </div>
 </footer>
 
 <script src="common.js?v=8"></script>
-<script src="app-settings.js?v=7"></script>
-<script src="app-edit.js?v=3"></script>
+<script src="app-settings.js?v=8"></script>
+<script src="app-edit.js?v=4"></script>
 <script src="app-images.js?v=1"></script>
 <script src="app-export.js?v=8"></script>
 <!-- שמות החברות באנגלית (LCBoardEN.OPS) — גם לרשימת הקווים בממשק באנגלית -->
 <script src="board-en.js?v=3"></script>
-<script src="app.js?v=57"></script>
+<script src="app.js?v=58"></script>
 <script src="../a11y.js?v=20261119" defer></script>
 </body>
 </html>

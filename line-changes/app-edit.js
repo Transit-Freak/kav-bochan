@@ -47,16 +47,16 @@
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
   bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>' +
     '<button type="button" data-t="mvup" class="mvb">העברה למעלה ↑</button><button type="button" data-t="mvdn" class="mvb">העברה למטה ↓</button>' +
-    '<button type="button" data-t="al-r" class="bal" title="יישור לימין" aria-label="יישור לימין">⇥ ימין</button><button type="button" data-t="al-c" class="bal" title="יישור למרכז" aria-label="יישור למרכז">↔ מרכז</button><button type="button" data-t="al-l" class="bal" title="יישור לשמאל" aria-label="יישור לשמאל">⇤ שמאל</button><button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel">מעבר לעמוד הבא</button>' +
+    '<button type="button" data-t="al-r" class="bal" title="יישור לימין" aria-label="יישור לימין">⇥ ימין</button><button type="button" data-t="al-c" class="bal" title="יישור למרכז" aria-label="יישור למרכז">↔ מרכז</button><button type="button" data-t="al-l" class="bal" title="יישור לשמאל" aria-label="יישור לשמאל">⇤ שמאל</button><button type="button" data-t="cellclr" class="rowdel">ריקון התא</button><button type="button" data-t="rowadd" class="rowdel">הוספת שורה מתחת</button><button type="button" data-t="pgbrk" class="rowdel" title="מכאן הלוח ממשיך בעמוד חדש">מעבר לעמוד הבא</button>' +
     // הכותרת וכותרות העמודות (כמו בוורד, שמואל 22.11): יישור, "רק בעמוד הראשון", רקע וצבע טקסט
     '<button type="button" data-t="hal-r" class="bhd hal">⇥ ימין</button><button type="button" data-t="hal-c" class="bhd hal">↔ מרכז</button><button type="button" data-t="hal-l" class="bhd hal">⇤ שמאל</button>' +
-    '<button type="button" data-t="h1st" class="bhd">רק בעמוד הראשון</button>' +
+    '<button type="button" data-t="h1st" class="bhd" title="הכותרת ושורת &quot;בתוקף&quot; — רק בעמוד הראשון של הלוח">רק בעמוד הראשון</button>' +
     '<label class="bclrb bhd bth">רקע הכותרות <input type="color" data-c="hbg"></label><label class="bclrb bhd bth">טקסט הכותרות <input type="color" data-c="hfg"></label>' +
     // צבעי כל הלוח (במקום הלשונית שבצד, שמואל 22.11): ערכה מוכנה, ורקע וטקסט של כל השעות
     '<label class="bclrb bhd">ערכת צבעים <select data-c="preset"><option value="">—</option><option value="dflt">לפי העיצוב</option><option value="blue">כחול</option><option value="green">ירוק</option><option value="gray">אפור</option><option value="yellow">צהוב</option></select></label>' +
     '<label class="bclrb bhd">רקע השעות <input type="color" data-c="call"></label><label class="bclrb bhd">טקסט השעות <input type="color" data-c="cfall"></label>' +
     // שורה ותא בשעות: רקע לשורה, רקע לתא, ובלי רקע
-    '<label class="bclrb brow">רקע לשורה <input type="color" data-c="rbg"></label><label class="bclrb bcell">רקע לתא <input type="color" data-c="cbg"></label><button type="button" data-t="bgx" class="brow">בלי רקע</button><button type="button" data-t="rowdel" class="rowdel">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel">מחיקת הקו</button>';
+    '<label class="bclrb brow">רקע לשורה <input type="color" data-c="rbg"></label><label class="bclrb bcell">רקע לתא <input type="color" data-c="cbg"></label><button type="button" data-t="bgx" class="brow">בלי רקע</button><button type="button" data-t="rowdel" class="rowdel" title="רק הכיוון הזה">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel" title="הקו מכל הלוח">מחיקת הקו מכל הלוח</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {
@@ -83,7 +83,8 @@
       var bc0 = A.edits.bclr || {}; bar.querySelector('[data-c="preset"]').value = '';
       bar.querySelector('[data-c="call"]').value = bc0.c || '#ffffff'; bar.querySelector('[data-c="cfall"]').value = bc0.cf || (bc0.c ? LCDeck.boardInk(bc0.c) : '#111111');
       var multi = A.slides.filter(function (x) { return /(^|-)bd\d/.test(x.id); }).length > 1;
-      bar.querySelector('[data-t="h1st"]').hidden = !multi && !A.edits.bt1; bar.querySelector('[data-t="h1st"]').textContent = A.edits.bt1 ? 'כותרת בכל עמוד' : 'רק בעמוד הראשון'; }
+      bar.querySelector('[data-t="h1st"]').hidden = !multi && !A.edits.bt1; bar.querySelector('[data-t="h1st"]').textContent = A.edits.bt1 ? 'כותרת בכל עמוד' : 'רק בעמוד הראשון';
+      bar.querySelector('[data-t="h1st"]').title = A.edits.bt1 ? 'הכותרת ושורת "בתוקף" — בכל עמוד של הלוח' : 'הכותרת ושורת "בתוקף" — רק בעמוד הראשון של הלוח'; }
     if (isHead || isTh) { var hc = A.edits.bclr || {}; bar.querySelector('[data-c="hbg"]').value = hc.h || '#1f2937'; bar.querySelector('[data-c="hfg"]').value = hc.hf || (hc.h ? LCDeck.boardInk(hc.h) : '#ffffff'); }
     var rowOn = !!(bdSel && !bdSel.band);
     bar.querySelectorAll('.brow').forEach(function (b) { b.hidden = !rowOn; });
@@ -476,7 +477,7 @@
   var resetArm = 0;
   A.$('resetall').addEventListener('click', function () {
     var b = A.$('resetall');
-    if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
+    if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? כל העריכות יימחקו'; return; }
     clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
     A.edits = A.normEdits({ look: A.edits.look, form: A.edits.form, tv: A.edits.tv, tall: A.edits.tall, tt: A.edits.tt, ttc: A.edits.ttc, bplace: A.edits.bplace, bpl: A.edits.bpl }); A.saveEdits(); A.render(A.curPages);
   });
