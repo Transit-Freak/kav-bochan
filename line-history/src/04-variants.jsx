@@ -430,7 +430,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const shown=usePre ? sibs : (items || (preAll ? sibs : null));
   return <div className="alt-selector">
     <div className="sibs">
-      <span className="sibt">{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
+      <span className="sibt" title={historical ? undefined : "חלופה = מסלול אחר של אותו קו, באותו מספר"}>{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
       <span className="sib on" title={current?.dest}>{(current && desc(current)) || (current ? label(current) : rd)}{current && lineGoneAt(current) && <span className="sibx">✖</span>}</span>
       <button type="button" className="sib" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
     </div>
@@ -480,7 +480,8 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
           </div>;
         })}
       </div>}
-      {!railMode && <div className="sibt" style={{fontWeight:700,marginTop:6}}>{usePre ? 'התיאורים מחושבים מראש לפי המסלול העדכני של כל חלופה. ' : ''}גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</div>}
+      {!railMode && <div className="sibt" style={{fontWeight:600,marginTop:6}}>⇄ = השוואה לחלופה הפתוחה · ✖ = חלופה מבוטלת<br />התיאורים לפי {usePre ? 'המסלול האחרון של כל חלופה ו' : ''}שמות השכונות של היום.
+        <details className="howcalc"><summary>מקורות</summary><p>גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</p></details></div>}
     </div>}
   </div>;
 }

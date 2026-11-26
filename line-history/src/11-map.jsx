@@ -288,7 +288,7 @@ function MapTab({ idx, openLine, cities }) {
   const noRoute = mode === "lines" && shownLines.filter((x) => routes[x.rd + "@" + mon] === null).length;
   return (
     <div className="card">
-      <p className="maphint">בוחרים עיר (או ״כל הארץ״), שנה וחודש — או שנה שלמה — והמפה מראה איך זה נראה אז: תחנות שהשתנו בתקופה (לחיצה על סימן = מה קרה לה), או כל קווי העיר על המסלול כפי שהיה אז, כל קו בצבע משלו (בכל הארץ — רק הקווים שהשתנו); סימון סוגי שינוי מבליט בעבה את הקווים שבהם זה קרה. ״2012 · קווים״ מציג את נתוני הקווים; ״2012 · תחנות OpenStreetMap״ מציג את צילום התחנות מהמקור הנוסף.</p>
+      <p className="maphint">בחרו עיר וחודש. המפה מראה את התחנות שהשתנו אז, או את קווי העיר כפי שהיו; לחיצה על סימן מסבירה מה קרה.</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input className="search" style={{ flex: 1, minWidth: 180 }} list="lh-map-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="עיר… (למשל חולון)" aria-label="עיר" />
         <button className={"mchip" + (canon === "*" ? " on" : "")} aria-pressed={canon === "*"} title="כל התחנות/הקווים שהשתנו בכל הארץ, בלי לבחור עיר"
@@ -299,6 +299,7 @@ function MapTab({ idx, openLine, cities }) {
         <div className="months" style={{ marginTop: 10 }}>
           {years.map((y) => (
             <button key={y} className={"mchip" + (yr === y && !is2012 ? " on" : "")} aria-pressed={yr === y && !is2012}
+              title={y === "2012" ? "נתוני הקווים של 2012, על המסלול של אז" : undefined}
               onClick={() => { setYr(y); if(y === "2012") setMode("lines"); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon) && mon !== "Y:" + y) setMon(ms[ms.length - 1]); }}>{y === "2012" ? "2012 · קווים" : y}</button>
           ))}
         </div>
@@ -336,7 +337,7 @@ function MapTab({ idx, openLine, cities }) {
         </div>
       )}
       <div className="mapstat">
-        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות {inPlace} ברישום 2012 · המקור: רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener">OpenStreetMap</a> (32,987 תחנות בארץ, רישיון ODbL) · לחיצה על תחנה: שם, מק״ט וכתובת של אז</>)
+        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות {inPlace} ברישום 2012 · לחיצה על תחנה: שם, מק״ט וכתובת של אז · מקור: <a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener" title="רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap: 32,987 תחנות בארץ, רישיון ODbL">OpenStreetMap</a></>)
           : !canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length.toLocaleString()} תחנות ${inPlace} השתנו ${bP(mon)}` : `אין תחנות ${inPlace} שהשתנו ${bP(mon)}`)
           : (lineChs === null || prog ? "טוען…" : canon === "*"
             ? `כל הארץ: ${lineGroups.length.toLocaleString()} קווים השתנו ${bP(mon)} — על המפה רק הם, לא כל קווי הארץ` + (lineGroups.length ? (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי להבליט אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")

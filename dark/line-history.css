@@ -316,3 +316,6 @@ html.kb-dark .succbox a{color:#b09df9}
 html.kb-dark a.tab,html.kb-dark a.back{text-decoration-color:initial}
 html.kb-dark a.sib.sibdir{color:#9dacc3}
 html.kb-dark a.sib.sibdir.on{color:rgb(255, 255, 255)}
+html.kb-dark .howcalc{color:#a9b4c6}
+html.kb-dark .howcalc>summary{color:#8b9cb5}
+html.kb-dark .dayhelp{color:#8b9cb5}

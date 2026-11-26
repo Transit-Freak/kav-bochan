@@ -128,7 +128,7 @@ function TempEv({ t, rd }) {
     <div className={"ev tmpev" + (open ? " sel" : "")} onClick={() => setOpen(!open)}>
       <div className="d"><span>{dates}</span>{live ? " · פעיל עכשיו" : ""}</div>
       <div className="t">
-        <button className="k kbtn" style={{ background: KINDS.temp.color }} aria-expanded={open}
+        <button className="k kbtn" title={KINDS.temp.tip} style={{ background: KINDS.temp.color }} aria-expanded={open}
           onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{KINDS.temp.label}</button>
         <span className="evnote"> {t.cl ? t.cl + " — " : ""}{t.h}</span>
       </div>

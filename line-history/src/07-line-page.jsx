@@ -600,7 +600,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
             <div className="katnote">{savedRoad
               ? "ℹ️ הנקודות הן המיקומים שנשמרו במפת המקור. הדרך ביניהן משוערת: היא חושבה על כבישי היום לפי סדר הנקודות במקור, ואינה מתועדת במקור."
               : est && !est.savedPoints
-              ? "ℹ️ כמו ברשת מגיעים, מיקומי תחנות הוצלבו לרישום משרד התחבורה מ־2012 ולרישום מאוחר יותר. המפה משוערת: ההצלבה אינה מוכיחה שמיקום התחנה היה זהה בשנת הצילום. תחנה שלא הוצלבה אינה מופיעה על המפה. השרטוט מבוסס על כבישי היום כשחושב מסלול, או על קווים ישרים בין התחנות הידועות."
+              ? "ℹ️ המפה משוערת: מיקומי התחנות הוצלבו לרישום מאוחר, ותחנה שלא הוצלבה לא מוצגת."
               : (v.stops || []).some(s=>Number.isFinite(s[2])) ? "ℹ️ הנקודות הן המיקומים שנשמרו במקור. לא שורטט ביניהן מסלול נסיעה משוער." : "ℹ️ במקור נשמרו שמות תחנות ללא מיקומים. הצלבה למיקום נדרשת לפני הצגת מפה משוערת."}</div>
           </div>;
         })() : v.k === "times" && v.tb ? (
@@ -705,7 +705,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
           : useNext
           ? <div className="mut">ℹ️ בנתוני משרד התחבורה אין שרטוט מסלול. המפה מציגה את המסלול של <a href={lineHref(lf.foiNext.rd)}>קו {lf.foiNext.line}</a> כפי שנרשם ב-{fmtD(nextGeo.d)}, אחרי שהקו המשיך במק״ט אחר; ייתכן שהמסלול לפני כן היה שונה.</div>
           : approx
-          ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
+          ? <div className="mut">ℹ️ מסלול מקורב: קו ישר בין התחנות, כי לתקופה הזו אין שרטוט. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         {((gv.foiNames || []).length > 0 || ((pgv && pgv.foiNames) || []).length > 0) && <div className="mut">ℹ️ <TipTag cls="mut" tip="שם התחנה כפי שהוא רשום היום — השם בתקופה הזו לא ידוע">שם עדכני</TipTag> — שם התחנה כפי שהוא רשום היום; השם בתקופה הזו לא ידוע{(gv.foiNames || []).length ? ` (${gv.foiNames.length} תחנות בגרסה הזו)` : ""}.</div>}
         </>)}
@@ -738,7 +738,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
             }}>{"🔗 שיתוף"}</button>
           {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
               מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
-          <LineFollow cities={destCities(lf.dest)} />
+          {/* צילום אתר מידע: היעד הוא "לכיוון X" ולא "מוצא<->יעד", והקו לא ישתנה עוד — בלי הרשמה */}
+          {!lf.observationOnly && !String(lf.rd || rd).startsWith("website") && <LineFollow cities={destCities(lf.dest)} />}
         </div>
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
@@ -750,7 +751,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
         </div>}
         <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
           {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
-          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+          {lf.clu ? <> · <TipTag cls="" tip="אשכול = חבילת המכרז שבה הקו מופעל">אשכול</TipTag> {lf.clu}</> : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
           {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
           {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
               אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
@@ -788,9 +789,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                 של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
                 הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
                 הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
-            🚐 <b>שירות לפי דרישה</b> — כך הקו מסווג בפיד הארצי (route_type 715),
-            סיווג שנועד לשירות שאינו יוצא בשעה קבועה. יש קווים בסיווג הזה שכן
-            מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
+            🚐 <b title="הסיווג בפיד הארצי: route_type 715">שירות לפי דרישה</b>: ייתכן שצריך להזמין נסיעה מראש. כדאי לבדוק מול המפעיל.
           </div>
         )}
         {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
@@ -879,6 +878,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
               </span>
             )}
             <button className="cmpx" title="סיום ההשוואה — חזרה להפרש מול הגרסה הקודמת" onClick={() => setCmpI(null)}>✕ סיום</button>
+            <div className="dayhelp">לחיצה על אירוע אחר בציר משווה אותו מול הבסיס</div>
             {cmpDiff && (cmpDiff.add.length || cmpDiff.rem.length) ? (
               <div className="cmplist">
                 {cmpDiff.add.length ? <div className="ad">➕ {dedupCount(cmpDiff.add).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
@@ -910,11 +910,12 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
             })}
           </div>
         )}
+        {months.length > 1 && <div className="dayhelp">סינון לפי חודש · המספר = שינויים באותו חודש</div>}
         {months.length > 1 && (
           <div className="months">
             <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
             {months.map((m) => (
-              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>
+              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="סינון לחודש הזה · המספר = שינויים באותו חודש" onClick={() => setMon(m)}>
                 {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
               </button>
             ))}
@@ -956,7 +957,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                   {cmpI === i ? "⇄ בסיס ההשוואה" : "⇄ השווה"}</button>)}
               </div>
               <div className="t">
-                <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
+                <button className="k kbtn" title={kTip(dispKind(x, i, vs))} style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
                   aria-current={i === vs.indexOf(v)}
                   aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
                   onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
@@ -977,7 +978,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                   <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. עכשיו השינוי הגיע גם לחלופה הזאת"}>
                     ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
                 ) : null}
-                {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
+                {/* בצילום אתר מידע ההערה רק חוזרת על "תאריך השמירה אינו מועד שינוי", שכבר כתוב בכרטיס */}
+                {x.note && x.k !== "planned-dropped" && x.src !== "websiteArchive" && <span className="evnote"> {noteFix(x.note)}</span>}
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
@@ -1139,8 +1141,8 @@ function Line2012Page({ k12, anchorRd, openLine, onBack, backHref }) {
       </div>
       {(d.routes || []).length > 1 && (
         <div className="s12chips">{d.routes.map((x, i) => (
-          <button key={x.rid} className={"rchip12" + (i === ri ? " on" : "")} onClick={() => setRi(i)}>
-            {x.f} ← {x.l} ({x.n})</button>
+          <button key={x.rid} className={"rchip12" + (i === ri ? " on" : "")} title="מסלולי הקו ב-2012 · לחיצה מציגה את המסלול הזה" onClick={() => setRi(i)}>
+            {x.f} ← {x.l} · {x.n} תחנות</button>
         ))}</div>
       )}
       <Map2012 stops={stops} shape={shape} />
@@ -1160,11 +1162,11 @@ function Line2012Page({ k12, anchorRd, openLine, onBack, backHref }) {
           </li>
         ))}
       </ol>
-      <div className="katnote">ℹ️ תחנות המסומנות "2012": המק"ט והמיקום מרישום התחנות של משרד התחבורה מיוני 2012 (קובץ GTFS),
-        כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a> (33,055 תחנות, רישיון ODbL).
-        רישום 2012 קודם לכל הצלבה אחרת; תחנה שלא נמצאה בו הוצלבה לרישום התחנות של היום. תחנה שלא הוצלבה כלל אינה מופיעה על המפה{rsh
-          ? ", והמסלול ביניהן הוא הערכה: נסיעת אוטובוס בכבישים של היום דרך התחנות הידועות, לפי הסדר. כביש שנפתח מאז 2012 או תחנה שלא הוצלבה יכולים לעקם אותו."
-          : ", ולכן הקו מקווקו."}</div>
+      <div className="katnote">ℹ️ מיקומי התחנות מרישום 2012 או מרישום היום. {rsh ? "המסלול ביניהן משוער, על כבישי היום." : "תחנה שלא הוצלבה לא מוצגת, והקו ביניהן מקווקו."}
+        <details className="howcalc"><summary>איך זה מחושב</summary>
+          <p>המק"ט והמיקום נלקחים קודם מרישום התחנות של משרד התחבורה מיוני 2012 (קובץ GTFS), כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a>: 33,055 תחנות, רישיון ODbL. תחנה שלא נמצאה בו הוצלבה לרישום התחנות של היום, ותחנה שלא הוצלבה כלל לא מופיעה על המפה.</p>
+          {rsh && <p>המסלול: נסיעת אוטובוס בכבישים של היום דרך התחנות הידועות, לפי הסדר. כביש שנפתח מאז 2012 או תחנה שלא הוצלבה יכולים לעקם אותו.</p>}
+        </details></div>
     </div>
   );
 }

@@ -277,9 +277,7 @@ function App() {
                   </React.Fragment>
                 ))}
                 <div className="katnote">
-                  ℹ️ הקטגוריות משותפות לכל השנים. מוצגים שינויים רק כשיש נתונים להשוואה.
-                  היוצא מן הכלל הוא שינוי מספר הרכבים באותה יציאה, שנרשם רק מ-08.2026:
-                  הוא נשען על קובץ רישוי שהארכיונים לא שמרו.
+                  ℹ️ שינוי מספר הרכבים (תגבור) נרשם רק מ-08.2026.
                 </div>
                 {kats.size > 0 && (
                   <button className="katclear" onClick={() => setKats(new Set())}>✖ נקה את הבחירה</button>
@@ -362,30 +360,26 @@ function App() {
       <details className="srcbox" id="data-sources">
         <summary>📚 המקורות — מאיפה מגיע כל פרט, ועד לאן הוא מגיע</summary>
         <div className="srclist">
+          <div className="srcfoot">צילום אינו הודעה על שינוי, והתאמה לקו של היום היא הצעה, לא הוכחה. הכיסוי של כל מקור חלקי, והקליטה נמשכת.</div>
           {SOURCES.map((s) => (
             <div className="srcitem" key={s.t}>
               <div className="srct">{s.t} <span className="srcd">{s.d}</span></div>
               <div className="srcb">{s.b}</div>
+              {s.more && <details className="howcalc"><summary>פרטים</summary><p>{s.more}</p></details>}
               <div className="srcb">{s.links.map(([label, href], i) => <React.Fragment key={href}>{i > 0 && " · "}<a href={href} target="_blank" rel="noopener noreferrer">{label}</a></React.Fragment>)}</div>
             </div>
           ))}
           <div className="srcfoot">
-            רוב היסטוריית הקווים והתחנות מבוססת על צילומי GTFS של משרד התחבורה,
-            שנשמרו אצל גופים שונים. לפני 2012 המקור הוא צילומי אתרי המידע לנוסעים.
-            רשת מגיעים, רישום התחנות ב־OpenStreetMap ורכבת פתוחה
-            הם מקורות נוספים, כמפורט למעלה. שינוי בין צילומים משקף שינוי בפרסום ולא בהכרח
-            את מועד השינוי בשטח. כשיש פער בין צילומים, אין ודאות לגבי היום המדויק.
-            <p>השנים מציינות את טווחי המקורות, ולא כיסוי מלא לכל יום או לכל קו.
-            הקליטה והבדיקה של הארכיונים נמשכות, והכיסוי הזמין מוצג בקטגוריה ובשנה שנבחרו.</p>
-            <p><a href="https://gtfs.org/" target="_blank" rel="noopener noreferrer">GTFS.org</a> מתעד את פורמט הנתונים.
-            ארכיון GTFS Data Exchange הוזכר במחקר המקורות, אך לא ייבאנו ממנו קבצים;
-            אין באתר קובצי GTFS ישראליים מלפני 2012.</p>
+            התאריך הוא יום הפרסום שתועד, לא בהכרח היום שבו השתנה בשטח. הכיסוי חלקי.
+            <details className="howcalc"><summary>עוד על המקורות</summary>
+              <p>רוב היסטוריית הקווים והתחנות מבוססת על צילומי GTFS של משרד התחבורה, שנשמרו אצל גופים שונים. לפני 2012 המקור הוא צילומי אתרי המידע לנוסעים. כשיש פער בין צילומים, היום המדויק לא ידוע.</p>
+              <p>השנים מציינות את טווחי המקורות, לא כיסוי מלא לכל יום או לכל קו. <a href="https://gtfs.org/" target="_blank" rel="noopener noreferrer">GTFS.org</a> מתעד את פורמט הנתונים.</p>
+            </details>
           </div>
         </div>
       </details>
       <footer>
-        במסגרת <a href="../" target="_blank" rel="noopener">הקו הבוחן</a> · מקורות הנתונים: 
-        היסטוריה: אתרי המידע לנוסעים ב־Internet Archive (2003–2015), מרחב ו־Internet Archive (2012), מגיעים ו־OpenStreetMap (2012), רכבת פתוחה (2013–2014), משרד התחבורה — חופש מידע (2013–2017), אוטובוס פתוח והסדנא לידע ציבורי (2015–2018, 2022–2026), TransitFeeds/OpenMobilityData (2017–2022). פירוט וקישורים בסעיף המקורות שמעל.
+        במסגרת <a href="../" target="_blank" rel="noopener">הקו הבוחן</a> · נתוני משרד התחבורה וארכיונים ציבוריים, 2003 עד היום · פירוט בסעיף <a href="#data-sources" onClick={(e) => { e.preventDefault(); const d = document.getElementById("data-sources"); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>המקורות</a>
       </footer>
     </div>
     </LiteCtx.Provider>
