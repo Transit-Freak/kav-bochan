@@ -85,7 +85,9 @@
   .tg button{border:0;background:transparent;font:700 14px var(--disp);min-height:38px;padding:7px 15px;border-radius:10px;cursor:pointer;color:var(--mut);transition:background .18s,color .18s,box-shadow .18s;white-space:nowrap}
   .tg button:hover{color:var(--ink)}
   .tg button.on{background:#fff;color:var(--brand-ink);box-shadow:0 1px 2px rgba(15,23,42,.08),0 6px 14px -8px rgba(14,165,233,.55)}
-  /* "רק עם שינוי מסלול" — מתג */
+  .whenhint{margin:8px 2px 0;font-size:12.5px;color:var(--mut);line-height:1.5}
+  .rhint{flex-basis:100%;margin:0 0 2px;font-size:12.5px;color:var(--mut);line-height:1.5}
+  /* "רק עם מפה" — מתג */
   .sw{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink2);cursor:pointer;user-select:none;padding:6px 2px}
   .sw input{-webkit-appearance:none;appearance:none;margin:0;width:40px;height:24px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;flex:none;transition:background .18s}
   .sw input::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.3);transition:transform .18s}
@@ -176,7 +178,7 @@
   .det .back{display:none;align-self:flex-start;border:1px solid var(--line2);background:#fff;color:var(--brand-ink);font:700 14.5px var(--disp);border-radius:12px;min-height:42px;padding:8px 14px;cursor:pointer;box-shadow:var(--shadow-sm)}
   .det .back:hover{background:var(--brand-xl)}
   /* בטלפון: התראה פתוחה מוצגת לבד, עם כפתור חזרה לרשימה */
-  @media(max-width:900px){body.sel .bar,body.sel .chips,body.sel .list,body.sel .filters{display:none}body.sel .det .back{display:inline-block}body:not(.sel) .det{display:none}}
+  @media(max-width:900px){body.sel .bar,body.sel .chips,body.sel .whenhint,body.sel .list,body.sel .filters{display:none}body.sel .det .back{display:inline-block}body:not(.sel) .det{display:none}}
   footer{max-width:1500px;margin:6px auto 0;padding:0 18px 90px;font-size:13px;line-height:1.75;color:var(--mut)}
   footer .fin{background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:16px;padding:14px 18px}
   footer a{color:var(--brand-ink);font-weight:600;text-underline-offset:3px;text-decoration-color:rgba(3,105,161,.3)}
@@ -230,11 +232,12 @@
   <input type="search" id="q" placeholder="חיפוש: מספר קו, עיר, רחוב או תחנה" aria-label="חיפוש">
   <div class="tg" id="when" role="group" aria-label="מתי">
     <button type="button" data-v="now" class="on">פעיל עכשיו</button>
-    <button type="button" data-v="today">היום</button>
+    <button type="button" data-v="today" title="גם מה שמתחיל או נגמר בהמשך היום">היום</button>
     <button type="button" data-v="all">הכול, כולל עתידי</button>
   </div>
-  <label class="note sw"><input type="checkbox" id="onlyMap"> רק עם שינוי מסלול</label>
+  <label class="note sw" title="רק התראות עם מפה של הקווים שהשתנו"><input type="checkbox" id="onlyMap"> רק עם מפה</label>
 </div>
+<p class="whenhint" id="whenHint">התראות שבתוקף ברגע זה</p>
 <div class="chips" id="causes"></div>
 </div></div>
 <div class="lay">
@@ -242,10 +245,9 @@
   <section class="det" id="det"><div class="empty">בחרו התראה מהרשימה</div></section>
 </div>
 <footer><div class="fin">
-  המקור: התראות השירות של משרד התחבורה, דרך <a href="https://bus-alerts.com/" target="_blank" rel="noopener">bus-alerts.com</a> (קוד פתוח בנחלת הכלל). מתעדכן פעמיים ביום.
-  המסלול המשוער מחושב מנוסח ההודעה על מפת הרחובות של OpenStreetMap, ולכן בפניות עצמן ייתכן הבדל מהדרך שהנהג נוסע בה. כשבהודעה אין תיאור של המסלול, מוצגות רק התחנות.
+  המקור: משרד התחבורה דרך <a href="https://bus-alerts.com/" target="_blank" rel="noopener">bus-alerts.com</a>. מתעדכן פעמיים ביום. המסלול החלופי משוער מנוסח ההודעה.
 </div></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="app.js?v=20261120"></script>
+<script src="app.js?v=20261126"></script>
 </body>
 </html>

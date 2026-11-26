@@ -260,3 +260,14 @@ body #kb-ver button:hover,body #kb-ver button:focus-visible{color:var(--brand-in
   .crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--line2)}
   .crumb::before{display:none}
 }
+
+/* הסברים מקופלים ("איך זה מחושב") ותוויות קטנות */
+details.how{margin-top:10px}
+details.how>summary{cursor:pointer;font:700 14px var(--disp);color:var(--accent2);padding:4px 0}
+details.how p{font-size:13.5px;line-height:1.8;color:var(--mut);margin:6px 0}
+details.how p b{color:var(--ink)}
+.dlab{font-size:13px;font-weight:600;color:var(--mut);align-self:center}
+.glab{font-size:13px;font-weight:600;color:var(--mut)}
+.tabbar .tab.dis{opacity:.6;cursor:default;box-shadow:none}
+.tabbar .tab.dis:hover{border-color:var(--line2);color:var(--ink2)}
+.legend b{color:var(--ink2)}
