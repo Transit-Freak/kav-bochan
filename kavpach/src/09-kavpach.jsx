@@ -1552,7 +1552,7 @@ const DAYS_FILTER = [
               aria-label="סגירת ההסבר"
               className="absolute top-2 left-2 w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black text-sm leading-none transition-colors">×</button>
             <strong className="block mb-2 text-slate-900 text-base">קו מזין רכבת</strong>
-            מטרת קו זה היא לאסוף או לפזר נוסעים מתחנת הרכבת. לכן, לפני קבלת החלטה על ביטול נסיעות או שינוי שעות הפעילות שלו, מומלץ לבדוק ולהצליב את המידע עם לוח הזמנים המעודכן של הרכבת.
+            קו שמזין את הרכבת. לפני שמשנים אותו, בודקים מול לוח הזמנים של הרכבת.
           </div>
         )}
       </div>
@@ -1791,7 +1791,8 @@ const DAYS_FILTER = [
                 {/* סיכום הרשימה המסוננת וייצוא לאקסל — לנציגי חברות ולמשרד (שלמה 18.11) */}
                 {(filteredRedundant.length > 0 || scoreBand != null) && (
                   <div className="bg-rose-50 border border-rose-200 rounded-[2rem] px-6 py-4">
-                  <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="בחירה לפי ציון">
+                  <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="בחירה לפי ציון">
+                    <span className="text-xs font-black text-slate-600">רמת ציון:</span>
                     {[{ min: null, label: 'הכל' }].concat(STATUS_TIERS.filter(t => t.min > 0 || redShowAll).map(t => ({ min: t.min, label: t.label.replace(/ - .*/, ''), range: STATUS_TIERS.indexOf(t) === 0 ? `${t.min}+` : `${t.min}–${STATUS_TIERS[STATUS_TIERS.indexOf(t) - 1].min - 1}` }))).map(c => (
                       <button key={c.label} type="button" aria-pressed={scoreBand === c.min}
                         onClick={() => setScoreBand(c.min)}
@@ -1810,7 +1811,7 @@ const DAYS_FILTER = [
                         { v: redSummary.lines.toLocaleString(), l: redSummary.lines === 1 ? 'קו' : 'קווים' },
                         { v: redSummary.km > 0 ? Math.round(redSummary.km).toLocaleString() : '—', l: 'ק"מ בשבוע' },
                         { v: redSummary.km > 0 ? Math.round(redSummary.wasted).toLocaleString() : '—', l: 'ק"מ מבוזבזים בשבוע' },
-                        { v: redSummary.pct != null ? `${redSummary.pct.toFixed(1)}%` : '—', l: 'מבוזבז' },
+                        { v: redSummary.pct != null ? `${redSummary.pct.toFixed(1)}%` : '—', l: 'מהק"מ מבוזבז' },
                       ].map(c => (
                         <div key={c.l} className="text-center">
                           <div className="text-xl font-black text-rose-700 tabular-nums" dir="ltr">{c.v}</div>
@@ -1832,7 +1833,7 @@ const DAYS_FILTER = [
                   title="מה נחשב קו לא יעיל? כאן קובעים את הניקוד"
                   accent="rose"
                   settings={pset} update={updPset} reset={resetPset} isDefault={psetDefault}
-                  intro='לכל דבר שנמדד אפשר לקבוע כמה נקודות אי-יעילות הוא נותן, ומתחת לכמה נוסעים קו נחשב ריק. שדה סף ריק = הסף האוטומטי של האתר לפי קטגוריית הקו. גם ההגנות (הנקודות שמופחתות מהציון) לבחירתכם. הרשימה מתעדכנת מיד.'
+                  intro='קובעים כמה נקודות כל דבר שווה. שדה ריק = ברירת המחדל של האתר.'
                   rows={[
                     { key: 'lowTrips', label: 'נסיעות שפל', hint: 'אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה' },
                     { key: 'wastedKm', label: 'קילומטר מבוזבז', hint: 'חלק הק"מ בנסיעות ריקות, ועוד תוספת אם יש מעל 100 ק"מ סרק בשבוע' },
@@ -1894,9 +1895,9 @@ const DAYS_FILTER = [
                               {res.category}
                             </div>
                             {res.dhWeekly > 0 && (
-                              <span className="px-3 py-1.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800 border border-orange-200" title="הלוך-חזור של אותו רכב תוך 15 דק' — מהשידורים">
+                              <TipBadge className="px-3 py-1.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800 border border-orange-200" tip={`חזר ריק תוך 15 דקות, ${res.dhWeekly.toFixed(1)} פעמים בשבוע (מהשידורים)`}>
                                 נסיעה תפעולית · {res.dhWeekly.toFixed(1)} בשבוע
-                              </span>
+                              </TipBadge>
                             )}
                             {res.isNightLine && (
                               <span className="text-indigo-400 bg-indigo-50 p-1 rounded-full" title="קו לילה">
@@ -1912,10 +1913,10 @@ const DAYS_FILTER = [
                               </span>
                             )}
                             {res.live && !res.live.rm && res.live.gap && (
-                              <span className="px-3 py-1.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-200"
-                                title={'הקו הושבת בין ' + String(res.live.gap[0]).split('-').reverse().join('.') + ' ל-' + String(res.live.gap[1]).split('-').reverse().join('.') + ' וחזר — נתוני הנוסעים עשויים לשקף גם את תקופת ההשבתה'}>
+                              <TipBadge className="px-3 py-1.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-200"
+                                tip={'הקו הושבת בין ' + String(res.live.gap[0]).split('-').reverse().join('.') + ' ל-' + String(res.live.gap[1]).split('-').reverse().join('.') + ' וחזר — נתוני הנוסעים עשויים לשקף גם את תקופת ההשבתה'}>
                                 ⏸ הושבת וחזר
-                              </span>
+                              </TipBadge>
                             )}
                           </div>
                           <div className="mt-1">
@@ -1980,7 +1981,7 @@ const DAYS_FILTER = [
 
                         {res.uncounted && (
                           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 text-[12px] font-bold text-amber-800 leading-relaxed">
-                            אין ספירה אמינה: לאילת מזמינים מקום מראש, וחלק גדול מהנוסעים לא נספר בתיקופים. לכן הנוסעים, הנסיעות החלשות, הק"מ המבוזבזים והעלות לנוסע לא נכנסים לציון. נשאר רק מה שנמדד בשידורי האוטובוסים.
+                            לאילת מזמינים מראש, אז רוב הנוסעים לא נספרים. הציון נשען רק על השידורים.
                           </div>
                         )}
 
@@ -1998,15 +1999,14 @@ const DAYS_FILTER = [
                                       <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:14,height:14,fontSize:10}}>?</span>
                                     </summary>
                                     <div className="border-t border-sky-100 leading-relaxed" style={{padding:10,maxWidth:380,fontSize:12}}>
-                                      <div>{shared} תחנות משותפות · {pct}% במדד התחנות.</div>
-                                      <div>{shape.selfPct}% מתוואי קו {res.lineNum} משותף לקו {num2}, באותו כיוון נסיעה.</div>
-                                      <div className="mt-2">אחוז החפיפה הוא ממוצע של שני המדדים במשקל שווה. מוצגים רק קווים עם 50% ומעלה. כשחסר מדד, הקו אינו מוצג ברשימה.</div>
-                                      <div className="mt-2">תוואי משותף באומדן: {shape.sharedKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ · המקטע הרציף הארוך ביותר: {shape.longestKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ.</div>
-                                      <div className="mt-2">המסלולים שנבדקו:</div>
-                                      <div>קו {res.lineNum}: {shape.selfRouteName} · {shape.selfKm} ק״מ.</div>
-                                      <div>קו {num2}: {shape.otherRouteName || long2} · {shape.otherKm} ק״מ · מק״ט {mk2}.</div>
-                                      <div className="mt-2">מדד התחנות מחושב ביחס למסלול שבו פחות תחנות. התוואי נבדק לפי קרבה וכיוון בנתוני GTFS ועלול להיות מושפע מאי־דיוק בנתונים. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה.</div>
-                                      <div className="mt-2">החפיפה אינה מוכיחה שהקו הוא חלופה מלאה, ואינה המלצה לביטול או לאיחוד קווים. החישוב נפרד מציון אי־היעילות.</div>
+                                      <div>{shared} תחנות משותפות ו-{Math.round(shape.selfPct)}% מהתוואי משותף. זו לא המלצה לביטול: לא נבדקו שעות הפעילות.</div>
+                                      <HowCalc className="mt-2 font-normal">
+                                        <div>מדד התחנות: {pct}%, ביחס למסלול שבו פחות תחנות. מדד התוואי: {shape.selfPct}% מתוואי קו {res.lineNum} משותף לקו {num2}, באותו כיוון נסיעה.</div>
+                                        <div>אחוז החפיפה הוא ממוצע של שני המדדים במשקל שווה. מוצגים רק קווים עם 50% ומעלה. כשחסר מדד, הקו אינו מוצג ברשימה.</div>
+                                        <div>תוואי משותף באומדן: {shape.sharedKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ · המקטע הרציף הארוך ביותר: {shape.longestKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ.</div>
+                                        <div>המסלולים שנבדקו: קו {res.lineNum}: {shape.selfRouteName} · {shape.selfKm} ק״מ. קו {num2}: {shape.otherRouteName || long2} · {shape.otherKm} ק״מ · מק״ט {mk2}.</div>
+                                        <div>התוואי נבדק לפי קרבה וכיוון בנתוני GTFS ועלול להיות מושפע מאי־דיוק בנתונים. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה. החפיפה אינה מוכיחה שהקו הוא חלופה מלאה, והחישוב נפרד מציון אי־היעילות.</div>
+                                      </HowCalc>
                                     </div>
                                   </details>
                                 ))}
@@ -2020,9 +2020,15 @@ const DAYS_FILTER = [
                             <div className="text-[10px] font-black text-emerald-700 mb-1">הגנות פעילות</div>
                             <div className="flex flex-wrap gap-1.5">
                               {res.protections.map((p, k) => (
-                                <span key={`prot-${i}-${k}`} className="bg-white border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={p.detail}>
+                                p.detail ? (
+                                <TipBadge key={`prot-${i}-${k}`} className="bg-white border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold" tip={p.detail}>
+                                  {p.name} −{p.value}
+                                </TipBadge>
+                                ) : (
+                                <span key={`prot-${i}-${k}`} className="bg-white border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
                                   {p.name} −{p.value}
                                 </span>
+                                )
                               ))}
                             </div>
                           </div>
@@ -2043,7 +2049,7 @@ const DAYS_FILTER = [
                               <span className="font-black text-slate-900">{res.count}</span>
                               {res.live && !res.live.rm && res.live.ntr > 0 && (
                                 <div className="text-[10px] font-bold text-slate-500" title='מספר הנסיעות בפיד העדכני, מארכיון "הקו בזמן" — נתוני הכרטיס הם צילום מיוני 2026'>
-                                  היום בפיד: {res.live.ntr.toLocaleString()} ביום
+                                  היום בפיד: {res.live.ntr.toLocaleString()} ביום (לפי הלו"ז העדכני)
                                 </div>
                               )}
                             </span>
@@ -2093,13 +2099,13 @@ const DAYS_FILTER = [
                                     aria-label="סגירת ההסבר"
                                     className="absolute top-2 left-2 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black text-base leading-none transition-colors">×</button>
                                   <strong className="block mb-2 text-slate-900 text-base">איך מחושבת העלות העודפת?</strong>
-                                  כמה עולה להסיע נוסע בקו הזה, לעומת כמה זה עולה בקו ממוצע מאותו סוג — כפול כל הנוסעים בשנה.
+                                  בכמה הקו יקר יותר מקו ממוצע מסוגו, לכל הנוסעים בשנה. אומדן, לא נתון רשמי.
                                   <div className="my-2 bg-slate-50 rounded-lg p-2 font-bold text-slate-700" style={{ direction: 'rtl' }}>
                                     (₪{res.cost.toFixed(2)} לנוסע בקו הזה − ₪{Number(res.costBenchmark).toFixed(2)} ממוצע {res.category})
                                     <br />× {res.avg} נוסעים בנסיעה × {res.count} נסיעות בשבוע × 52 שבועות
                                     <br />= ~{fmtShekels(res.annualExcess)} בשנה
                                   </div>
-                                  <span className="text-slate-500">זהו אומדן להמחשה, לא נתון תקציבי רשמי: העלות לנוסע מגיעה מדוח משרד התחבורה (יוני 2026), והחישוב מניח שהיא אחידה על פני השנה. המספר עונה על שאלה אחת — בכמה הקו הזה יקר יותר מקו רגיל מסוגו.</span>
+                                  <span className="text-slate-500">מקור: דוח משרד התחבורה (יוני 2026). העלות לנוסע מניחה שהיא אחידה לאורך השנה.</span>
                                 </div>
                               )}
                             </div>
@@ -2150,7 +2156,8 @@ const DAYS_FILTER = [
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
                   <div>
                     <h2 className="text-2xl font-black text-slate-900">האזורים הכי לא יעילים</h2>
-                    <p className="text-slate-500 font-bold">ריכוז של הקווים המיותרים לחלוטין ונסיעות הסרק לפי ערים או מחוזות</p>
+                    <p className="text-slate-500 font-bold">נספרים רק קווים חמורים (80+).{areaViewMode === 'city' ? ' קו בין שתי ערים מופיע בשתיהן.' : ''}</p>
+                    <p className="text-slate-500 font-bold text-sm mt-1">מדד חומרה: ממוצע ציוני הקווים החמורים, ועוד תוספת על הרבה ק"מ מבוזבזים.</p>
                   </div>
                   <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
                     <div className="flex bg-slate-100 p-1 rounded-2xl shadow-inner">
@@ -2174,7 +2181,7 @@ const DAYS_FILTER = [
                   {areaStats.map((area, i) => (
                      <div key={i} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-amber-400 transition-all text-right flex flex-col group relative">
                         <div className="flex justify-between items-start mb-6">
-                           <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${area.avgScore >= 80 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>מדד חומרה: {area.avgScore}</div>
+                           <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${area.avgScore >= 80 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-amber-50 border-amber-200 text-amber-700'}`} title='ממוצע ציוני הקווים החמורים באזור, ועוד נקודה לכל 15,000 ק"מ מבוזבזים (עד 40), עד 100'>מדד חומרה: {area.avgScore}</div>
                            <div className="flex gap-2">
                              <button 
                                onClick={(e) => { e.stopPropagation(); exportAreaToExcel(area.name, areaViewMode); }}
@@ -2212,9 +2219,7 @@ const DAYS_FILTER = [
                                      aria-label="סגירת ההסבר"
                                      className="absolute top-2 left-2 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black text-base leading-none transition-colors">×</button>
                                    <strong className="block mb-1 text-slate-900">איך מחושב הסכום האזורי?</strong>
-                                   חיבור של אומדני העלות העודפת של {area.lineCount} הקווים החמורים (ציון 80+) באזור.
-                                   האומדן לכל קו: (עלות לנוסע − ממוצע הקטגוריה) × נוסעים × נסיעות שבועיות × 52 —
-                                   ההסבר המלא מופיע על כל כרטיס קו (כפתור ה-?). אומדן להמחשה, לא נתון תקציבי רשמי.
+                                   סכום העלות העודפת של {area.lineCount} הקווים החמורים באזור. אומדן, לא נתון רשמי.
                                  </div>
                                )}
                              </div>
@@ -2240,11 +2245,11 @@ const DAYS_FILTER = [
                   title="מה נחשב נסיעה תפעולית מיותרת? כאן קובעים את הניקוד"
                   accent="rose"
                   settings={dset} update={updDset} reset={resetDset} isDefault={dsetDefault}
-                  intro='אותה שיטה כמו ציון אי-היעילות של קו: לכל רכיב קובעים כמה נקודות הוא נותן, הציון מנורמל ל-100, וההגנות מופחתות ממנו. הרשימה מתעדכנת מיד.'
+                  intro='אותה שיטה כמו בציון אי-היעילות.'
                   rows={[
                     { key: 'obs', label: 'תצפיות', hint: 'כמה פעמים בשבוע נצפה רכב מגיע לקצה וחוזר תוך 15 דקות — 7 בשבוע ומעלה = מלוא הנקודות' },
                     { key: 'tight', label: 'צמידות', hint: 'כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 דקות = אפס' },
-                    { key: 'hot', label: 'קו עמוס באזור', hint: 'יוצא קו אחר עמוס (80% מקיבולת הרכב) מהעיר שבה הרכב נמצא, עד 30 דקות אחרי שהגיע, עם תחנה משותפת — ורק אם הרכב מתאים לקו: עירוני/בינעירוני לא מתחלפים, ותקן הרכב של הקו העמוס הוא מינימום (אוטובוס מתגבר קו מיניבוס, לא להפך)' },
+                    { key: 'hot', label: 'קו עמוס באזור', hint: 'תוך 30 דקות יוצא משם קו עמוס שהרכב הריק יכול היה לתגבר' },
                     { key: 'crush', label: 'קו שצריך תגבור', hint: 'תוספת חומרה כשהקו העמוס ממש נחנק: מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי — האוטובוס הריק נסע ליד קו שהיה צריך אותו' },
                     { key: 'empty', label: 'ריק גם בספירות', hint: 'חלק נסיעות החזרה שבספירות משרד התחבורה עלו אליהן עד 1.5 נוסעים' },
                   ]}
@@ -2263,7 +2268,7 @@ const DAYS_FILTER = [
                       </label>
                     </div>
                   }
-                  footnote='ההגדרות נשמרות בדפדפן הזה בלבד. תוויות הסטטוס (חמור / לא יעיל / טעון בדיקה / סטייה קלה / תקין) הן אותן תוויות של קווים לא יעילים.'
+                  footnote='ההגדרות נשמרות רק בדפדפן הזה.'
                 />
               );
               if (D.mode !== 'vehicle') {
@@ -2282,21 +2287,20 @@ const DAYS_FILTER = [
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
                   <h2 className="text-2xl font-black text-slate-900">נסיעות תפעוליות במסווה</h2>
                   <p className="text-slate-500 font-bold mt-1">
-                    לפי מספר הרכב, מהשידורים: אוטובוס שהגיע לקצה נסיעה ותוך 15 דקות יצא לנסיעה שמסתיימת במקום שממנו התחיל — לא בהכרח באותו קו.
-                    ונסיעת החזרה ריקה גם בספירות משרד התחבורה — הלוך-חזור צמוד לבדו הוא גם שירות עירוני רגיל, החזרה הריקה היא מה שהופך אותו להסעה שנרשמה כשירות.
-                    {D.nDays} הימים האחרונים, עדכון {String(D.updated || '').slice(0, 10)}.
+                    אוטובוס שחזר ריק לנקודת המוצא תוך 15 דקות, ונרשם כנסיעת שירות. לפי השידורים, {D.nDays} הימים האחרונים (עדכון {String(D.updated || '').slice(0, 10)}).
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
                     {[
-                      ['קווים', fmtN(D.allLines.length), 'text-slate-900'],
-                      ['זוגות שנצפו', fmtN(D.totalPairs), 'text-slate-900'],
-                      ['חזרה בקו אחר', fmtN(D.other), 'text-slate-900'],
-                      ['ליד קו עמוס', fmtN(D.near), 'text-rose-700'],
-                      ['ריקים גם בספירות', fmtN(D.emptyLines), 'text-orange-700'],
-                    ].map(([l, v, c]) => (
-                      <div key={l} className="bg-slate-50 rounded-2xl p-4 text-center">
+                      ['קווים', fmtN(D.allLines.length), 'text-slate-900', 'שהחזרה בהם ריקה'],
+                      ['זוגות שנצפו', fmtN(D.totalPairs), 'text-slate-900', 'הלוך-חזור של אותו רכב'],
+                      ['חזרה בקו אחר', fmtN(D.other), 'text-slate-900', 'זוגות שחזרו בקו אחר'],
+                      ['ליד קו עמוס', fmtN(D.near), 'text-rose-700', 'קווים שקו עמוס יצא לידם באותה שעה'],
+                      ['ריקים גם בספירות', fmtN(D.emptyLines), 'text-orange-700', 'קווים שרוב החזרות בהם ריקות בספירות'],
+                    ].map(([l, v, c, h]) => (
+                      <div key={l} className="bg-slate-50 rounded-2xl p-4 text-center" title={h}>
                         <div className={`text-2xl font-black ${c}`}>{v}</div>
                         <div className="text-xs font-bold text-slate-500 mt-1">{l}</div>
+                        <div className="text-[10px] font-bold text-slate-400 mt-0.5 leading-snug">{h}</div>
                       </div>
                     ))}
                   </div>
@@ -2309,10 +2313,11 @@ const DAYS_FILTER = [
                 {settingsPanel}
 
                 <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto">
+                  <p className="text-xs text-slate-500 font-bold mb-3">לחיצה על שורה מציגה דוגמאות מהשידורים.</p>
                   <table className="w-full text-right border-collapse text-sm">
                     <thead><tr className="text-slate-500 text-xs border-b border-slate-200">
-                      <th className="p-3">ניקוד</th><th className="p-3">סטטוס</th><th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
-                      <th className="p-3">זוגות ({D.nDays} יום)</th><th className="p-3">ימים</th><th className="p-3">רכבים</th><th className="p-3">בקו אחר</th><th className="p-3">פער ממוצע</th><th className="p-3">ליד קו עמוס</th><th className="p-3">ריק בספירות</th><th className="p-3"></th>
+                      <th className="p-3">ניקוד</th><th className="p-3">סטטוס</th><th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3" title="האשכול של הקו, או המחוז">אשכול</th>
+                      <th className="p-3" title="כמה פעמים נצפה הלוך-חזור">זוגות ({D.nDays} יום)</th><th className="p-3" title="בכמה ימים זה קרה">ימים</th><th className="p-3" title="כמה רכבים שונים">רכבים</th><th className="p-3" title="כמה פעמים חזר בקו אחר">בקו אחר</th><th className="p-3" title="דקות מההגעה לקצה ועד היציאה חזרה">פער ממוצע</th><th className="p-3" title="קו עמוס שיצא משם באותה שעה">ליד קו עמוס</th><th className="p-3" title="% מהחזרות שעלו אליהן עד 1.5 נוסעים בספירות">ריק בספירות</th><th className="p-3"></th>
                     </tr></thead>
                     <tbody>
                       {rows.slice(0, 300).map(L => (
@@ -2355,11 +2360,16 @@ const DAYS_FILTER = [
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
-                    ההגדרה: אותו רכב (לפי מספרו בשידור) מגיע לקצה נסיעה, ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק"מ מהמקום שבו התחיל — באותו קו או בקו אחר. כל זוג נרשם פעם אחת, על קו החזרה. בכל דוגמה: השעה המתוכננת בלו"ז לצד השעה שבה יצא בפועל.
-                    הניקוד (0–100) בדיוק כמו ציון אי-היעילות של קו: רכיבים עם נקודות שנקבעות בלוח למעלה, נרמול ל-100, והגנות שמופחתות. תוויות הסטטוס זהות.
-                    לא ברשימה: {D.normal.toLocaleString('he-IL')} קווים שנצפה בהם הלוך-חזור צמוד אבל נסיעת החזרה שלהם עם נוסעים בספירות — שירות רגיל; {D.noCountsN.toLocaleString('he-IL')} קווים בלי ספירות בקובץ המשרד (מתעדכן רבעונית) — לא נטען שהם ריקים.
-                    {D.unknown ? ` ${D.unknown} קווים מהשידורים לא נמצאו בקובץ המשרד ולכן אינם ברשימה.` : ''}
+                    <b>מה בטבלה:</b> זוגות = הלוך-חזור שנצפו · ימים = בכמה ימים · רכבים = כמה רכבים שונים · בקו אחר = חזר בקו אחר · פער ממוצע = דקות מההגעה עד היציאה חזרה · ריק בספירות = % חזרות עם עד 1.5 נוסעים בספירות.
                   </p>
+                  <p className="text-xs text-slate-500 font-bold mt-2 leading-relaxed">
+                    לא ברשימה: {D.normal.toLocaleString('he-IL')} קווים שהחזרה בהם עם נוסעים, ו-{D.noCountsN.toLocaleString('he-IL')} קווים בלי ספירות.
+                  </p>
+                  <HowCalc>
+                    <p>אותו רכב (לפי מספרו בשידור) מגיע לקצה נסיעה, ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק"מ מהמקום שבו התחיל — באותו קו או בקו אחר. כל זוג נרשם פעם אחת, על קו החזרה. בכל דוגמה: השעה המתוכננת בלו"ז לצד השעה שבה יצא בפועל.</p>
+                    <p>הלוך-חזור צמוד לבדו הוא גם שירות עירוני רגיל. מה שהופך אותו להסעה שנרשמה כשירות הוא שנסיעת החזרה ריקה גם בספירות משרד התחבורה (ברוב הפעמים). קווים שהחזרה בהם עם נוסעים — שירות רגיל, ולא ברשימה.</p>
+                    <p>קווים בלי ספירות בקובץ המשרד (מתעדכן רבעונית) לא ברשימה — לא נטען שהם ריקים.{D.unknown ? ` ${D.unknown} קווים מהשידורים לא נמצאו בקובץ המשרד ולכן אינם ברשימה.` : ''}</p>
+                  </HowCalc>
                 </div>
               </div>
               );
@@ -2376,7 +2386,7 @@ const DAYS_FILTER = [
                   <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
                     <label className="flex items-center gap-3 bg-rose-50/50 border-2 border-rose-100 text-rose-800 px-4 py-3 rounded-2xl cursor-pointer hover:bg-rose-50 transition-colors w-full md:w-auto font-black text-sm">
                       <input type="checkbox" checked={showCrowded} onChange={e => setShowCrowded(e.target.checked)} className="w-5 h-5 accent-rose-600 rounded" />
-                      הצג רק נסיעות עמוסות
+                      הצג רק נסיעות עמוסות (80%+ מהקיבולת)
                     </label>
                     <div className="flex relative w-full md:w-auto">
                       <SearchInput
@@ -2400,29 +2410,29 @@ const DAYS_FILTER = [
                         <th className="p-5 relative">
                           <div className="flex items-center gap-1.5">
                             <span>נוסעים (יעילות)</span>
-                            <button onClick={() => setActiveTooltip(activeTooltip === 'ridership' ? null : 'ridership')} className="text-slate-500 hover:text-indigo-600 transition-colors">
+                            <button onClick={() => setActiveTooltip(activeTooltip === 'ridership' ? null : 'ridership')} className="text-slate-500 hover:text-indigo-600 transition-colors" title="מה זה?" aria-label="מה זה?">
                               <Ic n="info" size={14} />
                             </button>
                             <div className="flex flex-col -space-y-1.5 mr-2">
-                              <button onClick={() => setSortConfig({key: 'ridership', direction: 'desc'})} className={`${sortConfig.key === 'ridership' && sortConfig.direction === 'desc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
-                              <button onClick={() => setSortConfig({key: 'ridership', direction: 'asc'})} className={`${sortConfig.key === 'ridership' && sortConfig.direction === 'asc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
+                              <button title="מיון מהגבוה לנמוך" aria-label="מיון מהגבוה לנמוך" onClick={() => setSortConfig({key: 'ridership', direction: 'desc'})} className={`${sortConfig.key === 'ridership' && sortConfig.direction === 'desc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
+                              <button title="מיון מהנמוך לגבוה" aria-label="מיון מהנמוך לגבוה" onClick={() => setSortConfig({key: 'ridership', direction: 'asc'})} className={`${sortConfig.key === 'ridership' && sortConfig.direction === 'asc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
                             </div>
                           </div>
                           {activeTooltip === 'ridership' && (
                             <div className="absolute z-30 top-full right-0 mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl font-normal normal-case text-right leading-relaxed border border-slate-700">
-                              <strong className="block mb-1 text-indigo-300">נוסעים (יעילות):</strong> סך כל האנשים שעלו על האוטובוס לאורך כל המסלול. מדד היעילות בסוגריים מחושב ביחס לקיבולת האוטובוס הספציפי שהוגדר (מיניבוס, מידיבוס, אוטובוס רגיל או מפרקי).
+                              <strong className="block mb-1 text-indigo-300">נוסעים (יעילות):</strong> כמה עלו לאורך כל המסלול. המספר הקטן: הנוסעים או העומס בשיא (הגבוה מביניהם) חלקי קיבולת הרכב (1 = מלא).
                             </div>
                           )}
                         </th>
                         <th className="p-5 relative">
                           <div className="flex items-center gap-1.5">
                             <span>עומס שיא</span>
-                            <button onClick={() => setActiveTooltip(activeTooltip === 'peakLoad' ? null : 'peakLoad')} className="text-slate-500 hover:text-indigo-600 transition-colors">
+                            <button onClick={() => setActiveTooltip(activeTooltip === 'peakLoad' ? null : 'peakLoad')} className="text-slate-500 hover:text-indigo-600 transition-colors" title="מה זה?" aria-label="מה זה?">
                               <Ic n="info" size={14} />
                             </button>
                             <div className="flex flex-col -space-y-1.5 mr-2">
-                              <button onClick={() => setSortConfig({key: 'peakLoad', direction: 'desc'})} className={`${sortConfig.key === 'peakLoad' && sortConfig.direction === 'desc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
-                              <button onClick={() => setSortConfig({key: 'peakLoad', direction: 'asc'})} className={`${sortConfig.key === 'peakLoad' && sortConfig.direction === 'asc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
+                              <button title="מיון מהגבוה לנמוך" aria-label="מיון מהגבוה לנמוך" onClick={() => setSortConfig({key: 'peakLoad', direction: 'desc'})} className={`${sortConfig.key === 'peakLoad' && sortConfig.direction === 'desc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
+                              <button title="מיון מהנמוך לגבוה" aria-label="מיון מהנמוך לגבוה" onClick={() => setSortConfig({key: 'peakLoad', direction: 'asc'})} className={`${sortConfig.key === 'peakLoad' && sortConfig.direction === 'asc' ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-500'}`}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
                             </div>
                           </div>
                           {activeTooltip === 'peakLoad' && (
@@ -2435,7 +2445,7 @@ const DAYS_FILTER = [
                           <div className="flex items-center gap-2">
                             <span>סוג</span>
                             <div className="relative inline-block">
-                              <select aria-label="בחירת כיוון הנסיעה בסימולטור"
+                              <select aria-label="סוג קו"
                                 value={filterLineType}
                                 onChange={e => setFilterLineType(e.target.value)}
                                 className="appearance-none bg-slate-100 border border-slate-200 text-slate-600 rounded-md pl-6 pr-2 py-1 text-[10px] font-black outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer hover:bg-slate-200 transition-colors"
@@ -2530,7 +2540,7 @@ const DAYS_FILTER = [
                 <header className="mb-8">
                   <h2 className="text-2xl font-black text-slate-900 mb-2">אלגוריתם ייעול ושיפור לוחות זמנים</h2>
                   <p className="text-slate-500 font-bold text-sm leading-relaxed">
-                    המערכת מזהה אוטומטית את סוג השירות (עירוני/אזורי/בינעירוני) ואת <strong>גודל הרכב</strong> (מפרקי, מיניבוס וכו&apos;), ומתאימה את רף הביטול וחוקי האיחוד באופן דינמי לכל נסיעה.
+                    מציע אילו נסיעות לבטל או לאחד, לפי סוג הקו וגודל הרכב.
                   </p>
                 </header>
                 
@@ -2580,6 +2590,7 @@ const DAYS_FILTER = [
                         <option value="all">כל הכיוונים</option>
                         {allDirections.map(d => <option key={`dir-${d}`} value={d}>{d}</option>)}
                       </select>
+                      <p className="text-[11px] font-bold text-slate-500 mt-1.5 pr-2">מספר הכיוון ברישום המשרד: 1 ו-2 הם שני כיווני הקו.</p>
                     </div>
                   </div>
 
@@ -2622,6 +2633,7 @@ const DAYS_FILTER = [
                             <option value="ridership">נוסעים בפועל</option>
                             <option value="peakLoad">עומס שיא</option>
                           </select>
+                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">לפי מה מחליטים: כל מי שעלה, או הרגע הכי עמוס.</p>
                         </div>
                         <div className="space-y-2">
                           <label className="block text-[11px] font-black text-slate-500 uppercase pr-1">מרווח איחוד (דק&apos;)</label>
@@ -2632,6 +2644,7 @@ const DAYS_FILTER = [
                             placeholder="לפי סוג קו"
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 font-black text-sm outline-none focus:border-slate-900 text-right transition-all"
                           />
+                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">מאחדים שתי נסיעות רק אם הפער ביניהן קטן מזה.</p>
                         </div>
                         <div className="space-y-2">
                           <label className="block text-[11px] font-black text-slate-500 uppercase pr-1">מינימום נסיעות ביום</label>
@@ -2639,9 +2652,10 @@ const DAYS_FILTER = [
                             type="number"
                             value={optMinTrips}
                             onChange={e => setOptMinTrips(e.target.value)}
-                            placeholder="3 נסיעות"
+                            placeholder="3 באזורי"
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 font-black text-sm outline-none focus:border-slate-900 text-right transition-all"
                           />
+                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">לא מבטלים נסיעות אם יישארו בקו פחות נסיעות ביום.</p>
                         </div>
                         <div className="space-y-2">
                           <label className="block text-[11px] font-black text-slate-500 uppercase pr-1">רף נוסעים לביטול</label>
@@ -2652,6 +2666,7 @@ const DAYS_FILTER = [
                             placeholder="מתחת ל-5"
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 font-black text-sm outline-none focus:border-slate-900 text-right transition-all"
                           />
+                          <p className="text-[11px] font-bold text-slate-500 leading-snug pr-1">נסיעה עם פחות נוסעים מזה מוצעת לביטול.</p>
                         </div>
                       </div>
                     )}
@@ -2989,12 +3004,12 @@ const DAYS_FILTER = [
                       <h3 className="text-xl font-black text-rose-700">קווים לא יעילים</h3>
                     </div>
                     <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
-                      <strong>מה הוא עושה:</strong> מדרג כל קו בסולם 0–100 לפי רמת אי-היעילות שלו, ומציג רק קווים עם ציון 25+. כל קו מקבל גם תווית סטטוס בולטת (חמור / לא יעיל / טעון בדיקה / סטייה קלה / תקין) וצבע מתאים.
+                      <strong>מה הוא עושה:</strong> ציון אי-יעילות 0–100 לכל קו. מוצגים קווים מ-25 ומעלה.
                     </p>
 
                     <div className="bg-white rounded-2xl border border-rose-100 p-4 mb-3">
                       <h4 className="font-black text-slate-800 text-sm mb-2">שלב 1: סיווג ל-8 קטגוריות</h4>
-                      <p className="text-slate-600 text-sm leading-relaxed mb-2">לפני שמחשבים ציון, הקו מסווג לאחת מ-8 הקטגוריות הרשמיות של משרד התחבורה — לפי שדה "ייחודיות", "קבוצת יעילות תפעולית", סוג שירות, אורך מסלול (סף 45 ק"מ) ותדירות שבועית (סף 600).</p>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">כל קו משויך לאחת מ-8 הקטגוריות של משרד התחבורה, לפי סוג, אורך (סף 45 ק"מ) ותדירות (סף 600 בשבוע).</p>
                       <div className="flex flex-wrap gap-1.5 text-[11px] font-black">
                         <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">אזורי</span>
                         <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">בינעירוני ארוך</span>
@@ -3015,22 +3030,22 @@ const DAYS_FILTER = [
                         <li><strong>קילומטר מבוזבז (עד {pset.c.wastedKm.on ? pset.c.wastedKm.max : 0} נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
                         <li><strong>עלות תפעולית לנוסע (עד {pset.c.cost.on ? pset.c.cost.max : 0} נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
                         <li><strong>ממוצע נוסעים ועומס שיא (עד {pset.c.riders.on ? pset.c.riders.max : 0} נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
-                        <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> כמה פעמים בשבוע נצפה בשידורים רכב שהגיע לקצה הקו וחזר תוך 15 דקות — הסעת רכב שנרשמה כשירות. 7 בשבוע ומעלה = מלוא הנקודות. הפירוט בלשונית &quot;נסיעות תפעוליות&quot;.</li>
-                        <li><strong>קווים לאילת (הזמנה מראש):</strong> חלק גדול מהנוסעים לא נספר בתיקופים, אז ארבעת הרכיבים שנשענים על הספירה (נסיעות שפל, ק&quot;מ מבוזבז, עלות לנוסע, נוסעים ועומס) לא נכנסים לציון שלהם. נשארת רק הנסיעה התפעולית, שנמדדת מהשידורים.</li>
-                        <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. בטאב &quot;קווים לא יעילים&quot; יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן, מתחת לכמה נוסעים קו נחשב ריק, ואילו הגנות פועלות.</li>
+                        <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> רכב שחזר ריק תוך 15 דקות. 7 בשבוע = מלוא הנקודות.</li>
+                        <li><strong>קווים לאילת:</strong> נספרת רק הנסיעה התפעולית, כי רוב הנוסעים לא מתקפים.</li>
+                        <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. אפשר לשנות את הניקוד בלוח ⚙️ שבלשונית &quot;קווים לא יעילים&quot;.</li>
                       </ul>
                     </div>
 
                     <div className="bg-orange-50 rounded-2xl border border-orange-100 p-4 mb-3">
                       <h4 className="font-black text-orange-800 text-sm mb-2">נסיעות תפעוליות במסווה — לשונית נפרדת</h4>
                       <p className="text-slate-600 text-sm leading-relaxed mb-2">
-                        <strong>מה זה:</strong> מפעיל שלא רוצה להסיע רכב ריק למסוף בלי תשלום רושם את ההסעה כנסיעת שירות. <strong>איך מזהים:</strong> לפי מספר הרכב בשידורי המיקום — הרכב מגיע לקצה נסיעה ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק&quot;מ מהמקום שממנו התחיל, באותו קו או בקו אחר (89 הלוך, 80 חזור). 14 הימים האחרונים.
+                        הסעת רכב ריק שנרשמה כנסיעת שירות. מזהים לפי השידורים: חזרה לנקודת המוצא תוך 15 דקות.
                       </p>
                       <p className="text-slate-600 text-sm leading-relaxed mb-2"><strong>הניקוד</strong> באותה שיטה (רכיבים לבחירה, נרמול ל-100, הגנות, אותן תוויות סטטוס):</p>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
                         <li><strong>תצפיות (עד {dset.c.obs.on ? dset.c.obs.max : 0}):</strong> כמה פעמים בשבוע זה קורה; 7 ומעלה = מלוא הנקודות.</li>
                         <li><strong>צמידות (עד {dset.c.tight.on ? dset.c.tight.max : 0}):</strong> כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 = אפס.</li>
-                        <li><strong>קו עמוס באזור ({dset.c.hot.on ? dset.c.hot.max : 0}):</strong> הרכב הריק היה יכול לתגבר קו אחר: מהעיר שבה הוא נמצא (קצה הנסיעה שסיים) יוצא, עד 30 דקות אחרי שהגיע, קו עמוס (80% מקיבולת הרכב) עם תחנה משותפת. נבדק גם שהרכב מתאים לקו — רכב בינעירוני לא מבצע קו עירוני ולהפך, ותקן הרכב של הקו העמוס הוא מינימום: אוטובוס יכול לתגבר קו שמוגדר מיניבוס, אבל מיניבוס לא יתגבר קו שדורש אוטובוס. (נגישות אינה בקובץ המשרד ולכן לא נבדקת.)</li>
+                        <li><strong>קו עמוס באזור ({dset.c.hot.on ? dset.c.hot.max : 0}):</strong> תוך 30 דקות יצא משם קו עמוס (80%+) שהרכב הריק יכול היה לתגבר. הרכב צריך להתאים: לא בינעירוני לקו עירוני ולהפך, ולא רכב קטן לקו של רכב גדול.</li>
                         <li><strong>קו שצריך תגבור (עד {dset.c.crush.on ? dset.c.crush.max : 0}):</strong> תוספת חומרה כשהקו העמוס ממש נחנק — מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי. האוטובוס הריק נסע ליד קו שהיה צריך אותו.</li>
                         <li><strong>ריק גם בספירות (עד {dset.c.empty.on ? dset.c.empty.max : 0}):</strong> נסיעת החזרה ריקה גם בספירות משרד התחבורה (עד 1.5 נוסעים). קו שאין לו ספירות בקובץ (מתעדכן רבעונית) לא נטען כריק.</li>
                         <li><strong>הגנות:</strong> קו לילה (−{dset.p.night}), סופ&quot;ש (−{dset.p.weekend}), תצפית בודדת (−{dset.p.rare}).</li>
@@ -3060,10 +3075,7 @@ const DAYS_FILTER = [
                         (עלות לנוסע בקו − עלות ממוצעת בקטגוריה) × ממוצע נוסעים בנסיעה × נסיעות בשבוע × 52 שבועות
                       </div>
                       <p className="text-slate-600 text-xs leading-relaxed">
-                        המספר מוצג רק כשהעלות לנוסע גבוהה מהממוצע, והוא <strong>אומדן להמחשה ולא נתון תקציבי רשמי</strong>:
-                        העלות לנוסע מגיעה מדוח משרד התחבורה (יוני 2026), החישוב מניח שהיא אחידה לאורך השנה,
-                        וקווים שכבר בוטלו אינם נספרים. לחיצה על כפתור ה-? שליד המספר בכל כרטיס מציגה את החישוב
-                        המלא עם המספרים של אותו קו.
+                        מוצג רק כשהקו יקר מהממוצע. <strong>אומדן להמחשה</strong>, לא כולל קווים שבוטלו.
                       </p>
                     </div>
 
@@ -3092,7 +3104,8 @@ const DAYS_FILTER = [
                       <h4 className="font-black text-slate-800 text-sm mb-2">איך החישוב עובד</h4>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
                         <li>הניתוח מתייחס <strong>רק לקווים עם ציון 80+</strong> (סטטוס "חמור — דורש התערבות"), כדי לזקק את התמונה.</li>
-                        <li>לכל עיר/מחוז נסכמים: מספר הקווים החמורים, סך הנסיעות, סך ק"מ מבוזבז, ממוצע עלות תפעולית, וסכום העלות העודפת באומדן (הסבר מלא בסעיף למעלה). קווים שכבר בוטלו אינם נספרים.</li>
+                        <li>לכל אזור: קווים חמורים, נסיעות, ק"מ מבוזבז ועלות. בלי קווים שבוטלו. בתצוגה לפי עיר, קו בין שתי ערים מופיע בשתיהן.</li>
+                        <li><strong>מדד חומרה:</strong> ממוצע ציוני הקווים החמורים באזור, ועוד נקודה לכל 15,000 ק"מ מבוזבזים (עד 40 נקודות), ולכל היותר 100.</li>
                         <li>לחיצה על אזור מעבירה ישירות לטאב "קווים לא יעילים" עם פילטר מתאים.</li>
                       </ul>
                     </div>
@@ -3125,7 +3138,7 @@ const DAYS_FILTER = [
                       <h3 className="text-xl font-black text-slate-900">אלגוריתם ייעול (סימולטור)</h3>
                     </div>
                     <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
-                      <strong>מה הוא עושה:</strong> מקבל קו מסוים ומציג המלצות פעולה לכל נסיעה: <strong>איחוד</strong> שתי נסיעות צמודות, <strong>ביטול</strong> נסיעת סרק, או <strong>השארה</strong>. כל המלצה כוללת נימוק והשפעה צפויה.
+                      <strong>מה הוא עושה:</strong> לכל נסיעה: <strong>לאחד</strong>, <strong>לבטל</strong> או <strong>להשאיר</strong>, עם הנימוק.
                     </p>
 
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-3">

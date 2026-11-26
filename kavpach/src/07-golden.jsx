@@ -362,7 +362,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
               title="מה נחשב קו מוזהב? כאן קובעים את הניקוד"
               accent="amber"
               settings={gset} update={updGset} reset={resetGset} isDefault={gsetDefault}
-              intro='לכל דבר שנמדד אפשר לקבוע כמה נקודות הוא נותן, ולכמה נוסעים מגיעות מלוא הנקודות. שדה סף ריק = הסף האוטומטי של האתר לפי קטגוריית הקו (עירוני, בינעירוני וכו׳). הרשימה מתעדכנת מיד.'
+              intro='קובעים כמה נקודות כל דבר שווה. שדה ריק = ברירת המחדל של האתר.'
               rows={[
                 { key: 'highTrips', label: 'נסיעות בביקוש גבוה', hint: 'איזה חלק מהנסיעות עובר את סף הנוסעים של הקטגוריה' },
                 { key: 'efficientKm', label: 'יעילות ק"מ', hint: 'איזה חלק מהקילומטרים נסוע על נסיעות מאוכלסות' },
@@ -439,9 +439,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                     <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">{line.district}</span>
                     {/* הצלבה מול הארכיון (סעיף 29): השבתה זמנית משפיעה על נתוני הצילום */}
                     {line.live && !line.live.rm && line.live.gap && (
-                      <span className="mr-2 text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full"
-                        title={'הקו הושבת בין ' + String(line.live.gap[0]).split('-').reverse().join('.') + ' ל-' + String(line.live.gap[1]).split('-').reverse().join('.') + ' וחזר — נתוני הנוסעים עשויים לשקף גם את תקופת ההשבתה'}>
-                        ⏸ הושבת וחזר</span>
+                      <span className="mr-2"><TipBadge className="text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full"
+                        tip={'הקו הושבת בין ' + String(line.live.gap[0]).split('-').reverse().join('.') + ' ל-' + String(line.live.gap[1]).split('-').reverse().join('.') + ' וחזר — נתוני הנוסעים עשויים לשקף גם את תקופת ההשבתה'}>
+                        ⏸ הושבת וחזר</TipBadge></span>
                     )}
 
                     <div className="text-xs font-bold text-slate-500 mt-4 mb-4 flex items-center gap-2">
@@ -633,8 +633,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                 <header className="mb-8">
                   <h2 className="text-2xl font-black text-slate-900 mb-2">הזדמנויות הרחבה</h2>
                   <p className="text-slate-500 font-bold text-sm leading-relaxed">
-                    המערכת מזהה את חלונות הזמן העמוסים של הקו ומציעה <strong>שעות יציאה קונקרטיות להוספה</strong>,
-                    עד להורדת העומס לרמה נוחה (85% מהקיבולת). אפשר לנתח <strong>כל קו במערכת</strong> — לא רק את המצטיינים.
+                    כמה נסיעות להוסיף ומתי, כדי שהעומס יירד מתחת ל-85%. מתאים לכל קו.
                   </p>
                 </header>
 
@@ -781,8 +780,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                       <p className="text-slate-500 font-bold">{selectedLine.origin} ← {selectedLine.dest} · {selectedLine.district}</p>
                     </div>
                   </div>
-                  <p className="text-slate-500 font-bold text-sm mt-2">חישוב כמה נסיעות כדאי להוסיף כדי להוריד את העומס לרמה נוחה (עד 85% מקיבולת האוטובוס)</p>
-                  {/* קו שנבחר ידנית ("כל קו במערכת") יכול להיות מבוטל — המלצת
+                  <p className="text-slate-500 font-bold text-sm mt-2">כמה נסיעות להוסיף ומתי, כדי שהעומס יירד מתחת ל-85% מהקיבולת.</p>
+                                    {/* קו שנבחר ידנית ("כל קו במערכת") יכול להיות מבוטל — המלצת
                       "הוסיפו נסיעות" עליו חסרת משמעות (סעיף 29) */}
                   {(() => { const sl = liveOf ? liveOf(selectedLine.makat) : null; return sl && sl.rm ? (
                     <div className="mt-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl px-4 py-3 text-sm font-black">
@@ -982,8 +981,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
           rows = [...rows].sort((a, b) => direction === 'desc' ? sortVal(b) - sortVal(a) : sortVal(a) - sortVal(b));
           const SortBtns = ({ k }) => (
             <span className="inline-flex flex-col -space-y-1.5 mr-1 align-middle">
-              <button onClick={() => setGTripsSort({ key: k, direction: 'desc' })} className={key === k && direction === 'desc' ? 'text-amber-700' : 'text-slate-300 hover:text-slate-500'}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
-              <button onClick={() => setGTripsSort({ key: k, direction: 'asc' })} className={key === k && direction === 'asc' ? 'text-amber-700' : 'text-slate-300 hover:text-slate-500'}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
+              <button title="מיון מהגבוה לנמוך" aria-label="מיון מהגבוה לנמוך" onClick={() => setGTripsSort({ key: k, direction: 'desc' })} className={key === k && direction === 'desc' ? 'text-amber-700' : 'text-slate-300 hover:text-slate-500'}><Ic n="chevronUp" size={12} strokeWidth="3" /></button>
+              <button title="מיון מהנמוך לגבוה" aria-label="מיון מהנמוך לגבוה" onClick={() => setGTripsSort({ key: k, direction: 'asc' })} className={key === k && direction === 'asc' ? 'text-amber-700' : 'text-slate-300 hover:text-slate-500'}><Ic n="chevronDown" size={12} strokeWidth="3" /></button>
             </span>
           );
           return (
@@ -1002,6 +1001,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                     className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm" />
                 </div>
               </header>
+              <p className="text-xs text-slate-500 font-bold mb-3">באחוז ליד עומס השיא: כמה מהקיבולת תפוס ברגע הכי עמוס.</p>
               <div className="overflow-x-auto rounded-[2rem] border-2 border-slate-100 max-h-[60vh]">
                 <table className="w-full text-right border-collapse">
                   <thead className="sticky top-0 bg-slate-50 shadow-sm z-20">
@@ -1011,7 +1011,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                       <th className="p-5">יעד</th>
                       <th className="p-5">שעה</th>
                       <th className="p-5"><span className="inline-flex items-center gap-1">נוסעים <SortBtns k="ridership" /></span></th>
-                      <th className="p-5"><span className="inline-flex items-center gap-1">עומס שיא <SortBtns k="peakLoad" /></span></th>
+                      <th className="p-5" title="האחוז: כמה מהקיבולת תפוס ברגע הכי עמוס"><span className="inline-flex items-center gap-1">עומס שיא <SortBtns k="peakLoad" /></span></th>
                     </tr>
                   </thead>
                   <tbody className="text-sm font-bold text-slate-700">
@@ -1053,9 +1053,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
           <div className="space-y-8">
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
               <h2 className="text-2xl font-black text-slate-900 mb-4">מה זה הקו המוזהב?</h2>
-              <p className="text-slate-600 leading-relaxed font-bold mb-6">הקו המוזהב הוא תמונת הראי של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
+              <p className="text-slate-600 leading-relaxed font-bold mb-6">ההפך מקו פח: קווים מלאים וזולים לנוסע.</p>
               <h3 className="font-black text-slate-900 text-lg mb-4">ניקוד מוזהב (0–100)</h3>
-              <p className="text-slate-600 leading-relaxed font-bold mb-4 text-sm">אלה ברירות המחדל של האתר. בטאב "הקווים המצטיינים" יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן ולכמה נוסעים מגיעות מלוא הנקודות{gsetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}.</p>
+              <p className="text-slate-600 leading-relaxed font-bold mb-4 text-sm">אפשר לשנות את הניקוד בלוח ⚙️ שבלשונית "הקווים המצטיינים"{gsetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}.</p>
               <div className="space-y-3">
                 {[
                   ['נסיעות בביקוש גבוה', `עד ${gset.c.highTrips.on ? gset.c.highTrips.max : 0} נקודות`, 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
