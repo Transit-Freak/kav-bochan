@@ -1,48 +1,47 @@
 {
  "causes": {
-  "works": 216,
-  "other": 13,
-  "event": 7,
-  "stuck": 4,
-  "police": 5,
+  "works": 209,
+  "other": 12,
+  "event": 6,
   "protest": 1,
-  "accident": 2,
-  "relocate": 1
+  "fault": 1,
+  "relocate": 1,
+  "stuck": 1
  },
  "route": {
-  "ok": 133,
   "no-match": 30,
-  "no-text": 58
+  "ok": 129,
+  "no-text": 51
  },
  "kinds": {
-  "route": 209,
-  "info": 38,
-  "stops": 1,
+  "route": 200,
+  "info": 28,
+  "stops": 2,
   "times": 1
  },
- "merged": 12,
- "groups": 54,
- "gen": "2026-11-26T16:40+00:00",
- "n": 249,
+ "merged": 10,
+ "groups": 51,
+ "gen": "2026-11-26T23:43+00:00",
+ "n": 231,
  "tpl": {
   "junction": {
-   "ok": 121,
-   "no-match": 14
-  },
-  "stops": {
-   "no-text": 47
+   "no-match": 14,
+   "ok": 118
   },
   "turns": {
-   "ok": 12,
+   "ok": 11,
    "no-match": 16
   },
-  "general": {
-   "no-text": 7
+  "stops": {
+   "no-text": 44
   },
-  "skip": {
-   "no-text": 3
+  "general": {
+   "no-text": 5
   },
   "short": {
+   "no-text": 1
+  },
+  "skip": {
    "no-text": 1
   }
  },
