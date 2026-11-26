@@ -318,7 +318,7 @@ def bus_stats():
         with open(f, encoding='utf-8') as fh:
             d = json.load(fh)
         for rows in d.values():
-            for code, n, avg10, on, plan in rows:
+            for code, n, avg10, on, plan, *_ in rows:   # מ-24.11 יש עוד שדה (מוקדמים) — לא בשימוש כאן
                 if not n:
                     continue
                 a = acc[str(code)]
