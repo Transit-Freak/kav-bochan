@@ -4,6 +4,8 @@
 html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
 html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
 html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver .kb-gtfs{color:#8b9cb5}
+html.kb-dark.kb-dark #kb-ver .kb-gtfs{color:rgb(151, 162, 184)}
 html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
 html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
 html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
@@ -109,8 +111,10 @@ html.kb-dark .oc-r > b{color:var(--ink2)}
 html.kb-dark .om{color:#fd6f63;background:var(--bad-bg)}
 html.kb-dark .om:hover{background-image:initial;background-color:#3a1517}
 html.kb-dark .om i{color:#fc8f86}
-html.kb-dark .note{background-image:initial;background-color:#1d1a0f;border-color:rgb(253, 230, 138);color:var(--ink2)}
-html.kb-dark .note > b:first-child{color:#e78d61}
+html.kb-dark .hints{color:var(--muted)}
+html.kb-dark .legend{color:var(--ink2)}
+html.kb-dark .legend details.how summary{color:var(--brand-ink)}
+html.kb-dark .legend details.how > div{background-image:initial;background-color:#1d1a0f;border-color:rgb(253, 230, 138)}
 html.kb-dark .toast{color:rgb(255, 255, 255);box-shadow:rgba(0,0,0,0.65) 0px 10px 30px -10px;background:var(--ink2--kb-bg)}
 html.kb-dark footer{border-top-color:var(--line)}
 html.kb-dark .foot{color:var(--muted)}

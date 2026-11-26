@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="../theme-boot.js?v=20261120c"></script>
-<link rel="stylesheet" href="../dark/ratzif.css?v=20261119">
+<link rel="stylesheet" href="../dark/ratzif.css?v=20261126">
 <meta name="viewport" content="width=device-width, initial-scale=1"><script src="../nav-restore.js?v=20261120"></script><script src="../home-link.js"></script>
 <script src="../version.js" defer></script>
 <script src="../april.js" defer></script>
@@ -149,8 +149,12 @@
   .om:hover{background:#fecaca}
   .om i{font-style:normal;font-weight:600;color:#7f1d1d}
 
-  .note{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:16px 20px;font-size:14px;line-height:1.75;margin:26px 0 0;color:var(--ink2)}
-  .note>b:first-child{font-family:'Rubik';color:#92400e}
+  .hints{font-size:12.5px;color:var(--muted);line-height:1.6;margin:-8px 4px 12px}
+  .legend{font-size:13px;color:var(--ink2);margin:0 4px 12px;line-height:1.7}
+  .legend .sev{margin-left:4px}
+  .legend details.how{margin-top:4px}
+  .legend details.how summary{cursor:pointer;font-family:'Rubik';font-weight:700;color:var(--brand-ink);display:inline-block;font-size:13px}
+  .legend details.how>div{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 16px;margin-top:6px;font-size:13.5px;line-height:1.75}
   .toast{position:fixed;bottom:24px;right:50%;transform:translateX(50%);background:var(--ink2);color:#fff;padding:10px 20px;border-radius:999px;font-size:14px;font-weight:600;z-index:99;box-shadow:0 10px 30px -10px rgba(15,23,42,.5)}
 
   /* תחתית */
@@ -245,29 +249,36 @@
     <div>
       <div class="kick">רציף כפול</div>
       <h1>התנגשויות רציף מוצא — לוח הרישוי הארצי</h1>
-      <div class="sub">שני אוטובוסים או יותר שמתוזמנים לצאת מאותו רציף מוצא באותה דקה, באותם ימי פעילות — לפי לוח הזמנים הרשמי (GTFS), כולל תגבורים של אותו קו. נבדקות אך ורק תחנות מוצא: הנקודה שבה האוטובוס עומד ברציף לפני היציאה.</div>
+      <div class="sub">שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה, לפי לוח הזמנים הרשמי.</div>
     </div>
   </div>
   <div class="wrap"><div class="meta" id="meta"></div></div>
 </section>
 <main class="wrap">
 <div class="bar">
-  <select id="fScope"><option value="term">מסופים ותחנות מרכזיות</option><option value="plat">רק רציפים ממוספרים (הטענה החזקה)</option><option value="all">כל תחנות המוצא</option></select>
+  <select id="fScope"><option value="term">מסופים ותחנות מרכזיות</option><option value="plat">רק רציפים ממוספרים (הכי ודאי)</option><option value="all">כל תחנות המוצא</option></select>
   <input id="fCity" class="fin" list="cities" placeholder="מרחב: כל הארץ — הקלידו עיר…"><datalist id="cities"></datalist>
   <select id="fOp"><option value="">מפעיל: הכול</option></select>
-  <select id="fWin"><option value="">חלון: יום שלם</option><option value="am">שיא הבוקר 06:00–09:00</option><option value="pm">שיא הערב 15:00–19:00</option><option value="nomid">בלי יציאות 00:00</option></select>
-  <span class="sevbox">
+  <select id="fWin"><option value="">חלון: יום שלם</option><option value="am">שיא הבוקר 06:00–09:00</option><option value="pm">שיא הערב 15:00–19:00</option><option value="nomid" title="יציאה ב-00:00 היא לרוב שעה שממלאת מקום ברישוי">בלי 00:00 (שעה שלרוב ממלאת מקום ברישוי)</option></select>
+  <span class="sevbox" title="כמה אוטובוסים יוצאים מהרציף באותה דקה">
     <span>יוצאים יחד</span>
     <select id="fSevOp"><option value="ge">לפחות</option><option value="eq">בדיוק</option><option value="lt">פחות מ-</option></select>
-    <input id="fSevN" type="number" min="2" max="99" placeholder="הכול">
+    <input id="fSevN" type="number" min="2" max="99" placeholder="הכול" aria-label="מספר אוטובוסים">
   </span>
   <select id="fView"><option value="stn">תצוגה: תחנה לפי שעות</option><option value="grp">תצוגה: צמד קווים בשורה אחת</option><option value="each">תצוגה: כל מופע בנפרד</option></select>
   <input id="q" type="search" placeholder="חיפוש תחנה או מספר קו…">
   <button class="csv" onclick="XDL()">ייצוא CSV ↓</button>
 </div>
+<div class="hints">
+  <div>רציפים ממוספרים: ודאי אותו רציף. "אין מספור": אולי רציפים סמוכים.</div>
+  <div>יוצאים יחד: כמה אוטובוסים יוצאים מהרציף באותה דקה.</div>
+  <div>תחנה: כל השעות בכרטיס. צמד: אותם קווים בשורה. מופע: שורה לכל דקה.</div>
+</div>
+<div class="legend">לפי לוח הזמנים המתוכנן, לא מדידה בשטח. <span class="nw"><span class="sev s2"></span>2 אוטובוסים בדקה</span> · <span class="nw"><span class="sev s3"></span>3 ומעלה</span>
+  <details class="how"><summary>איך זה מחושב</summary><div>חלופות של אותו קו באותו כיוון אוחדו (כפילות רישומית), רכבות ורכבלים סוננו, והתנגשות נספרת רק כשימי הפעילות של הקווים חופפים. הכמות נספרת באוטובוסים, לא בקווים: כל נסיעה ברישוי היא אוטובוס, וקו מתוגבר בכמה אוטובוסים באותה דקה (מסומן "N אוטובוסים יחד") תופס את כולם — גם קו בודד עם תגבור כפול הוא התנגשות. יציאות 00:00 חשודות כזמן ממלא-מקום ברישוי — מסנן החלון מאפשר להסתירן. נסיעות שמתחילות אחרי חצות רשומות ברישוי כ-00:xx (בראש הלוח); זמני "24:xx" שקיימים ברישוי הם תחנות-אמצע של נסיעות ערב, לא יציאות מרציף — אומת מול הקובץ הגולמי. <b>חשוב:</b> כשלמסוף אין מספרי רציפים ברישוי ("אין מספור"), ייתכן שהקווים יוצאים מרציפים פיזיים שונים שחולקים תחנה אחת — התוצאה הוודאית ביותר היא בשורות עם מספר רציף מפורש.</div></details>
+</div>
 <div class="tblwrap"><div class="empty">טוען את הלוח…</div></div>
 <div id="morewrap"></div>
-<div class="note"><b>איך לקרוא:</b> אלה זמני הרישוי המתוכננים, לא מדידת שטח. חלופות של אותו קו באותו כיוון אוחדו (כפילות רישומית), רכבות ורכבלים סוננו, והתנגשות נספרת רק כשימי הפעילות של הקווים חופפים. הכמות נספרת באוטובוסים, לא בקווים: כל נסיעה ברישוי היא אוטובוס, וקו מתוגבר בכמה אוטובוסים באותה דקה (מסומן "N אוטובוסים יחד") תופס את כולם — גם קו בודד עם תגבור כפול הוא התנגשות. חומרה: <span class="sev s2"></span>2 אוטובוסים בדקה · <span class="sev s3"></span>3 ומעלה. יציאות 00:00 חשודות כזמן ממלא-מקום ברישוי — מסנן החלון מאפשר להסתירן. נסיעות שמתחילות אחרי חצות רשומות ברישוי כ-00:xx (בראש הלוח); זמני "24:xx" שקיימים ברישוי הם תחנות-אמצע של נסיעות ערב, לא יציאות מרציף — אומת מול הקובץ הגולמי. <b>חשוב:</b> כשלמסוף אין מספרי רציפים ברישוי ("אין מספור"), ייתכן שהקווים יוצאים מרציפים פיזיים שונים שחולקים תחנה אחת — הטענה החזקה ביותר היא בשורות עם מספר רציף מפורש.</div>
 </main>
 <footer><div class="foot">מקורות: לוח הזמנים הארצי GTFS של משרד התחבורה, נמשך מארכיון הסדנא לידע ציבורית · המערכת רצה מחדש בכל לילה · חלק מ"הקו הבוחן"</div></footer>
 <script>
@@ -352,7 +363,7 @@ function srt(rows){
 }
 function hd(k,label){
   const on=SORTK===k?`<span class="arr">${SORTD>0?'▲':'▼'}</span>`:'';
-  return `<th onclick="SORTD=SORTK==='${k}'?-SORTD:-1;SORTK='${k}';render()">${label} ${on}</th>`;
+  return `<th title="לחיצה על כותרת ממיינת" onclick="SORTD=SORTK==='${k}'?-SORTD:-1;SORTK='${k}';render()">${label} ${on}</th>`;
 }
 function stnView(rows){
   // תחנה אחת — וכל שעות ההתנגשות שלה, שורה לשעה (בקשת שלמה)
@@ -419,7 +430,7 @@ function occPanel(ix){
       busy.map(([t,n,lns])=>`<span onclick="const i=this.querySelector('i');if(i)i.hidden=!i.hidden" title="${lns?'קווים: '+esc(lns):''}" class="om">${esc(t)}${n>1?' ·'+n:''}${lns?`<i hidden> — קו ${esc(lns)}</i>`:''}</span>`).join('')+'</div>';
   }
   if(!inner)return `<div class="oc-h">אין ברציף הזה דקות עמוסות — כל היציאות בודדות ומרווחות</div>`;
-  return `<div class="oc-h">מתי הרציף תפוס: דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות · לחיצה על שעה מציגה את הקווים</div>${inner}`;
+  return `<div class="oc-h">מתי הרציף תפוס: דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות · ‏·3 = שלושה אוטובוסים באותה דקה, בלי מספר: דקה צמודה · לחיצה על שעה מציגה את הקווים</div>${inner}`;
 }
 // כתובת ייחודית לכל מסך (שלמה 22.10): הסינון והמיון נכתבים לכתובת, כך שהעתקה מהדפדפן
 // פותחת בדיוק את אותו מסך. רק מה ששונה מברירת המחדל נכנס לכתובת
