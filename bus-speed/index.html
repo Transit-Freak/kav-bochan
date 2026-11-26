@@ -63,10 +63,11 @@
           <div class="blk">
             <div class="seg" id="dtype" role="radiogroup" aria-label="סוג היום"><button data-v="wd" class="on" title="ממוצע ימי החול בחודש האחרון">א׳–ה׳</button><button data-v="fr" title="ממוצע ימי שישי בחודש האחרון">שישי</button><button data-v="y" title="יום אחד או כמה ימים — מול הממוצע החודשי">לפי יום</button></div>
             <div id="dpick" hidden></div>
-            <div class="seg" id="mode" role="radiogroup" aria-label="מה מציגים"><button data-v="sp" class="on" title="המהירות הממוצעת בשעה שנבחרה">מהירות</button><button data-v="sl" title="כמה לאט יותר מהשעה המהירה ביותר באותו מקום">האטה</button></div>
+            <div class="seg" id="mode" role="radiogroup" aria-label="מה מציגים"><button data-v="sp" class="on" title="המהירות הממוצעת בשעה שנבחרה">מהירות</button><button data-v="sl" title="כמה לאט יותר מהשעות המהירות של היום (06:00–21:00) באותו מקום">האטה</button></div>
+            <div class="mut sm" id="ctlhint" aria-live="polite"></div>
           </div>
           <div class="blk">
-            <div class="hourhead"><b>שעה</b><span id="hlbl" class="big" dir="ltr">08:00</span><button id="play" class="pbtn" title="הפעלה — מעבר על כל שעות היום" aria-label="הפעלה"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></button></div>
+            <div class="hourhead"><b>שעה</b><span id="hlbl" class="big" dir="ltr">08:00</span><button id="play" class="pbtn" title="הפעלה — המפה עוברת שעה אחרי שעה" aria-label="הפעלה — המפה עוברת שעה אחרי שעה"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></button></div>
             <input id="hour" type="range" min="0" max="23" value="8" aria-label="שעה">
             <div class="ticks" dir="ltr"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
           </div>

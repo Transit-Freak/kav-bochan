@@ -278,3 +278,9 @@ table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }
 .qdl { display: flex; gap: 8px; align-items: center; margin: 4px 0 8px; font: 700 13.5px var(--disp); }
 .qdl select { flex: 1; min-width: 0; padding: 8px 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* שורת המצב (ביקורת הסברים 26.11): רק "תקופה", ושורת הגרסה בשורה אחת — בלי חפיפה */
+#status .sc:nth-child(1), #status .sc:nth-child(2) { display: none; }
+#status #kb-ver { flex-direction: row; flex: 0 0 auto; }
+#status #kb-ver .kb-gtfs { display: none; }
+#ctlhint { margin-top: 6px; line-height: 1.5; }
+#ctlhint:empty { display: none; }
