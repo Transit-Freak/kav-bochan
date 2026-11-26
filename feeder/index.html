@@ -117,6 +117,9 @@
   #csv{white-space:nowrap;flex:none;background:var(--acc-lt);border-color:var(--acc-ln);color:var(--acc);border-radius:999px;padding:9px 16px}
   #csv:hover{background:#dcfce7;border-color:#86efac}
   .tw{background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:auto;box-shadow:var(--shadow)}
+  /* פס גלילה גם מעל הטבלה הרחבה — בטבלה ארוכה הפס התחתון רחוק מהעין (במחשב) */
+  .tws{overflow-x:auto;overflow-y:hidden;height:14px;margin:0 0 4px}
+  .tws>div{height:1px}
   table{border-collapse:collapse;width:100%;font-size:13.5px}
   th{position:sticky;top:0;background:var(--surface2);color:var(--ink2);font-weight:600;font-size:12.5px;text-align:right;padding:11px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
   td{padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--ink2)}
@@ -237,7 +240,8 @@
   <main>
     <div class="kpi" id="kpi"></div>
     <div class="tbar"><h2 id="tt">קווים לטיפול</h2><span class="sp"></span><button class="btn" id="csv">⬇ ייצוא לאקסל (CSV)</button></div>
-    <div class="tw"><div id="tbl"><div class="msg">טוען…</div></div></div>
+    <div class="tws" id="tws" aria-hidden="true" hidden><div></div></div>
+    <div class="tw" id="tw"><div id="tbl"><div class="msg">טוען…</div></div></div>
     <p class="mut" style="font-size:12px" id="note"></p>
     <details class="meth"><summary>איך זה מחושב</summary><ul>
       <li><b>האוטובוסים:</b> הזמן שבו כל אוטובוס עבר בפועל בתחנה ליד תחנת רכבת, מנתוני ה-GPS (SIRI) של דאטאבוס — אותו חישוב של מדד דיוק האוטובוסים.</li>
@@ -464,5 +468,19 @@
 })();
 </script>
 <script src="../birthday.js" defer></script>
+<script>
+/* פס גלילה עליון לטבלה הרחבה: מסונכרן עם הטבלה, ומופיע רק כשהיא רחבה מהמסך */
+(function () {
+  var top = document.getElementById('tws'), tw = document.getElementById('tw');
+  if (!top || !tw) return;
+  var inner = top.firstElementChild, lock = false;
+  function size() { inner.style.width = tw.scrollWidth + 'px'; top.hidden = tw.scrollWidth <= tw.clientWidth + 2; if (!top.hidden) top.scrollLeft = tw.scrollLeft; }
+  top.addEventListener('scroll', function () { if (lock) { lock = false; return; } lock = true; tw.scrollLeft = top.scrollLeft; });
+  tw.addEventListener('scroll', function () { if (lock) { lock = false; return; } lock = true; top.scrollLeft = tw.scrollLeft; });
+  if (window.ResizeObserver) new ResizeObserver(size).observe(tw);
+  new MutationObserver(function () { requestAnimationFrame(size); }).observe(document.getElementById('tbl'), { childList: true, subtree: true });
+  window.addEventListener('resize', size); size();
+})();
+</script>
 </body>
 </html>
