@@ -56,7 +56,7 @@
     '<label class="bclrb bhd">ערכת צבעים <select data-c="preset"><option value="">—</option><option value="dflt">לפי העיצוב</option><option value="blue">כחול</option><option value="green">ירוק</option><option value="gray">אפור</option><option value="yellow">צהוב</option></select></label>' +
     '<label class="bclrb bhd">רקע השעות <input type="color" data-c="call"></label><label class="bclrb bhd">טקסט השעות <input type="color" data-c="cfall"></label>' +
     // שורה ותא בשעות: רקע לשורה, רקע לתא, ובלי רקע
-    '<label class="bclrb brow">רקע לשורה <input type="color" data-c="rbg"></label><label class="bclrb bcell">רקע לתא <input type="color" data-c="cbg"></label><button type="button" data-t="bgx" class="brow">בלי רקע</button><button type="button" data-t="rowdel" class="rowdel" title="רק הכיוון הזה">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel" title="הקו מכל הלוח">מחיקת הקו מכל הלוח</button>';
+    '<label class="bclrb brow">רקע לשורה <input type="color" data-c="rbg"></label><label class="bclrb bcell">רקע לתא <input type="color" data-c="cbg"></label><button type="button" data-t="bgx" class="brow">בלי רקע</button><button type="button" data-t="rowdel" class="rowdel" title="רק הכיוון הזה">מחיקת השורה</button><button type="button" data-t="linedel" class="rowdel" title="הקו מכל הלוח">מחיקת הקו</button>';
   document.body.appendChild(bar);
   var curEl = null;
   function showBar(el) {

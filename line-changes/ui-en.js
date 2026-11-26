@@ -153,8 +153,7 @@
     'הכותרת ושורת "בתוקף" — רק בעמוד הראשון של הלוח': 'The title and "valid" line — only on the first page of the board',
     'הכותרת ושורת "בתוקף" — בכל עמוד של הלוח': 'The title and "valid" line — on every page of the board',
     'רק הכיוון הזה': 'Only this direction',
-    'הקו מכל הלוח': 'The line from the whole board',
-    'מחיקת הקו מכל הלוח': 'Delete line from whole board'
+    'הקו מכל הלוח': 'The line from the whole board'
   };
   /* טקסטים עם מספרים ותאריכים */
   var DOWS = { 'א׳': 'Sun', 'ב׳': 'Mon', 'ג׳': 'Tue', 'ד׳': 'Wed', 'ה׳': 'Thu', 'ו׳': 'Fri', 'ש׳': 'Sat', 'שבת': 'Sat', 'שישי': 'Fri' };
