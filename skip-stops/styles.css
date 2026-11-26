@@ -337,3 +337,11 @@ input, select, textarea { scroll-margin-bottom: 96px; }
   .kb-top-in .brand,.kb-top-in .kb-brand{flex:none}
   .kb-top .kb-crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+/* הסבר קצר + "איך זה מחושב" מקופל (26.11) */
+.explain > p { margin: 0; color: var(--ink2); font-weight: 500; }
+.how { margin-top: 8px; font-size: 13.5px; }
+.how summary { cursor: pointer; color: var(--brand-ink); font-weight: 700; font-family: var(--disp); }
+.how p { margin: 6px 0 0; line-height: 1.7; }
+.exp-how { margin: 0 0 12px; }
+.hint { flex-basis: 100%; font-size: 12.5px; color: var(--muted); margin: -2px 4px 0; }
