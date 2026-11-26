@@ -62,13 +62,8 @@
     var si = form === 'sign' && LCDeck.signInfo(), el = A.$('a4note');
     if (!si || si.full <= si.short && !si.limited && A.edits.a4full !== true) { el.hidden = true; return; }
     el.hidden = false;
-    var pt = si.parts || {};
     el.innerHTML = si.limited
-      ? 'השלט היה יוצא ארוך — ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים: ' +
-        [pt.ttLines ? 'טבלת לוח הזמנים של ' + pt.ttLines + ' קווים (' + pt.tt + ' עמ׳)' : '',
-         pt.detLines ? 'שלט מפורט ל-' + (pt.detUnits && pt.detUnits < pt.detLines ? pt.detUnits + ' שינויים ב-' + pt.detLines + ' קווים' : pt.detLines + ' קווים') + ' עם שינוי מסלול, קו חדש או מבוטל (' + pt.det + ' עמ׳)' : '',
-         pt.sumLines ? 'שורה קצרה לעוד ' + pt.sumLines + ' קווים (' + pt.sum + ' עמ׳; הפרטים — במצגת)' : ''].filter(Boolean).join(' · ') +
-        '. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
+      ? 'השלט ארוך מדי (' + si.full + ' עמ׳), אז הכנו גרסה מקוצרת של ' + si.short + ' עמ׳. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
       : 'השלט ארוך — ' + si.full + ' עמודים. <button type="button" class="lnk" data-a4="short">לגרסה המקוצרת (' + si.short + ' עמודים)</button>';
   }
   A.$('a4note').addEventListener('click', function (ev) {
@@ -176,7 +171,7 @@
           return '<li data-bty="' + t + '"><button type="button" class="mv" data-bty-mv="-1" aria-label="להעביר את ' + TN[t] + ' למעלה"' + (i ? '' : ' disabled') + '>↑</button>' +
             '<button type="button" class="mv" data-bty-mv="1" aria-label="להעביר את ' + TN[t] + ' למטה"' + (i < ty.length - 1 ? '' : ' disabled') + '>↓</button>' +
             '<b>' + TN[t] + '</b><small>' + (n === 1 ? 'קו אחד' : n + ' קווים') + '</small>' +
-            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + '> להציג</label></li>';
+            '<label><input type="checkbox" data-bty-show' + (hide[t] ? '' : ' checked') + ' title="בלי סימון — הקווים מהסוג הזה לא יופיעו בלוח"> להציג בלוח</label></li>';
         }).join('');
       }
       // לפי מפעיל: המפעילים שבלוח, בסדר שנבחר, עם ↑↓
@@ -213,7 +208,7 @@
       var p = x.iso.split('-'), dmT = +p[2] + '.' + +p[1];
       return '<span class="bdc"><button type="button" class="bdd' + (x.used ? ' used' : '') + (x.na ? ' na' : '') + (x.diff ? ' dif' : '') + '" data-bdd="' + x.iso + '" aria-pressed="' + (x.off ? 'false' : 'true') + '"' + (x.na ? ' disabled' : '') +
         ' aria-label="' + A.E(LC.wd(x.iso) + ' ' + dmT + (x.hol ? ', ' + x.hol : '') + (x.off ? ', לא בלוח' : x.used ? ', הלוח לפי התאריך הזה' : '') + (x.diff ? ', השעות שונות' : '')) + '">' + dmT + (x.hol ? '<small>' + A.E(x.hol) + '</small>' : '') + '</button>' +
-        '<button type="button" class="bds" data-bds="' + x.iso + '" aria-pressed="' + (x.sep ? 'true' : 'false') + '"' + (x.na || x.off ? ' disabled' : '') + ' aria-label="עמודה נפרדת ל-' + dmT + '">נפרד</button></span>';
+        '<button type="button" class="bds" data-bds="' + x.iso + '" aria-pressed="' + (x.sep ? 'true' : 'false') + '"' + (x.na || x.off ? ' disabled' : '') + ' title="עמודה נפרדת לתאריך הזה" aria-label="עמודה נפרדת ל-' + dmT + '">נפרד</button></span>';
     }).join('');
     A.$('bdg').innerHTML = html;
   }
