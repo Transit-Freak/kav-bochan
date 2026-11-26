@@ -903,6 +903,66 @@ def temp_map(rc):
     return out
 
 
+_LINE_CODES = {}
+
+
+def _route_codes(rd, day):
+    """המק"טים של התחנות בווריאנט ביום מסוים, מקובץ הקו בזמן: הגרסה האחרונה עם תחנות עד אותו יום.
+    None כשאין קובץ, כשהווריאנט עוד לא פעל או כבר בוטל באותו יום."""
+    if rd not in _LINE_CODES:
+        try:
+            lf = json.load(open(f'{LINES_DIR}/{rd.replace("#", "H").replace("/", "_")}.json', encoding='utf-8'))
+            pool = lf.get('pool') or []
+            _LINE_CODES[rd] = [(v.get('d') or '', v.get('k'), None if not v.get('stops') else
+                                {str(pool[i][0]) for i in v['stops'] if isinstance(i, int) and 0 <= i < len(pool)})
+                               for v in lf.get('versions') or []]
+        except (OSError, ValueError):
+            _LINE_CODES[rd] = None
+    vs = _LINE_CODES[rd]
+    if not vs:
+        return None
+    before = [v for v in vs if v[0] <= day]
+    if not before or before[-1][1] == 'removed':
+        return None
+    return next((v[2] for v in reversed(before) if v[2]), None)
+
+
+def line_stop_lists(e, mk):
+    """הודעה אחת על כמה קווים: אתר המקור נותן רשימה אחת של תחנות שבוטלו (ותחנות חלופיות) לכל ההודעה,
+    וכל קו קיבל את כל התחנות של כל הקווים (שלמה 26.11, קו 67 ירושלים: 61 תחנות, 2–4 בתוואי של הקו).
+    משאירים לכל קו רק תחנה שבוטלה בתוואי שלו באותו יום (לפי המק"ט, בכיוונים שההודעה חלה עליהם), ותחנה
+    חלופית רק של הכיוונים שלו במפת השינוי. בלי מפה — תחנות חלופיות נשארות, אלא אם אף תחנה של הקו לא בוטלה.
+    rmx: היו בהודעה תחנות מבוטלות, אבל לא בתוואי של הקו."""
+    # בלי כיוונים בהודעה — כל הווריאנטים של המק"ט (שם הקובץ מספיק: _route_codes ממיר # ל-H)
+    rds = e.get('rds') or sorted(os.path.basename(f)[:-5] for f in glob.glob(f'{LINES_DIR}/{mk}-*.json'))
+    codes = [c for c in (_route_codes(rd, e['d']) for rd in rds) if c is not None]
+    rm, add = e.get('rm') or [], e.get('add') or []
+    out = dict(e, ln=1)
+    if not codes:
+        return out   # הקו לא נמצא בקבצים — לא מסננים
+    on = set().union(*codes)
+    rm2 = [x for x in rm if str(x[0]) in on]
+    add2 = add
+    tm = None
+    if e.get('m'):
+        try:
+            tm = json.load(open(f'{TEMP_DIR}-map/{e["id"]}.json')).get('r') or []
+        except (OSError, ValueError):
+            tm = None
+    mine = [r for r in tm or [] if not e.get('rds') or r.get('rd') in e['rds']]
+    if mine:
+        ac = {str(st[2]) for r in mine for st in r.get('a') or [] if len(st) > 2}
+        add2 = [x for x in add if str(x[0]) in ac]
+    elif rm and not rm2:
+        add2 = []
+    out['rm'], out['add'] = rm2, add2
+    if rm and not rm2:
+        out['rmx'] = 1
+    else:
+        out.pop('rmx', None)
+    return out
+
+
 def archive_temp(alerts, now_ts, merged=()):
     """הקו בזמן שומר רק שינויים שהיו: התראה נכנסת לארכיון של הקו כשהיא כבר התחילה, ומתעדכנת
     כל עוד היא בפיד (תאריכים, נוסח). קובץ לכל מק"ט: {'ev': [...]}, ובכל אירוע rds — הכיוונים
@@ -939,12 +999,22 @@ def archive_temp(alerts, now_ts, merged=()):
             elif os.path.exists(f'{TEMP_DIR}-map/{a["id"]}.json'):
                 has_m = True
         for mk, rds in groups.items():
-            by_mk.setdefault(mk, []).append({
+            by_mk.setdefault(mk, []).append(line_stop_lists({
                 'id': a['id'], 'd': datetime.datetime.fromtimestamp(st, tz).date().isoformat(),
                 's': a.get('s'), 'e': a.get('e'), 'c': a.get('cause'), 'cl': CAUSE_LABEL.get(a.get('cause'), '') if a.get('cause') != 'other' else '',
                 'h': a.get('h'), 'd2': a.get('d'), 'rm': a.get('rm') or [], 'add': a.get('add') or [], 'k': a.get('kind'),
-                'rds': None if None in rds else sorted(rds), **({'m': 1} if has_m else {})})
+                'rds': None if None in rds else sorted(rds), **({'m': 1} if has_m else {})}, mk))
     os.makedirs(TEMP_DIR, exist_ok=True)
+    # הודעות ישנות שכבר ירדו מהפיד ונשמרו עם התחנות של כל הקווים — מסננים פעם אחת (ln)
+    for f in glob.glob(f'{TEMP_DIR}/*.json'):
+        mk = os.path.basename(f)[:-5]
+        if mk in by_mk or not mk.isdigit():
+            continue
+        try:
+            if any(not e.get('ln') for e in json.load(open(f)).get('ev') or []):
+                by_mk[mk] = []
+        except (OSError, ValueError):
+            pass
     n = 0
     for mk, evs in by_mk.items():
         f = f'{TEMP_DIR}/{mk}.json'
@@ -952,8 +1022,8 @@ def archive_temp(alerts, now_ts, merged=()):
             old = json.load(open(f)).get('ev') or []
         except Exception:
             old = []
-        cur = {e['id']: e for e in old if e['id'] not in merged}
-        changed = len(cur) != len(old)
+        cur = {e['id']: e if e.get('ln') else line_stop_lists(e, mk) for e in old if e['id'] not in merged}
+        changed = len(cur) != len(old) or any(cur.get(e['id']) != e for e in old)
         for e in evs:
             if cur.get(e['id']) != e:
                 cur[e['id']] = e
