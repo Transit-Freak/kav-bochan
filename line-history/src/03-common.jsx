@@ -117,13 +117,62 @@ function TempMap({ id, rd }) {
     </div>
   );
 }
-function TempEv({ t, rd }) {
+/* המק"טים של התחנות בווריאנט ביום מסוים: הגרסה האחרונה עם רצף תחנות עד אותו יום (אחרי materializeLf,
+   כל תחנה היא [מק"ט, שם, lat, lon]). null כשאין גרסה כזו — ואז לא מסננים. */
+function routeCodesAt(lf, day) {
+  let best = null;
+  for (const v of (lf && lf.versions) || []) {
+    if (!v || !v.d || v.d > day || !Array.isArray(v.stops) || !v.stops.length) continue;
+    if (!best || v.d >= best.d) best = v;
+  }
+  if (!best) return null;
+  const set = new Set(best.stops.map((x) => (Array.isArray(x) && x[0] != null ? String(x[0]) : null)).filter(Boolean));
+  return set.size ? set : null;
+}
+/* רשימת תחנות מקופלת (שלמה 26.11): חמש הראשונות, ו"ועוד N ▾" פותח את כל הרשימה */
+function StopFold({ list, max = 5 }) {
+  const [all, setAll] = useState(false);
+  const lbl = (x) => x[1] + (x[0] ? " (" + x[0] + ")" : "");
+  const more = list.length - max;
+  const shown = all || more <= 0 ? list : list.slice(0, max);
+  return (
+    <>{shown.map(lbl).join(", ")}
+      {more > 0 && <>{" "}<button type="button" className="foldbtn" aria-expanded={all}
+        onClick={(ev) => { ev.stopPropagation(); setAll(!all); }}>{all ? "פחות ▴" : "ועוד " + more + " ▾"}</button></>}
+    </>
+  );
+}
+function TempEv({ t, rd, lf }) {
   // אותו מבנה כמו שאר האירועים בציר הזמן (שלמה 18.10): תאריך, תגית, שורת תיאור, מקור, תחנות
   const [open, setOpen] = useState(false);
   const s = tmpT(t.s), e = tmpT(t.e), now = Date.now();
   const dates = s && e && tmpDM(s) !== tmpDM(e) ? fmtD(t.d) + " – " + tmpDM(e) : fmtD(t.d);
   const live = s && s <= now && (!e || e >= now);
-  const lbl = (l) => l.map((x) => x[1] + (x[0] ? " (" + x[0] + ")" : "")).join(", ");
+  // ההודעה נותנת רשימה אחת לכל הקווים שבה — מציגים רק תחנות שבתוואי של הווריאנט הזה באותו יום (שלמה 26.11).
+  // הנתונים מסוננים כבר ב-tools/alerts_fetch.py לפי המק"ט (ln); כאן הסינון לכיוון הזה, וגם לנתונים שלפני התיקון.
+  // נתונים שלפני הסינון בבנייה: התחנות החלופיות של הכיוון הזה — ממפת השינוי (data/temp-map), כמו ב-alerts_fetch.py
+  const needMap = !t.ln && !!t.m && (t.add || []).length > 0;
+  const [mapAdd, setMapAdd] = useState(undefined);
+  useEffect(() => {
+    if (!needMap) return undefined;
+    let ok = true;
+    fetch("data/temp-map/" + t.id + ".json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const r = d && (d.r || []).find((x) => x.rd === rd);
+      if (ok) setMapAdd(r ? new Set((r.a || []).map((st) => String(st[2]))) : null);
+    }).catch(() => ok && setMapAdd(null));
+    return () => { ok = false; };
+  }, [t.id, rd, needMap]);
+  const { rm, add, rmx } = useMemo(() => {
+    const rm0 = t.rm || [], add0 = t.add || [];
+    const codes = routeCodesAt(lf, t.d);
+    const rm1 = codes ? rm0.filter((x) => codes.has(String(x[0]))) : rm0;
+    const gone = !!t.rmx || (rm0.length > 0 && rm1.length === 0);
+    let add1 = add0;
+    if (needMap) add1 = mapAdd === undefined ? [] : mapAdd ? add0.filter((x) => mapAdd.has(String(x[0]))) : gone ? [] : add0;
+    // בלי מפה אי אפשר לדעת של איזה קו כל תחנה חלופית; כשאף תחנה של הקו לא בוטלה — הן לא שלו
+    else if (!t.ln && gone) add1 = [];
+    return { rm: rm1, add: add1, rmx: gone };
+  }, [t, lf, needMap, mapAdd]);
   return (
     <div className={"ev tmpev" + (open ? " sel" : "")} onClick={() => setOpen(!open)}>
       <div className="d"><span>{dates}</span>{live ? " · פעיל עכשיו" : ""}</div>
@@ -133,9 +182,10 @@ function TempEv({ t, rd }) {
         <span className="evnote"> {t.cl ? t.cl + " — " : ""}{t.h}</span>
       </div>
       <div className="evsrc">הודעת משרד התחבורה על שינוי זמני, דרך bus-alerts.com</div>
-      {((t.rm || []).length > 0 || (t.add || []).length > 0) && <div className="sub">
-        {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
-        {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
+      {(rm.length > 0 || add.length > 0 || rmx) && <div className="sub">
+        {rm.length > 0 && <div>➖ {rm.length === 1 ? "תחנה שבוטלה זמנית" : rm.length + " תחנות שבוטלו זמנית"}: <StopFold list={rm} /></div>}
+        {rmx && <div>➖ בתוואי של הקו לא בוטלו תחנות (התחנות שבהודעה הן של קווים אחרים)</div>}
+        {add.length > 0 && <div>➕ {add.length === 1 ? "תחנה חלופית" : add.length + " תחנות חלופיות"}: <StopFold list={add} /></div>}
       </div>}
       {t.m && (open ? <TempMap id={t.id} rd={rd} /> : <div className="sub"><span className="tmpmore">🗺 מפת השינוי ⌄</span></div>)}
       {t.d2 && t.d2 !== t.h && <div className="sub">{open
@@ -143,6 +193,45 @@ function TempEv({ t, rd }) {
         : <span className="tmpmore">נוסח ההודעה ⌄</span>}</div>}
     </div>
   );
+}
+
+/* "מספר היציאות (ימי ראשון) השתנה מ-77 ל-70 · נוספו: 06:30, … ועוד 15 · ירדו: … ועוד 22" (tools/schedule_diff.py) —
+   מאות כאלה בקו (שלמה 26.11, קו 67 ירושלים). מוצג בשורה אחת: "ימי ראשון: 77 ← 70 יציאות (+20 / −27) ▾",
+   והחץ פותח את השעות. הערה בצורה אחרת → null, והיא מוצגת כמו קודם. */
+function parseFreqNote(s) {
+  const parts = String(s || "").split(" · ").map((x) => x.trim());
+  const m = /^מספר היציאות \(([^()]+)\) השתנה מ-(\d+) ל-(\d+)$/.exec(parts[0] || "");
+  if (!m) return null;
+  const out = { day: m[1], from: +m[2], to: +m[3], add: null, rem: null };
+  for (const p of parts.slice(1)) {
+    const q = /^(נוספו|ירדו): (.+?)(?: ועוד (\d+))?$/.exec(p);
+    if (!q) return null;
+    const times = q[2].split(/,\s*/).filter(Boolean);
+    if (!times.length || !times.every((x) => /^\d{1,2}:\d{2}( \(תגבור\))?$/.test(x))) return null;
+    const o = { times, more: +(q[3] || 0) };
+    o.n = times.length + o.more;
+    if (q[1] === "נוספו") { if (out.add) return null; out.add = o; } else { if (out.rem) return null; out.rem = o; }
+  }
+  return out;
+}
+function FreqNote({ f }) {
+  const [open, setOpen] = useState(false);
+  const cnt = [f.add ? "+" + f.add.n : "", f.rem ? "−" + f.rem.n : ""].filter(Boolean).join(" / ");
+  const list = (o) => o.times.join(", ") + (o.more ? " ועוד " + o.more : "");
+  const has = f.add || f.rem;
+  return (
+    <span className="fnote">{f.day}: {f.from} ← {f.to} יציאות{cnt ? <> <bdi dir="ltr">({cnt})</bdi></> : null}
+      {has && <>{" "}<button type="button" className="foldbtn" aria-expanded={open}
+        title={open ? "הסתרת השעות" : "השעות שנוספו וירדו"}
+        onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{open ? "▴" : "▾"}</button></>}
+      {open && f.add && <span className="fnl">➕ נוספו: {list(f.add)}</span>}
+      {open && f.rem && <span className="fnl">➖ ירדו: {list(f.rem)}</span>}
+    </span>
+  );
+}
+function NoteText({ s }) {
+  const f = parseFreqNote(s);
+  return f ? <FreqNote f={f} /> : s;
 }
 
 /* הודעת כשל רשת אחידה עם כפתור ניסיון חוזר — במקום "אין נתונים" מטעה */

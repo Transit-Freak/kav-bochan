@@ -109,6 +109,10 @@ html.kb-dark .srcb{color:#9dacc3}
 html.kb-dark .srcfoot{color:#8b9cb5;border-top-color:#463557}
 html.kb-dark .nogeo{background-image:initial;background-color:#1d1920;border-color:#463557;color:#a7b8d0}
 html.kb-dark .evnote{color:#9dacc3}
+html.kb-dark .foldbtn{border-color:currentcolor;background-image:none;background-color:initial;color:#a890fc}
+html.kb-dark .foldbtn:hover{text-decoration-color:initial}
+html.kb-dark .foldbtn:focus-visible{outline-color:#a890fc}
+html.kb-dark .fnote .fnl{color:#8b9cb5}
 html.kb-dark .rvflag{background-image:initial;background-color:#1d1a0f;border-color:rgb(253, 230, 138);color:#e78d61}
 html.kb-dark .katbox{border-color:#373c42}
 html.kb-dark .kathead{background-image:initial;background-color:#181b20;border-color:currentcolor;color:#a7b8d0}

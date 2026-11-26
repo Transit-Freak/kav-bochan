@@ -928,7 +928,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
           {tlRows.map((row, si) => row.t ? (
             <React.Fragment key={"t" + row.t.id}>
             
-            <TempEv t={row.t} rd={rd} />
+            <TempEv t={row.t} rd={rd} lf={lf} />
             </React.Fragment>
           ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
@@ -979,7 +979,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                     ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
                 ) : null}
                 {/* בצילום אתר מידע ההערה רק חוזרת על "תאריך השמירה אינו מועד שינוי", שכבר כתוב בכרטיס */}
-                {x.note && x.k !== "planned-dropped" && x.src !== "websiteArchive" && <span className="evnote"> {noteFix(x.note)}</span>}
+                {x.note && x.k !== "planned-dropped" && x.src !== "websiteArchive" && <span className="evnote"> <NoteText s={noteFix(x.note)} /></span>}
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
