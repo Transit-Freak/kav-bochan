@@ -1,35 +1,24 @@
-# זמני (ענף ניסויים): חיפוש תיאורי מסלול של מוניות שירות בארכיון האינטרנט, 2013–2019.
-# התוצאות נשמרות בענף הזה בתיקייה wayback-taxi/.
+# זמני (ענף ניסויים): בדיקה זהירה של גישה לארכיון האינטרנט מ-GitHub — 3 בקשות בלבד.
 name: wayback-taxi
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
-    paths: ['.github/workflows/wayback-taxi.yml', 'tools/wayback_taxi.py']
+    paths: ['.github/workflows/wayback-taxi.yml']
   workflow_dispatch:
 concurrency:
   group: wayback-taxi
   cancel-in-progress: true
-permissions:
-  contents: write
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: claude/stoic-allen-3g21ru
-          sparse-checkout: |
-            tools/wayback_taxi.py
-            .github/workflows/wayback-taxi.yml
-          sparse-checkout-cone-mode: false
-      - name: חיפוש
-        timeout-minutes: 45
-        run: python3 tools/wayback_taxi.py
-      - name: שמירה
-        if: always()
+      - name: בדיקת גישה
         run: |
-          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
-          git add wayback-taxi
-          git commit -m "wayback-taxi: תוצאות" || exit 0
-          for i in 1 2 3; do git pull --rebase -q origin claude/stoic-allen-3g21ru && git push -q origin HEAD:claude/stoic-allen-3g21ru && break; sleep 5; done
+          UA='kav-bochan-research/1.0'
+          for u in "https://archive.org/wayback/available?url=tel-aviv.gov.il&timestamp=20170101" \
+                   "https://web.archive.org/cdx/search/cdx?url=tel-aviv.gov.il&from=2017&to=2017&limit=3&output=json" \
+                   "https://web.archive.org/web/2017/http://www.tel-aviv.gov.il/"; do
+            curl -s -o /tmp/o -w "%{http_code} %{time_total}s $u\n" --max-time 40 -A "$UA" "$u" || echo "FAIL $u"
+            head -c 200 /tmp/o; echo; sleep 6
+          done
