@@ -237,6 +237,7 @@
   .lnc{font-size:12px;color:var(--mut);white-space:nowrap}
   .yrow.lnm{grid-template-columns:minmax(0,1.3fr) 1fr 52px;margin-bottom:8px}
   .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
+  .pills .tip{cursor:pointer}
   .vttl{font-size:20px;font-weight:900;margin:4px 0 2px}
   .st.chk{background:#D93025;color:#fff}
   .vchk{background:#FDECEA;border:2px solid #D93025;border-radius:12px;padding:10px 12px;margin:2px 0 10px;color:#8B1A12;font-size:13.5px;font-weight:700;line-height:1.5}
@@ -323,13 +324,13 @@
     <a class="mode" data-m="suspect" href="#m=suspect" hidden>נתונים חשודים</a>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. "נתונים חשודים" מרכז סתירות וערכים מוזרים במאגרים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 35 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> מקורות: דאטאבוס (הסדנא לידע ציבורי), <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי</a> ומאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה.</details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
 <script src="moves.js?v=25"></script>
 <script>
-window.FLEET_BUILD='26';
+window.FLEET_BUILD='27';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -441,6 +442,21 @@ const needDays=()=>{if(DAYS===null&&!DAYSP)DAYSP=loadDays().then(render);};
 let PEXP=new Set();   // רכבים שהשורות לפי חברה שלהם פתוחות בטבלה
 function pexp(e,p){e.stopPropagation();e.preventDefault();PEXP.has(p)?PEXP.delete(p):PEXP.add(p);render();}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// הסבר מקופל: "איך זה מחושב" וכדומה (26.11)
+const fold=(h,t)=>`<details class="note"><summary style="cursor:pointer;font-weight:800">${t||'איך זה מחושב'}</summary>${h}</details>`;
+// שורת הסבר קצרה מתחת לשבבי הסינון — גלויה גם בטלפון, שאין בו ריחוף (26.11)
+function fhint(kab){const t=[];
+  if(kab&&DATA.enriched)t.push('קבלן: לא רשום בצי החברה, בדרך כלל רכב הסעות');
+  if(STATF===0&&BIT&&Object.keys(BIT).length)t.push('לא יחזרו = בוטלו סופית · עשויים לחזור = הרישיון הופקד');
+  if(CHKF)t.push('לבדיקה: לפי המאגר ירד מהכביש, אבל עדיין נוסע');
+  if(RTF)t.push('חזרו לאחרונה: נעלמו חודש ומעלה וחזרו לנסוע');
+  if(ARF)t.push('ממוגנים: מיגון נגד ירי או אבנים, לפי משרד התחבורה');
+  return t.length?`<p class="note" style="margin:2px 0 8px">${t.join(' · ')}</p>`:'';}
+// מקרא צבעי הפסים בשנתונים (לפי גיל הרכב)
+const ylegend=(cs,ls)=>`<p class="note" style="margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px 12px">${cs.map((c,i)=>`<span style="display:inline-flex;align-items:center;gap:5px"><i style="width:10px;height:10px;border-radius:3px;display:inline-block;background:${c}"></i>${ls[i]}</span>`).join('')}</p>`;
+// היום האחרון שבו נצפו נסיעות ("השידורים עד")
+let LASTSEEN=null;
+function lastSeen(){if(LASTSEEN)return LASTSEEN;let l=null;for(const o of DATA.operators)for(const v of o.vehicles)if(!l||v[2]>l)l=v[2];return LASTSEEN=l;}
 
 function updFull(){
   let first=null,last=null;
@@ -457,9 +473,9 @@ function kpis(){
     ${kab?`<div class="kpi bad" title="רכבים מהצי הסדיר שלא שידרו מעל ${DATA.retire_days} יום. רכבי קבלן שירדו מוצגים בנפרד, בכרטיס רכבי הקבלן"><b>${fmt(tot-act-(kab-kabA))}</b><span>ירדו מהשירות (צי סדיר)</span></div>`
         :`<div class="kpi bad"><b>${fmt(tot-act)}</b><span>ירדו מהשירות</span></div>`}
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
-    ${kab?`<div class="kpi" title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
+    ${kab?`<div class="kpi" title="לא רשומים בצי של החברות, בדרך כלל רכבי הסעות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
   </div>
-  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">הנתונים מעודכנים ל-<b>${fd(last)}</b> · העדכון הבא בלילה</div>`;
+  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">השידורים עד <b>${fd(last)}</b> · עדכון ${fd(DATA.updated)} · העדכון הבא בלילה<br>פעיל = נסע בחודש האחרון${kab?' · קבלן = לא רשום בצי החברה':''}</div>`;
 }
 
 function home(){
@@ -482,9 +498,9 @@ function home(){
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}${chkChip(DATA.operators.flatMap(o=>o.vehicles))}
-      ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים בלבד</button>`:''}
+      ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()" title="מיגון נגד ירי או אבנים, לפי משרד התחבורה">ממוגנים בלבד</button>`:''}
       ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
-      <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}</div>
+      <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}</div>${fhint(true)}
       ${hits.length?table(hits.map(h=>h[1]),hits.map(h=>h[0])):'<div class="empty">לא נמצא רכב מתאים</div>'}</div>`;
   }
   // מיון החברות לפי רכבי החברה הפעילים בחודש האחרון — בלי רכבי קבלן
@@ -625,7 +641,7 @@ function clusterHome(f){
   const chips=dayPicker();
   const head=`<tr><th style="text-align:right">${CLSEL?'עיר':'אשכול'}</th>${sel.map(d=>`<th>${dlab(d)}</th>`).join('')}</tr>`;
   const cell=v=>`<td>${v==null?'—':fmt(v)}</td>`;
-  const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">מספר האוטובוסים השונים ששידרו נסיעות באותו יום (לפי מספר הרכב בשידור האיכון). רכב נספר בעיר אם נסע באותו יום בקו שעובר בה (בתוך אשכול: בקו שאחד מקצותיו בעיר), ולכן רכב שעבד בשתי ערים נספר בשתיהן. אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.</p>`;
+  const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">כמה אוטובוסים שונים נסעו באותו יום. רכב שעבד בשתי ערים נספר בשתיהן.</p>${fold('לפי מספר הרכב בשידור האיכון. רכב נספר בעיר אם נסע באותו יום בקו שעובר בה (בתוך אשכול: בקו שאחד מקצותיו בעיר). אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.')}`;
   if(!CLSEL){
     const last=FDC[sel[sel.length-1]]||{cl:{},city:{}};
     // חיפוש עיר: כמה אוטובוסים עבדו בה בכל יום (מכל האשכולות)
@@ -653,7 +669,7 @@ function clusterHome(f){
       ${ops.length>1?ops.map(o=>`<tr><td style="text-align:right;color:var(--dim)">חברת ${esc(o)}</td>${sel.map(d=>cell(((X(d)||{}).op||{})[o]||0)).join('')}</tr>`).join(''):''}
       ${cities.map(c=>`<tr><td style="text-align:right;font-weight:700">${esc(c)}</td>${sel.map(d=>cell(clCity(X(d),c))).join('')}</tr>`).join('')}
     </tbody></table></div></div>
-    ${cities.length>1?`<div class="panel"><p class="ptitle">פיצול האשכול: שתי ערים</p>
+    ${cities.length>1?`<div class="panel"><p class="ptitle">פיצול האשכול: שתי ערים</p><p class="note" style="margin:0 0 8px">בוחרים שתי ערים ורואים כמה רכבים משותפים להן</p>
       <div class="vs"><span class="csel"><select aria-label="עיר ראשונה" onchange="CLA=this.value;render()">${opt(CLA)}</select></span>
         <button class="swap" title="החלפה" onclick="[CLA,CLB]=[CLB,CLA];render()">⇄</button>
         <span class="csel"><select aria-label="עיר שנייה" onchange="CLB=this.value;render()">${opt(CLB)}</select></span></div>
@@ -667,7 +683,7 @@ function clusterHome(f){
           return main+Object.keys(tot).sort((a,b)=>tot[b]-tot[a]).map(c=>`<tr class="brk"><td style="text-align:right">${esc(c)}</td>${br.map(o=>`<td>${o?fmt(o[c]||0):'—'}</td>`).join('')}</tr>`).join('');
         }).join('')}
       </tbody></table></div>
-      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה. קו שייך לערים שבקצוות שלו (מוצא ויעד): קו בין-עירוני שרק עובר בעיר בדרך, כמו 885 ממודיעין עילית לבית שמש דרך מודיעין, לא נחשב לה. אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.${sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש הספירה היא לפי כל עיר שהקו עוצר בה, ולכן "עבדו בשתיהן" שם גבוה מדי.':''}${CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט, והם יחושבו מחדש.':''}</p></div>`:''}
+      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" = נסעו באותו יום בקווים של שתי הערים. אם האשכול יפוצל, אלה הרכבים המשותפים.${sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש "עבדו בשתיהן" גבוה מדי.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" עוד יחושבו מחדש.':''}</p>${fold('קו שייך לערים שבקצוות שלו (מוצא ויעד): קו בין-עירוני שרק עובר בעיר בדרך, כמו 885 ממודיעין עילית לבית שמש דרך מודיעין, לא נחשב לה.'+(sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש הספירה היא לפי כל עיר שהקו עוצר בה.':'')+(CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':'')+(CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט.':''))}</div>`:''}
     ${note}`;
 }
 function opName(ref){const o=op(+ref);return o?o.name:'מפעיל '+ref;}
@@ -735,15 +751,14 @@ function cityView(c){
       const keys=Object.keys(d.years).map(Number).filter(y=>d.years[y]>0).sort((a,b)=>b-a);
       const vmax=keys.length?Math.max(...keys.map(y=>d.years[y])):1;
       const ttl=ymd?'כמה אוטובוסים מכל שנתון · בירוק: בחודש שנבחר · באפור: סה"כ':'כמה אוטובוסים מכל שנתון מבצעים נסיעות בעיר'+(CITYMON&&!ymd?' (הפילוח החודשי ייבנה בריצה הקרובה)':'');
-      return keys.length?`<div class="panel"><p class="ptitle">${ttl}</p>
+      return keys.length?`<div class="panel"><p class="ptitle">${ttl}</p>${ymd?'':ylegend(['#1B7A3D','#9AB8A6','#B3B9C6'],['עד 4 שנים','5–8','מעל 8'])}
       ${keys.map(y=>{const col=y>=y0-4?'#1B7A3D':y>=y0-8?'#9AB8A6':'#B3B9C6';const tot=d.years[y];
         const m=ymd?((ymd[y]||{})[CITYMON]||0):null;
         const bar=m!=null?`<b class="tot" style="width:${Math.max(4,tot/vmax*100)}%"><i style="width:${tot?Math.round(m/tot*100):0}%;background:#1B7A3D"></i></b>`:`<i style="width:${Math.max(4,tot/vmax*100)}%;background:${col}"></i>`;
         return `<div class="yrow"><span>${y}</span><div class="ybar">${bar}</div><span class="c">${m!=null&&m?`<b style="color:var(--ok)">${fmt(m)}</b> · `:''}${fmt(tot)}</span></div>`;}).join('')}
     </div>`:'<div class="panel"><p class="ptitle">שנתונים</p><div class="empty">שנות הייצור יתווספו עם ההעשרה הממשלתית</div></div>';})()}
   </div>
-  ${cityVehPanel(c)}
-  <p class="note">רכב משויך לעיר רק אם היא מוצא או יעד של קו שבו שידר — קווים שרק חולפים דרך העיר אינם נספרים. הנתונים מצטברים ככל שהסריקה מתקדמת.</p>`;
+  ${cityVehPanel(c)}`;
 }
 
 /* ── רכבי העיר (שלמה 16.09): כל הרכבים שפעלו בעיר — מספר הרכב, ימי הפעילות
@@ -839,7 +854,7 @@ function cityVehPanel(c){
       <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}
       ${backBtn()}
       <span class="fcount">${fmt(n)} רכבים</span>
-    </div>
+    </div>${fhint(true)}
     ${DATA.enriched?(()=>{
       // סוג הרכב ושנתון (שלמה 03.11): כמה מכל סוג, ובתוך הסוג — כמה מכל שנתון
       const tc={};for(const r of cityVehRows(c,{t:1}))(t=>tc[t]=(tc[t]||0)+1)(gT(r.v)||'');
@@ -848,7 +863,7 @@ function cityVehPanel(c){
       const ts=Object.entries(tc).filter(([t])=>t).sort((a,b)=>b[1]-a[1]);
       const ys=Object.keys(yc).map(Number).sort((a,b)=>b-a);
       return `<div class="filters" style="align-items:center">
-        <span style="font-size:13px;font-weight:700;color:var(--mut)">סוג:</span>
+        <span style="font-size:13px;font-weight:700;color:var(--mut)">סוג רישוי:</span>
         <button class="fchip ${TYPEF?'':'on'}" onclick="TYPEF=null;LIMIT=200;render()">הכול</button>
         ${ts.map(([t,k])=>`<button class="fchip ${TYPEF===t?'on':''}" onclick="TYPEF=TYPEF===${q(t)}?null:${q(t)};LIMIT=200;render()">${esc(t.replace(/^אוטובוס /,''))} <b>${fmt(k)}</b></button>`).join('')}
       </div>
@@ -865,7 +880,7 @@ function cityVehPanel(c){
       return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')"><td>${esc(r.o.name)}</td><td dir="ltr" style="text-align:right">${vl(v[0])}</td>${DATA.enriched?`<td>${gT(v)?`<span class="tg">${esc(gT(v).replace(/^אוטובוס /,''))}</span>`:'—'}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}<td>${r.dd!=null?fmt(r.dd):'—'}</td><td>${r.rt!=null?fmt(r.rt):'—'}</td><td>${gR(v)!=null?gR(v):'—'}</td><td>${fd(v[1])}</td><td>${fd(v[2])}</td><td><span class="st ${on?'on':mv?'mv':'off'}">${on?'פעיל':mv?'עבר ל'+esc(mv.name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
     </tbody></table></div>
     ${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,rows.length-LIMIT))} מתוך ${fmt(rows.length-LIMIT)} שנותרו</button>`:''}`:'<div class="empty">אין רכבים בסינון הזה</div>'}
-    <p class="note">ימי הפעילות והנסיעות נמדדו בשידורים בכל הימים שנסרקו, בכל מקום שהרכב פעל — לא רק בעיר הזו. ${mon?'בחירת חודש משאירה רק רכבים ששידרו באותו חודש (בכל מקום); באיזו עיר בדיוק הם היו באותו חודש ייראה כשרישום החודשים לפי קו יתמלא. ':''}לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
+    <p class="note">רכב שייך לעיר אם נסע בקו שמתחיל או מסתיים בה. הנסיעות והימים כוללים גם ערים אחרות.${mon?' בחירת חודש: רכבים ששידרו באותו חודש, בכל מקום.':''}</p>
   </div>`;
 }
 
@@ -976,13 +991,13 @@ function movesHome(){
       <label style="font-size:13px;font-weight:700;color:var(--mut)">לאן: <select class="mselect" onchange="MVT=this.value||null;LIMIT=200;render()">${optHtml(toOpts,MVT)}</select></label>
       ${MVF||MVT?`<button class="fchip" onclick="MVF=null;MVT=null;LIMIT=200;render()">✕ ניקוי</button>`:''}
     </div>
-    <div class="filters" style="margin-top:8px">
-      <button class="fchip ${MVK===null?'on':''}" onclick="MVK=null;LIMIT=200;render()">כל הסוגים</button>
+    <div class="filters" style="margin-top:8px;align-items:center">
+      <b style="font-size:13px;color:var(--mut)">סוג הרכב:</b><button class="fchip ${MVK===null?'on':''}" onclick="MVK=null;LIMIT=200;render()">כל הסוגים</button>
       ${types.map(([t,n])=>`<button class="fchip ${MVK===t?'on':''}" data-k="${esc(t)}" onclick="MVK=MVK===this.dataset.k?null:this.dataset.k;LIMIT=200;render()">${esc(t)} · ${fmt(n)}</button>`).join('')}
-      <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש</button>
+      <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש (5+ ימים בכל צד)</button>
     </div>
     ${mvWhenHtml(pre)}
-    <p class="note">רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. בין חברות רואים את זה מתחילת המעקב (${fd(MOVES.since)}); רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}</p>
+    <p class="note">מעבר = הרכב התחיל לנסוע ביעד אחרי שנסע במקור. בין חברות: מאז ${fd(MOVES.since)}. בין ערים: רק בחלק מהתקופה.</p>${fold(`רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}`)}
   </div>`;
   const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<a class="type" data-mv="${side}" data-k="${esc(k)}" href="${sh(side==='to'?{mt:k}:{mf:k})}" onclick="if(nv(event))mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></a>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
   let body='';
@@ -1037,9 +1052,11 @@ function typeHome(f){
   if(TSORT==='g'&&GPOK) rows=rows.filter(([t,g])=>g.n>=20).sort((a,b)=>b[1].gp/b[1].n-a[1].gp/a[1].n);
   else rows.sort((a,b)=>b[1].n-a[1].n);
   // מתג השידורים שלנו / משרד התחבורה (שלמה 23.10) — כמו במדד האמינות: משנה מה כתוב בכל כרטיס דגם
-  const MOT=!!(BSOF&&Object.keys(BSOF).length), motOn=MOT&&RSRC==='m';
+  // ב"הכי מקולקלים" המספר הגדול הוא תמיד "נפלו וחזרו" — בלי המתג (26.11)
+  const MOT=!!(BSOF&&Object.keys(BSOF).length)&&TSORT!=='g', motOn=MOT&&RSRC==='m';
   const seg=(k,l)=>`<button onclick="RSRC='${k}';render()" style="flex:1;border:0;border-radius:10px;padding:8px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;background:${(k==='m')===motOn?'var(--ink)':'transparent'};color:${(k==='m')===motOn?'#fff':'var(--mut)'}">${l}</button>`;
-  const segBar=MOT&&TSORT!=='r'?`<div style="display:flex;gap:4px;background:var(--chipbg);border-radius:12px;padding:4px;margin-bottom:10px;max-width:440px">${seg('b','לפי השידורים שלנו')}${seg('m','לפי משרד התחבורה')}</div>`:'';
+  const segBar=MOT&&TSORT!=='r'?`<div style="display:flex;gap:4px;background:var(--chipbg);border-radius:12px;padding:4px;margin-bottom:4px;max-width:440px">${seg('b','לפי השידורים שלנו')}${seg('m','לפי משרד התחבורה')}</div><p class="note" style="margin:0 0 10px">${motOn?'משרד התחבורה: כמה בוטלו סופית או הורדו מהכביש':'השידורים שלנו: כמה ירדו, וכמה נעלמו חודש או יותר וחזרו'}</p>`:'';
+  const tHint=TSORT==='g'?'אחוז הרכבים שנעלמו חודש או יותר וחזרו · מ-20 רכבים, בלי רכבי קבלן':TSORT==='r'?'נפילות לעומת רכבים בני אותו גיל · רק רכבי קו':'';
   return kpis()+`<div class="filters" style="margin-bottom:10px">
     <button class="fchip ${TSORT==='n'?'on':''}" onclick="TSORT='n';render()">הדגמים הגדולים</button>
     <button class="fchip ${TSORT==='r'?'on':''}" onclick="TSORT='r';render()" title="לכל דגם: נפילות, ק&quot;מ ונסיעות — רק רכבי קו">מדד אמינות הדגמים</button>
@@ -1047,7 +1064,7 @@ function typeHome(f){
     ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;render()">חשמליים</button>
     <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;render()">לא חשמליים</button>`:''}
     ${GPOK&&GAPS.from?`<span style="font-size:12px;color:var(--mut);align-self:center">נתוני הנפילות נבדקים בטווח ${GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)}–${GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4)} · מתרחב אחורה מדי לילה</span>`:''}
-  </div>${segBar}${TSORT==='r'?modelRel(f):''}${TSORT==='r'?'':`${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
+  </div>${tHint?`<p class="note" style="margin:-4px 0 10px">${tHint}</p>`:''}${segBar}${TSORT==='r'?modelRel(f):''}${TSORT==='r'?'':`${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
     `<a class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" href="${nh({m:'type',model:t})}" onclick="if(nv(event)){history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})}">
       <h2 style="font-size:1.05rem;word-break:break-word">${esc(t)}</h2><div class="n">${TSORT==='g'?Math.round(100*g.gp/g.n)+'%':fmt(g.n)}</div>
       ${TSORT==='g'?`<div class="lbl">נפלו וחזרו — תקלה אפשרית</div>`:''}
@@ -1091,6 +1108,8 @@ function modelRel(f){
   const xCol=x=>x>=1.4?'#B91C1C':x<=.8?'var(--ok)':'inherit';
   const relNote='לפי השידורים שלנו: כמה רכבים מכל דגם נעלמו לחודש או יותר וחזרו, לעומת רכבים בני אותו גיל (פי 1 זה רגיל, מעל 1 נופל יותר). לפי משרד התחבורה: כמה בוטלו סופית וכמה הורדו מהכביש. רק רכבי קו, דגמים עם 100 רכבים ומעלה.';
   const MOT=!!(BSOF&&Object.keys(BSOF).length);
+  const relShort=MOT&&RSRC==='m'?'בוטלו סופית והורדו מהכביש, לפי מאגרי משרד התחבורה. רק רכבי קו, מ-100 רכבים.':'"פי 1" = נופל כמו רכבים בני אותו גיל. מעל 1 = נופל יותר. רק רכבי קו, מ-100 רכבים.';
+  const relMore='רכב יכול להיעלם גם כשעמד ברזרבה, לא רק בתקלה. רכב שעבר בין חברות נספר פעם אחת, והמעבר עצמו לא נחשב נפילה.';
   // בטלפון: שורה קומפקטית לכל דגם במקום טבלה רחבה שגוללת לצדדים
   // מתג בראש המסך בין שתי הקטגוריות — בטלפון ובמחשב (שלמה 23.10: "זה נמצא באמצע המסך")
   const motOn=MOT&&RSRC==='m';
@@ -1105,7 +1124,8 @@ function modelRel(f){
     if(!sorts.some(x=>x[0]===RSORT)){RSORT=sorts[0][0];rows.sort((a,b)=>(b[RSORT]??-1)-(a[RSORT]??-1));}
     return `<div class="panel"><p class="ptitle" style="margin:0 0 8px">מדד אמינות הדגמים</p>
     ${segBar}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px"><details class="note" style="margin:0"><summary style="cursor:pointer;font-weight:800">מה המספרים אומרים?</summary>${relNote}</details>
+    <p class="note" style="margin:0 0 6px">${relShort}</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px"><details class="note" style="margin:0"><summary style="cursor:pointer;font-weight:800">מה המספרים אומרים?</summary>${relNote} ${relMore}</details>
     <label style="font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap">מיון: <select onchange="RSORT=this.value;render()" style="font:inherit;font-weight:800;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:var(--surface)">${sorts.map(([k,l])=>`<option value="${k}"${RSORT===k?' selected':''}>${l}</option>`).join('')}</select></label></div>
     ${rows.map(r=>`<a class="mrow" href="${nh({m:'type',model:r.name})}" onclick="if(nv(event)){history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})}">
       <span class="mrn"><span>${esc(r.name)}</span>${mot?`<b>${Math.round(r.bf*100)}% בוטלו</b>`:r.x!=null?`<b style="color:${xCol(r.x)}">פי ${r.x.toFixed(1)}</b>`:''}</span>
@@ -1117,7 +1137,8 @@ function modelRel(f){
   const GP=GPOK&&!motOn;
   return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
     ${segBar}
-    <p class="note" style="margin:0 0 6px">${relNote}</p>
+    <p class="note" style="margin:0 0 6px">${relShort}</p>
+    ${fold(relNote+' '+relMore,'מה המספרים אומרים?')}
     <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${th('age','גיל ממוצע')}${GP?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים')+th('x','לעומת בני גילו','פי 1 = כמו רכבים בני אותו גיל מכל הדגמים. מעל 1 = נופל יותר'):''}${motOn?th('bf','בוטלו סופית','אחוז הרכבים שהרישום שלהם בוטל סופית (פירוק, אובדן גמור וכדומה) — ממאגר משרד התחבורה')+th('rm','הורדו מהכביש','רכבים שלפי המאגר הורדו מהכביש בידי המשטרה או פקחי משרד התחבורה'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
     ${rows.map(r=>`<tr class="v" tabindex="0" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
       <td><a class="vl" href="${nh({m:'type',model:r.name})}" onclick="nv(event)">${esc(r.name)}</a></td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
@@ -1127,7 +1148,7 @@ function modelRel(f){
       ${KMOK?`<td>${r.kd!=null?`<i style="display:inline-block;height:7px;border-radius:4px;background:#1E5BC6;width:${Math.round(r.kd/mx*70)}px;margin-left:6px;vertical-align:middle"></i>${fmt(Math.round(r.kd))}`:'—'}</td>`:''}
       ${OFCOK?`<td>${r.oy!=null?fmt(Math.round(r.oy)):'—'}</td>`:''}${OFF?`<td>${r.r!=null?r.r.toFixed(1):'—'}</td>`:''}</tr>`).join('')||'<tr><td>לא נמצא דגם</td></tr>'}
     </tbody></table></div>
-    <p class="note">רכב יכול להיעלם גם כשעמד ברזרבה, לא רק בתקלה. רכב שעבר בין חברות נספר פעם אחת, והמעבר עצמו לא נחשב נפילה. לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו.</p></div>`;
+    <p class="note">לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו.</p></div>`;
 }
 // רכבי הדגם אחרי הסינונים והמיון שעל המסך — לטבלה ולאקסל
 function typePairs(all){
@@ -1151,6 +1172,7 @@ function typeView(t){
   // מה שלא נספר — מוצג בהערה מתחת לגרף (שלמה 22.11)
   const occOp={}; for(const [,v] of all) if(v._occ) for(const r of v._occ) occOp[r[0].ref]=(occOp[r[0].ref]||0)+1;
   const occTxt=Object.entries(occOp).sort((a,b)=>b[1]-a[1]).map(([ref,n])=>`${esc(opName(+ref))} (${n===1?'רכב אחד':fmt(n)+' רכבים'})`).join(', ');
+  const occN=Object.values(occOp).reduce((a,b)=>a+b,0);
   const ops=Object.entries(byOp).sort((a,b)=>b[1]-a[1]); const mx=ops.length?ops[0][1]:1;
   const multi=all.some(p=>new Set(realRecs(p[1],p[0]).map(r=>r[0].ref)).size>1);
   const n=all.length;
@@ -1168,7 +1190,7 @@ function typeView(t){
     <div class="panel"><p class="ptitle">אצל אילו חברות הדגם הזה נפוץ</p>
       ${ops.slice(0,14).map(([ref,n])=>`<div class="yrow lbl2"><span style="font-weight:700">${esc(opName(ref))}</span><div class="ybar"><i style="width:${Math.max(4,n/mx*100)}%;background:#1B7A3D"></i></div><span class="c">${fmt(n)}</span></div>`).join('')}
       ${multi?'<p class="note">רכב שעבר בין חברות נספר בכל אחת</p>':''}
-      ${occTxt?`<p class="note">לא נספרו נסיעות בודדות או דיווחים שגויים של רכבי הדגם אצל חברות אחרות: ${occTxt}</p>`:''}
+      ${occTxt?`<p class="note" style="margin-bottom:0">לא נספרו נסיעות בודדות אצל חברות אחרות: ${occN===1?'רכב אחד':fmt(occN)+' רכבים'}.</p>${fold(occTxt,'פירוט ▾')}`:''}
     </div>
     ${(()=>{// אמינות הדגם (שלמה 23.10) — אותו מתג כמו במדד האמינות: השידורים שלנו / משרד התחבורה. רק רכבי קו
       const ln=all.map(p=>p[1]).filter(v=>!isKab(v)); if(!ln.length) return '';
@@ -1197,19 +1219,21 @@ function typeView(t){
       <button class="fchip ${STATF===null&&!CHKF?'on':''}" onclick="STATF=null;CHKF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}${chkChip(all.map(p=>p[1]))}
-      ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים</button>`:''}
+      ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()" title="מיגון נגד ירי או אבנים, לפי משרד התחבורה">ממוגנים</button>`:''}
       ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
       <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}
-    </div>
+    </div>${fhint(false)}
     ${table(pairs.map(p=>p[1]),pairs.map(p=>p[0]))}
-    <p class="note">לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו · עמודת החברה מראה למי כל רכב שייך, ורכב שעבר בין חברות — את כל החברות לפי הסדר (▾ פותח תאריכים לכל חברה).</p>
+    <p class="note">לחיצה על כותרת ממיינת · ▾ ליד החברה מציג תאריכים לכל חברה.</p>
   </div>`;
 }
 
 // הסבר קצר על הערכת הק"מ — מוצג בריחוף על ⓘ בכותרות העמודות ובחלון הרכב
-const KMTIP='הערכה בלבד: אורך המסלול המתוכנן של הקווים שבהם הרכב שידר, כפול מספר הנסיעות שנקלטו. לא ידוע אם כל נסיעה בוצעה במלואה — ייתכנו נסיעות חלקיות, קטעים בלי קליטת GPS או שידור חסר, ולא ידוע כמה נסיעות היו בכל קו.';
+const KMTIP='הערכה: אורך הקו כפול מספר הנסיעות שנקלטו';
+// בחלונית (לחיצה על ⓘ) — ההסבר המלא
+const KMLONG='הערכה בלבד: אורך המסלול המתוכנן של הקווים שבהם הרכב שידר, כפול מספר הנסיעות שנקלטו. לא ידוע אם כל נסיעה בוצעה במלואה — ייתכנו נסיעות חלקיות, קטעים בלי קליטת GPS או שידור חסר, ולא ידוע כמה נסיעות היו בכל קו.';
 // חלונית ההסבר של הק"מ — נפתחת בלחיצה על ⓘ (בעיקר לטלפון, שאין בו ריחוף)
-function showTip(title,body){title=title||'איך מחושב הקילומטראז\' המשוער';body=body||KMTIP;
+function showTip(title,body){title=title||'איך מחושב הקילומטראז\' המשוער';body=body||KMLONG;
   const ovl=document.createElement('div');ovl.className='ovl';
   ovl.innerHTML=`<div class="modal" style="max-width:420px"><div class="mhead"><b style="font-size:16px">${title}</b><button class="x" aria-label="סגירה">✕</button></div>
     <div style="font-size:14.5px;line-height:1.65;color:var(--ink)">${body}</div>
@@ -1322,19 +1346,20 @@ function opView(ref){
     const btc=Object.entries(bt).sort((a,b)=>b[1]-a[1]).map(([t,c])=>card(t,c,BTF,'BTF')).join('');
     const bsc=Object.entries(bs).sort((a,b)=>b[1]-a[1]).map(([t,c])=>card(t,c,BSF,'BSF')).join('');
     // המיגון מגיע מאותו מאגר רשמי, ולכן יושב באותה שורה עם הסוג והגודל (שלמה 03.09)
-    if(btc||bsc||armCards) ofCards=`<p class="ptitle" style="margin-top:14px">סוג, גודל ומיגון — לפי מאגר ציי הרכב הרשמי</p><div class="types">${btc}${bsc}${armCards}</div>`;
+    if(btc||bsc||armCards) ofCards=`<p class="ptitle" style="margin-top:14px">סוג, גודל ומיגון — לפי מאגר ציי הרכב הרשמי</p><div class="types">${btc}${bsc}${armCards}</div>${armCards?'<p class="note">ממוגן: מיגון נגד ירי או אבנים</p>':''}`;
   }
   const armInTypes=OFCOK&&ofCards?'':armCards;   // בלי המאגר הרשמי — המיגון נשאר בשורת הסוגים
   const headH=`<div class="ophead" style="background:${opBg(ref,i)}${isLight(color)?';color:#10172A':''}">
-    <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · עדכון ${fd(DATA.updated)}</div></div>
-    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-kabR?`<span class="r">${fmt(ret-kabR)} ירדו מהשירות</span>`:''}${mvd?`<span title="רכבים שנסעו בחברה ועכשיו פעילים בחברה אחרת">${fmt(mvd)} עברו לחברה אחרת</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kabR?` · ${fmt(kabR)} ירדו`:''}</span>`:''}</div>
+    <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · השידורים עד ${fd(lastSeen())} · עדכון ${fd(DATA.updated)}</div></div>
+    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-kabR?`<span class="r">${fmt(ret-kabR)} ירדו מהשירות</span>`:''}${mvd?`<span class="tip" title="רכבים שנסעו בחברה ועכשיו פעילים בחברה אחרת" onclick="showTip('עברו לחברה אחרת','רכבים שנסעו בחברה ועכשיו נוסעים בחברה אחרת.')">${fmt(mvd)} עברו לחברה אחרת ⓘ</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span class="tip" title="לא רשומים בצי של החברה, בדרך כלל רכבי הסעות" onclick="showTip('רכבי קבלן','רכבים שלא רשומים במאגר &quot;ציי רכב אוטובוסים&quot; של משרד התחבורה — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברה.')">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kabR?` · ${fmt(kabR)} ירדו`:''} ⓘ</span>`:''}</div>
   </div>`;
   const filtH=`  ${Object.keys(types).length?`<div class="panel chips"><p class="ptitle">לפי סוג רישוי</p>
     <div class="types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([t,c])=>
       `<button class="type ${TYPEF===t?'on':''}" onclick="TYPEF=TYPEF===${JSON.stringify(t).replace(/"/g,'&quot;')}?null:${JSON.stringify(t).replace(/"/g,'&quot;')};LIMIT=200;render()"><b>${fmt(c)}</b><span>${esc(t)}</span></button>`).join('')}${armInTypes}${elCards}</div>${ofCards}</div>`:''}`;
   const yrsH=`  ${yk.length?`<div class="panel"><p class="ptitle">כמה רכבים מכל שנתון — וכמה מהם ${YEARF?`היו בשימוש בשנת ${YEARF}`:'פעילים בפועל'}</p>
-      ${calYears.length>1?`<div class="filters">
-        <button class="fchip ${YEARF===null?'on':''}" onclick="YEARF=null;render()">היום</button>
+      ${ylegend([color,'#9AA8B8','#C4CAD4'],['עד 6 שנים','7–10','מעל 10'])}
+      ${calYears.length>1?`<div class="filters" style="align-items:center">
+        <b style="font-size:13px;color:var(--mut)">מצב הצי בשנה:</b><button class="fchip ${YEARF===null?'on':''}" onclick="YEARF=null;render()">היום</button>
         ${calYears.map(y=>`<button class="fchip ${YEARF===y?'on':''}" onclick="YEARF=${y};render()">${y}</button>`).join('')}
       </div>`:''}
       ${yk.map(y=>{const c=y>=y0-6?color:y>=y0-10?'#9AA8B8':'#C4CAD4';const act=yearsAct[y]||0;
@@ -1354,7 +1379,7 @@ function opView(ref){
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}
       <span class="fcount">${fmt(vs.length)} רכבים</span>
-    </div>
+    </div>${fhint(enr&&kab)}
     ${table(vs,null)}
     <p class="note">לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
   </div>`;
@@ -1632,7 +1657,7 @@ async function showV(plate){
       return g?`<div class="k">תדירות שידור מיקום</div><div class="v2">משדר מיקום בממוצע כל ${g[2]} שניות<div style="font-size:11px;color:var(--dim)">חציון ${g[3]} שנ׳ · ${fmt(g[4])} דיווחים ב-${g[5]} ימים · הדגימה פעם בדקה, כך ש-60 שנ׳ הוא המינימום הנמדד · <a href="../bus/#/gps">מדד האמינות</a></div></div>`:'';})()}
     <div class="k">מצב</div><div class="v2">${on2?'✅ פעיל':recs.length>1&&on?'↩️ כבר לא משדר אצל המפעיל הזה':'🔴 ירד מהשירות'}</div></div>`;
   }
-  if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;
+  if(anyKm) rows+=`<p class="note">הערכה גסה: אורך הקווים כפול מספר הנסיעות שנקלטו, רק בימים שנסרקו.</p>`;
   const kab=isKab(fv);
   // "לבדיקה" (שלמה 24.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל בתאריך bitul_dt, אבל בשידורים נצפה
   // נוסע אחרי התאריך הזה. לא קובעים שנוסע בלי רישיון — ייתכן איחור במאגר או טעות בזיהוי
@@ -1935,7 +1960,7 @@ function lineDep(l,c){
   const di=Math.min(LNDIR,dirs.length-1), dir=dirs[di], times=dir[4]||{}, tk=Object.keys(times).sort();
   const dl=x=>`${esc(x[0]||x[1])} ← ${esc(x[2]||x[3])}${x[2]&&x[3]?` <span style="color:var(--dim);font-weight:500">(${esc(x[3])})</span>`:''}`;
   const chip=(on,t,fn)=>`<button class="fchip ${on?'on':''}" onclick="${fn}">${t}</button>`;
-  const dchips=dirs.length>1?`<div class="filters" style="margin-bottom:8px">${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`;
+  const dchips=dirs.length>1?`<div class="filters" style="margin-bottom:8px;align-items:center"><b style="font-size:13px;color:var(--mut)">כיוון:</b>${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`;
   const MT=D.mt||null, mt=i=>(MT&&MT[i])||['',''];
   let res='';
   const a=LNT&&times[LNT];

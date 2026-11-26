@@ -25,7 +25,7 @@ const TOP_OP = ['נתיב אקספרס', '27'];                 // הכרטיס 
 const M1 = {
   name: 'יוטונג סין TFGBW', head: '11 רכבים, כולם פעילים · נסעו ב-2 חברות',
   chart: [['אלקטרה אפיקים', '11'], ['קווים', '1']],
-  occ: 'אלקטרה אפיקים תחבורה (2 רכבים), מטרופולין (רכב אחד)',
+  occ: 'אלקטרה אפיקים תחבורה (2 רכבים), מטרופולין (רכב אחד)', occN: '3 רכבים',
   rows: 11, plate: '39733704', subs: ['אלקטרה אפיקים', 'מטרופולין', 'אלקטרה אפיקים תחבורה'], subsOcc: 2,
   chain: ['60333504', 'קווים ← אלקטרה אפיקים']
 };
@@ -102,7 +102,7 @@ async function main() {
   await open();
   await expect('המסך הראשי: המספרים למעלה', () => [...document.querySelectorAll('#view .kpis .kpi')].map((k) => [k.querySelector('b').textContent, k.querySelector('span').textContent]),
     null, [[fmt(X.plates), 'רכבים במעקב'], [fmt(X.active), 'פעילים'], [KAB.retired, 'ירדו מהשירות (צי סדיר)'], [String(X.ops), 'מפעילים'], [KAB.active, 'רכבי קבלן פעילים']]);
-  await expect('המסך הראשי: "הנתונים מעודכנים ל-"', () => (document.querySelector('#view .upd') || {}).textContent, null, 'הנתונים מעודכנים ל-' + X.updated + ' · העדכון הבא בלילה');
+  await expect('המסך הראשי: "השידורים עד"', (u) => ((document.querySelector('#view .upd') || {}).textContent || '').startsWith('השידורים עד ' + u + ' · עדכון '), X.updated);
   await expect('המסך הראשי: כרטיס לכל חברה', () => document.querySelectorAll('#view .cards a.card.op').length, null, X.ops);
   await expect('המסך הראשי: הכרטיס הראשון', () => { const c = document.querySelector('#view .cards a.card.op'); return c && [c.querySelector('h2').textContent, c.querySelector('.n').textContent]; }, null, TOP_OP);
   await expect('המסך הראשי: החברות לפי מספר האוטובוסים הפעילים, מהגדולה לקטנה',
@@ -114,7 +114,7 @@ async function main() {
   await click('כרטיס החברה', `#view .cards a.card.op:has(h2:text-is("${OP.name}"))`);
   await expect('דף חברה: הכותרת', () => { const h = document.querySelector('#view .ophead'); return h && [h.querySelector('h2').textContent, h.querySelector('.sub2').textContent.split(' · ')[0]]; }, null, [OP.name, OP.total + ' רכבים']);
   await expect('דף חברה: פעילים ועברו לחברה אחרת', () => [...document.querySelectorAll('#view .ophead .pills span')].map((x) => x.textContent).filter((x) => /פעילים$|עברו/.test(x) && !/קבלן/.test(x)),
-    null, [OP.active + ' פעילים', OP.moved + ' עברו לחברה אחרת']);
+    null, [OP.active + ' פעילים', OP.moved + ' עברו לחברה אחרת ⓘ']);
   await expect('דף חברה: הכתובת', () => location.hash, null, '#op=' + OP.ref);
   await expect('דף חברה: "איפה אני"', () => (document.querySelector('#view .crumb') || {}).textContent, null, 'צי הרכבים ‹ חברות ‹ ' + OP.name);
   await expect('דף חברה: שלוש לשוניות, "סקירה" פתוחה', () => [...document.querySelectorAll('#view .ctabs a')].map((a) => a.textContent + (a.classList.contains('on') ? '*' : '')), null, ['סקירה*', 'רכבים', 'שנתונים']);
@@ -169,7 +169,8 @@ async function main() {
   await expect('דף דגם: הכותרת', () => { const h = document.querySelector('#view .ophead'); return h && [h.querySelector('h2').textContent, h.querySelector('.sub2').textContent]; }, null, [M1.name, M1.head]);
   await expect('דף דגם: הגרף "אצל אילו חברות הדגם הזה נפוץ"', chart, null, M1.chart);
   await expect('דף דגם: ההערות מתחת לגרף (נסיעות בודדות)', notes, null,
-    ['רכב שעבר בין חברות נספר בכל אחת', 'לא נספרו נסיעות בודדות או דיווחים שגויים של רכבי הדגם אצל חברות אחרות: ' + M1.occ]);
+    ['רכב שעבר בין חברות נספר בכל אחת', 'לא נספרו נסיעות בודדות אצל חברות אחרות: ' + M1.occN + '.']);
+  await expect('דף דגם: פירוט החברות עם נסיעות בודדות (מקופל)', (o) => [...document.querySelectorAll('#view details.note')].some((d) => d.textContent.includes(o)), M1.occ);
   await expect('דף דגם: הפס של החברה הראשונה מלא, ושל השנייה קצר ממנו', () => { const p = [...document.querySelectorAll('#view .panel')].find((x) => (x.querySelector('.ptitle') || {}).textContent === 'אצל אילו חברות הדגם הזה נפוץ'); const w = [...p.querySelectorAll('.ybar i')].map((i) => i.getBoundingClientRect().width / i.parentNode.getBoundingClientRect().width); return w.length === 2 && w[0] > 0.98 && w[1] > 0 && w[1] < 0.2; });
   await expect('דף דגם: "אמינות הדגם"', () => [...document.querySelectorAll('#view .ptitle')].map((x) => x.textContent).filter((x) => /^אמינות הדגם/.test(x)), null, ['אמינות הדגם · 11 רכבי קו']);
   await expect('דף דגם: שורה לכל רכב', rowsOf, null, M1.rows);
@@ -210,7 +211,7 @@ async function main() {
   // קישור ישיר לדף דגם עם כרטיס רכב פתוח
   await open('#m=type&model=' + encodeURIComponent(M1.name) + '&v=' + M1.plate);
   await expect('קישור ישיר לדגם ולרכב', () => [(document.querySelector('#view .ophead h2') || {}).textContent, (document.querySelector('.ovl .modal .plate') || {}).textContent], null, [M1.name, M1.plate]);
-  await expect('קישור ישיר לדגם: ההערה על נסיעות בודדות', notes, null, ['רכב שעבר בין חברות נספר בכל אחת', 'לא נספרו נסיעות בודדות או דיווחים שגויים של רכבי הדגם אצל חברות אחרות: ' + M1.occ]);
+  await expect('קישור ישיר לדגם: ההערה על נסיעות בודדות', notes, null, ['רכב שעבר בין חברות נספר בכל אחת', 'לא נספרו נסיעות בודדות אצל חברות אחרות: ' + M1.occN + '.']);
 
   // דגם של רכבי קבלן: הרבה חברות בגרף, ובלי הערה על נסיעות בודדות
   await open('#m=type&model=' + encodeURIComponent(M2.name));
