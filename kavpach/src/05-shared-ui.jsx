@@ -77,6 +77,26 @@ function ScoreSettingsPanel({ title, intro, settings, update, reset, isDefault, 
   );
 }
 
+// "איך זה מחושב" (26.11) — הפירוט הארוך מקופל, כדי שהטקסט הגלוי יישאר קצר
+const HowCalc = ({ children, className }) => (
+  <details className={`text-xs text-slate-500 font-bold leading-relaxed ${className || 'mt-3'}`}>
+    <summary className="cursor-pointer font-black text-slate-600 select-none">איך זה מחושב</summary>
+    <div className="mt-2 space-y-1.5">{children}</div>
+  </details>
+);
+
+// תג עם הסבר (26.11): בטלפון אין ריחוף, אז לחיצה על התג מציגה את ההסבר מתחתיו
+const TipBadge = ({ className, tip, children }) => {
+  const [o, setO] = useState(false);
+  return (
+    <span className="inline-flex flex-col items-start max-w-full">
+      <button type="button" className={className + ' cursor-pointer'} title={tip} aria-expanded={o}
+        onClick={(e) => { e.stopPropagation(); setO(x => !x); }}>{children}</button>
+      {o && <span className="text-[10px] font-bold text-slate-600 mt-1 leading-snug" style={{ maxWidth: '16rem' }}>{tip}</span>}
+    </span>
+  );
+};
+
 const getCapacity = (sizeStr) => {
   if (!sizeStr) return 50;
   const s = String(sizeStr).replace(/\s/g, '');
@@ -194,7 +214,7 @@ const RidershipBlock = ({ makat }) => {
           </div>))}
       </div>
       {(rec || e.add) && <div className="text-slate-700 mt-2" style={{ fontSize: 11.5 }}><b>משרד התחבורה ({lab(lq)}):</b> {rec ? 'לבחון ביטול, דילול או שינוי — ' + rec : 'מסומן לתגבור (דרגה ' + e.add + ' מתוך 3)'}</div>}
-      <div className="text-slate-400 mt-1" style={{ fontSize: 10 }}>מקור: "נסועה בקווי אוטובוס", משרד התחבורה · כל הכיוונים יחד</div>
+      <div className="text-slate-400 mt-1" style={{ fontSize: 10 }}>{lab(lq)} הוא רבעון {QHE[lqn]}׳ של {ly}. הנוסעים בשני הכיוונים יחד. מקור: "נסועה בקווי אוטובוס", משרד התחבורה</div>
     </div>
   );
 };

@@ -503,7 +503,7 @@
     var tt = mode === 'tt';
     document.body.setAttribute('data-mode', mode);
     $('qhead').textContent = tt ? 'איזה קווים?' : 'איזה קו?';
-    $('qhint').textContent = tt ? 'מספר קו, שכונה, רחוב, עיר או חברה. בשכונה או ברחוב — כל הקווים שעוצרים שם, בלוח אחד.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
+    $('qhint').textContent = tt ? 'מספר קו, רחוב, שכונה, עיר או חברה. ברחוב או בשכונה — כל הקווים שעוצרים שם.' : 'מספר קו, רחוב, שכונה, עיר או חברה.';
     $('chiprow').style.display = tt ? 'none' : ''; $('kfil').style.display = tt ? 'none' : '';
     $('q').placeholder = tt ? 'למשל 494, גני איילון, אופקים ירושלים' : 'למשל 988, הרצל, קרית חב"ד';
   }
@@ -1227,7 +1227,7 @@
         '<div class="ebar noprint"><span class="ebar-n">' + E(s.label) + '</span>' +
           '<button type="button" data-act="box">+ תיבת טקסט</button>' +
           '<button type="button" data-act="img" aria-label="הוספת תמונה לשקף הזה">+ תמונה</button>' +
-          '<button type="button" data-act="ximg" aria-label="שקף חדש עם תמונה על כל השקף, אחרי השקף הזה">+ שקף תמונה</button>' +
+          '<button type="button" data-act="ximg" title="שקף חדש שכולו תמונה, אחרי השקף הזה" aria-label="שקף חדש עם תמונה על כל השקף, אחרי השקף הזה">+ שקף תמונה</button>' +
           // מפה: הגדלה, הקטנה ואיפוס — בשורה הזו, לא על המפה (גרירה וצביטה — על המפה עצמה)
           (s.map ? '<button type="button" data-act="mzin" aria-label="הגדלת המפה">הגדלה +</button><button type="button" data-act="mzout" aria-label="הקטנת המפה">הקטנה −</button>' +
             '<button type="button" data-act="mreset">איפוס מפה</button>' : '') +

@@ -156,6 +156,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
             title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); setNewsSrc(!months.some((m) => m.startsWith(y))); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}</button>
         ))}
       </div>
+      {yr && yr < "2017" && <div className="dayhelp">לפני 2017: צילומים חלקיים מהארכיון, לא תיעוד יומי</div>}
       {/* מקורות השנה: רק כשבוחרים שנה שיש לה יותר ממקור אחד — 2012 (משרד התחבורה ואתר מגיעים)
           או שנה עם צילומי אתרי מידע לנוסעים (שלמה 21.11) */}
       {mode === "lines" && yr && (yr === "2012" || (officialOf(yr).length > 0 && webOf(yr).length > 0) || newsOf(yr).length > 0) && <div className="srcrow">
@@ -219,8 +220,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 ⌄ הצג עוד — מוצגים {Math.min(lim, list12.length).toLocaleString()} מתוך {list12.length.toLocaleString()}
               </button>
             )}
-            <div className="katnote">ℹ️ "לא קיים היום" — לא נמצא לקו הזה קו תואם ברשת הנוכחית: בוטל,
-              או ששונה עד ללא היכר. לחיצה על השורה פותחת את רצף התחנות שלו מ-2012.</div>
+            <div className="katnote">ℹ️ "לא קיים היום" — אין לו קו תואם ברשת של היום. לחיצה על השורה פותחת את רצף התחנות שלו מ-2012.</div>
           </div>
         );
       })() : chs === null ? "טוען…" : chErr ? <NetErr onRetry={() => setRty((n) => n + 1)} />
@@ -231,6 +231,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 {q ? "לחפש את \u201C" + q + "\u201D בצילומי אתרי המידע לנוסעים, " + yr : "לצילומי אתרי המידע לנוסעים, " + yr}</button></div>}
           </div> : (
         <div>
+          <div className="dayhelp">לחיצה על תאריך מציגה רק את אותו יום · שינויים קטנים מקובצים בסוף כל יום, ולחיצה פותחת אותם</div>
           {/* אינדקס הימים של החודש: רואים מראש באילו תאריכים יש שינויים,
               ולחיצה קופצת ישר ליום — בלי לגלול ולגלות אותם אחד-אחד */}
           {days.length > 1 && (
@@ -255,7 +256,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 if (shown >= lim) { cut = true; return null; }
                 shown++;
                 const m = meta[c.rd] || {};
-                const kk = <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>;
+                const kk = <span className="k" title={kTip(evKind(c))} style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>;
                 return (
                   <a key={c.rd + c.k + i} className={"lrow" + (lite ? " lite-row" : "")} href={lineHref(c.rd)}
                     onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
@@ -286,9 +287,9 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                     const key = d + "|" + k, open = openLow.has(key);
                     return (
                       <React.Fragment key={key}>
-                        <button className={"lowgrp" + (open ? " open" : "")} aria-expanded={open}
+                        <button className={"lowgrp" + (open ? " open" : "")} aria-expanded={open} title="שינויים קטנים מקובצים; לחיצה פותחת את רשימת הקווים"
                           onClick={() => setOpenLow((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; })}>
-                          <span className="k" style={{ background: (KINDS[k] || {}).color || "#64748b" }}>{(KINDS[k] || { label: k }).label}</span>
+                          <span className="k" title={kTip(k)} style={{ background: (KINDS[k] || {}).color || "#64748b" }}>{(KINDS[k] || { label: k }).label}</span>
                           <span>{list.length.toLocaleString()} {list.length === 1 ? "קו" : "קווים"}</span>
                           <span className="ch" aria-hidden="true">{open ? "⌃" : "⌄"}</span>
                         </button>
@@ -411,7 +412,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
               onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
               <span className="badge sm">{c.line}</span>
               <span className="ldest">{m.dest ? routeTitle(m.dest, m) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op || ""}</small></span>
-              <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
+              <span className="k" title={kTip(evKind(c))} style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
             </a>);
         })}
         <button className="recmore" onClick={onAll}>לכל {byd.get(d).length.toLocaleString()} השינויים של {fmtD(d)} ←</button>
@@ -434,7 +435,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
               <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
                 onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
                 <span className="badge sm">{c.line}</span>
-                <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
+                <span className="k" title={kTip(evKind(c))} style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
                 <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                 <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                 {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
@@ -451,8 +452,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
         </React.Fragment>
       ))}
       <div className="katnote">
-        ℹ️ הקלידו מספר קו כדי לראות את ההיסטוריה שלו, או פתחו את "קטגוריות לבחירה"
-        וסמנו אילו סוגי שינויים להציג. התיעוד הרציף מתחיל ב-16.03.2017, ולפניו יש צילומים מ-2012 ומ-2015–2016 (בכפתורי השנים).
+        ℹ️ התיעוד הרציף מתחיל ב-16.03.2017; לפניו יש צילומים חלקיים מ-2003.
       </div>
     </div>
   );

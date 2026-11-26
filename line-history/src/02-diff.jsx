@@ -269,7 +269,11 @@ function TimesDiff({ tl, tn }) {
               ))}
             </tbody>
           </table>
-          <div className="tdiff-leg">שורה ממוזגת = היציאה לא השתנתה · כתום = היציאה זזה (השעה הישנה מול החדשה) או תגבור שהשתנה · אדום = יציאה שירדה · ירוק = יציאה שנוספה · 2× = שני אוטובוסים באותה שעה</div>
+          <div className="tdiff-leg">
+            {[["same", "ללא שינוי"], ["moved", "זזה / תגבור השתנה"], ["removed", "ירדה"], ["added", "נוספה"]].map(([c, t]) =>
+              <span key={c} className={"legchip td-" + c}><span className="num">{t}</span></span>)}
+            {" "}2× — שני אוטובוסים יחד
+          </div>
         </div>
       )}
     </div>
@@ -455,19 +459,19 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
           צמוד (כיכר חדשה בקו 26 — הקו הישן משיק לה) אין בכלל מה לסמן
           באדום, ואומרים את זה במקום להמציא קטע (דרישת שלמה) */}
       {diff && diff.derived === "prev" && diff.prevSegs.length > 0 && (
-        <div className="mut">ℹ️ הקטע האדום מסמן את התוואי הישן במקום שבו השרטוט תוקן — חתוך מהשרטוט הישן עצמו, בדיוק בין נקודות ההתפצלות מהתוואי החדש; הירוק הוא התיקון.</div>
+        <div className="mut">ℹ️ באדום התוואי הישן, ובירוק התיקון.</div>
       )}
       {diff && diff.derived === "prev" && diff.prevSegs.length === 0 && (
-        <div className="mut">ℹ️ כאן נוסף תוואי חדש (הירוק) — התוואי הישן במקום שבו השרטוט תוקן עבר צמוד לחדש, בלי סטייה משלו, ולכן אין קטע אדום.</div>
+        <div className="mut">ℹ️ נוסף תוואי (ירוק). הישן עבר צמוד לחדש, ולכן אין קטע אדום.</div>
       )}
       {diff && diff.derived === "cur" && diff.curSegs.length > 0 && (
-        <div className="mut">ℹ️ הקטע הירוק מסמן את התוואי החדש במקום שבו השרטוט תוקן — חתוך מהשרטוט החדש עצמו, בדיוק בין נקודות ההתפצלות מהתוואי הישן; האדום הוא מה שירד.</div>
+        <div className="mut">ℹ️ בירוק התיקון, ובאדום מה שירד.</div>
       )}
       {diff && diff.derived === "cur" && diff.curSegs.length === 0 && (
-        <div className="mut">ℹ️ כאן ירד תוואי (האדום) — התוואי החדש במקום שבו השרטוט תוקן עובר צמוד לישן, בלי סטייה משלו, ולכן אין קטע ירוק.</div>
+        <div className="mut">ℹ️ ירד תוואי (אדום). החדש עובר צמוד לישן, ולכן אין קטע ירוק.</div>
       )}
       {diff && !diff.prevSegs.length && !diff.curSegs.length && (
-        <div className="mut">ℹ️ שני השרטוטים כמעט חופפים (ההבדל קטן מעשרות מטרים) — לכן אין קטע אדום או ירוק מודגש; הקו האדום המקווקו מסתתר מתחת לירוק.</div>
+        <div className="mut">ℹ️ השרטוטים כמעט זהים; ההבדל קטן מעשרות מטרים.</div>
       )}
     </div>
   );

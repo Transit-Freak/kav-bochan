@@ -24,7 +24,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="reception-new.css">
+<link rel="stylesheet" href="reception-new.css?v=20261126">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות (a11y.js מגדיל תצוגה דרך body > .wrap) -->
@@ -54,6 +54,7 @@
   </div>
   <p class="sub" id="sub">טוען נתונים…</p>
   <div class="route" id="route">
+    <p class="rhead">איזו חברה קולטת הכי טוב בנסיעה שלך?</p>
     <div class="rsel">
       <label>מוצא <select id="rFrom"><option value="">בחר תחנה</option></select></label>
       <label>יעד <select id="rTo"><option value="">בחר תחנה</option></select></label>
@@ -63,14 +64,16 @@
   </div>
   <div class="ctl">
     <div class="seg" id="ops"></div>
-    <div class="seg" id="gen"><button data-gen="all" class="on">כל הדורות</button><button data-gen="4">דור 4 ומעלה</button><button data-gen="5">דור 5</button></div>
+    <div class="seg" id="gen" title="אילו אנטנות נספרות. משפיע על הגלישה, לא על הקליטה"><button data-gen="all" class="on">כל הדורות</button><button data-gen="4">דור 4 ומעלה</button><button data-gen="5">דור 5</button></div>
     <label class="chk">סוג רכבת <select id="train"></select></label>
     <label class="chk"><input type="checkbox" id="showAnt" checked> הצג אנטנות</label>
-    <label class="chk"><input type="checkbox" id="showSpd"> צבע לפי מהירות</label>
+    <label class="chk" title="צביעה לפי מהירות. מעל 120 קמ״ש הקליטה יורדת דרגה"><input type="checkbox" id="showSpd"> צבע לפי מהירות</label>
   </div>
+  <p class="sub tnote">המסילה נצבעת לפי החברה שבחרתם. ב"כל החברות" — הציון האמצעי מבין החברות. הדור קובע אילו אנטנות נספרות, וזה משפיע על הגלישה, לא על הקליטה.</p>
   <p class="sub tnote" id="trainNote"></p>
   <div class="legend" id="legend"></div>
   <div id="map"><div class="msg">טוען…</div></div>
+  <p class="shead">כל המסילה, לפי רמת קליטה</p>
   <div class="stats" id="stats"></div>
   <div class="panel" id="method"></div>
   </div>

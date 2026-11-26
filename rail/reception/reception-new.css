@@ -157,3 +157,10 @@ body #kb-ver button:hover,body #kb-ver button:focus-visible{color:var(--brand-in
   .crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--line2)}
   .crumb::before{display:none}
 }
+
+/* הסברים קצרים מעל הבחירות והכרטיסים, וההסבר המלא מקופל */
+.rhead{font:800 15px var(--disp);color:var(--ink);margin:0 0 10px}
+.shead{font:700 14px var(--disp);color:var(--ink2);margin:16px 2px -8px}
+.legend b{font-weight:700;color:var(--ink2)}
+details.how{margin-top:8px}
+details.how>summary{cursor:pointer;font:700 14.5px var(--disp);color:var(--brand-ink);padding:4px 0}

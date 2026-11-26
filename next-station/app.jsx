@@ -6,8 +6,8 @@ const CATS = {
   reversal: { label: "היפוך / ציון-דרך", color: "#7c3aed", desc: "הרחוב האמיתי מופיע שני בשם" },
   spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, אות שונה — כנראה שגיאה" },
   streetvar: { label: "אי-התאמה ברחוב", color: "#0891b2", desc: "הרחוב נכתב כאן אחרת מרוב התחנות באותו רחוב" },
-  uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה לא טעות — הבדל כתיב, או שם על-שם מוסד/ציון-דרך (בית ספר, מרפאה, ישיבה…)" },
-  closer: { label: "הצעות כלליות", color: "#16a34a", desc: "הרחוב המצטלב בשם רחוק מהתחנה — יש רחוב אחר קרוב יותר שכדאי שיופיע בשם" },
+  uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה לא טעות: כתיב אחר או שם של מוסד" },
+  closer: { label: "הצעות כלליות", color: "#16a34a", desc: "יש רחוב מצטלב קרוב יותר" },
 };
 
 // קטגוריה נפרדת: טעויות בתרגום-האנגלית הרשמי של שם התחנה (מ-GTFS).
@@ -32,16 +32,16 @@ const plain = (f) => (e) => {
   e.preventDefault(); f(e);
 };
 const TRANS_SUBCATS = {
-  wrong:   { label: "תרגום שגוי",   color: "#dc2626" },
-  missing: { label: "חלק חסר",       color: "#ea580c" },
-  literal: { label: "תרגום מילולי",  color: "#7c3aed" },
-  format:  { label: "פורמט / כתיב",   color: "#0891b2" },
+  wrong:   { label: "תרגום שגוי",   color: "#dc2626", tip: "התרגום לא נכון" },
+  missing: { label: "חלק חסר",       color: "#ea580c", tip: "חלק מהשם לא תורגם" },
+  literal: { label: "תרגום מילולי",  color: "#7c3aed", tip: "תורגם במקום תעתיק" },
+  format:  { label: "פורמט / כתיב",   color: "#0891b2", tip: "שגיאת כתיב, רווח כפול או סימן מיותר" },
 };
 
 // בדיקות נפרדות על תחנות (שלמה 10.10, stop-checks.json): לא שם↔כתובת, ולכן לא נספרות ב"סה"כ חשודות"
 const CHECK_CATS = {
-  nohs: { label: "חסרה תחנת יעד לפרסום", icon: "🏁", color: "#0d9488", desc: "קווים מסתיימים בתחנה, ואף אחד מהם לא מקבל ממשרד התחבורה תחנת יעד לפרסום (מה שכתוב על השלט של האוטובוס)" },
-  stype: { label: "סוג תחנה לא מתאים", icon: "🏷️", color: "#b45309", desc: "הסוג שרשום לתחנה במאגר התחנות של משרד התחבורה לא מתאים למה שעוצר בה לפי לוח הזמנים" },
+  nohs: { label: "חסרה תחנת יעד לפרסום", icon: "🏁", color: "#0d9488", desc: "קווים מסתיימים בתחנה, ואף אחד מהם לא מקבל ממשרד התחבורה תחנת יעד לפרסום (מה שכתוב על השלט של האוטובוס)", note: "קווים מסתיימים כאן בלי יעד לשלט האוטובוס" },
+  stype: { label: "סוג תחנה לא מתאים", icon: "🏷️", color: "#b45309", desc: "הסוג שרשום לתחנה במאגר התחנות של משרד התחבורה לא מתאים למה שעוצר בה לפי לוח הזמנים", note: "הסוג הרשום לתחנה לא מתאים לקווים שעוצרים בה" },
 };
 
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
@@ -146,7 +146,7 @@ const Row = React.memo(function Row({ s, on, times, onSel, onRoute, routeBusy, o
       <a className="it-head" href={nsHash(s.c, hcat)} onClick={plain(() => onSel(s))}>
         <div className="it-top">
           <span className="badge" style={{ background: CATS[s.k].color }}>{CATS[s.k].label}</span>
-          <span className="code">{s.c}</span>
+          <span className="code">מס׳ {s.c}</span>
         </div>
         <div className="it-name">{s.n}</div>
         <div className="it-street">
@@ -173,7 +173,7 @@ const TransRow = React.memo(function TransRow({ e }) {
           <span className="trans-he">{e.he}</span>
           <span className="trans-arrow">→</span>
           <span className="trans-en">{e.en}</span>
-          <span className="badge" style={{ background: c.color }}>{c.label}</span>
+          <span className="badge" style={{ background: c.color }} title={c.tip}>{c.label}</span>
         </div>
         {e.enHe && <div className="trans-sound">🔊 נשמע באנגלית: <b>{e.enHe}</b></div>}
         <div className="trans-issue">{e.issue}</div>
@@ -198,8 +198,8 @@ const CheckRow = React.memo(function CheckRow({ e, on, onSel }) {
       href={nsHash(e.c, e.k, e.k)} onClick={plain(() => onSel(e))}>
       <div className="check-names">
         <span className="check-n">{e.n}</span>
-        <span className="code">{e.c}</span>
-        {e.typ && <span className="badge" style={{ background: c.color }}>{e.typ}</span>}
+        <span className="code">מס׳ {e.c}</span>
+        {e.typ && <span className="badge" style={{ background: c.color }} title="הסוג הרשום במאגר של משרד התחבורה">סוג רשום: {e.typ}</span>}
       </div>
       <div className="check-sub">{e.t || "—"}{e.k === "nohs" && e.hood ? " · שכונת " + e.hood : ""}</div>
       <div className="check-why">
@@ -258,13 +258,10 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
       {s.k === "closer" && (
         <div className="d-sug">
           {s.nocross
-            ? <>📍 הרחוב המצטלב שבשם («<b>{s.cur}</b>») <b>לא נמצא במפה כלל</b> בסביבת התחנה, למרות שהאזור ממופה היטב — ייתכן ששמו שגוי או שהרחוב אינו קיים.</>
+            ? <>📍 «<b>{s.cur}</b>» לא נמצא במפה ליד התחנה. אולי השם שגוי.</>
             : s.cur
             ? <>📍 הרחוב המצטלב שבשם («<b>{s.cur}</b>»{s.curd != null ? " — כ-" + s.curd + " מ׳ מהתחנה" : " — אינו ליד התחנה"}) רחוק יותר מהרחוב <b>{s.ms}</b> (<b>{s.md}</b> מ׳), שעובר ממש לידה.</>
             : <>📍 הרחוב <b>{s.ms}</b> עובר ממש ליד התחנה (<b>{s.md}</b> מ׳) ואינו מופיע בשם.</>}
-          {s.sug && s.sug.includes("/") && (
-            <div className="d-conv">ℹ️ לפי מוסכמת השמות, החלק שלפני הלוכסן («<b>{s.sug.split("/")[0]}</b>») הוא הרחוב שבו התחנה נמצאת — הוא נשאר. ההצעה מחליפה רק את הרחוב המצטלב שאחרי הלוכסן.</div>
-          )}
           {s.sug && <div className="d-sug-name">💡 שם מוצע: <b>{s.sug}</b></div>}
           {s.rw && (s.rw.cur || s.rw.sug) && (
             <div className="d-walk-cmp">
@@ -278,7 +275,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
             </div>
           )}
           {s.roads && (s.roads.cur || s.roads.sug) && (
-            <div className="d-map-legend"><span className="lg cur">● בשם כיום</span> <span className="lg sug">● מוצע</span> — מסומנים על המפה</div>
+            <div className="d-map-legend">על המפה: {s.roads.prim && <span className="lg prim">● הרחוב של התחנה</span>} <span className="lg cur">● הרחוב שבשם היום</span> <span className="lg sug">● הרחוב המוצע</span></div>
           )}
         </div>
       )}
@@ -290,7 +287,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
       )}
       {nearPois.length > 0 && (
         <div className="d-poi">
-          <div className="d-poi-h">📍 ליד התחנה (OSM) — עד ~5 דק׳ הליכה:</div>
+          <div className="d-poi-h">📍 ליד התחנה, עד כ-5 דקות הליכה <span className="d-poi-note">(~ מסמן הערכה בקו אווירי)</span>:</div>
           {nearPois.map(({ x, i }) => {
             let rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
             // אם המסלול ארוך בצורה לא-סבירה מהמרחק האווירי (מחסום/חוסר שביל ב-OSM) — חזרה להערכה
@@ -614,13 +611,12 @@ function App() {
           </div>
         </div>
         <div className="src">
-          נתונים: משרד התחבורה (GTFS){data.generated ? " · עודכן לאחרונה: " + data.generated.split("-").reverse().join(".") : ""}
-          {" "}· מתעדכן אוטומטית כל לילה בסביבות 05:00
+          משרד התחבורה{data.generated ? " · עודכן " + data.generated.split("-").reverse().join(".") : ""}
           {(() => {
             // תאריך עדכון נתוני המפה (OSM) — מציגים את הישן מבין POI/כבישים (הערבות הזהירה)
             const o = data.osm; if (!o) return "";
             const ds = [o.poi, o.roads].filter(Boolean).sort();
-            return ds.length ? " · מפה (OpenStreetMap): עודכנה " + ds[0].split("-").reverse().join(".") : "";
+            return ds.length ? " · מפה: OSM " + ds[0].split("-").reverse().join(".") : "";
           })()}
           {" "}· נבנה ע"י שלמה הרטמן
         </div>
@@ -639,22 +635,21 @@ function App() {
           const prevRun = hist[hist.length - 2]; // הריצה שמולה נמדדו התיקונים — להצגת התאריך
           return (
             <div className="trend">
-              📈 ריצה אחרונה: {cur.d.split("-").reverse().join(".")} · בהשוואה לריצה הקודמת{prevRun ? " מ-" + prevRun.d.split("-").reverse().join(".") : ""}:{" "}
+              📈 מאז {(prevRun || cur).d.split("-").reverse().slice(0, 2).join(".")}:{" "}
               {fixedN > 0 ? (
-                <button className="fixed-btn" onClick={() => setShowFixed(!showFixed)}>
-                  <b>{fixedN.toLocaleString()}</b> תחנות תוקנו במקור {showFixed ? "▲" : "▼"}
+                <button className="fixed-btn" onClick={() => setShowFixed(!showFixed)} title="תוקנו במאגר של משרד התחבורה">
+                  <b>{fixedN.toLocaleString()}</b> תחנות תוקנו במשרד התחבורה {showFixed ? "▲" : "▼"}
                 </button>
               ) : (
-                <span><b>0</b> תחנות תוקנו במקור</span>
+                <span><b>0</b> תחנות תוקנו במשרד התחבורה</span>
               )}
-              {" "}(מאומת מול הטקסט ב-GTFS)
               {!prev && <span> · השוואת הקטגוריות תתחדש בריצה הבאה (כללי הזיהוי עודכנו)</span>}
               {prev && (diffs.length === 0
                 ? " · ללא שינוי בקטגוריות"
                 : diffs.map((x) => (
                     <span key={x.k}>
                       {" · "}
-                      <button className="cat-btn" title="לחצו לצפייה בתחנות ששונו"
+                      <button className="cat-btn" title="▲ נוספו ▼ ירדו מאז הבדיקה הקודמת. לחיצה פותחת את הרשימה"
                         onClick={() => setShowCat(showCat === x.k ? null : x.k)}>
                         {CATS[x.k].label}{" "}
                         <b className={x.d < 0 ? "down" : "up"}>{x.d < 0 ? "▼" : "▲"}{Math.abs(x.d).toLocaleString()}</b>
@@ -683,7 +678,8 @@ function App() {
       </header>
 
       <div className="stats">
-        <a className={"stat" + (cat === "all" ? " on" : "")} href={nsHash(null, "all")} onClick={plain(() => setCat("all"))}>
+        <a className={"stat" + (cat === "all" ? " on" : "")} href={nsHash(null, "all")} onClick={plain(() => setCat("all"))}
+          title="כל החשודות, בלי הצעות כלליות ובדיקות נפרדות">
           <b>{(data.stops.length - (data.counts.closer || 0)).toLocaleString()}</b>
           <span>סה"כ חשודות</span>
         </a>
@@ -734,10 +730,11 @@ function App() {
         return (
           <div className="fixedbar">
             <button className="fixedbar-h" onClick={() => setShowFixed(!showFixed)}>
-              🔧 <b>{(total + totalRn).toLocaleString()}</b> תחנות ששמן או כתובתן שונו ב-GTFS מאז {chg[0].d.split("-").reverse().join(".")} — {total.toLocaleString()} תיקוני חשודות · {totalRn.toLocaleString()} שינויי שם כלליים {showFixed ? "▲" : "▼"}
+              🔧 <b>{(total + totalRn).toLocaleString()}</b> תחנות שונו מאז {chg[0].d.split("-").reverse().slice(0, 2).join(".")} ({total.toLocaleString()} תיקונים) {showFixed ? "▲" : "▼"}
             </button>
             {showFixed && (
               <div className="fixed-list">
+                <div className="fixed-legend">🔧 תחנה חשודה שתוקנה · ✏️ שם שהשתנה</div>
                 {chg.slice().reverse().map((e) => {
                   const rn = e.renamed || [];
                   const rnMore = Math.max(0, rn.length - 200) + (e.rn_more || 0);
@@ -773,7 +770,7 @@ function App() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          {hasActiveInfo && (
+          {hasActiveInfo && !inTrans && !inCheck && (
             <label className="toggle">
               <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
               <span>הסתר תחנות לא פעילות (שאינן בקו פעיל)</span>
@@ -794,7 +791,7 @@ function App() {
           </div>
           {inCheck ? (
             <div className="list">
-              <div className="trans-note check-note">{CHECK_CATS[cat].icon} {CHECK_CATS[cat].desc}. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b>. לפי ה-GTFS ומאגר התחנות של משרד התחבורה, מעודכן ל-{((checks && checks.gen) || "").split("-").reverse().join(".")}.</div>
+              <div className="trans-note check-note">{CHECK_CATS[cat].icon} {CHECK_CATS[cat].note}. <b>לא נספר ב"סה"כ חשודות"</b>.</div>
               {checkShown.map((e) => (
                 <CheckRow key={e.c} e={e} on={!!(sel && sel.c === e.c && sel.k === e.k)} onSel={setSel} />
               ))}
@@ -807,7 +804,7 @@ function App() {
             </div>
           ) : inTrans ? (
             <div className="list">
-              <div className="trans-note">🌐 שמות תחנה שהתרגום הרשמי שלהם לאנגלית (מ-GTFS של משרד התחבורה) שגוי. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b> של הכלי הראשי (שם↔כתובת).</div>
+              <div className="trans-note">🌐 שמות תחנה שהתרגום הרשמי שלהם לאנגלית שגוי. <b>לא נספר ב"סה"כ חשודות"</b>.</div>
               {transShown.map((e, i) => (
                 <TransRow key={e.he + "_" + i} e={e} />
               ))}
@@ -820,6 +817,11 @@ function App() {
             </div>
           ) : (
             <div className="list">
+              <div className="trans-note cat-note">
+                {cat === "all"
+                  ? <>כל החשודות, <b>בלי הצעות כלליות ובדיקות נפרדות</b>.</>
+                  : CATS[cat] && <><b>{CATS[cat].label}</b> — {CATS[cat].desc}.{cat === "closer" ? " ההצעה מחליפה רק את הרחוב שאחרי הלוכסן." : ""}</>}
+              </div>
               {shown.map((s) => (
                 <Row
                   key={s.c}
@@ -914,6 +916,7 @@ function LetterModal({ data, initial, onClose }) {
         <button className="d-x" onClick={onClose}>×</button>
         <div className="rep-h">📨 מכתב לרשות</div>
         <label className="rep-l">בחרו עיר:</label>
+        <div className="rep-sub">המכתב כולל רק טעויות ודאיות, בלי מקרים מסופקים ובלי הצעות.</div>
         <select className="rep-sel" value={city} onChange={(e) => setCity(e.target.value)}>
           <option value="">— בחרו עיר —</option>
           {cities.map(([t, n]) => <option key={t} value={t}>{t} ({n})</option>)}
@@ -951,11 +954,13 @@ const REPORT_TO = "shlomihartman@gmail.com"; // יעד ברירת-מחדל (mail
 function autoCheck(s) {
   if (s.k === "closer") {
     if (s.nocross)
-      return { tone: "warn", text: "בדיקה אוטומטית: הרחוב «" + s.cur + "» שבשם התחנה לא נמצא במפה כלל בסביבתה (אזור ממופה היטב) — ייתכן ששם התחנה שגוי, או שהרחוב חסר במפה." };
+      return { tone: "warn", text: "בדיקה אוטומטית: הרחוב «" + s.cur + "» שבשם התחנה לא נמצא במפה כלל בסביבתה (אזור ממופה היטב) — ייתכן ששם התחנה שגוי, או שהרחוב חסר במפה.",
+        short: "«" + s.cur + "» לא נמצא במפה ליד התחנה." };
     const w = s.rw;
     if (w && w.cur && w.sug) {
       if (w.sug.d <= w.cur.d)
-        return { tone: "ok", text: "בדיקה אוטומטית: גם בהליכה אמיתית הרחוב המוצע («" + s.ms + "» " + w.sug.d + " מ׳) קרוב יותר מהרחוב שבשם («" + s.cur + "» " + w.cur.d + " מ׳) — ההצעה כנראה מוצדקת." };
+        return { tone: "ok", text: "בדיקה אוטומטית: גם בהליכה אמיתית הרחוב המוצע («" + s.ms + "» " + w.sug.d + " מ׳) קרוב יותר מהרחוב שבשם («" + s.cur + "» " + w.cur.d + " מ׳) — ההצעה כנראה מוצדקת.",
+          short: "גם בדרך ההליכה «" + s.ms + "» קרוב יותר, אז ההצעה כנראה נכונה." };
       return { tone: "warn", text: "בדיקה אוטומטית: בהליכה אמיתית דווקא הרחוב שבשם קרוב יותר — ייתכן שאין כאן צורך בשינוי." };
     }
     return { tone: "neutral", text: "בדיקה אוטומטית: ההצעה מבוססת על מרחק אווירי (אין נתוני הליכה לרחוב זה)." };
@@ -1044,7 +1049,7 @@ function ReportModal({ s, onClose }) {
           <>
             <div className="rep-h">דיווח על התחנה</div>
             <div className="rep-stop"><b>{s.n}</b> · {s.t} · מס׳ {s.c}</div>
-            <div className={"rep-auto " + ac.tone}>🤖 {ac.text}</div>
+            <div className={"rep-auto " + ac.tone}>🤖 {ac.short || ac.text.replace(/^בדיקה אוטומטית: /, "")}</div>
             <label className="rep-l">מה הבעיה?</label>
             <select className="rep-sel" value={reason} onChange={(e) => setReason(e.target.value)}>
               <option>זו לא תקלה — השם/הרחוב תקין</option>

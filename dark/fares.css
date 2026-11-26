@@ -4,6 +4,8 @@
 html.kb-dark .kb-home{background-image:initial;background-color:#2c364b;color:rgb(255, 255, 255);text-decoration-color:initial;box-shadow:rgba(0,0,0,0.55) 0px 2px 10px}
 html.kb-dark .kb-home:hover{background-image:initial;background-color:#303c4f}
 html.kb-dark .kb-home:focus-visible{outline-color:#32353c}
+html.kb-dark #kb-ver .kb-gtfs{color:#8b9cb5}
+html.kb-dark.kb-dark #kb-ver .kb-gtfs{color:rgb(151, 162, 184)}
 html.kb-dark #kb-ver button{color:#8b9cb5;border-color:#373c42;background-image:initial;background-color:#17191f}
 html.kb-dark #kb-ver button:hover,html.kb-dark #kb-ver button:focus-visible{color:#b09df9;border-color:rgb(196, 181, 253);outline-color:initial}
 html.kb-dark #kb-ver-ov{background-image:initial;background-color:rgba(15, 23, 42, 0.45)}
@@ -119,3 +121,6 @@ html.kb-dark .dsc-scores b{color:rgb(251, 191, 36)}
 html.kb-dark .dsc-scores small{color:rgb(201, 191, 178)}
 html.kb-dark .dsc-ex{color:rgb(231, 223, 211)}
 html.kb-dark .dsc-src{color:var(--sub)}
+html.kb-dark .calc-head .how-d{color:var(--sub)}
+html.kb-dark .pg-hint{color:rgb(201, 184, 164)}
+html.kb-dark .dsc-why{color:rgb(201, 191, 178)}

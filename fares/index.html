@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="../theme-boot.js?v=20261120c"></script>
-<link rel="stylesheet" href="../dark/fares.css?v=20261119">
+<link rel="stylesheet" href="../dark/fares.css?v=20261126">
 <meta name="viewport" content="width=device-width, initial-scale=1"><script src="../nav-restore.js?v=20261120"></script><script src="../home-link.js"></script>
 <script src="../version.js" defer></script>
 <script src="../april.js" defer></script>
@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות: a11y.js מגדיל תצוגה דרך
@@ -40,7 +40,7 @@
 <div class="wrap">
   <div class="top">
     <h1><img src="favicon.svg" alt="" width="26" height="26" style="display:block;width:26px;height:26px"> המחירון</h1>
-    <span class="tag">המחיר לפי מרחק הנסיעה בפועל</span>
+    <span class="tag">המחיר הרשמי לנסיעה שלכם</span>
     <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px"></span>
   </div>
   <!-- זכאות להנחה לפי כתובת (שלמה 23.10): עיר + רחוב (+ מספר בית כשצריך) ← זכאי / לא זכאי -->
@@ -62,7 +62,8 @@
       <div class="calc">
         <div class="calc-head">
           <span class="step">בחרו איך לחפש</span>
-          <div class="how">בחלק מהקווים המחיר אחיד לכל הקו, ובשאר הוא תלוי במרחק בין תחנת העלייה לירידה — הכלי מזהה לבד את סוג הקו ומציג את המחיר הנכון. אפשר לחפש לפי קו ותחנות שלו, או ישירות לפי שתי תחנות בכל הארץ.</div>
+          <div class="how">בחרו קו ותחנות, שתי תחנות או שתי תחנות רכבת — ונציג את המחיר.</div>
+          <details class="how-d"><summary>איך זה מחושב</summary><div>בחלק מהקווים המחיר אחיד לכל הקו, ובשאר הוא תלוי במרחק בין תחנת העלייה לירידה. הכלי מזהה לבד את סוג הקו ומציג את המחיר הנכון.</div></details>
           <div class="moderow">
             <div class="modeSeg">
               <a class="on" id="modeLine" href="./">לפי קו</a>
@@ -135,22 +136,22 @@
 
     <div class="reftbl">
       <div class="rt-head">טבלת התעריפים המלאה</div>
-      <div class="rt-sub">נסיעה בודדת כוללת נסיעת מעבר חינם בין קווים תוך 90 דקות. חופשי יומי וחודשי נמכרים כמנוי נפרד ולא בהכרח כדאיים לנסיעה בודדת.</div>
+      <div class="rt-sub">נסיעה בודדת כוללת נסיעת מעבר חינם בין קווים תוך 90 דקות. חופשי יומי וחודשי נמכרים כמנוי נפרד ולא בהכרח כדאיים לנסיעה בודדת.<br>באילת המחירים זולים יותר, כי אין בה מע"מ. שורת "פריפריה" היא החופשי החודשי לנסיעות קצרות מחוץ למטרופולינים.</div>
       <div class="tblwrapx"><table id="reftable"></table></div>
     </div>
   </div>
 
   <div class="foot">
-    <div class="sub">האתר מחשב עבורכם לאיזה אזור תעריף נופלת נסיעה מסוימת, על בסיס נתוני ה-GTFS הרשמיים של משרד התחבורה שכל כלי הקו הבוחן מבוססים עליהם.
+    <div class="sub">לפי נתוני משרד התחבורה הרשמיים.
       <details class="srcs">
         <summary>📚 מאיפה המידע ומה המגבלות?</summary>
-        <div class="src-l">💰 <b>טבלת התעריפים</b> — פורסמה על ידי הרשות הארצית לתחבורה ציבורית, משרד התחבורה. <a href="https://bus.gov.il/FaresDistance" target="_blank" rel="noopener">bus.gov.il/FaresDistance ›</a> — נבדק ידנית ב-14.8.2026, ובנוסף אומת מול טבלת התעריפים הרשמית שבקובצי ה-GTFS (fare_rules) על כל 968 אלף זוגות התחנות המתומחרים בה: 99.85% התאמה מלאה, והשאר — זוגות שהמשרד סיווג אחרת (רובם צמודים ממש לגבול אזור) — מיושרים אוטומטית לפי הטבלה הרשמית, שמתעדכנת כאן כל שבוע.</div>
-        <div class="src-l">📏 <b>איך נמדד המרחק</b> — בשני המצבים: קו אווירי ישיר בין תחנת העלייה לתחנת הירידה. זו לא הפשטה שלנו — כך משרד התחבורה עצמו קובע את אזור התעריף (נבדק אמפירית מול המחירים הרשמיים; מדידה לאורך המסלול דווקא טועה בכ-6% מהמקרים, כי היא מענישה קווים מפותלים).</div>
-        <div class="src-l">🎫 <b>קווים בתעריף אחיד</b> — יותר ממחצית הקווים בארץ (עירוניים, שאטלים ועוד) מתומחרים רשמית במחיר קבוע לכל הקו, בלי תלות במרחק. הכלי מזהה אותם ומציג את המחיר האחיד — וגם במצב "לפי תחנות": הכלי מצליב אילו קווים עוצרים בשתי התחנות שנבחרו, ואם ביניהן נוסעים רק קווי תעריף אחיד, זה המחיר שמוצג.</div>
+        <div class="src-l">💰 <b>טבלת התעריפים</b> — של משרד התחבורה (<a href="https://bus.gov.il/FaresDistance" target="_blank" rel="noopener">bus.gov.il ›</a>), ונבדקת כל שבוע מול הטבלה הרשמית בקובצי הקווים.<details class="src-more"><summary>איך זה מחושב</summary>💰 <b>טבלת התעריפים</b> — פורסמה על ידי הרשות הארצית לתחבורה ציבורית, משרד התחבורה. <a href="https://bus.gov.il/FaresDistance" target="_blank" rel="noopener">bus.gov.il/FaresDistance ›</a> — נבדק ידנית ב-14.8.2026, ובנוסף אומת מול טבלת התעריפים הרשמית שבקובצי ה-GTFS (fare_rules) על כל 968 אלף זוגות התחנות המתומחרים בה: 99.85% התאמה מלאה, והשאר — זוגות שהמשרד סיווג אחרת (רובם צמודים ממש לגבול אזור) — מיושרים אוטומטית לפי הטבלה הרשמית, שמתעדכנת כאן כל שבוע.</details></div>
+        <div class="src-l">📏 <b>המרחק</b> — קו אווירי בין תחנת העלייה לירידה, כמו שמשרד התחבורה מחשב.<details class="src-more"><summary>איך זה מחושב</summary>📏 <b>איך נמדד המרחק</b> — בשני המצבים: קו אווירי ישיר בין תחנת העלייה לתחנת הירידה. זו לא הפשטה שלנו — כך משרד התחבורה עצמו קובע את אזור התעריף (נבדק אמפירית מול המחירים הרשמיים; מדידה לאורך המסלול דווקא טועה בכ-6% מהמקרים, כי היא מענישה קווים מפותלים).</details></div>
+        <div class="src-l">🎫 <b>תעריף אחיד</b> — ביותר ממחצית הקווים המחיר קבוע לכל הקו. הכלי מזהה אותם לבד.<details class="src-more"><summary>איך זה מחושב</summary>🎫 <b>קווים בתעריף אחיד</b> — יותר ממחצית הקווים בארץ (עירוניים, שאטלים ועוד) מתומחרים רשמית במחיר קבוע לכל הקו, בלי תלות במרחק. הכלי מזהה אותם ומציג את המחיר האחיד — וגם במצב "לפי תחנות": הכלי מצליב אילו קווים עוצרים בשתי התחנות שנבחרו, ואם ביניהן נוסעים רק קווי תעריף אחיד, זה המחיר שמוצג.</details></div>
         <div class="src-l">🚆 <b>רכבת ישראל</b> — מתומחרת רשמית לפי מחירון תחנות ולא לפי מרחק אווירי, שנוטה מעט לטובת הנוסע. כשבוחרים שתי תחנות רכבת, מוצג המחיר המדויק מהמחירון הרשמי.</div>
-        <div class="src-l">🏝️ <b>אזור אילת</b> — נסיעות שנוגעות בליבת אילת (העיר, אילות, באר אורה ונמל רמון) זולות בכ-15% (פטור ממע"מ): 6.77 ₪ במקום 8 ₪ בעירוני, וכן הלאה — המחיר הארצי חלקי 1.18. ההנחה חלה בשני הכיוונים, גם ביציאה מאילת וגם בכניסה אליה (בדקנו: מתוך 4,261 זוגות מחירי אילת רשמיים — אפס עם מחיר שונה בין הכיוונים). הקווים העירוניים של אילת והאזוריים של חבל אילות הם בתעריף אחיד 6.77 ₪ לכל הקו. נסיעות פנים-ערבה שלא נוגעות באילת (יטבתה↔קטורה וכו') הן במחיר ארצי מלא, כולל 87.32 ₪ לנסיעות הארוכות מעל 225 ק"מ.</div>
+        <div class="src-l">🏝️ <b>אילת</b> — נסיעה מאילת או אליה זולה בכ-15% (בלי מע"מ), בשני הכיוונים.<details class="src-more"><summary>איך זה מחושב</summary>🏝️ <b>אזור אילת</b> — נסיעות שנוגעות בליבת אילת (העיר, אילות, באר אורה ונמל רמון) זולות בכ-15% (פטור ממע"מ): 6.77 ₪ במקום 8 ₪ בעירוני, וכן הלאה — המחיר הארצי חלקי 1.18. ההנחה חלה בשני הכיוונים, גם ביציאה מאילת וגם בכניסה אליה (בדקנו: מתוך 4,261 זוגות מחירי אילת רשמיים — אפס עם מחיר שונה בין הכיוונים). הקווים העירוניים של אילת והאזוריים של חבל אילות הם בתעריף אחיד 6.77 ₪ לכל הקו. נסיעות פנים-ערבה שלא נוגעות באילת (יטבתה↔קטורה וכו') הן במחיר ארצי מלא, כולל 87.32 ₪ לנסיעות הארוכות מעל 225 ק"מ.</details></div>
         <div class="src-l">🚌🚆 <b>סוגי קווים</b> — אוטובוס, קווי דרישה, רכבת ורכבת קלה נכללים במחשבון (בקווי רכבת/רק"ל מוצג מחיר הרכבת, לא האוטובוס). מוניות שירות וכבלים לא נכללים — יש להם מבנה תעריפים נפרד לגמרי.</div>
-        <div class="src-l">🎟️ הנחות (ילד/נוער, אזרח ותיק, גיל 67+ ועוד) לא מחושבות כאן — מוצג המחיר המלא בלבד. מחירי המנויים (חופשי יומי וחודשי) לא קיימים בקובצי ה-GTFS, ולכן הם מושווים אוטומטית כל שבוע למחירון הרשמי של רב-פס. <a href="https://bus.gov.il/FaresDiscounts" target="_blank" rel="noopener">פירוט הנחות ›</a></div>
+        <div class="src-l">🎟️ המחירים מלאים, בלי הנחות גיל או סטודנט. <a href="https://bus.gov.il/FaresDiscounts" target="_blank" rel="noopener">פירוט הנחות ›</a><details class="src-more"><summary>איך זה מחושב</summary>🎟️ הנחות (ילד/נוער, אזרח ותיק, גיל 67+ ועוד) לא מחושבות כאן — מוצג המחיר המלא בלבד. מחירי המנויים (חופשי יומי וחודשי) לא קיימים בקובצי ה-GTFS, ולכן הם מושווים אוטומטית כל שבוע למחירון הרשמי של רב-פס. <a href="https://bus.gov.il/FaresDiscounts" target="_blank" rel="noopener">פירוט הנחות ›</a></details></div>
         <div class="src-l">📍 <b>חיפוש כתובות</b> — במצב "לפי תחנות" אפשר להקליד גם כתובת; האיתור נעשה מול מרשם הכתובות הארצי (GovMap, מרכז מיפוי ישראל), עם Nominatim של OpenStreetMap כגיבוי. הכתובת שהוקלדה נשלחת לשירותים האלה בלבד.</div>
         <div class="src-l">✉️ <b>מצאתם מחיר שגוי?</b> — למרות כל הבדיקות, יכולות להיות טעויות: תעריפים מתעדכנים, ונתוני המקור לא תמיד מושלמים. <a href="#" class="replink">דווחו בטופס קצר</a> ואתקן (או במייל: <a href="mailto:shlomihartman@gmail.com">shlomihartman@gmail.com</a>).</div>
       </details>
@@ -331,11 +332,8 @@ function renderResult(km, note, isTrain, fx){
   else if (fx.flat!=null)
     extraNotes.push('🎫 לקו הזה תעריף רשמי אחיד: מחיר הנסיעה קבוע לכל אורכו, בלי תלות במרחק.');
   if (fx.flatAlt)
-    extraNotes.push('🎫 בין התחנות '+
-      (fx.flatAlt.nums.length>1
-        ? 'נוסעים גם קווים בתעריף אחיד — קווים '
-        : 'נוסע גם קו בתעריף אחיד — קו ')+fx.flatAlt.nums.join(', ')+
-      ': ₪'+fmt(fx.flatAlt.p)+' בלי תלות במרחק. המחיר שלמעלה הוא לקווים המתומחרים לפי מרחק.');
+    extraNotes.push('🎫 '+(fx.flatAlt.nums.length>1?'קווים ':'קו ')+fx.flatAlt.nums.join(', ')+
+      (fx.flatAlt.nums.length>1?' בתעריף אחיד: המחיר בהם ₪':' בתעריף אחיד: המחיר בו ₪')+fmt(fx.flatAlt.p)+'. המחיר למעלה הוא לשאר הקווים.');
   // fx.noDirect לא מוצג — המשתמשים רוצים מחיר, לא תכנון מסלול
 
   if (fx.z!=null && z!==zCalc)
@@ -349,15 +347,16 @@ function renderResult(km, note, isTrain, fx){
   if (fx.edge)
     extraNotes.push('⚖️ המרחק כמעט בדיוק על גבול בין שני אזורים — במקרים כאלה המחיר בפועל נקבע לפי מדידת משרד התחבורה, שיכולה ליפול לכל צד של הגבול.');
   if (fx.eilatRegion)
-    extraNotes.push('🚌 שתי התחנות בתוך אילת וחבל אילות: הקווים העירוניים והאזוריים כאן בתעריף אחיד של 6.77 ₪ בלי תלות במרחק. המחיר למעלה רלוונטי רק אם עולים על קו בינעירוני — כדאי לבדוק את הקו הספציפי במצב "לפי קו".');
+    extraNotes.push('🚌 בקווים העירוניים והאזוריים באילת המחיר 6.77 ₪. המחיר למעלה הוא לנסיעה בקו בינעירוני.');
   const trainNote = isTrain
     ? `<div class="distnote">🚆 קו רכבת/רק"ל — המנוי "חופשי חודשי ארצי" הרגיל לא כולל רכבת, צריך את המנוי "+ רכבת".</div>` : '';
   wrap.innerHTML=
     `<div class="zonebadge" style="background:${z.c}33;color:${z.c}"><i style="background:${z.c}"></i>אזור ${z.n} · ${z.lbl}</div>`+
     `<div class="distnote">${note}: כ-${km.toFixed(1)} ק"מ</div>`+trainNote+
     extraNotes.map(t=>`<div class="distnote">${t}</div>`).join('')+
+    `<div class="pg-hint">המחיר המודגש מתאים לנסיעה שבחרתם${cards.some(c=>c[1]==null)?' · "לא זמין" — אין כרטיס כזה למרחק הזה':''}</div>`+
     `<div class="pricegrid">`+cards.map(([t,v,hl])=>
-      v==null ? `<div class="pcard na"><div class="pn"><small>לא זמין</small></div><div class="pt">${t}</div></div>`
+      v==null ? `<div class="pcard na" title="אין כרטיס כזה למרחק הזה"><div class="pn"><small>לא זמין</small></div><div class="pt">${t}</div></div>`
               : `<div class="pcard${hl?' hl':''}"><div class="pn"><small>₪</small>${fmt(v)}</div><div class="pt">${t}</div></div>`
     ).join('')+`</div>`;
 }
@@ -638,6 +637,8 @@ function norm(s){ return (s||'').normalize('NFKC').replace(/["'׳״‘’“”�
 // מפרק לרסיסי-חיפוש כדי שסדר המילים לא ישנה — "קקל/הרב" צריך למצוא גם
 // "הרב עובדיה יוסף/שדרות קקל", לא רק תחנה שבה הסדר זהה למה שהוקלד
 function tokens(s){ return norm(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean); }
+// כתיב מלא/חסר ("רידינג" מול "רדינג" ברישוי): השוואה בלי ו' ו-י' באמצע מילה, כשאין התאמה מדויקת
+function loose(s){ return s.replace(/(\S)[וי]+/g,'$1'); }
 
 const picked={from:null, to:null}; // [id,name,city,lat,lon]
 
@@ -726,6 +727,15 @@ function stopSearch(inputId, boxId, key){
       const hay=norm(s[0])+' '+norm(s[1]||'');
       if (qt.every(t=>hay.includes(t)) || sid.includes(v)){
         out.push([sid,s]); if (out.length>=25) break;
+      }
+    }
+    if (!out.length){
+      const lt=qt.map(loose);
+      for (const sid in STOPS){
+        if (skip.has(sid)) continue;
+        const s=STOPS[sid];
+        const hay=loose(norm(s[0])+' '+norm(s[1]||''));
+        if (lt.every(t=>hay.includes(t))){ out.push([sid,s]); if (out.length>=25) break; }
       }
     }
     box.style.display='block';
@@ -845,6 +855,9 @@ async function autoAddr(key, q, box){
       list=(raw||[]).map(a=>({lat:+a.lat, lon:+a.lon, label:addrLabel(a)}));
     }catch(e){ list=[]; }
   }
+  // אותה כתובת פעמיים (למשל תחנה ובניין באותו שם ב-OSM) — פעם אחת
+  const seen=new Set();
+  list=list.filter(a=>!seen.has(a.label) && seen.add(a.label));
   ADDR.cache[q]=list; finish(list);
 }
 function nearAddr(key, addr, box){
@@ -1196,6 +1209,7 @@ $('repsend').addEventListener('click', ev=>{
          :'<div class="dsc-big sm">לא זכאים להנחה לפי מקום המגורים</div><div class="dsc-mid">ייתכן שמגיעה הנחה אחרת: גיל, סטודנטים, חיילים, נכות</div>')+
       '<div class="dsc-scores">'+(se!=null?'<div><span>מדד חברתי-כלכלי</span><b>'+se+' <small>מתוך 10</small></b></div>':'')+
       (pe!=null?'<div><span>מדד פריפריה</span><b>'+pe+' <small>מתוך 10</small></b></div>':'')+'</div>'+
+      (se!=null||pe!=null?'<div class="dsc-why">לפי המדדים האלה משרד התחבורה קובע את הזכאות.</div>':'')+
       (ok?'<div class="dsc-ex">נסיעה בודדת באוטובוס בעיר: <b>4 ₪</b> במקום <s>8 ₪</s></div>':'')+'</div>';
   }
   function check(){
@@ -1203,7 +1217,7 @@ $('repsend').addEventListener('click', ev=>{
     var c=city.value.trim(), st=DSC.c[c];
     if(st&&document.getElementById('dscStreets').dataset.city!==c){opts(document.getElementById('dscStreets'),Object.keys(st));document.getElementById('dscStreets').dataset.city=c;}
     if(!c){res.innerHTML='';num.hidden=true;return;}
-    if(!st){res.innerHTML='<div class="dsc-msg">'+(Object.keys(DSC.c).some(function(k){return k.indexOf(c)===0;})?'בחרו עיר מהרשימה':'ביישוב הזה הזכאות לא משתנה בין רחובות, ולכן הוא לא בקובץ. הקובץ של משרד התחבורה מפרט רק '+Object.keys(DSC.c).length+' ערים שבהן הזכאות שונה משכונה לשכונה. את הזכאות לפי היישוב כולו בודקים מול רב-קו.')+'</div>';num.hidden=true;return;}
+    if(!st){res.innerHTML='<div class="dsc-msg">'+(Object.keys(DSC.c).some(function(k){return k.indexOf(c)===0;})?'בחרו עיר מהרשימה':'ביישוב הזה הזכאות זהה בכל הרחובות. בודקים אותה דרך רב-קו.')+'</div>';num.hidden=true;return;}
     var s=street.value.trim(), rows=st[s];
     if(!s){res.innerHTML='';num.hidden=true;return;}
     if(!rows){res.innerHTML='<div class="dsc-msg">'+(Object.keys(st).some(function(k){return k.indexOf(s)>=0;})?'בחרו רחוב מהרשימה':'הרחוב לא מופיע בקובץ של היישוב')+'</div>';num.hidden=true;return;}

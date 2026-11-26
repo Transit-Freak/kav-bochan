@@ -215,7 +215,7 @@ if len(areas) >= 50:
         v = serve.get(c)
         ln = sorted(v['lines'], key=lambda x: (len(x), x))[:12] if v else []
         stype.append({'c': c, 'n': st['n'], 't': st['t'], 'la': st['la'], 'lo': st['lo'], 'typ': typ, 'ln': ln, 'sub': 'mil',
-                      'why': "רשומה כגבול מחנה צבאי, אבל בשם אין זכר למחנה, ובמפה (OpenStreetMap) אין שטח צבאי או מחסום עד 300 מ' ממנה"
+                      'why': "רשומה כגבול מחנה צבאי, אבל אין מחנה בשם או במפה"
                              + ('' if ln else ' · אף קו לא עוצר בה היום')})
     stype.sort(key=lambda e: (e['sub'], e['t'], e['n']))
 

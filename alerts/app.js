@@ -141,7 +141,7 @@
         (a.ms ? '<div class="meta"><span class="grp">' + a.ms.length + " הודעות על אותן עבודות · " + esc(a.ag.join(", ")) + "</span></div>" : "") +
         '<div class="meta">' + (n.length ? "<span>" + n.slice(0, 12).map(function (x) { return '<span class="ln">' + esc(x) + "</span>"; }).join("") + (n.length > 12 ? " +" + (n.length - 12) : "") + "</span>" : "") +
         (a.rm && a.rm.length ? "<span>" + a.rm.length + " תחנות בוטלו זמנית</span>" : "") +
-        (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? "<span>שינוי בשעות</span>" : "") + "</div></a>";
+        (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? '<span title="נוספו או בוטלו יציאות">שינוי בשעות</span>' : "") + "</div></a>";
     }).join("");
     Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) {
       c.onclick = function (e) {
@@ -238,7 +238,8 @@
         if (subs.length > 1) subs.forEach(function (q) { var a = String(q.rs[0].rd || "").split("-")[2]; q.alt = isMain(q.rs[0]) ? "ראשית" : "חלופה " + a; });
         return subs;
       }));
-      $("routes").innerHTML = GRP.map(function (g, i) {
+      var anyAlt = GRP.some(function (g) { return g.alt || g.rs.length > 1; });
+      $("routes").innerHTML = (GRP.length > 1 || anyAlt ? '<p class="rhint">בחרו קו כדי לראות אותו במפה.' + (anyAlt ? " \"חלופה\" היא גרסה של הקו בלוח הזמנים, לא המסלול העוקף." : "") + "</p>" : "") + GRP.map(function (g, i) {
         var dirs = {}; GRP.forEach(function (q) { if (q.lab === g.lab) dirs[q.dir] = 1; });
         var x = (Object.keys(dirs).length > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.alt ? " · " + g.alt : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
         return '<button type="button" data-i="' + i + '">' + esc(g.lab + x) + "</button>";
@@ -403,7 +404,8 @@
         : r.why === "short" ? "הקו מקוצר: מסתיים או מתחיל בתחנה אחרת, בלי מסלול חלופי."
         : r.why === "uturn" ? "לפי ההודעה הקו מבצע פניית פרסה וחוזר למסלול שלו, בלי מסלול חלופי."
         : r.why === "relocate" ? "התחנה הועתקה למקום אחר, והקו נשאר במסלול שלו."
-        : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why || "time"] || "לא ידוע") + "). מוצגות רק התחנות.";
+        : !r.why || r.why === "time" ? "המסלול החלופי עוד לא חושב — יושלם בעדכון הבא. מוצגות רק התחנות."
+        : "לא הצלחנו לשרטט את המסלול החלופי מהנוסח. מוצגות רק התחנות.";
     }
     del.forEach(function (s) {
       var st = stops[s];
@@ -448,7 +450,7 @@
     $("legend").innerHTML = legend.join("");
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
       (altNote.length ? '<p class="note">' + esc(altNote[0]) + "</p>" : "") +
-      (r._src ? '<p class="note">לפי הודעה אחרת באותו אזור.</p>' : "") +
+      (r._src ? '<p class="note">המסלול במפה לקוח מהודעה של חברה אחרת על אותן עבודות.</p>' : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
@@ -470,6 +472,9 @@
       b.classList.toggle("on", b.getAttribute("data-v") === when);
       b.onclick = function () { when = b.getAttribute("data-v"); Array.prototype.forEach.call($("when").querySelectorAll("button"), function (x) { x.classList.toggle("on", x === b); }); drawChips(); drawList(); };
     });
+    var hint = function () { $("whenHint").textContent = { now: "התראות שבתוקף ברגע זה", today: "גם מה שמתחיל או נגמר בהמשך היום", all: "כולל התראות שעוד לא התחילו" }[when]; };
+    hint();
+    Array.prototype.forEach.call($("when").querySelectorAll("button"), function (b) { b.addEventListener("click", hint); });
     $("q").oninput = drawList; $("onlyMap").onchange = drawList;
     drawChips(); drawList();
     window.addEventListener("hashchange", function () {

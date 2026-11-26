@@ -291,6 +291,7 @@ function LineFollow({ cities }) {
     {openC && (
       <div style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
         <b>הרשמה להתראות על קווי {openC}</b>
+        <small style={{ color: "#64748b", fontWeight: 600, marginTop: -6 }}>התראות על שינויים בכל קווי העיר, לא רק בקו הזה</small>
         <div style={{ fontWeight: 700 }}>אילו שינויים:
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
             {KIND_GROUPS_N.map((g) => (

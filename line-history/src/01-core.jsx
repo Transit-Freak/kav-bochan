@@ -73,17 +73,17 @@ const KGROUP = {
 const KGLABEL = { stops: "שינוי תחנות", terminal: "שינוי קצה המסלול",
                   baseline: "תיעוד וצילומים" };
 const KINDS = {
-  baseline:    { label: "תיעוד ראשון", color: "#64748b" },
-  snapshot:    { label: "צילום מתועד", color: "#64748b" },
+  baseline:    { label: "תיעוד ראשון", color: "#64748b", tip: "הפעם הראשונה שהקו מופיע בתיעוד, לא בהכרח היום שבו נפתח" },
+  snapshot:    { label: "צילום מתועד", color: "#64748b", tip: "צילום של הקו מהארכיון; תאריך הצילום אינו מועד שינוי" },
   new:         { label: "וריאנט חדש", color: "#15803d" },
   route:       { label: "שינוי מסלול", color: "#7c3aed" },
-  redraw:      { label: "תיקון שרטוט", color: "#0e7490" },
-  terminal:    { label: "שינוי קצה המסלול", color: "#a21caf" },
+  redraw:      { label: "תיקון שרטוט", color: "#0e7490", tip: "הקו על המפה תוקן; התחנות לא השתנו" },
+  terminal:    { label: "שינוי קצה המסלול", color: "#a21caf", tip: "הקו הוארך, קוצר או החליף תחנת קצה" },
   extend:      { label: "הארכת קו", color: "#15803d" },
   shorten:     { label: "קיצור קו", color: "#c2410c" },
   "stops-add": { label: "תחנות נוספו", color: "#3f6212" },
   "stops-del": { label: "תחנות ירדו", color: "#be123c" },
-  notrips:     { label: "אין נסיעות בקובץ", color: "#94a3b8" },   // הקו קיים בקובץ בלי אף נסיעה באותו יום (ארכיון אוטובוס פתוח)
+  notrips:     { label: "אין נסיעות בקובץ", color: "#94a3b8", tip: "הקו רשום בקובץ, אבל בלי אף נסיעה באותו יום" },   // הקו קיים בקובץ בלי אף נסיעה באותו יום (ארכיון אוטובוס פתוח)
   stops:       { label: "שינוי תחנות", color: "#b45309" },
   operator:    { label: "החלפת מפעיל", color: "#0f766e" },
   dest:        { label: "שינוי יעד", color: "#9333ea" },
@@ -92,20 +92,22 @@ const KINDS = {
   mode:        { label: "שינוי סוג הקו", color: "#0369a1" },
   access:      { label: "שינוי נגישות", color: "#0f766e" },
   vehicle:     { label: "שינוי סוג הרכב", color: "#7c3aed" },
-  ltype:       { label: "שינוי סוג הקו", color: "#0e7490" },
-  returned:    { label: "בוטל וחזר", color: "#f59e0b" },
+  ltype:       { label: "שינוי סוג הקו", color: "#0e7490", tip: "הקו עבר בין עירוני, אזורי ובינעירוני, או בין סוגים כמו תלמידים, לילה ומזין" },
+  returned:    { label: "בוטל וחזר", color: "#f59e0b", tip: "הקו בוטל ואחר כך חזר לפעול" },
   board:       { label: "שינוי עלייה/ירידה", color: "#854d0e" },
-  platform:    { label: "שינוי רציף", color: "#0e7490" },
-  "planned-dropped": { label: "תוכנן ולא נכנס לפעול", color: "#9f1239" },
-  "planned-new": { label: "קו שפורסם ולא נכנס לפעול", color: "#9f1239" },
-  "planned-route": { label: "שינוי תחנות שפורסם ולא נכנס לפעול", color: "#7f1d1d" },
+  platform:    { label: "שינוי רציף", color: "#0e7490", tip: "הקו עבר לרציף אחר במסוף" },
+  "planned-dropped": { label: "תוכנן ולא נכנס לפעול", color: "#9f1239", tip: "פורסם בנתוני משרד התחבורה, וירד לפני שנכנס לפעול" },
+  "planned-new": { label: "קו שפורסם ולא נכנס לפעול", color: "#9f1239", tip: "פורסם בנתוני משרד התחבורה, וירד לפני שנכנס לפעול" },
+  "planned-route": { label: "שינוי תחנות שפורסם ולא נכנס לפעול", color: "#7f1d1d", tip: "פורסם בנתוני משרד התחבורה, וירד לפני שנכנס לפעול" },
   removed:     { label: "בוטל", color: "#dc2626" },
-  "removed-year": { label: "בוטל — מעל שנה לא חזר", color: "#7f1d1d" },
-  freq:        { label: "שינוי מספר הרכבים באותה נסיעה", color: "#b45309" },
+  "removed-year": { label: "בוטל — מעל שנה לא חזר", color: "#7f1d1d", tip: "בוטל ולא חזר יותר משנה" },
+  freq:        { label: "שינוי מספר הרכבים באותה נסיעה", color: "#b45309", tip: "כמה אוטובוסים יוצאים יחד באותה שעה (תגבור)" },
   sched:       { label: "שינוי לו\"ז", color: "#4338ca" },
-  times:       { label: "הלו\"ז האחרון", color: "#0e7490" },
-  temp:        { label: "שינוי זמני", color: "#ea580c" },   // הודעות משרד התחבורה — useTempEvents
+  times:       { label: "הלו\"ז האחרון", color: "#0e7490", tip: "השעות מהיום האחרון שבו הקו פעל" },
+  temp:        { label: "שינוי זמני", color: "#ea580c", tip: "עבודות, עקיפות ותחנות שבוטלו זמנית, מהודעות משרד התחבורה" },   // הודעות משרד התחבורה — useTempEvents
 };
+// הסבר קצר לתגית סוג השינוי (title) — לסוגים שהשם שלהם לא מספיק
+const kTip = (k) => (KINDS[k] || {}).tip;
 // הגדרת המשתמש: "שינוי מספר הרכבים" = רק תגבור (שני רכבים באותה דקה
 // שהשתנו). כל שאר שינויי הכמות/שעות — תחת שינוי לו"ז.
 function evKind(v) {

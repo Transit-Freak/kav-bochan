@@ -263,14 +263,14 @@ function stopPane(b) {
   g += '</svg>';
   const tot = b[4], pb = Math.round(100 * b[5] / tot), pg = Math.round(100 * b[6] / tot);
   return `<div class="blk"><h3>${esc(b[3] || 'תחנה')} <span class="mut">· ${b[2]}</span></h3>` +
-    `<div class="mut sm">התקבצות — אחוז הפעמים ששני אוטובוסים עוקבים של אותו קו הגיעו צמודים (פחות משליש מהמרווח שבלו"ז)</div>${g}` +
+    `<div class="mut sm">אחוז האוטובוסים שהגיעו צמוד לקודם (פחות מ-30% מהמרווח שבלו"ז).</div>${g}` +
     `<div class="kv"><span>${fmt(S.h)}</span><b>${pct[S.h] == null ? 'מעט נסיעות' : pct[S.h] + '%'}</b>` +
     `<span>כל היום, ימי חול</span><b>${pb}% צמודים · ${pg}% מרווח כפול</b><span>זוגות שנבדקו</span><b>${num(tot)}</b></div></div>` +
     // רק קווים שהגיעו צמודים לפחות פעם אחת — קו עם 0% לא רלוונטי כאן (שלמה 30.10)
     ((L => L.length ? `<div class="blk"><h3>הקווים שהגיעו כאן צמודים — כל קו לעצמו</h3><table class="t bt"><thead><tr><th>קו</th><th>לכיוון</th><th>צמודים</th></tr></thead><tbody>` +
       L.map(([ln, to, n, k]) => `<tr><td><b>${esc(ln)}</b></td><td>${esc(to)}</td><td class="n">${Math.max(1, Math.round(100 * k / n))}% <span class="mut">(${k}/${n})</span></td></tr>`).join('') + '</tbody></table></div>' : '')(
       (b[9] || []).filter(r => r[2] && r[3] > 0).sort((p, q) => q[3] / q[2] - p[3] / p[2]))) +
-    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch/stop=${b[2]}&tile=${tkey(b[0], b[1])}&h=${S.h}">כל הפירוט ורשימת כל הפעמים — במדד דיוק האוטובוסים ←</a></div>`;
+    `<div class="note">"מרווח כפול" — הנוסעים חיכו פי 2 מהמתוכנן. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch/stop=${b[2]}&tile=${tkey(b[0], b[1])}&h=${S.h}">הפירוט המלא ←</a></div>`;
 }
 // ---------- שכבת העומס בתחנות ----------
 // כמה אוטובוסים עומדים בתחנה באותה דקה (שלמה 30.10). נספרים רק קווים שעוצרים בתחנה ובכיוון שלה.
@@ -369,9 +369,9 @@ function loadPane(q) {
   if (!qdOf(q)) qdLoad(q).then(() => { if (S.spot && S.spot.load === q && S.tool === 'spot') spotPane(); });
   const [pq, avq] = qsel(q), p = pq[S.h], a = avq[S.h] == null ? null : avq[S.h] / 10;
   return `<div class="blk"><h3>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]}</span></h3>` +
-    qdSelect(q) +
+    qdSelect(q) + (S.qd ? '<div class="mut sm">הבחירה משנה רק את גרף התור. המהירות היא תמיד ממוצע ימי החול.</div>' : '') +
     `<div class="mut sm">באיזה חלק מהזמן עמדו בתחנה 3 אוטובוסים או יותר${S.qd ? ' · ' + qdLbl() : ''}</div>${qchart(pq)}` +
-    `<div class="kv"><span>תור בתחנה ב-${fmt(S.h)}</span><b>${p == null ? '—' : p + '% מהזמן'}</b><span>אוטובוסים בממוצע</span><b>${a == null ? '—' : a.toFixed(1)}</b><span>עמודים בתחנה</span><b>${q[4]}</b></div>` +
+    `<div class="kv"><span>תור בתחנה ב-${fmt(S.h)}</span><b>${p == null ? '—' : p + '% מהזמן'}</b><span>אוטובוסים בממוצע</span><b>${a == null ? '—' : a.toFixed(1)}</b><span>רציפים בתחנה</span><b>${q[4]}</b></div>` +
     `<div class="busy" style="margin-top:8px">${qverdict(q)}</div>` +
     `<button class="btn qmore" style="width:100%;margin-top:10px">כל הפרטים — לפי שעה ⤢</button></div>` +
     `<div class="note">"תור" — 3 אוטובוסים או יותר בתחנה באותה דקה. נספרים רק קווים שעוצרים בתחנה, בכיוון שלה. ${QMETA && QMETA.days ? QMETA.days.length + ' ימי חול אחרונים.' : ''}</div>`;
@@ -410,8 +410,8 @@ function openLoad() {
   <div class="qx2"><div class="blk"><h3>באיזה חלק מהזמן עמדו בתחנה 3+ אוטובוסים${S.qd ? ' · ' + qdLbl() : ''}</h3>${qchart(pq)}</div>
    <div class="blk"><h3>מהירות ב-300 מ' לפני התחנה</h3><div class="mut sm">עמודות — כשיש תור · קו — כשהתחנה פנויה</div>${chart(sq, sf)}</div></div>
   <div class="qx2">${pairs}${lines}</div>
-  <div class="blk"><table class="t qt"><thead><tr><th>שעה</th><th>זמן עם תור</th><th>אוטובוסים בממוצע</th><th>מהירות — פנויה</th><th>מהירות — יש תור</th><th>הפרש</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="note">${qverdict(q).replace(/<[^>]+>/g, '')}. עמודים בתחנה: ${q[4]}. ${QMETA && QMETA.days ? QMETA.days.length + ' ימי חול אחרונים' : ''} · מיקום כל אוטובוס בכל דקה (דאטאבוס).</div></div>`);
+  <div class="blk"><table class="t qt"><thead><tr><th>שעה</th><th>זמן עם תור</th><th>אוטובוסים בממוצע</th><th>מהירות כשהתחנה פנויה</th><th>מהירות כשיש תור</th><th title="המהירות כשיש תור לעומת כשהתחנה פנויה. במינוס — לאט יותר כשיש תור">הפרש</th></tr></thead><tbody>${rows}</tbody></table><div class="mut sm">הפרש במינוס — האוטובוסים לאטיים יותר כשיש תור.</div></div>
+  <div class="note">${QMETA && QMETA.days ? QMETA.days.length + ' ימי חול אחרונים.' : ''}</div></div>`);
   $('#qx-close').onclick = closeLoad;
 }
 function closeLoad() { const x = $('#qx'); if (x) x.remove(); }
@@ -483,9 +483,9 @@ function fakePane(f) {
     `<div class="note">ירוק במפה — המיקום האמיתי, כחול — המסלול המזויף. <a href="../bus/#/gps">כל הזיופים לפי מפעיל, קו ורכב — במדד דיוק האוטובוסים ←</a></div>`;
 }
 function layersPane() {
-  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים'], ['ld', 'עומס בתחנות', 'עיגול לכל תחנה — כמה מהזמן עמדו בה 3 אוטובוסים או יותר. גודל העיגול: כמה אוטובוסים בממוצע'], ['gf', 'זיופי GPS', 'נקודה לכל מקום שאוטובוס שידר שהוא נמצא בו — בלי שום רחוב של אוטובוסים לידו (ים, שטח פתוח). לפי הימים והשעה שנבחרו']];
+  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'תחנות שבהן אוטובוסים מגיעים צמודים'], ['ld', 'עומס בתחנות', 'תחנות שבהן עומדים 3 אוטובוסים ומעלה'], ['gf', 'זיופי GPS', 'מיקומים מזויפים, בלי כביש בסביבה']];
   $('#layers').innerHTML = `<div class="blk">${it.map(([k, t, d]) => `<label class="lyr"><input type="checkbox" data-l="${k}"${S.lay[k] ? ' checked' : ''}><span><b>${t}</b><br><small class="mut">${d}</small></span></label>`).join('')}</div>` +
-    `<div class="note">שתי השכבות יחד מראות איפה האוטובוס גם איטי וגם מתקבץ — שם בדרך כלל נת"צ או עדיפות ברמזור עוזרים הכי הרבה.</div>`;
+    `<div class="note">מהירות והתקבצות יחד: איפה שהאוטובוס גם איטי וגם מתקבץ — שם נתיב לתחבורה ציבורית יעזור הכי הרבה.</div>`;
 }
 $('#layers').addEventListener('change', e => {
   const k = e.target.dataset.l; if (!k) return;
@@ -497,7 +497,7 @@ function tip(r) {
   const a = hours(r, S.d), v = a[S.h];
   let t = `<b>לכיוון ${dirName(r[2])}</b><br>${S.d === 'y' ? ylabel() + ', ' : ''}${fmt(S.h)}: ${v == null ? 'מעט נסיעות' : v + ' קמ"ש'}`;
   if (S.d === 'y') { const m = hours(r, ytype())[S.h]; if (m != null) t += ` · בממוצע ${m}`; }
-  else if (v != null && S.m === 'sl') t += ` · ${slowPct(a, S.h)}% לאט יותר מבלי עומס`;
+  else if (v != null && S.m === 'sl') t += ` · ${slowPct(a, S.h)}% לאט יותר מהשעות המהירות`;
   return t + '<br><small>לחיצה — השעות העמוסות והמעבר כולו</small>';
 }
 function recolor() {
@@ -546,7 +546,7 @@ function viewAvg(rs, d, h) {
 }
 function summary(rs) {
   const el = $('#viewsum');
-  if (!rs.length) { el.innerHTML = '<div class="mut">' + (map.getZoom() < MINZ ? 'מוצגים היישובים. התקרבו כדי לראות כל רחוב.' : 'אין נתונים בתחום המפה') + '</div>'; return; }
+  if (!rs.length) { el.innerHTML = '<div class="mut">' + (map.getZoom() < MINZ ? 'כל עיגול הוא יישוב. הצבע מראה את ' + (S.m === 'sp' ? 'המהירות' : 'ההאטה') + ', והגודל את מספר התושבים. התקרבו כדי לראות כל רחוב.' : 'אין נתונים בתחום המפה') + '</div>'; return; }
   const { n, v, slow } = viewAvg(rs, S.d, S.h);
   el.innerHTML = `<h3>בתחום המפה, ${fmt(S.h)}</h3><div class="kv"><span>מקטעים עם נתונים</span><b>${num(n)}</b>` +
     `<span>מהירות ממוצעת</span><b>${n ? v.toFixed(1) + ' קמ"ש' : '—'}</b><span>מתחת ל-12 קמ"ש</span><b>${n ? Math.round(100 * slow) + '%' : '—'}</b></div>`;
@@ -690,15 +690,15 @@ function spotPane() {
   if (!S.spot) { el.innerHTML = '<div class="note">לחצו על קו במפה (בזום קרוב) כדי לראות את המהירות שם בכל שעות היום.</div>'; return; }
   const { r, opp, cor } = S.spot, yd = S.d === 'y';
   const one = (q, other) => {
-    const a = hours(q, S.d), sl = a.map((v, h) => [v, h]).filter(x => x[0] != null).sort((p, q2) => p[0] - q2[0]);
+    const a = hours(q, S.d), sl = a.map((v, h) => [v, h]).filter(x => x[0] != null && x[0] > 0).sort((p, q2) => p[0] - q2[0]);   // 0 קמ"ש = בלי נתון אמיתי, לא "השעה האיטית"
     const worst = sl[0], top = best(hours(q, baseD())), busy = yd ? odd(a, hours(q, ytype())) : busyHours(a);
     return `<div class="blk"><div class="dirh"><span class="arr" style="transform:rotate(${q[2]}deg)">↑</span><h3>לכיוון ${dirName(q[2])}</h3></div>` +
       chart(a, yd ? hours(q, ytype()) : other ? hours(other, S.d) : null) +
       `<div class="busy">${busy}</div>` +
       `<div class="kv"><span>${fmt(S.h)}</span><b>${a[S.h] == null ? '—' : a[S.h] + ' קמ"ש'}</b>` +
       (worst ? `<span>השעה האיטית ביותר</span><b>${fmt(worst[1])} · ${worst[0]} קמ"ש</b>` : '') +
-      (top ? `<span>בלי עומס (בשעות היום)</span><b>${top} קמ"ש</b>` : '') +
-      `<span>דגימות (28 יום)</span><b>${num(q[3])}</b></div></div>`;
+      (top ? `<span title="ממוצע 3 השעות המהירות בין 06:00 ל-21:00">מהירות רגילה ביום</span><b>${top} קמ"ש</b>` : '') +
+      `<span>מדידות (28 יום)</span><b>${num(q[3])}</b></div></div>`;
   };
   el.innerHTML = corBlock(cor, r) + one(r, opp) + (opp ? one(opp, r) : '') +
     `<div class="note">${yd ? `העמודות — ${ylabel()}; הקו הדק — הממוצע החודשי.` : opp ? 'הקו הדק בכל גרף הוא הכיוון השני.' : 'אין כאן מספיק נתונים לכיוון השני.'} המהירות כוללת עצירות בתחנות וברמזורים.` +
@@ -723,15 +723,15 @@ function citiesPane() {
   rows.sort(k === 'name' ? (p, q) => dr * p.name.localeCompare(q.name, 'he')
     : k === 'now' || k === 'worstH' ? (p, q) => dr * ((p[k] ?? 999) - (q[k] ?? 999)) : (p, q) => dr * (nn(q[k]) - nn(p[k])));
   // כל עמודה ממיינת (שלמה 03.11: לא היה ברור שאפשר) — ⇅ בכל כותרת, לחיצה שנייה הופכת את הסדר
-  const th = (key, t) => `<th data-k="${key}" class="${S.csort === key ? 's' : ''}" title="מיון לפי ${t}" style="cursor:pointer;white-space:nowrap">${t} <span class="sa">${S.csort === key ? (dr > 0 ? '▾' : '▴') : '⇅'}</span></th>`;
-  $('#cities').innerHTML = `<div class="blk"><div class="chips" id="cgrp">${GRPS.map(([v, t]) => `<button data-v="${v}" class="${S.cgrp === v ? 'on' : ''}">${t}</button>`).join('')}</div>` +
-    `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00. למיון — לחצו על כותרת עמודה.</div>` +
+  const th = (key, t, tip) => `<th data-k="${key}" class="${S.csort === key ? 's' : ''}" title="${tip ? tip + ' · ' : ''}מיון לפי ${t}" style="cursor:pointer;white-space:nowrap">${t} <span class="sa">${S.csort === key ? (dr > 0 ? '▾' : '▴') : '⇅'}</span></th>`;
+  $('#cities').innerHTML = `<div class="blk"><div class="chips" id="cgrp"><span class="mut sm" style="align-self:center">תושבים:</span>${GRPS.map(([v, t]) => `<button data-v="${v}" class="${S.cgrp === v ? 'on' : ''}">${t}</button>`).join('')}</div>` +
+    `<div class="mut">השוואה בין יישובים בגודל דומה, בימים א׳–ה׳. לחיצה על כותרת ממיינת.</div>` +
     `<div class="mut">מספר התושבים: רשות האוכלוסין וההגירה, <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a></div></div>` +
-    `<div class="tw"><table class="t"><thead><tr>${th('name', 'יישוב')}${th('pop', 'תושבים')}${th('now', fmt(S.h))}${th('slow', 'האטה')}${th('worstH', 'שעת שיא')}</tr></thead><tbody>` +
+    `<div class="tw"><table class="t"><thead><tr>${th('name', 'יישוב')}${th('pop', 'תושבים')}${th('now', fmt(S.h), 'מהירות בשעה שנבחרה')}${th('slow', 'האטה', 'כמה לאט יותר בשעת השיא')}${th('worstH', 'שעת שיא', 'השעה האיטית ביותר בין 06:00 ל-20:00')}</tr></thead><tbody>` +
     rows.map(r => `<tr data-c="${esc(r.name)}"><td><a href="${cityHref(r.name)}" style="color:inherit;text-decoration:none;display:block">${esc(r.name)}</a></td><td class="n">${r.pop ? num(r.pop) : '—'}</td>` +
       `<td class="n"><span class="sw" style="background:${colSp(r.now) || 'transparent'}"></span>${r.now ?? '—'}</td>` +
       `<td class="n">${r.slow == null ? '—' : r.slow + '%'}</td><td class="n">${r.worstH == null ? '—' : fmt(r.worstH)}</td></tr>`).join('') +
-    `</tbody></table></div><div class="note">"האטה" — כמה לאט יותר נוסעים בשעה העמוסה ביותר, לעומת השעות בלי עומס ביום (06:00–21:00) באותו יישוב. כך אפשר להשוות בין עיר גדולה לעיר קטנה בלי שמהירות הכבישים הבין-עירוניים תשפיע.</div>`;
+    `</tbody></table></div><div class="note">"האטה": כמה לאט יותר בשעת השיא, לעומת השעות המהירות של היום (06:00–21:00). "שעת שיא": השעה האיטית ביותר בין 06:00 ל-20:00.</div>`;
 }
 $('#cities').addEventListener('click', e => {
   const b = e.target.closest('#cgrp button'); if (b) { S.cgrp = b.dataset.v; citiesPane(); return; }
@@ -750,7 +750,7 @@ function plainClick(e) { return !(e.ctrlKey || e.metaKey || e.shiftKey || e.altK
 function legendPane() {
   const it = S.m === 'sp' ? SP.map((x, i) => [x[1], i === 0 ? `עד ${x[0]} קמ"ש` : x[0] === 999 ? `מעל ${SP[i - 1][0]} קמ"ש` : `${SP[i - 1][0]}–${x[0]} קמ"ש`])
     : SL.map((x, i) => [x[1], i === 0 ? `עד ${x[0]}% לאט יותר` : x[0] === 999 ? `מעל ${SL[i - 1][0]}%` : `${SL[i - 1][0]}–${x[0]}%`]);
-  $('#legend').innerHTML = `<div class="blk"><h3>${S.m === 'sp' ? 'מהירות ממוצעת' : S.d === 'y' ? `${ylabel()}: כמה לאט יותר מהממוצע החודשי באותה שעה` : 'האטה לעומת השעות בלי עומס ביום (06:00–21:00) באותו מקום'}</h3><div class="lg">` +
+  $('#legend').innerHTML = (map.getZoom() < MINZ ? `<div class="blk mut sm">כל עיגול הוא יישוב. הצבע מראה את ${S.m === 'sp' ? 'המהירות' : 'ההאטה'}, והגודל את מספר התושבים.</div>` : '') + `<div class="blk"><h3>${S.m === 'sp' ? 'מהירות ממוצעת' : S.d === 'y' ? `${ylabel()}: כמה לאט יותר מהממוצע החודשי באותה שעה` : 'האטה — כמה לאט יותר מהשעות המהירות של היום (06:00–21:00) באותו מקום'}</h3><div class="lg">` +
     it.map(([c, t]) => `<div><i style="background:${c}"></i>${t}</div>`).join('') + `<div><i style="background:#94a3b8;opacity:.4"></i>מעט נסיעות בשעה הזו</div></div></div>` +
     (S.lay.bn ? `<div class="blk"><h3>התקבצות בתחנה — אוטובוסים שהגיעו צמודים</h3><div class="lg">` +
       BN.map((x, i) => `<div><b class="dot" style="background:${x[1]}"></b>${i === 0 ? `פחות מ-${x[0]}%` : x[0] === 999 ? `${BN[i - 1][0]}% ומעלה` : `${BN[i - 1][0]}–${x[0]}%`}</div>`).join('') +
@@ -762,8 +762,8 @@ function legendPane() {
 }
 function aboutPane() {
   const d = META && META.days, n = d ? (d.wd || []).length : 0, f = d ? (d.fr || []).length : 0;
-  $('#about').innerHTML = `<div class="note"><p>כל דקה משדר כל אוטובוס בנסיעה את המיקום והמהירות שלו. דאטאבוס של הסדנא לידע ציבורי שומר את כל השידורים, ומהם מחושבת כאן המהירות הממוצעת בכל קטע רחוב, בכל כיוון ובכל שעה.</p>` +
-    `<p>זו מהירות האוטובוסים, כולל העצירות בתחנות ובאורות אדומים — לא מהירות הרכבים הפרטיים. ככל שהמספר נמוך יותר, האוטובוס נתקע שם יותר.</p>` +
+  $('#about').innerHTML = `<div class="note"><p><b>מהירות האוטובוסים בכל קטע רחוב, כולל עצירות בתחנות וברמזורים.</b></p>` +
+    `<p class="sm">כל דקה משדר כל אוטובוס בנסיעה את המיקום והמהירות שלו. דאטאבוס של הסדנא לידע ציבורי שומר את השידורים, ומהם מחושבת המהירות הממוצעת בכל קטע, בכל כיוון ובכל שעה. זו לא מהירות הרכבים הפרטיים. ככל שהמספר נמוך יותר, האוטובוס נתקע שם יותר.</p>` +
     `<p>התקופה: ${n} ימי חול${f ? ` ו-${f} ימי שישי` : ''} מ-28 הימים האחרונים. חגים וימים חריגים לא נספרים. מתעדכן כל לילה.</p>` +
     `<p>שעה עם פחות מ-5 דגימות במקום מסוים לא מוצגת.</p>` +
     `<p>מספר התושבים בכל יישוב (להשוואת היישובים): רשות האוכלוסין וההגירה, דרך <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a>.</p></div>`;
@@ -866,6 +866,9 @@ function refresh() {
   $$('#dtype button').forEach(b => b.classList.toggle('on', b.dataset.v === S.d));
   dayPicker();
   $$('#mode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.m));
+  // ההסבר גלוי גם בטלפון (שם אין title) — ביקורת הסברים 26.11
+  $('#ctlhint').textContent = (S.d === 'y' ? 'הימים שבחרתם מול הממוצע החודשי.' : S.d === 'fr' ? 'ממוצע ימי שישי בחודש האחרון.' : 'ממוצע ימי החול בחודש האחרון.') +
+    (S.m === 'sl' ? (S.d === 'y' ? ' האטה: כמה לאט יותר מהממוצע באותה שעה.' : ' האטה: כמה לאט יותר מהשעות המהירות של היום (06:00–21:00) באותו מקום.') : '');
   recolor();
   if (S.tool === 'spot') spotPane(); else if (S.tool === 'cities') citiesPane(); else if (S.tool === 'legend') legendPane();
   hash();
