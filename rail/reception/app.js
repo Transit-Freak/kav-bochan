@@ -97,12 +97,14 @@ function init() {
   gsel.onclick = e => { const b = e.target.closest('button'); if (!b) return; gen = b.dataset.gen; gsel.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
   const tr = $('#train');
   tr.innerHTML = TRAINS.map(t => `<option value="${t.code}" ${t.code === train ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
-  tr.onchange = () => { train = tr.value; $('#trainNote').textContent = (TRAINS.find(t => t.code === train) || {}).note || ''; draw(); };
-  $('#trainNote').textContent = TRAINS[1].note;
+  // מה הקרון עושה לקליטה, ואחריו התיאור של הסוג שנבחר
+  const tnote = () => { const t = TRAINS.find(x => x.code === train) || {}; $('#trainNote').textContent = 'הקרון חוסם את האות — מחורצים כמו בחוץ, דזירו הכי חוסם.' + (t.note ? ' ' + t.note : ''); };
+  tr.onchange = () => { train = tr.value; tnote(); draw(); };
+  tnote();
   $('#showAnt').onchange = e => { showAnt = e.target.checked; draw(); };
   $('#showSpd').onchange = e => { bySpeed = e.target.checked; draw(); };
-  const upd = (D.updated || '').replace('T', ' ').replace('Z', ' UTC');
-  $('#sub').textContent = `הערכה, לא מדידה: לכל ${D.step} מטר מסילה — האנטנה הקרובה של המפעיל, מנהרות וחתכים מ-OSM, ומהירות הנסיעה בפועל ב-${D.days} הימים האחרונים. עודכן ${upd}.`;
+  const ud = new Date(D.updated || ''), upd = isNaN(ud) ? '' : ud.toLocaleDateString('he-IL', {timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'numeric', year: 'numeric'});
+  $('#sub').textContent = `הערכה של הקליטה לאורך המסילה, לפי מרחק מאנטנות, מנהרות ומהירות.${upd ? ` עודכן ${upd}.` : ''}`;
   draw();
   method();
   prewarm();
@@ -164,7 +166,7 @@ function draw() {
   const n = tot.reduce((a, b) => a + b, 0);
   $('#stats').innerHTML = [3, 2, 1, 0].map(i => `<div style="border-color:${GCOL[i]}"><b>${Math.round(100 * tot[i] / n)}%</b><span>${GNAME[i]} · ${(tot[i] * D.step / 1000).toFixed(0)} ק"מ</span></div>`).join('');
   $('#legend').innerHTML = bySpeed
-    ? [['#00A65A', 'עד 60 קמ"ש'], ['#F4B400', '60–100'], ['#F26B1D', '100–130'], ['#D7263D', 'מעל 130'], ['#8A94A3', 'אין נתון']].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')
+    ? '<span><b>מהירות הנסיעה · מעל 120 קמ״ש הקליטה יורדת דרגה:</b></span>' + [['#00A65A', 'עד 60 קמ"ש'], ['#F4B400', '60–100'], ['#F26B1D', '100–130'], ['#D7263D', 'מעל 130'], ['#8A94A3', 'אין נתון']].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')
     : [3, 2, 1, 0].map(i => `<span><i style="background:${GCOL[i]}"></i>${GNAME[i]}</span>`).join('') + `<span>· סה"כ ${km.toFixed(0)} ק"מ מסילה בין תחנות</span>` +
       (showAnt ? '<span class="sep"></span>' + (all ? D.ops : D.ops.filter(o => o.code === op)).map(o => `<span><i class="dot" style="background:${BRAND[o.code]}"></i>אנטנות ${esc(o.name)}</span>`).join('') : '') +
       (all ? '<span>· המסילה ב"כל החברות": הציון האמצעי מבין השלוש</span>' : '');
@@ -250,6 +252,7 @@ function routeRender() {
   const sc = routeScores(c.stops);
   const best = sc[0], tie = sc.filter(r => Math.abs(r.mean - best.mean) < 0.005);
   h += `<div class="rres"><p class="rnote"><b>${esc(lineName(c))}</b> (חלק מהקו ${esc(fullName(c))}) · ${c.km.toFixed(0)} ק"מ · ${nInter(c)} · ${c.n} נסיעות בשבוע האחרון · לפי ${esc((TRAINS.find(t => t.code === train) || {}).name || '')}${gen === 'all' ? '' : gen === '5' ? ' · דור 5' : ' · דור 4 ומעלה'}</p>
+    <p class="rnote">אחוז מאורך הנסיעה בכל רמת קליטה:</p>
     <table><thead><tr><th>חברה</th><th>טובה</th><th>סבירה</th><th>חלשה</th><th>אין</th><th></th></tr></thead><tbody>` +
     sc.map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td style="color:${BRAND[r.code]}">${esc(r.name)}${tie.includes(r) && tie.length < sc.length ? '<span class="crown">הכי טובה</span>' : ''}</td>` +
       [3, 2, 1, 0].map(g => `<td>${Math.round(100 * r.pct[g])}%</td>`).join('') +
@@ -304,33 +307,33 @@ function drawAnt() {
 }
 
 function method() {
-  $('#method').innerHTML = `<h2>איך זה מחושב</h2>
+  $('#method').innerHTML = `<h2>על המפה</h2>
+  <p>הערכה מנתונים פתוחים, לא מדידה. אינה מטעם חברות הסלולר.</p>
+  <details class="how"><summary>איך זה מחושב</summary>
   <p class="dim">מפה עצמאית מנתונים פתוחים. אינה מטעם פלאפון, סלקום, פרטנר או הוט, והשמות מופיעים רק כדי לציין למי שייכות האנטנות.</p>
-  <p>זו <b>הערכה מנתונים פתוחים</b>, לא מדידת קליטה. השידור של הרכבת עצמה (דאטאבוס) עובר ברשת נפרדת ולכן לא משמש כאן כעדות לקליטה, רק כמקור למהירות.</p>
+  <p>השידור של הרכבת עצמה (דאטאבוס) עובר ברשת נפרדת ולכן לא משמש כאן כעדות לקליטה, רק כמקור למהירות.</p>
   <ul>
-    <li><b>אנטנות</b> — כל נקודה היא אתר שידור פעיל, בצבע החברה; מאגר "אנטנות סלולריות פעילות" של המשרד להגנת הסביבה (data.gov.il), ${D.antennas.length.toLocaleString('he-IL')} אתרים בטווח 8 ק"מ מהמסילה. PHI היא התשתית המשותפת של פרטנר והוט.</li>
-    <li><b>מנהרות וחתכים</b> — מסומנים על המסילה ב-OpenStreetMap (${D.tunnels.length} מנהרות בשם: ${esc(D.tunnels.join(', '))}). במנהרה הציון הוא "אין קליטה" גם אם הותקנה בה תשתית פנימית, כי אין על כך מידע פתוח.</li>
-    <li><b>מהירות</b> — הזמן בפועל בין תחנות עוקבות (לו"ז + איחור שנמדד) מול אורך המסילה, חציון על ${D.days} הימים האחרונים. מעל 120 קמ"ש הציון יורד דרגה, כי מסירה בין תאים נכשלת יותר במהירות.</li>
-    <li><b>הציון</b> — עד 1.5 ק"מ מאנטנה: טובה; עד 3.5: סבירה; עד 6: חלשה; מעבר לזה: אין. חתך מוריד דרגה, תעלה עמוקה מורידה שתיים. אין כאן קו ראייה וטופוגרפיה עדיין.</li>
-    <li><b>תעלת האיילון מהתב"ע</b> — בתוכנית <a href="https://mavat.iplan.gov.il/SV4/1/99000310859/310" target="_blank" rel="noopener">תת"ל 33</a> (מסילה רביעית באיילון, 2018), בשרטוט "חתך לאורך ותנוחה" גיליון 1, רום המסילה הוא 4.7–11.6 מ׳ וגובה הגשרים החוצים (מפלס הרחוב) 10.8–17.7 מ׳: המסילה נוסעת 6–7 מ׳ מתחת לעיר מגשר הלכה (ק"מ 92.4) עד דרומית לההגנה (ק"מ 97.0). הקטע הזה מסומן "תעלה עמוקה" והציון בו יורד שתי דרגות, ולכן סבידור–ההגנה כתום גם כשיש אנטנות במרחק מאות מטרים. הקילומטראז' של התוכנית הוצמד למסילה לפי מרכזי הרציפים של תל אביב מרכז, השלום וההגנה. הנתונים בקובץ <code>rail/data/taba-structures.json</code>, ואותו תהליך יורחב לשאר התוכניות.</li>
-    <li><b>דור 4 / דור 5</b> — לפי עמודת "טכנולוגיית שידור" במאגר. "דור 5" מציג רק אתרים שרשום בהם דור 5; "דור 4 ומעלה" כולל גם אתרים שהטכנולוגיה שלהם רשומה בקוד מספרי לא מפוענח (כשליש מהמאגר), כי כל אתר פעיל היום משדר לפחות דור 4. הדור משפיע על מהירות הגלישה, לא על עצם הקליטה.</li>
-    <li><b>סוג הרכבת</b> — הקרון עצמו חוסם, והמקדם שלו מכווץ את טווחי המרחק שלמעלה (1.0 = כמו בחוץ).
-      <b>מה מדוד בספרות</b>: זכוכית רכבת עם ציפוי מתכתי (בידוד תרמי) מחלישה את האות ב-10 עד 40 dB, ובקרון טיפוסי ההפסד הכולל הוא 25–35 dB
+    <li><b>הציון</b> — לכל ${D.step} מטר מסילה, לפי האנטנה הקרובה של החברה: עד 1.5 ק"מ טובה; עד 3.5 סבירה; עד 6 חלשה; מעבר לזה אין. חתך מוריד דרגה, תעלה עמוקה מורידה שתיים. אין כאן קו ראייה וטופוגרפיה עדיין.</li>
+    <li><b>אנטנות</b> — מאגר "אנטנות סלולריות פעילות" של המשרד להגנת הסביבה (data.gov.il), ${D.antennas.length.toLocaleString('he-IL')} אתרים בטווח 8 ק"מ מהמסילה. PHI = התשתית המשותפת של פרטנר והוט.</li>
+    <li><b>מנהרות וחתכים</b> — לפי OpenStreetMap (${D.tunnels.length} מנהרות בשם: ${esc(D.tunnels.join(', '))}). מנהרה = אין קליטה, כי אין מידע פתוח על אנטנות בפנים.</li>
+    <li><b>תעלת האיילון</b> — לפי תוכנית <a href="https://mavat.iplan.gov.il/SV4/1/99000310859/310" target="_blank" rel="noopener">תת"ל 33</a>, המסילה 6–7 מ׳ מתחת לרחוב בין סבידור להגנה, ולכן הציון שם יורד שתי דרגות.</li>
+    <li><b>מהירות</b> — הזמן בפועל בין תחנות עוקבות מול אורך המסילה, חציון על ${D.days} הימים האחרונים. מעל 120 קמ"ש הקליטה יורדת דרגה, כי מסירה בין תאים נכשלת יותר במהירות.</li>
+    <li><b>דור 4 / דור 5</b> — לפי "טכנולוגיית שידור" במאגר. "דור 4 ומעלה" כולל גם אתרים שהטכנולוגיה שלהם רשומה בקוד לא מפוענח (כשליש מהמאגר). הדור משפיע על מהירות הגלישה, לא על הקליטה.</li>
+    <li><b>סוג הרכבת</b> — חלונות מצופים חוסמים את האות; חלונות מחורצים — כמעט כמו בחוץ. המקדם של הקרון מכווץ את טווחי המרחק (מחורצים 1.0, ויאג׳ו 0.7, טווינדקס 0.55, דזירו HC 0.4). ציפוי מתכתי מחליש את האות ב-10 עד 40 dB
       (<a href="https://assets.publishing.service.gov.uk/media/618d299cd3bf7f055b29332f/mobile-connectivity-in-rolling-stock-radio-frequency-attenuation-characteristics.pdf" target="_blank" rel="noopener">משרד התחבורה הבריטי, 2021</a>;
-      <a href="https://arxiv.org/pdf/2109.04354" target="_blank" rel="noopener">סקירה, 2021</a>).
-      חריצת לייזר של 2.5% מהציפוי מורידה את ההפסד של החלון לפחות מ-3 dB, שיפור של 27 dB
-      (<a href="https://actu.epfl.ch/news/train-windows-that-combine-mobile-reception-and-th/" target="_blank" rel="noopener">EPFL, שווייץ, 2016</a>;
+      <a href="https://arxiv.org/pdf/2109.04354" target="_blank" rel="noopener">סקירה, 2021</a>),
+      וחריצת לייזר מורידה את ההפסד לפחות מ-3 dB
+      (<a href="https://actu.epfl.ch/news/train-windows-that-combine-mobile-reception-and-th/" target="_blank" rel="noopener">EPFL, 2016</a>;
       <a href="https://ietresearch.onlinelibrary.wiley.com/doi/full/10.1049/iet-map.2016.0685" target="_blank" rel="noopener">המאמר המדעי</a>;
       <a href="https://press.siemens.com/global/en/pressrelease/siemens-enhances-cell-phone-reception-trains-thanks-window-pane-solution" target="_blank" rel="noopener">סימנס</a>).
-      <b>מה לא מדוד</b>: איזה ציפוי יש בכל דגם של רכבת ישראל, ואיזה קרונות חורצו. לכן המקדמים כאן (מחורצים 1.0, ויאג׳ו 0.7, טווינדקס 0.55, דזירו HC 0.4) הם
-      <b>הערכה של מפתח האתר</b> שמתרגמת את הטווחים האלה לדרגות, במכוון מתונה: תרגום פיזיקלי מלא של 25 dB היה מכווץ את הטווח פי 6–7 ומצייר את כל המסילה באדום, וזה לא תואם את הניסיון בפועל.
-      אם יש בידך מדידה מקרון ישראלי, המקדמים מתעדכנים בשורה אחת.
-      <b>התוכנית בישראל</b>: משרד התחבורה הקצה 68 מיליון ₪ (יולי 2025) לחריצת כל 800 הקרונות תוך שנתיים וחצי; עד כה כ-30 קרונות, ואין רשימה פומבית איזה
+      איזה ציפוי יש בכל דגם של רכבת ישראל לא ידוע, ולכן המקדמים הם הערכה, במכוון מתונה.
+      משרד התחבורה הקצה 68 מיליון ₪ (יולי 2025) לחריצת כל 800 הקרונות תוך שנתיים וחצי; עד כה כ-30 קרונות, ואין רשימה פומבית איזה
       (<a href="https://www.israelhayom.co.il/news/transportation/article/18380246" target="_blank" rel="noopener">ישראל היום</a>;
       <a href="https://www.geektime.co.il/israel-rail-train-is-about-to-get-cellular-reception/" target="_blank" rel="noopener">גיקטיים</a>;
       <a href="https://www.israelhayom.co.il/news/transportation/article/19622955" target="_blank" rel="noopener">למה עדיין אין קליטה</a>).
       רכבת ישראל לא מפרסמת איזה ציוד רץ על איזו רכבת, ולכן הבחירה כאן ידנית.</li>
-  </ul>`;
+  </ul>
+  </details>`;
 }
 
 load('../data/reception.json').then(d => { D = d; init(); }).catch(e => { $('#map').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
