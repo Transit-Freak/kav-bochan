@@ -204,12 +204,8 @@ const StopGroup = React.memo(function StopGroup({ items, open, onToggle, db, onL
             <span><i className="ln" /> הקטע סביב התחנה (עבה) ושאר המסלול (דק) — בצבע הקו</span>
           </div>
           <div className="facts">
-            <p>
-              <b>{items.length} קווים</b> עוברים ליד תחנת <b>{it.stop}</b> (מק"ט {it.code}) בלי לעצור בה,
-              בזמן ש-<b>{it.onum}</b> קווים אחרים כן עוצרים. ריכוז כזה הוא בדרך כלל תכנון מכוון של הציר —
-              אבל שווה בדיקה אם התחנה מסומנת נכון.
-            </p>
-            <p className="mut">לפרטי קו בודד (עצירות לפני/אחרי, רשימת תחנות) — חפשו את מספר הקו בתצוגה הרגילה: {items.slice(0, 12).map((x) => (
+            <p>בדרך כלל זה תכנון מכוון של הציר, אבל כדאי לבדוק שהתחנה מסומנת נכון.</p>
+            <p className="mut">לחיצה על קו פותחת את הפרטים שלו: {items.slice(0, 12).map((x) => (
               <LineLink key={x._k} ln={x.line} onLine={onLine} noByStop />
             ))}</p>
           </div>
@@ -266,10 +262,7 @@ function Detail({ it, db, onLine }) {
       </div>
       <div className="facts">
         <p>
-          קו <b>{it.line}</b> עובר <b>{it.dist} מ'</b> מתחנת <b>{it.stop}</b> (מק"ט {it.code}) —
-          עוצר ב"<b>{it.bstop && it.bstop.n}</b>" כ-<b>{fmtM(it.before)}</b> לפניה
-          וב"<b>{it.astop && it.astop.n}</b>" כ-<b>{fmtM(it.after)}</b> אחריה,
-          אבל בה עצמה לא עוצר.
+          עובר <b>{it.dist} מ'</b> מהתחנה. עוצר לפני: <b>{it.bstop && it.bstop.n}</b> · אחרי: <b>{it.astop && it.astop.n}</b>.
         </p>
         <p>
           בתחנה עוצרים <b>{it.onum}</b> קווים אחרים:{" "}
@@ -281,25 +274,22 @@ function Detail({ it, db, onLine }) {
               {allOthers ? "פחות ▲" : "עוד " + (others.length - 12) + " ▼"}
             </button>
           )}
-          {it.onum > others.length && !allOthers ? " (הרשימה המלאה תופיע ברענון הבא)" : ""}
+          {it.onum > others.length && !allOthers ? " (חלק מהקווים)" : ""}
         </p>
         {nSkip > 1 && (
-          <p>מדלגים על התחנה הזו גם: {(it.skippers || []).filter((x) => x !== it.line).map((o) => <span key={o} className="chip warn">{o}</span>)}</p>
+          <p>מדלגים על התחנה הזו גם: {(it.skippers || []).filter((x) => x !== it.line).map((o) => (
+            <LineLink key={o} ln={o} onLine={onLine} title={"הצגת הממצאים של קו " + o} />
+          ))}</p>
         )}
+        {(others.length > 0 || nSkip > 1) && <p className="mut">לחיצה על קו מציגה את הדילוגים שלו.</p>}
         {nSkip >= 3 && (
-          <p className="sysnote">
-            ⚠️ <b>{nSkip} קווים שונים</b> מדלגים על התחנה הזו — כנראה דילוג מכוון
-            (תכנון הציר, למשל תחנות ייעודיות לחלק מהקווים) ולא טעות.
-          </p>
+          <p className="sysnote">⚠️ <b>{nSkip} קווים</b> מדלגים כאן. כנראה תכנון מכוון, לא טעות.</p>
         )}
         {it._lt >= 8 && (
-          <p className="sysnote">
-            ⚠️ קו {it.line} מדלג על <b>{it._lt} תחנות</b> ב{it.city} — ייתכן שזה מסלול
-            עם מקטע מהיר מכוון, לא דילוג נקודתי.
-          </p>
+          <p className="sysnote">⚠️ קו {it.line} מדלג על <b>{it._lt} תחנות</b> ב{it.city}. אולי מקטע מהיר מכוון.</p>
         )}
         {listing.length > 0 && !skipShown && (
-          <p className="mut">שימו לב: התחנה המדולגת לא אותרה בתוך רצף התחנות של המסלול — ייתכן פער בנתונים, והמיקום המדויק שלה ברשימה אינו מוצג.</p>
+          <p className="mut">המיקום של התחנה המדולגת ברשימה לא ידוע (פער בנתונים).</p>
         )}
         {listing.length > 0 && (
           <details className="stoplist">
@@ -313,10 +303,6 @@ function Detail({ it, db, onLine }) {
             </ol>
           </details>
         )}
-        <p className="mut">
-          ייתכן שיש סיבה מוצדקת — נתיב נסיעה שממנו אי-אפשר לעצור, עומס במפרץ, או החלטת תכנון מכוונת.
-          הממצא מבוסס על השוואת מסלול הקו (GTFS) לרצף התחנות שלו בלבד.
-        </p>
         <p>
           <button className="chip clk" onClick={(e) => {
             const url = location.origin + location.pathname + "#ק/" + encodeURIComponent(it.line);
@@ -338,7 +324,7 @@ const Row = React.memo(function Row({ it, open, onToggle, db, inner, onLine }) {
         {!inner && <span className="line-badge">{it.line}</span>}
         <span className="it-main">
           <span className="it-title">{it.exp ? "חולף בלי לעצור ב:" : "מדלג על:"} {it.stop} <span className="code">({it.code})</span></span>
-          <span className="it-sub">{it.city} · עוצר {fmtM(it.before)} לפני ו-{fmtM(it.after)} אחרי · {it.onum} קווים כן עוצרים{it._new ? <span className="tag-sys new">חדש</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty">{it.ty}</span> : null}{it._sys ? <span className="tag-sys">שיטתי</span> : null}</span>
+          <span className="it-sub">{it.city} · עוצר {fmtM(it.before)} לפני ו-{fmtM(it.after)} אחרי · {it.onum} קווים כן עוצרים{it._new ? <span className="tag-sys new" title="לא היה בביקור הקודם שלך">חדש</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty" title="סוג הקו">{it.ty}</span> : null}{it._sys ? <span className="tag-sys" title="3 קווים או יותר מדלגים על התחנה הזו">שיטתי</span> : null}</span>
         </span>
         <span className="arrow">{open ? "▲" : "▼"}</span>
       </button>
@@ -355,7 +341,7 @@ const LineGroup = React.memo(function LineGroup({ items, open, onToggle, openSub
       <button className="it-head" onClick={onToggle} aria-expanded={open}>
         <span className="line-badge">{it.line}</span>
         <span className="it-main">
-          <span className="it-title">{exp ? (items.length === 1 ? "חולף בלי לעצור בצומת" : "חולף בלי לעצור ב-" + items.length + " צמתים") : "מדלג על " + items.length + " תחנות"}{exp ? <span className="tag-sys exp">קו מהיר</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty">{it.ty}</span> : null}</span>
+          <span className="it-title">{exp ? (items.length === 1 ? "חולף בלי לעצור בצומת" : "חולף בלי לעצור ב-" + items.length + " צמתים") : "מדלג על " + items.length + " תחנות"}{exp ? <span className="tag-sys exp" title="קו מהיר שחולף בצומת בלי לעצור">קו מהיר</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty" title="סוג הקו">{it.ty}</span> : null}</span>
           <span className="it-sub">{it.city} · {items.slice(0, 3).map((x) => x.stop).join(" · ")}{items.length > 3 ? " · …" : ""}</span>
         </span>
         <span className="arrow">{open ? "▲" : "▼"}</span>
@@ -531,13 +517,11 @@ function App() {
     return raw;
   }, [db, fresh]);
 
-  const filtered = useMemo(() => {
+  const { filtered, sysHidden } = useMemo(() => {
     const needle = dq.trim().toLowerCase();
-    return items.filter((it) => {
+    let sysHidden = 0;
+    const filtered = items.filter((it) => {
       if (showOnlyNew && !it._new) return false;
-      // במצב "רק חדשים" גם השיטתיים מוצגים — אחרת הבאנר מבטיח N
-      // והרשימה מציגה פחות בלי הסבר (ציד הבאגים, סבב ב)
-      if (!byStop && !showSys && it._sys && !showOnlyNew) return false;
       if (fType !== "all" && (it.ty || "עירוני") !== fType) return false;
       if (city && it.city !== city) return false;
       if (fOp && it.op !== fOp) return false;
@@ -545,10 +529,14 @@ function App() {
       if (fUniq && (it.uniq || "סדיר") !== fUniq) return false;
       if (fGap && Math.min(it.before, it.after) < fGap) return false;
       if (fSkips > 0 && it._lt >= fSkips) return false;
-      if (!needle) return true;
-      if (it.line === needle) return true;
-      return it._q.includes(needle);
+      if (needle && it.line !== needle && !it._q.includes(needle)) return false;
+      // במצב "רק חדשים" גם השיטתיים מוצגים — אחרת הבאנר מבטיח N
+      // והרשימה מציגה פחות בלי הסבר (ציד הבאגים, סבב ב).
+      // נבדק אחרון, כדי לספור כמה שיטתיים הוסתרו מתוך מה שעבר את שאר המסננים
+      if (!byStop && !showSys && it._sys && !showOnlyNew) { sysHidden++; return false; }
+      return true;
     });
+    return { filtered, sysHidden };
   }, [items, city, dq, showSys, byStop, fOp, fMahoz, fUniq, fGap, fSkips, fType, showOnlyNew]);
 
   useEffect(() => { setPage(1); }, [city, dq, showSys, byStop, fOp, fMahoz, fUniq, fGap, fSkips, fType, showOnlyNew]);
@@ -627,7 +615,7 @@ function App() {
 
   // כשאין תוצאות בגלל סינון — אומרים איזה, עם כפתור להסרה (אחרת נדמה שאין ממצאים בכלל)
   const activeF = (main) => [city && "עיר: " + city, fOp && "מפעיל: " + fOp, fMahoz && "מחוז: " + fMahoz, fUniq && "רישוי: " + fUniq,
-    main && fGap ? "מרחק מהעצירות לפחות " + fGap + " מ'" : "", main && fSkips ? "מדלג על פחות מ-" + fSkips + " תחנות" : ""].filter(Boolean);
+    main && fGap ? "מרחק מהעצירות לפחות " + fGap + " מ'" : "", main && fSkips ? "בלי קווים שמדלגים על " + fSkips + " תחנות או יותר" : ""].filter(Boolean);
   const clearF = () => { setCity(""); setFOp(""); setFMahoz(""); setFUniq(""); setFGap(0); setFSkips(0); };
   const emptyMsg = (what, main) => {
     const f = activeF(main);
@@ -647,7 +635,7 @@ function App() {
       <header>
         <h1>הקו המדלג</h1>
         <p className="tag">
-          קווים עירוניים שעוברים ממש ליד תחנה פעילה, עוצרים בתחנה שלפניה ובתחנה שאחריה — אבל עליה מדלגים.
+          קווים שעוברים צמוד לתחנה, עוצרים לפניה ואחריה, ומדלגים עליה.
         </p>
         <div className="stats">
           <span className="stat"><b>{items.length.toLocaleString()}</b> ממצאים</span>
@@ -665,14 +653,22 @@ function App() {
       </header>
 
       <div className="explain">
-        <b>איך זה עובד?</b> משווים את מסלול הנסיעה של כל קו עירוני (GTFS של משרד התחבורה) לרצף התחנות
-        שהוא עוצר בהן. תחנה נחשבת "מדולגת" רק אם הקו עובר עד 10 מ' ממנה, בצד הנכון של הכביש, נוסע לאורך
-        הרחוב (לא רק חוצה אותו), ועוצר בתחנות משני צדדיה במרחק סביר. קווי תלמידים ושאטלים (חנה וסע)
-        לא נבדקים, וכך גם רציפי מסופים ותחנות מרכזיות — אוטובוס עוצר רק ברציף שלו וזה תקין. כברירת מחדל מוצגים קווים עירוניים — קווים בין-עירוניים ואזוריים (שלהם מותר
-        לדלג יותר) נבדקים גם, ואפשר לבחור אותם במסנן סוג הקו. בנוסף, המערכת בודקת אם עוד קווים עושים
-        את אותו הדבר: כשכמה קווים מדלגים על אותה תחנה, או שקו מדלג על תחנות רבות ברצף (כמו ציר דרך בגין
-        בת"א) — זה מסומן "דילוג שיטתי", כנראה מכוון, ומוסתר כברירת מחדל. הרשימה ממוינת מהחשוד ביותר:
-        תחנות שקו בודד מדלג עליהן בזמן שהרבה קווים אחרים עוצרים.
+        <p>קו שעובר צמוד לתחנה ולא עוצר בה. דילוגים של כמה קווים יחד מוסתרים. הרשימה מתחילה מהחשודים.</p>
+        <details className="how">
+          <summary>איך זה מחושב</summary>
+          <p>
+            משווים את מסלול הנסיעה של כל קו (GTFS של משרד התחבורה) לתחנות שהוא עוצר בהן. תחנה נחשבת
+            "מדולגת" רק אם הקו עובר עד 10 מ' ממנה, בצד הנכון של הכביש, נוסע לאורך הרחוב (לא רק חוצה אותו),
+            ועוצר בתחנות משני צדדיה במרחק סביר.
+          </p>
+          <p>לא נבדקים: קווי תלמידים, שאטלים (חנה וסע), רציפי מסופים ותחנות מרכזיות.</p>
+          <p>
+            "דילוג שיטתי": 3 קווים או יותר מדלגים על אותה תחנה. כנראה מכוון, ולכן מוסתר כברירת מחדל.
+            קו שמדלג על 8 תחנות או יותר באותה עיר מסומן בהערה בכרטיס.
+          </p>
+          <p>הרשימה ממוינת מהחשוד ביותר: תחנה שקו בודד מדלג עליה בזמן שהרבה קווים אחרים עוצרים.</p>
+          <p>ייתכן שיש סיבה טובה לדילוג: נתיב, מפרץ עמוס או תכנון.</p>
+        </details>
       </div>
 
       <div className="controls">
@@ -684,13 +680,18 @@ function App() {
             ))}
           </select>
           <button className={"chipf sys" + (showSys ? " on" : "")} onClick={() => setShowSys(!showSys)}
-            title="דילוג ששייך כנראה לתכנון: כמה קווים מדלגים על אותה תחנה, או קו שמדלג על תחנות רבות">
-            {showSys ? "מציג" : "מוסתרים"} {sysN} דילוגים שיטתיים
+            title="דילוג שיטתי: 3 קווים או יותר מדלגים על אותה תחנה — כנראה מכוון">
+            {showSys ? "מוצגים" : "מוסתרים"} {sysN} דילוגים שיטתיים · {showSys ? "הסתרה" : "הצגה"} ›
           </button>
           <button className={"chipf bystop" + (byStop ? " on" : "")} onClick={() => setByStop(!byStop)}
             title="כרטיס אחד לכל תחנה שכמה קווים מדלגים עליה — כל המסלולים על מפה אחת, בצבע שונה לכל קו">
             🚏 לפי תחנה ({stopN})
           </button>
+        </div>
+        <div className="hint">
+          {byStop
+            ? "תחנות ש-2 קווים או יותר מדלגים עליהן, על מפה אחת."
+            : "שיטתי = 3 קווים או יותר מדלגים על אותה תחנה. כנראה מכוון."}
         </div>
         <input
           className="search" type="search" dir="rtl"
@@ -711,7 +712,7 @@ function App() {
               <option value="בינעירוני">קווים בין-עירוניים</option>
               <option value="אזורי">קווים אזוריים</option>
               <option value="all">כל סוגי הקווים</option>
-              <option value="exp">קווים מהירים בצמתים</option>
+              <option value="exp">קווים מהירים (רשימה נפרדת)</option>
             </select>
             {ops.length > 0 && (
               <select aria-label="סינון לפי מפעיל" className="fsel" value={fOp} onChange={(e) => setFOp(e.target.value)}>
@@ -720,29 +721,29 @@ function App() {
               </select>
             )}
             {mahozs.length > 0 && (
-              <select aria-label="סינון לפי מחוז" className="fsel" value={fMahoz} onChange={(e) => setFMahoz(e.target.value)}>
-                <option value="">מחוז: הכול</option>
+              <select aria-label="סינון לפי מחוז" title="מחוז הקו במשרד התחבורה, לא מיקום התחנה" className="fsel" value={fMahoz} onChange={(e) => setFMahoz(e.target.value)}>
+                <option value="">מחוז הקו: הכול</option>
                 {mahozs.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             )}
             {uniqs.length > 1 && (
-              <select aria-label="סינון לפי סוג רישוי" className="fsel" value={fUniq} onChange={(e) => setFUniq(e.target.value)}>
-                <option value="">סוג קו: הכול</option>
+              <select aria-label="סינון לפי סוג רישוי" title="סדיר, לילה או קו מזין" className="fsel" value={fUniq} onChange={(e) => setFUniq(e.target.value)}>
+                <option value="">רישוי: הכול</option>
                 {uniqs.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             )}
-            <label className="fnum">
-              מרחק מהעצירות לפחות
+            {!showExp && <label className="fnum" title="רק כשגם העצירה שלפני וגם העצירה שאחרי רחוקות מהתחנה לפחות כך">
+              העצירות לפני ואחרי רחוקות לפחות
               <input type="number" min="0" step="50" inputMode="numeric" placeholder="0"
                 value={fGap || ""} onChange={(e) => setFGap(Math.max(0, +e.target.value || 0))} />
               מ'
-            </label>
-            <label className="fnum">
-              הקו מדלג על פחות מ-
-              <input type="number" min="0" step="1" inputMode="numeric" placeholder="∞"
+            </label>}
+            {!showExp && <label className="fnum" title="מסתיר קווים שמדלגים על הרבה תחנות בעיר (כנראה מהירים)">
+              הסתרת קווים שמדלגים על
+              <input type="number" min="0" step="1" inputMode="numeric" placeholder="—"
                 value={fSkips || ""} onChange={(e) => setFSkips(Math.max(0, +e.target.value || 0))} />
-              תחנות
-            </label>
+              תחנות או יותר בעיר
+            </label>}
           </div>
         );
       })()}
@@ -755,7 +756,9 @@ function App() {
       )}
       {!showExp && <div className="count">
         {interBusy ? "טוען קווים לא-עירוניים… " : ""}
-        {filtered.length === items.length ? "" : filtered.length + " תוצאות (" + groups.length + " קווים)"}
+        {byStop
+          ? groups.length.toLocaleString() + " תחנות"
+          : filtered.length.toLocaleString() + " מוצגים (" + groups.length.toLocaleString() + " קווים)" + (sysHidden ? " · " + sysHidden.toLocaleString() + " שיטתיים מוסתרים" : "")}
       </div>}
 
       {!showExp && <div className="list">
@@ -790,10 +793,15 @@ function App() {
       {showExp && (
         <section className="exp-sec">
           <h2>קווים מהירים שחולפים בצומת בלי לעצור</h2>
-          <p className="mut">
-            קו שאין לו עצירה 800 מ' לפני ואחרי, והוא עובר צמוד לתחנה בצומת, מסעף או מחלף שעוצרים בה לפחות 3 קווים בין-עירוניים אחרים,
-            ונוסע ישר באותו כיוון כמו קו שעוצר בה. לרוב זה תכנון מכוון של קו מהיר, ולכן זה לא נספר בממצאים הרגילים.
-          </p>
+          <p className="mut">קווים מהירים שעוברים בצומת שקווים אחרים עוצרים בו. בדרך כלל זה מכוון.</p>
+          <details className="how exp-how">
+            <summary>איך זה מחושב</summary>
+            <p>
+              קו שאין לו עצירה 800 מ' לפני ואחרי, עובר צמוד לתחנה בצומת, מסעף או מחלף שעוצרים בה לפחות 3 קווים
+              בין-עירוניים אחרים, ונוסע ישר באותו כיוון כמו קו שעוצר בה. הרשימה הזו לא נספרת בממצאים הרגילים,
+              ושדות המרחק ומספר התחנות לא חלים עליה.
+            </p>
+          </details>
           {!expD && !expErr && <div className="count">טוען…</div>}
           {expErr && <div className="count" style={{ color: "#b91c1c" }}>הטעינה נכשלה. <button className="chip clk" onClick={() => setExpErr(false)}>נסו שוב</button></div>}
           <div className="list">
@@ -811,8 +819,7 @@ function App() {
       )}
 
       <footer>
-        במסגרת <a href="../">הקו הבוחן</a> · הנתונים: GTFS + הקובץ המצומצם של משרד התחבורה ·
-        הבדיקה מכסה את כל הקווים העירוניים בארץ
+        במסגרת <a href="../">הקו הבוחן</a> · נתונים: משרד התחבורה (GTFS)
       </footer>
     </div>
     </LineHrefCtx.Provider>
