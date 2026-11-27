@@ -32,6 +32,7 @@ const SRC_LABEL = {
   websiteArchive: "מקור: אתר מידע לנוסעים שנשמר ב־Internet Archive. כיסוי חלקי.",
   miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
   obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
+  obusLate: "מקור: הארכיון היומי של אוטובוס פתוח / הסדנא לידע ציבורי (2017–2022).",
   "mot-foi": "מקור: משרד התחבורה (חופש מידע) — קובץ \"מסלול לפי שנים\" 2013–2017. התאריכים משוערים.",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
