@@ -1,11 +1,10 @@
-"""זמני: אילו עותקים של קובץ ה-GTFS של משרד התחבורה שמורים בארכיון האינטרנט (CDX בלבד, 4 בקשות)."""
+"""זמני: האם ארכיון ה-GTFS של Open Train (gtfs.otrain.org/static/archive) נשמר בארכיון האינטרנט — CDX בלבד, 3 בקשות."""
 import time, urllib.request, urllib.parse
 UA = 'kav-bochan-research/1.0'
 qs = [
-  {'url': 'gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip', 'from': '2015', 'to': '2023', 'limit': '400'},
-  {'url': 'ftp://gtfs.mot.gov.il/israel-public-transportation.zip', 'from': '2015', 'to': '2023', 'limit': '400'},
-  {'url': 'gtfs.mot.gov.il', 'matchType': 'domain', 'from': '2015', 'to': '2023', 'limit': '200', 'collapse': 'urlkey'},
-  {'url': 'transitfeeds.com/p/ministry-of-transport-and-road-safety/820', 'matchType': 'prefix', 'from': '2016', 'to': '2017', 'limit': '50', 'collapse': 'urlkey'},
+  {'url': 'gtfs.otrain.org/static/archive/', 'matchType': 'prefix', 'limit': '2000', 'collapse': 'urlkey'},
+  {'url': 'otrain.org', 'matchType': 'domain', 'limit': '300', 'collapse': 'urlkey', 'filter': 'original:.*(gtfs|zip|archive).*'},
+  {'url': '192.241.154.128/gtfs-data/', 'matchType': 'prefix', 'limit': '300', 'collapse': 'urlkey'},
 ]
 for q in qs:
     time.sleep(8)
@@ -17,5 +16,5 @@ for q in qs:
         b = 'ERR ' + str(e)
     lines = b.splitlines()
     print('===', q['url'], len(lines), flush=True)
-    for l in lines[:400]:
-        print(l[:200])
+    for l in lines[:2000]:
+        print(l[:220])
