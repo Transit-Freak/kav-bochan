@@ -1,0 +1,111 @@
+name: obus-late
+
+# "הקו בזמן" — מתי חלופות הפסיקו לנסוע ב-2017–2022, מהארכיון היומי הישן של אופן באס (s3.obus.hasadna.org.il).
+# עד עכשיו ייבאנו ממנו רק עד 31.12.2018, ומ-2019 ואילך חלופה שנעלמה לא נרשמה כמבוטלת (שלמה 27.11, קווים
+# 301 ו-311 בתחנה 14718). tools/obus_late.py:
+# 1. sample — רבעון לכל עבודה, במקביל: לכל יום בארכיון, אילו חלופות היו להן נסיעות.
+# 2. apply — איחוד, obus-late-seen.json, "בוטלה" לחלופות שנעלמו ואין עליהן רישום מאוחר יותר, ושמירה לענף שהריץ.
+# הרצה חוזרת בטוחה: הסימונים (lateGone) מחושבים מחדש בכל ריצה.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'לשמור את התוצאה בקובצי הקו (1 = כן, 0 = רק סיכום)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: obus-late-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APPLY: ${{ inputs.apply || '1' }}
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        q: ['2017-Q1', '2017-Q2', '2017-Q3', '2017-Q4', '2018-Q1', '2018-Q2', '2018-Q3', '2018-Q4',
+            '2019-Q1', '2019-Q2', '2019-Q3', '2019-Q4', '2020-Q1', '2020-Q2', '2020-Q3', '2020-Q4',
+            '2021-Q1', '2021-Q2', '2021-Q3', '2021-Q4', '2022-Q1', '2022-Q2', '2022-Q3', '2022-Q4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: דגימה ${{ matrix.q }}
+        run: |
+          y=${Q%-Q*}; n=${Q#*-Q}
+          a=$(printf '%s-%02d-01' "$y" $(( (n - 1) * 3 + 1 )))
+          b=$(printf '%s-%02d-31' "$y" $(( n * 3 )))
+          mkdir -p /tmp/out
+          python3 tools/obus_late.py sample "$a" "$b" "/tmp/out/$Q.json.gz"
+        env:
+          Q: ${{ matrix.q }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obus-late-${{ matrix.q }}
+          path: /tmp/out/*.json.gz
+          retention-days: 7
+
+  apply:
+    needs: sample
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /tools/
+            /line-history/data/lines/
+            /line-history/data/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: obus-late-20*
+          path: /tmp/samples
+          merge-multiple: true
+      - name: סימון הביטולים
+        run: |
+          ls /tmp/samples | wc -l
+          OUTDIR=line-history/data python3 tools/obus_late.py apply /tmp/samples | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "קבצים ששונו: $(git status --short line-history/data | wc -l)" | tee -a "$GITHUB_STEP_SUMMARY"
+          OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+
+      - name: Commit (לענף שהריץ)
+        if: env.APPLY == '1'
+        run: |
+          set -euo pipefail
+          BR="${GITHUB_REF_NAME:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # כמו ב-backfill-stop-dates-s3.yml: נשמרים רק הקבצים שהריצה הזו שינתה; קובץ שהשתנה בינתיים
+          # גם ב-origin — origin גובר, והוא יחושב שוב בריצה הבאה
+          BASE=$(git rev-parse HEAD)
+          git add -A line-history/data
+          git diff --cached --name-only --diff-filter=d -z "$BASE" -- line-history/data > /tmp/ol-changed
+          rm -rf /tmp/ol-out && mkdir -p /tmp/ol-out
+          xargs -0 -r -I{} cp --parents {} /tmp/ol-out/ < /tmp/ol-changed
+          for i in 1 2 3 4; do
+            git fetch origin "$BR" && git reset --hard "origin/$BR"
+            cp -r /tmp/ol-out/. .
+            git diff --name-only -z "$BASE" "origin/$BR" -- line-history/data/lines ':(glob)line-history/data/*.json' > /tmp/ol-theirs
+            while IFS= read -r -d '' f; do
+              git checkout "origin/$BR" -- "$f" 2>/dev/null || rm -f -- "$f"
+            done < /tmp/ol-theirs
+            OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+            git add -A line-history/data
+            if git diff --cached --quiet; then
+              echo "unchanged"; break; fi
+            git commit -m "data: מתי חלופות הפסיקו לנסוע ב-2017–2022, מהארכיון היומי של אופן באס"
+            if git push origin HEAD:"$BR"; then break; fi
+            echo "push rejected — retry $i"; sleep 10
+          done
