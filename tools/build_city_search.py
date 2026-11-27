@@ -46,10 +46,10 @@ def build(outdir):
     if len(e)>=4:events[e[2]].append((e[0],e[3]))
    for rd,es in events.items():
     start=None
-    for d,k in sorted(es,key=lambda e:(e[0],0 if e[1] in ('out','mvout') else 1)):
-     if k in ('base','in','mvin'):
+    for d,k in sorted(es,key=lambda e:(e[0],0 if e[1] in ('out','mvout','rnout','last') else 1)):
+     if k in ('base','in','mvin','rnin'):
       if start is None:start=d
-     elif k in ('out','mvout') and start is not None:add(rd,code,start,d);start=None
+     elif k in ('out','mvout','rnout','last') and start is not None:add(rd,code,start,d);start=None
     if start is not None:add(rd,code,start,FOREVER)
  names=sorted({c for rd,c in routecity});ids={c:i for i,c in enumerate(names)};routes=collections.defaultdict(list)
  epoch=datetime.date(2012,1,1)

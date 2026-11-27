@@ -41,7 +41,7 @@ function LinesAtStop({ code, onClose }) {
   // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
   const active = Array.isArray(d && d.a) ? new Set(d.a) : null;   // הקובץ של היום נכשל אבל של 2012 נטען
   const nowMap = new Map();
-  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
+  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[3] !== "rnout" && e[3] !== "last" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
   // ציר הזמן: אירועי "התיעוד הראשון" של אותו תאריך מקובצים לשורה אחת,
   // וחלופות של אותו קו באותו יום לא מוצגות פעמיים
@@ -54,8 +54,16 @@ function LinesAtStop({ code, onClose }) {
   // ב…" לא התבקש (שלמה 07.09). מעבר רציף אמיתי (רציף 2 ← רציף 1) מגיע
   // מנתוני הרציפים (platforms.json), לא מניחוש לפי שמות.
   const seen = new Set();
+  // התחנה קיבלה מספר חדש (אותו שם ומקום, rnout/rnin) — שורה אחת לתאריך, עם כל הקווים שעברו (שלמה 27.11)
+  const rnRow = {};
   ev.forEach((e) => {
-    if (e[3] === "base") return;
+    if (e[3] !== "rnout" && e[3] !== "rnin") return;
+    const key = e[0] + "|" + e[3] + "|" + e[4];
+    if (!rnRow[key]) { rnRow[key] = { d: e[0], k: e[3], other: e[4], items: [] }; rows.push(rnRow[key]); }
+    if (e[1] && !rnRow[key].items.some((x) => x[0] === e[1])) rnRow[key].items.push([e[1], e[2]]);
+  });
+  ev.forEach((e) => {
+    if (e[3] === "base" || e[3] === "rnout" || e[3] === "rnin") return;
     const k = e[3] === "mvin" ? "in" : e[3] === "mvout" ? "out" : e[3];
     const key = e[0] + "|" + e[1] + "|" + k;
     if (seen.has(key)) return;
@@ -66,7 +74,7 @@ function LinesAtStop({ code, onClose }) {
   // אותו תאריך ואותו סוג — שורה אחת עם כל הקווים, במקום עשר שורות זהות (שלמה 07.09)
   const grouped = [], gk = {};
   rows.forEach((r) => {
-    if (r.k === "base") { grouped.push(r); return; }
+    if (r.k === "base" || r.k === "rnout" || r.k === "rnin") { grouped.push(r); return; }
     const key = r.d + "|" + r.k;
     if (gk[key]) { gk[key].items.push([r.line, r.rd]); return; }
     gk[key] = { d: r.d, k: r.k, items: [[r.line, r.rd]] };
@@ -119,7 +127,13 @@ function LinesAtStop({ code, onClose }) {
         </div>
       )}
       <div className="latlist">
-        {shown.map((r, i) => r.k === "base"
+        {shown.map((r, i) => r.k === "rnout" || r.k === "rnin"
+          ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> 🔁 {r.k === "rnout"
+              ? <>התחנה קיבלה מספר חדש: <a href={"#stop=" + encodeURIComponent(r.other)}><b>{r.other}</b></a></>
+              : <>התחנה קיבלה את המספר הזה (קודם <a href={"#stop=" + encodeURIComponent(r.other)}><b>{r.other}</b></a>)</>}
+              {" "}— באותו שם ובאותו מקום{r.items.length ? <> · {r.items.length === 1 ? "קו" : "קווים"} {r.items.map(([l, rd2], j) =>
+                <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</> : null}</div>
+          : r.k === "base"
           ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.lines.length === 1
               ? <>🚏 קו <a href={lineHref(r.lines[0][1]) + "@" + r.d}><b>{r.lines[0][0]}</b></a> תועד בתחנה לראשונה</>
               : <>🚏 בתיעוד הראשון עצרו כאן {r.lines.length} קווים: {r.lines.slice(0, 25).map(([l, rd2], j) =>
@@ -127,8 +141,10 @@ function LinesAtStop({ code, onClose }) {
           : r.items.length === 1
             ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
                 ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
+                : r.k === "last"
+                ? <span title="אחרי התאריך הזה אין לנו תיעוד של הקו בתחנה, והיום אין לו לו״ז. התאריך המדויק שבו הפסיק לא ידוע">📄 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> תועד בתחנה לאחרונה (מתי הפסיק — לא ידוע)</span>
                 : <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>}</div>
-            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : "הפסיקו לעצור בתחנה"}: {r.items.map(([l, rd2], j) =>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "last" ? "📄" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "last" ? "תועדו בתחנה לאחרונה (מתי הפסיקו — לא ידוע)" : "הפסיקו לעצור בתחנה"}: {r.items.map(([l, rd2], j) =>
                 <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
       {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}

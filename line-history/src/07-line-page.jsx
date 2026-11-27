@@ -26,7 +26,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
     }
   };
   const [mon, setMon] = useState("");
-  const temps = useTempEvents(rd);
+  const tempsAll = useTempEvents(rd);
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
   const [onlyCur, setOnlyCur] = useState(false);       // מפה בלי שכבת העבר
@@ -160,9 +160,40 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
   const ntr = ((sibs || []).find((x) => x.rd === rd) || {}).ntr || 0;
   const lastReal = vs.filter((v) => !v.syn && v.k !== "planned-dropped").pop();
   const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr, lf.observationOnly) : null;
+  // שינוי זמני בהודעה שמציינת רק את הקו חל על כל החלופות — אבל לא על חלופה שכבר לא נסעה באותו יום
+  // (בוטלה, אין לה נסיעות, או שלא נצפתה מאז; שלמה 27.11: קו 301 בחלופה מ-2018 הראה שינוי זמני מ-2025)
+  const offOn = (day) => {
+    let k = null;
+    for (const v of vs) { if (v.d > day) break; if (!v.syn && v.k !== "planned-dropped") k = v.k; }
+    return k === "removed" || k === "notrips";
+  };
+  const temps = tempsAll.filter((t) => !(goneD && t.d > goneD) && !offOn(t.d));
+  // אירוע תחנות שכל השינוי בו הוא מספר חדש לתחנה (אותו שם, אותו מקום) — זה שינוי ברישום התחנות ולא בקו,
+  // ולכן הוא לא מוצג בציר הזמן של הקו אלא בהיסטוריה של התחנה (שלמה 27.11, קו 301: צומת הודיה 10217 ← 13660)
+  const stopsBefore = (j) => { for (; j >= 0; j--) if (vs[j].stops) return vs[j].stops; return null; };
+  const renumOnly = (x, i) => {
+    if (!/^stops/.test(x.k || "")) return false;
+    const add = x.add || [], rem = x.rem || [];
+    if (!rem.length || add.length !== rem.length) return false;
+    const prev = stopsBefore(i - 1), cur = stopsBefore(i);
+    if (!prev || !cur) return false;
+    const used = new Set();
+    return rem.every((n, j) => {
+      const rc = x.rc && x.rc[j] != null ? String(x.rc[j]) : null;
+      const o = prev.find((st) => st && (rc ? String(st[0]) === rc : st[1] === n));
+      if (!o) return false;
+      const q = add.findIndex((m, k) => !used.has(k) && m === o[1]);
+      if (q < 0) return false;
+      const ac = x.ac && x.ac[q] != null ? String(x.ac[q]) : null;
+      const nw = cur.find((st) => st && (ac ? String(st[0]) === ac : st[1] === o[1]));
+      if (!nw || String(nw[0]) === String(o[0]) || !(Math.abs(o[2] - nw[2]) < 0.005 && Math.abs(o[3] - nw[3]) < 0.005)) return false;
+      used.add(q);
+      return true;
+    });
+  };
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shownAll = vs.map((v, i) => ({ v, i }))
-    .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
+    .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs)) && !renumOnly(x.v, x.i)).reverse();
   const shown = shownAll;
   // הקטגוריות שקיימות בקו הזה בפועל, לפי שכיחות — סרגל כיבוי/הדלקה.
   // שלוש קבוצות מאוחדות כאן ולא בתווית שעל האירוע: בסרגל הן שאלה אחת
@@ -173,7 +204,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
     // "שינוי לו״ז". הסינון והתוויות חייבים לדבר באותה שפה.
     const c = new Map();
     vs.forEach((x, i) => {
-      if (x.hid) return;
+      if (x.hid || renumOnly(x, i)) return;
       const dk = dispKind(x, i, vs), g = KGROUP[dk] || dk;
       const e = c.get(g) || { n: 0, kinds: new Set() };
       e.n += 1; e.kinds.add(dk); c.set(g, e);
@@ -1006,10 +1037,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
                 const rn = splitRenumbers(pm.add, pm.rem, i);
                 // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
                 // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
+                // מספר חדש לתחנה מוצג בהיסטוריה של התחנה ולא כאן (שלמה 27.11); נשאר רק מה שהשתנה בקו
                 if (!pm.moves.length && !rn.add.length && !rn.rem.length)
-                  return rn.moves.length ? <div className="sub">
-                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
-                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
+                  return rn.moves.length && (x.k === "route" || x.k === "redraw") ? <div className="sub">
+                    <div className="mut">התחנות לא השתנו לנוסע; שרטוט המסלול עודכן.</div>
                   </div> : null;
                 return (
                   <div className="sub">
