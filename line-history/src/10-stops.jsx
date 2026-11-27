@@ -41,7 +41,7 @@ function LinesAtStop({ code, onClose }) {
   // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
   const active = Array.isArray(d && d.a) ? new Set(d.a) : null;   // הקובץ של היום נכשל אבל של 2012 נטען
   const nowMap = new Map();
-  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
+  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[3] !== "last" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
   // ציר הזמן: אירועי "התיעוד הראשון" של אותו תאריך מקובצים לשורה אחת,
   // וחלופות של אותו קו באותו יום לא מוצגות פעמיים
@@ -127,8 +127,10 @@ function LinesAtStop({ code, onClose }) {
           : r.items.length === 1
             ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
                 ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
+                : r.k === "last"
+                ? <span title="אחרי התאריך הזה אין לנו תיעוד של הקו בתחנה, והיום אין לו לו״ז. התאריך המדויק שבו הפסיק לא ידוע">📄 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> תועד בתחנה לאחרונה (מתי הפסיק — לא ידוע)</span>
                 : <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>}</div>
-            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : "הפסיקו לעצור בתחנה"}: {r.items.map(([l, rd2], j) =>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "last" ? "📄" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "last" ? "תועדו בתחנה לאחרונה (מתי הפסיקו — לא ידוע)" : "הפסיקו לעצור בתחנה"}: {r.items.map(([l, rd2], j) =>
                 <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
       {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}

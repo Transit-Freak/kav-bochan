@@ -103,9 +103,9 @@ function App() {
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(async d => {
         const groups = await dfetch("data/historical-groups-2012.json").then(r => r.ok ? r.json() : {}).catch(() => ({}));
-        // קווים עם שינוי זמני (הקו המודיע) — לקטגוריה "שינוי זמני"
+        // קווים עם שינוי זמני (הקו המודיע) — לקטגוריה "שינוי זמני"; בלי חלופות מבוטלות (שלמה 27.11)
         const tmp = await fetch("data/temp/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).catch(() => []);
-        if (tmp.length && d && d.lines) { const ts = new Set(tmp); d.lines.forEach((l) => { if (l.rd && ts.has(l.rd.split("-")[0])) l.tmp = 1; }); }
+        if (tmp.length && d && d.lines) { const ts = new Set(tmp); d.lines.forEach((l) => { if (l.rd && ts.has(l.rd.split("-")[0]) && !lineGoneAt(l)) l.tmp = 1; }); }
         // קו ממשיך — השערה (tools/line_successors.py)
         const suc = await fetch("data/successors/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).catch(() => []);
         if (suc.length && d && d.lines) { const ss = new Set(suc); d.lines.forEach((l) => { if (ss.has(l.rd)) l.succ = 1; }); }

@@ -10,7 +10,8 @@
 פלט: stopev/XX.json — מפוצל לפי שתי הספרות הראשונות של המק"ט, כדי
 שעמוד תחנה יטען קובץ קטן אחד. מבנה: {code: {n: שם אחרון, ev:
 [[תאריך, קו, מק"ט-וריאנט, סוג], ...]}}. סוגים: base=תועד מהגרסה
-הראשונה · in=התחיל לעצור · out=הפסיק לעצור.
+הראשונה · in=התחיל לעצור · out=הפסיק לעצור · last=תועד בתחנה לאחרונה (התיעוד
+נגמר בלי ביטול, ואין לו היום לו"ז).
 """
 import glob
 import json
@@ -28,6 +29,7 @@ def main():
     coord = {}   # code → (lat, lon) — לזיהוי מעבר בין רציפים של אותו מסוף
     ref = {}     # (date, rd, kind, code) → האירוע עצמו, כדי להפוך in/out למעבר
     moves = {}   # (date, rd) → {'in': [codes], 'out': [codes]}
+    tail = {}    # rd → (תאריך אחרון, קו, תחנות, שמות) — וריאנטים שהתיעוד שלהם נגמר בלי ביטול
 
     def emit(code, name, date, line, rd, kind):
         s = stops.setdefault(code, {'n': '', 'ev': []})
@@ -73,11 +75,16 @@ def main():
                 for c in prev_codes - codes:
                     emit(c, prev_names.get(c), d, line, rd, 'out')
             prev_codes, prev_names = codes, names
-        # ביטול הקו — כל התחנות של הגרסה האחרונה מאבדות אותו
-        last = vs[-1]
-        if last.get('k') == 'removed' and prev_codes:
+        # ביטול הקו — כל התחנות של הגרסה האחרונה מאבדות אותו. גם "אין נסיעות" בסוף התיעוד
+        # הוא הפסקה (שלמה 27.11: קו 301 בתחנה 14718 — חלופה 3 בלי נסיעות מ-19.03.2017, ולא הוצג כלום)
+        real = [v for v in vs if not v.get('syn') and v.get('k') != 'planned-dropped']
+        last = real[-1] if real else vs[-1]
+        if last.get('k') in ('removed', 'notrips') and prev_codes:
             for c in prev_codes:
                 emit(c, prev_names.get(c), last.get('d', ''), line, rd, 'out')
+        elif prev_codes:
+            # התיעוד נגמר בלי ביטול: אם לווריאנט אין היום לו"ז — "תועד לאחרונה" בתאריך האחרון (נקבע למטה)
+            tail[rd] = (last.get('d', ''), line, prev_codes, prev_names)
 
     # מעבר בין רציפים: קו ש"הפסיק" לעצור בתחנה א' ו"התחיל" לעצור בתחנה ב' באותו
     # יום, כשהשתיים הן אותו מסוף (עד 300 מ' זו מזו, או אותו שם לפני ה-"/") —
@@ -128,6 +135,13 @@ def main():
         active |= set(json.load(open(f'{OUTDIR}/line-trips.json', encoding='utf-8')).keys())
     except Exception:
         pass
+    # וריאנט שהתיעוד שלו נגמר בלי ביטול ואין לו היום לו"ז: לא יודעים מתי בדיוק הפסיק, רק מתי תועד
+    # לאחרונה — אירוע 'last' (בלי לנחש תאריך ביטול). כשאין נתוני לו"ז בכלל לא מוסיפים כלום.
+    if active:
+        for rd, (d, line, codes, names) in tail.items():
+            if rd not in active and d:
+                for c in codes:
+                    emit(c, names.get(c), d, line, rd, 'last')
     # פיצול לקבצים לפי קידומת המק"ט + מיון אירועים לפי תאריך
     shards = {}
     for c, s in stops.items():
@@ -136,7 +150,7 @@ def main():
             last = {}
             for e in s['ev']:
                 last[e[2]] = e
-            s['a'] = sorted(rd for rd, e in last.items() if e[3] not in ('out', 'mvout') and rd in active)
+            s['a'] = sorted(rd for rd, e in last.items() if e[3] not in ('out', 'mvout', 'last') and rd in active)
         shards.setdefault((c[:2] if len(c) >= 2 else '0x'), {})[c] = s
     outdir = f'{OUTDIR}/stopev'
     os.makedirs(outdir, exist_ok=True)

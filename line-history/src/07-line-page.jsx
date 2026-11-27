@@ -26,7 +26,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
     }
   };
   const [mon, setMon] = useState("");
-  const temps = useTempEvents(rd);
+  const tempsAll = useTempEvents(rd);
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
   const [onlyCur, setOnlyCur] = useState(false);       // מפה בלי שכבת העבר
@@ -160,6 +160,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, ba
   const ntr = ((sibs || []).find((x) => x.rd === rd) || {}).ntr || 0;
   const lastReal = vs.filter((v) => !v.syn && v.k !== "planned-dropped").pop();
   const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr, lf.observationOnly) : null;
+  // שינוי זמני בהודעה שמציינת רק את הקו חל על כל החלופות — אבל לא על חלופה שכבר לא נסעה באותו יום
+  // (בוטלה, אין לה נסיעות, או שלא נצפתה מאז; שלמה 27.11: קו 301 בחלופה מ-2018 הראה שינוי זמני מ-2025)
+  const offOn = (day) => {
+    let k = null;
+    for (const v of vs) { if (v.d > day) break; if (!v.syn && v.k !== "planned-dropped") k = v.k; }
+    return k === "removed" || k === "notrips";
+  };
+  const temps = tempsAll.filter((t) => !(goneD && t.d > goneD) && !offOn(t.d));
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shownAll = vs.map((v, i) => ({ v, i }))
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
