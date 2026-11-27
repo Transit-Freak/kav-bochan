@@ -1,9 +1,9 @@
-# זמני (ענף ניסויים): ניסיון להוריד את מסמכי מכרזי מוניות השירות ממינהל הרכש (ואם חסום — עותק בארכיון האינטרנט).
+# זמני (ענף ניסויים): איתור מפרטי הקווים של מכרזי מוניות השירות במינהל הרכש, וכתבות על קווי הרפורמה ברחובות.
 name: wayback-taxi
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
-    paths: ['.github/workflows/wayback-taxi.yml']
+    paths: ['.github/workflows/wayback-taxi.yml', 'tools/wayback_probe.py']
   workflow_dispatch:
 concurrency:
   group: wayback-taxi
@@ -11,24 +11,17 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     steps:
-      - name: הורדה
-        run: |
-          mkdir -p out
-          UA='Mozilla/5.0 (X11; Linux x86_64) kav-bochan-research'
-          i=0
-          for id in 005056BF4DAB1EDB80962575D5026123 005056BF19AF1EDA95A4F2A50C426121 005056BF4DAB1EDA968E075F230C611B 005056BF19AF1EDA95F01C386DB56121 005056BF65EB1EDCA1FE1393BBB5812F 005056BF4DAB1EDA968E08213E2B611B 005056BF4F1A1FE0AE97865B029B72F1 005056BF4F1A1FE0AE978AC3DFFC72F1 005056BF19AF1EDA95F0BDA1D1204121 005056BF19AF1EDA95F0205362810121; do
-            i=$((i+1))
-            u="https://mr.gov.il/ilgstorefront/he/p/attachment/$id/x"
-            code=$(curl -s -L -m 60 -A "$UA" -o "out/$i-$id.bin" -w '%{http_code} %{content_type} %{size_download}' "$u" || echo fail)
-            echo "mr.gov.il $id → $code"; file "out/$i-$id.bin"
-            sleep 5
-          done
-          # עותק בארכיון האינטרנט (אם נשמר) — בקשת CDX אחת
-          curl -s -m 90 -A "$UA" "https://web.archive.org/cdx/search/cdx?url=mr.gov.il/ilgstorefront/he/p/attachment/&matchType=prefix&limit=50" | head -50 || true
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: כלים
+        run: sudo apt-get install -y -qq poppler-utils >/dev/null
+      - name: חיפוש
+        run: python3 tools/wayback_probe.py
       - uses: actions/upload-artifact@v4
         with:
-          name: tender-docs
+          name: taxi-tenders
           path: out/
-          retention-days: 3
+          retention-days: 5
