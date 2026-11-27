@@ -1,9 +1,9 @@
-# זמני (ענף ניסויים): בדיקה זהירה של גישה לארכיון האינטרנט מ-GitHub — 3 בקשות בלבד.
+# זמני (ענף ניסויים): חיפוש זהיר בארכיון האינטרנט — מתי 301 ו-311 הפסיקו לעצור בתחנה 14718. עד ~40 בקשות.
 name: wayback-taxi
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
-    paths: ['.github/workflows/wayback-taxi.yml']
+    paths: ['.github/workflows/wayback-taxi.yml', 'tools/wayback_stop.py']
   workflow_dispatch:
 concurrency:
   group: wayback-taxi
@@ -11,14 +11,10 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
-      - name: בדיקת גישה
-        run: |
-          UA='kav-bochan-research/1.0'
-          for u in "https://archive.org/wayback/available?url=tel-aviv.gov.il&timestamp=20170101" \
-                   "https://web.archive.org/cdx/search/cdx?url=tel-aviv.gov.il&from=2017&to=2017&limit=3&output=json" \
-                   "https://web.archive.org/web/2017/http://www.tel-aviv.gov.il/"; do
-            curl -s -o /tmp/o -w "%{http_code} %{time_total}s $u\n" --max-time 40 -A "$UA" "$u" || echo "FAIL $u"
-            head -c 200 /tmp/o; echo; sleep 6
-          done
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: חיפוש
+        run: python3 tools/wayback_stop.py
