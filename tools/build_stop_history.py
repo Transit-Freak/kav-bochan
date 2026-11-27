@@ -10,7 +10,8 @@
 פלט: stopev/XX.json — מפוצל לפי שתי הספרות הראשונות של המק"ט, כדי
 שעמוד תחנה יטען קובץ קטן אחד. מבנה: {code: {n: שם אחרון, ev:
 [[תאריך, קו, מק"ט-וריאנט, סוג], ...]}}. סוגים: base=תועד מהגרסה
-הראשונה · in=התחיל לעצור · out=הפסיק לעצור · last=תועד בתחנה לאחרונה (התיעוד
+הראשונה · in=התחיל לעצור · out=הפסיק לעצור · mvout/mvin=מעבר רציף ·
+rnout/rnin=התחנה קיבלה מספר חדש (אותו שם ומקום) · last=תועד בתחנה לאחרונה (התיעוד
 נגמר בלי ביטול, ואין לו היום לו"ז).
 """
 import glob
@@ -29,6 +30,7 @@ def main():
     coord = {}   # code → (lat, lon) — לזיהוי מעבר בין רציפים של אותו מסוף
     ref = {}     # (date, rd, kind, code) → האירוע עצמו, כדי להפוך in/out למעבר
     moves = {}   # (date, rd) → {'in': [codes], 'out': [codes]}
+    enames = {}  # (date, rd, code) → שם התחנה באירוע in/out — לזיהוי מספר חדש לאותה תחנה
     tail = {}    # rd → (תאריך אחרון, קו, תחנות, שמות) — וריאנטים שהתיעוד שלהם נגמר בלי ביטול
 
     def emit(code, name, date, line, rd, kind):
@@ -39,6 +41,7 @@ def main():
         s['ev'].append(e)
         if kind in ('in', 'out'):
             ref[(date, rd, kind, code)] = e
+            enames[(date, rd, code)] = name
             moves.setdefault((date, rd), {'in': [], 'out': []})[kind].append(code)
 
     n_files = 0
@@ -102,7 +105,7 @@ def main():
             return (dx * dx + dy * dy) ** 0.5 <= 300
         return bool(base(stops[a]['n'])) and base(stops[a]['n']) == base(stops[b]['n'])
 
-    n_moves = 0
+    n_moves = n_ren = 0
     for (date, rd), io in moves.items():
         if not io['in'] or not io['out']:
             continue
@@ -113,11 +116,15 @@ def main():
                     continue
                 used.add(b)
                 eo, ei = ref[(date, rd, 'out', a)], ref[(date, rd, 'in', b)]
-                eo[3] = 'mvout'; eo += [b, stops[b]['n']]
-                ei[3] = 'mvin'; ei += [a, stops[a]['n']]
+                # אותו שם בדיוק ואותו מקום — התחנה קיבלה מספר חדש, לא מעבר רציף (שלמה 27.11)
+                rn = enames.get((date, rd, a)) and enames.get((date, rd, a)) == enames.get((date, rd, b)) \
+                    and a in coord and b in coord and near(a, b)
+                eo[3] = 'rnout' if rn else 'mvout'; eo += [b, stops[b]['n']]
+                ei[3] = 'rnin' if rn else 'mvin'; ei += [a, stops[a]['n']]
                 n_moves += 1
+                n_ren += bool(rn)
                 break
-    print(f'מעברי רציף שזוהו: {n_moves}')
+    print(f'מעברי רציף שזוהו: {n_moves - n_ren} · מספר חדש לתחנה: {n_ren}')
 
     # "עוצרים בה היום" = רק וריאנטים שיש להם לו"ז לשבוע הקרוב (פרסום הרישוי
     # ל-10 הימים, sched/XX.json; ובנוסף מי שיש לו נסיעות היום). וריאנט שהתיעוד
@@ -150,7 +157,7 @@ def main():
             last = {}
             for e in s['ev']:
                 last[e[2]] = e
-            s['a'] = sorted(rd for rd, e in last.items() if e[3] not in ('out', 'mvout', 'last') and rd in active)
+            s['a'] = sorted(rd for rd, e in last.items() if e[3] not in ('out', 'mvout', 'rnout', 'last') and rd in active)
         shards.setdefault((c[:2] if len(c) >= 2 else '0x'), {})[c] = s
     outdir = f'{OUTDIR}/stopev'
     os.makedirs(outdir, exist_ok=True)
